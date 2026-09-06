@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from core.models import Case, ClaimStatus
+from core.models import Case, Claim, ClaimStatus
 
 
 # --- Hour 2-11 ---
@@ -467,5 +467,96 @@ async def test_synthesize_consequences_llm_enriches_pivots_and_experiments(sampl
     survived_cons = next(c for c in updated if c.claim_id == sample_case.claims[1].id)
     assert survived_cons.recommended_change == "No change needed."
     assert survived_cons.next_validation is None
+
+
+# --- Dynamic Agent Selection & Recommendation Tests ---
+
+def test_determine_auto_agents_recommends_devils_advocate_and_receipts():
+    from core.loop import determine_auto_agents
+    claims = [
+        Claim(id="c1", statement="Users are willing to pay $20 per month for automated resume reviews."),
+    ]
+    agents, rationales = determine_auto_agents(claims)
+    assert "devils_advocate" in agents
+    assert "receipts" in agents
+    assert "Stress-tests" in rationales["devils_advocate"]
+    assert "empirical" in rationales["receipts"]
+
+
+def test_determine_auto_agents_selects_builder_on_tech_keywords():
+    from core.loop import determine_auto_agents
+    claims = [
+        Claim(id="c1", statement="Our backend API latency will remain under 50ms while scaling to 10k concurrent users on Kubernetes."),
+    ]
+    agents, rationales = determine_auto_agents(claims)
+    assert "builder" in agents
+    assert "builder" in rationales
+    assert "engineering" in rationales["builder"].lower() or "feasibility" in rationales["builder"].lower()
+
+
+def test_determine_auto_agents_selects_overthinker_on_risk_keywords():
+    from core.loop import determine_auto_agents
+    claims = [
+        Claim(id="c1", statement="There are zero competitors and no risk of security exploit or catastrophic failure in our novel system."),
+    ]
+    agents, rationales = determine_auto_agents(claims)
+    assert "overthinker" in agents
+    assert "overthinker" in rationales
+    assert "tail risks" in rationales["overthinker"].lower() or "vulnerabilities" in rationales["overthinker"].lower()
+
+
+def test_build_test_plan_filters_strictly_by_active_agents(sample_case):
+    from core.loop import build_test_plan
+
+    # Only run Assumption Test (devils_advocate)
+    plan_advocate = build_test_plan(sample_case, panel=True, active_agents=["devils_advocate"])
+    assert all(item.failure_mode == "assumption" for item in plan_advocate)
+    assert len(plan_advocate) == len(sample_case.claims)
+
+    # Only run Evidence Test (receipts)
+    plan_receipts = build_test_plan(sample_case, panel=True, active_agents=["receipts"])
+    assert all(item.failure_mode == "evidence" for item in plan_receipts)
+    assert len(plan_receipts) == len(sample_case.claims)
+
+    # Run Devil's Advocate and Receipts, but exclude Builder and Overthinker
+    plan_combo = build_test_plan(sample_case, panel=True, active_agents=["devils_advocate", "receipts"])
+    assert set(item.failure_mode for item in plan_combo) == {"assumption", "evidence"}
+    assert not any(item.failure_mode in ("feasibility", "edge-case") for item in plan_combo)
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_custom_agents(fake_provider_factory):
+    from core.loop import extract_claims, ExtractedClaims
+    provider = fake_provider_factory([ExtractedClaims(statements=["Claim A", "Claim B"])])
+
+    case = await extract_claims(
+        raw_input="Test proposal",
+        provider=provider,
+        agent_mode="custom",
+        selected_agents=["devils_advocate", "builder"],
+    )
+    assert case.agent_mode == "custom"
+    assert case.selected_agents == ["devils_advocate", "builder"]
+    assert case.agent_rationales == {}
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_auto_mode_generates_rationales(fake_provider_factory):
+    from core.loop import extract_claims, ExtractedClaims
+    provider = fake_provider_factory([
+        ExtractedClaims(statements=[
+            "Our database migration and API latency will scale to 10k QPS.",
+            "Customers will pay $50/mo with zero competitors in the market."
+        ])
+    ])
+
+    case = await extract_claims(raw_input="Test proposal", provider=provider, agent_mode="auto")
+    assert case.agent_mode == "auto"
+    assert "devils_advocate" in case.selected_agents
+    assert "receipts" in case.selected_agents
+    assert "builder" in case.selected_agents
+    assert "overthinker" in case.selected_agents
+    assert len(case.agent_rationales) >= 3
+
 
 

@@ -15,7 +15,19 @@ below (`pip install pytest pytest-asyncio`, and either mark async tests with
 """
 from __future__ import annotations
 
+import os
+
 import pytest
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _isolated_sqlite(tmp_path_factory):
+    """store.clear() really does DELETE FROM cases. Without this the suite wipes
+    the developer's actual backend/crossfire.db on every run."""
+    os.environ["SQLITE_DB_PATH"] = str(tmp_path_factory.mktemp("store") / "test.db")
+    yield
+
+
 import events
 from api.rate_limiter import rate_limiter
 

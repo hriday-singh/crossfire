@@ -12,12 +12,21 @@ from core.models import Claim
 class CreateCaseRequest(BaseModel):
     raw_input: str = Field(..., min_length=1, max_length=10000, description="Raw statement or proposal to evaluate")
     context: str | None = Field(default=None, max_length=50000, description="Optional ingested document or URL context")
+    agent_mode: str | None = Field(default="auto", description="Agent selection mode: 'auto' or 'custom'")
+    selected_agents: list[str] | None = Field(
+        default=None,
+        description="Optional pre-selected agent IDs when agent_mode is 'custom'",
+    )
 
 
 class ConfirmCaseRequest(BaseModel):
     claims: list[Claim] = Field(
         default_factory=list,
         description="List of confirmed or user-edited claims to be tested",
+    )
+    selected_agents: list[str] | None = Field(
+        default=None,
+        description="Optional list of agent IDs to run tests for",
     )
 
 

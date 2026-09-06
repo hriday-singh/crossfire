@@ -7,12 +7,7 @@ import {
   SSEEventLogItem,
   SSEEventName,
 } from "@/types/crossfire";
-import {
-  MOCK_PREVIEW_CASE,
-  MOCK_PREVIEW_HISTORY,
-  MOCK_PREVIEW_LOGS,
-  MOCK_PREVIEW_TESTS,
-} from "@/lib/mockPreviewData";
+import { applyPreviewViewToState } from "./previewHelper";
 
 export type ScreenView = "entry" | "confirm" | "runner" | "dashboard";
 
@@ -84,9 +79,20 @@ export type AppAction =
   | { type: "SET_ENGINE_INFO"; payload: AppState["engineInfo"] }
   | { type: "CLEAR_HISTORY" }
   | { type: "DELETE_HISTORY_ITEM"; payload: string }
-  | { type: "START_EXTRACTING"; payload: { rawInput: string; context?: string | null } }
+  | {
+      type: "START_EXTRACTING";
+      payload: {
+        rawInput: string;
+        context?: string | null;
+        agentMode?: "auto" | "custom";
+        selectedAgents?: string[];
+      };
+    }
   | { type: "EXTRACTING_SUCCESS"; payload: Case }
   | { type: "EXTRACTING_ERROR"; payload: { stage: string; message: string; details?: unknown } }
+  | { type: "SET_AGENT_MODE"; payload: "auto" | "custom" }
+  | { type: "TOGGLE_AGENT_SELECTION"; payload: string }
+  | { type: "SET_SELECTED_AGENTS"; payload: string[] }
   | { type: "UPDATE_CLAIM_STATEMENT"; payload: { claimId: string; statement: string } }
   | { type: "TOGGLE_CLAIM_LOAD_BEARING"; payload: { claimId: string } }
   | { type: "REMOVE_CLAIM"; payload: { claimId: string } }
@@ -105,111 +111,6 @@ export type AppAction =
   | { type: "ENTER_PREVIEW_MODE"; payload?: PreviewView }
   | { type: "SET_PREVIEW_VIEW"; payload: PreviewView }
   | { type: "EXIT_PREVIEW_MODE" };
-
-export function applyPreviewViewToState(state: AppState, targetView: PreviewView): AppState {
-  if (!targetView) return state;
-
-  const base: AppState = {
-    ...state,
-    previewView: targetView,
-  };
-
-  switch (targetView) {
-    case "entry":
-      return {
-        ...base,
-        activeScreen: "entry",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-      };
-    case "extracting":
-      return {
-        ...base,
-        activeScreen: "entry",
-        isExtracting: true,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-      };
-    case "confirm":
-      return {
-        ...base,
-        activeScreen: "confirm",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-        currentCase: MOCK_PREVIEW_CASE,
-      };
-    case "runner":
-      return {
-        ...base,
-        activeScreen: "runner",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: true,
-        activeModal: "none",
-        selectedClaimId: null,
-        currentCase: { ...MOCK_PREVIEW_CASE, status: "testing" },
-        activeTests: MOCK_PREVIEW_TESTS,
-      };
-    case "dashboard":
-      return {
-        ...base,
-        activeScreen: "dashboard",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-        currentCase: MOCK_PREVIEW_CASE,
-      };
-    case "evidence":
-      return {
-        ...base,
-        activeScreen: "dashboard",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: "c-preview-1",
-        currentCase: MOCK_PREVIEW_CASE,
-      };
-    case "logs":
-      return {
-        ...base,
-        activeModal: "logs",
-        selectedClaimId: null,
-        eventLog: MOCK_PREVIEW_LOGS,
-      };
-    case "history":
-      return {
-        ...base,
-        activeModal: "history",
-        selectedClaimId: null,
-        caseHistory: MOCK_PREVIEW_HISTORY,
-      };
-    case "faq":
-      return {
-        ...base,
-        activeModal: "faq",
-        selectedClaimId: null,
-      };
-    case "settings":
-      return {
-        ...base,
-        activeModal: "settings",
-        selectedClaimId: null,
-      };
-    default:
-      return base;
-  }
-}
 
 export function caseReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -335,6 +236,14 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           findings: [],
           consequences: [],
           status: "extracting",
+          agent_mode: action.payload.agentMode || "auto",
+          selected_agents: action.payload.selectedAgents || [
+            "devils_advocate",
+            "receipts",
+            "builder",
+            "overthinker",
+          ],
+          agent_rationales: {},
         },
       };
 
@@ -352,6 +261,50 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         isExtracting: false,
         error: action.payload,
       };
+
+    case "SET_AGENT_MODE": {
+      if (!state.currentCase) return state;
+      return {
+        ...state,
+        currentCase: {
+          ...state.currentCase,
+          agent_mode: action.payload,
+        },
+      };
+    }
+
+    case "TOGGLE_AGENT_SELECTION": {
+      if (!state.currentCase) return state;
+      const agentId = action.payload;
+      const currentSelected = state.currentCase.selected_agents || [
+        "devils_advocate",
+        "receipts",
+        "builder",
+        "overthinker",
+      ];
+      const isSelected = currentSelected.includes(agentId);
+      const updated = isSelected
+        ? currentSelected.filter((id) => id !== agentId)
+        : [...currentSelected, agentId];
+      return {
+        ...state,
+        currentCase: {
+          ...state.currentCase,
+          selected_agents: updated,
+        },
+      };
+    }
+
+    case "SET_SELECTED_AGENTS": {
+      if (!state.currentCase) return state;
+      return {
+        ...state,
+        currentCase: {
+          ...state.currentCase,
+          selected_agents: action.payload,
+        },
+      };
+    }
 
     case "UPDATE_CLAIM_STATEMENT": {
       if (!state.currentCase) return state;

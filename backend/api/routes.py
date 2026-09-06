@@ -54,7 +54,13 @@ async def create_case(
     POST /cases: Extract claims from raw input, store case with status awaiting_confirmation,
     and publish claim_map_ready + awaiting_confirmation SSE events per docs/00-CONTRACTS.md §3.
     """
-    case = await extract_claims(payload.raw_input, provider, context=payload.context)
+    case = await extract_claims(
+        payload.raw_input,
+        provider,
+        context=payload.context,
+        agent_mode=payload.agent_mode or "auto",
+        selected_agents=payload.selected_agents,
+    )
     store.set(case)
 
     # Emit initial SSE events so early stream subscribers receive them
@@ -157,6 +163,23 @@ async def confirm_case(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot confirm case with no claims.",
         )
+
+    if payload and payload.selected_agents is not None:
+        if len(payload.selected_agents) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot confirm case with empty selected_agents list. At least one agent must be selected.",
+            )
+        valid_agents = [
+            a for a in payload.selected_agents
+            if a in ("devils_advocate", "receipts", "builder", "overthinker")
+        ]
+        if not valid_agents:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid agent IDs provided in selected_agents.",
+            )
+        case.selected_agents = valid_agents
 
     case.status = "testing"
     store.set(case)

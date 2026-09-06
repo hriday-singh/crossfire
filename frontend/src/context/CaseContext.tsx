@@ -7,8 +7,16 @@ import { Case } from "@/types/crossfire";
 interface CaseContextValue {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
-  startExtracting: (rawInput: string, context?: string | null) => Promise<void>;
+  startExtracting: (
+    rawInput: string,
+    context?: string | null,
+    agentMode?: "auto" | "custom",
+    selectedAgents?: string[]
+  ) => Promise<void>;
   confirmAndRun: () => Promise<void>;
+  toggleAgentSelection: (agentId: string) => void;
+  setAgentMode: (mode: "auto" | "custom") => void;
+  setSelectedAgents: (agents: string[]) => void;
   selectClaim: (claimId: string | null) => void;
   resetCase: () => void;
   loadPreset: (presetId: string) => void;
@@ -97,11 +105,31 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: "EXIT_PREVIEW_MODE" });
   };
 
-  const startExtracting = async (rawInput: string, context?: string | null) => {
-    dispatch({ type: "START_EXTRACTING", payload: { rawInput, context } });
+  const toggleAgentSelection = (agentId: string) => {
+    dispatch({ type: "TOGGLE_AGENT_SELECTION", payload: agentId });
+  };
+
+  const setAgentMode = (mode: "auto" | "custom") => {
+    dispatch({ type: "SET_AGENT_MODE", payload: mode });
+  };
+
+  const setSelectedAgents = (agents: string[]) => {
+    dispatch({ type: "SET_SELECTED_AGENTS", payload: agents });
+  };
+
+  const startExtracting = async (
+    rawInput: string,
+    context?: string | null,
+    agentMode?: "auto" | "custom",
+    selectedAgents?: string[]
+  ) => {
+    dispatch({
+      type: "START_EXTRACTING",
+      payload: { rawInput, context, agentMode, selectedAgents },
+    });
 
     try {
-      const result = await createCase(rawInput, context);
+      const result = await createCase(rawInput, context, agentMode, selectedAgents);
       dispatch({ type: "EXTRACTING_SUCCESS", payload: result });
     } catch (err: unknown) {
       const errorObj = err as { stage?: string; message?: string };
@@ -125,7 +153,11 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dispatch({ type: "CONFIRMING_SUCCESS" });
       // Allow the React commit phase to mount and open the EventSource stream connection first
       await new Promise<void>((resolve) => setTimeout(resolve, 50));
-      await confirmCase(state.currentCase.id, state.currentCase.claims);
+      await confirmCase(
+        state.currentCase.id,
+        state.currentCase.claims,
+        state.currentCase.selected_agents
+      );
     } catch (err: unknown) {
       const errorObj = err as { stage?: string; message?: string };
       dispatch({
@@ -178,6 +210,9 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dispatch,
         startExtracting,
         confirmAndRun,
+        toggleAgentSelection,
+        setAgentMode,
+        setSelectedAgents,
         selectClaim,
         resetCase,
         loadPreset,

@@ -66,16 +66,22 @@ export interface Case {
   status: CaseStatus;
   started_at?: number | null;
   completed_at?: number | null;
+  agent_mode?: "auto" | "custom";
+  selected_agents?: string[];
+  agent_rationales?: Record<string, string>;
 }
 
 // API schema types
 export interface CreateCaseRequest {
   raw_input: string;
   context?: string | null;
+  agent_mode?: "auto" | "custom";
+  selected_agents?: string[];
 }
 
 export interface ConfirmCaseRequest {
   claims?: Claim[];
+  selected_agents?: string[];
 }
 
 export interface ConfirmCaseResponse {

@@ -581,5 +581,104 @@ def test_post_ingest_image_empty_text_rejected(client, monkeypatch):
     assert "No extractable text found in image" in response.json()["detail"]
 
 
+def test_post_cases_custom_agents(client, fake_provider_factory):
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    provider = fake_provider_factory(
+        responses=[
+            ExtractedClaims(statements=["A custom assumption about unit economics."])
+        ]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/cases",
+            json={
+                "raw_input": "Test proposal with custom agents",
+                "agent_mode": "custom",
+                "selected_agents": ["devils_advocate", "builder"],
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["agent_mode"] == "custom"
+        assert body["selected_agents"] == ["devils_advocate", "builder"]
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_post_cases_auto_agents_returns_rationales(client, fake_provider_factory):
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    provider = fake_provider_factory(
+        responses=[
+            ExtractedClaims(statements=["Users will pay $50/mo for this platform."])
+        ]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/cases",
+            json={
+                "raw_input": "Test proposal in auto mode",
+                "agent_mode": "auto",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["agent_mode"] == "auto"
+        assert "devils_advocate" in body["selected_agents"]
+        assert "receipts" in body["selected_agents"]
+        assert "agent_rationales" in body
+        assert len(body["agent_rationales"]) >= 2
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_confirm_updates_selected_agents(client, monkeypatch, sample_case):
+    import store
+    from core.loop import handle_confirm
+
+    store.set(sample_case)
+
+    async def mock_handle_confirm(case_id):
+        pass
+
+    monkeypatch.setattr("api.routes.handle_confirm", mock_handle_confirm)
+
+    response = client.post(
+        f"/cases/{sample_case.id}/confirm",
+        json={
+            "claims": [c.model_dump() for c in sample_case.claims],
+            "selected_agents": ["devils_advocate", "overthinker"],
+        },
+    )
+    assert response.status_code == 202
+    updated = store.get(sample_case.id)
+    assert updated.selected_agents == ["devils_advocate", "overthinker"]
+
+
+def test_confirm_empty_selected_agents_rejected(client, sample_case):
+    import store
+    store.set(sample_case)
+
+    response = client.post(
+        f"/cases/{sample_case.id}/confirm",
+        json={
+            "claims": [c.model_dump() for c in sample_case.claims],
+            "selected_agents": [],
+        },
+    )
+    assert response.status_code == 400
+    assert "At least one agent must be selected" in response.json()["detail"]
+
+
+
 
 

@@ -29,11 +29,15 @@ export class CrossfireApiError extends Error {
 export async function createCase(
   rawInput: string,
   context?: string | null,
+  agentMode?: "auto" | "custom",
+  selectedAgents?: string[],
   baseUrl: string = DEFAULT_API_BASE
 ): Promise<Case> {
   const payload: CreateCaseRequest = {
     raw_input: rawInput,
     context: context || undefined,
+    agent_mode: agentMode || undefined,
+    selected_agents: selectedAgents || undefined,
   };
 
   const url = `${baseUrl}/cases`;
@@ -60,6 +64,7 @@ export async function createCase(
 export async function confirmCase(
   caseId: string,
   claims?: Claim[],
+  selectedAgents?: string[],
   baseUrl: string = DEFAULT_API_BASE
 ): Promise<ConfirmCaseResponse> {
   const url = `${baseUrl}/cases/${encodeURIComponent(caseId)}/confirm`;
@@ -68,7 +73,7 @@ export async function confirmCase(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ claims }),
+    body: JSON.stringify({ claims, selected_agents: selectedAgents }),
   });
 
   if (!res.ok) {

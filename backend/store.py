@@ -10,17 +10,28 @@ from pathlib import Path
 
 from core.models import Case
 
-_DB_PATH = Path(os.getenv("SQLITE_DB_PATH", Path(__file__).parent / "crossfire.db"))
+# Resolved per connection, not at import: the test suite points SQLITE_DB_PATH at a
+# tmp file, and clear() really does DELETE every row — binding the path once at import
+# meant `pytest` wiped the developer's actual crossfire.db on every run.
+def _db_path() -> Path:
+    return Path(os.getenv("SQLITE_DB_PATH", Path(__file__).parent / "crossfire.db"))
+
+
+_initialized: set[str] = set()
 
 
 def _get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
+    path = str(_db_path())
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    if path not in _initialized:
+        _init_schema(conn)
+        _initialized.add(path)
     return conn
 
 
-def _init_db() -> None:
-    with _get_connection() as conn:
+def _init_schema(conn: sqlite3.Connection) -> None:
+    with conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS cases (
@@ -34,7 +45,8 @@ def _init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_cases_updated_at ON cases(updated_at)")
 
 
-_init_db()
+def _init_db() -> None:
+    _get_connection().close()
 
 
 def _clear_db() -> None:

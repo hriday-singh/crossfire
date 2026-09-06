@@ -67,3 +67,11 @@ class Case(BaseModel):
     findings: list[Finding] = []
     consequences: list[DecisionConsequence] = []
     status: str = "extracting"              # extracting | awaiting_confirmation | testing | done | error
+    agent_mode: str = "auto"                # "auto" | "custom"
+    selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, overthinker
+        "devils_advocate",
+        "receipts",
+        "builder",
+        "overthinker",
+    ]
+    agent_rationales: dict[str, str] = {}   # rationales explaining why agents were auto-selected

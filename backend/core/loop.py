@@ -33,8 +33,66 @@ class ExtractedClaims(BaseModel):
     statements: list[str]
 
 
+FEASIBILITY_KEYWORDS: list[str] = [
+    "scale", "performance", "cost", "build", "api", "latency", "compliance",
+    "legal", "gdpr", "soc2", "replace", "system", "infrastructure",
+    "architecture", "migration", "database", "backend", "deploy", "server",
+    "code", "engineer", "throughput", "integration", "software", "tech",
+    "platform", "load", "bandwidth", "memory", "cpu",
+]
+
+EDGE_RISK_KEYWORDS: list[str] = [
+    "unique", "risk", "failure", "attack", "edge", "novel", "competitor",
+    "alternative", "zero", "all", "100%", "never", "guarantee", "security",
+    "exploit", "worst", "unprecedented", "bypass", "fraud", "hack",
+    "loophole", "vulnerability", "catastrophic",
+]
+
+EVIDENCE_KEYWORDS: list[str] = [
+    "pay", "$", "dollar", "price", "pricing", "cost", "revenue", "demand",
+    "adopt", "trust", "will use", "churn", "conversion", "sales", "market",
+    "users", "customers", "growth", "cac", "ltv", "retention",
+]
+
+
+def determine_auto_agents(claims: list[Claim]) -> tuple[list[str], dict[str, str]]:
+    """Analyzes extracted claims and determines the recommended active agent panel
+    with human-readable rationales."""
+    combined_text = " ".join(c.statement.lower() for c in claims)
+    selected: list[str] = ["devils_advocate"]
+    rationales: dict[str, str] = {
+        "devils_advocate": "Stress-tests implicit premises, unstated assumptions, and logical contradictions across all claims."
+    }
+
+    # Evidence test (Receipts)
+    has_evidence = any(kw in combined_text for kw in EVIDENCE_KEYWORDS)
+    selected.append("receipts")
+    if has_evidence:
+        rationales["receipts"] = "Searches empirical web evidence, market benchmarks, pricing, and adoption data."
+    else:
+        rationales["receipts"] = "Verifies factual assertions and external market reality via live search citations."
+
+    # Feasibility test (Builder)
+    has_feasibility = any(kw in combined_text for kw in FEASIBILITY_KEYWORDS)
+    if has_feasibility or len(claims) >= 3:
+        selected.append("builder")
+        rationales["builder"] = "Evaluates engineering feasibility, API limits, performance bottlenecks, and operational constraints."
+
+    # Edge-Case test (Overthinker)
+    has_edge = any(kw in combined_text for kw in EDGE_RISK_KEYWORDS)
+    if has_edge or len(claims) >= 4:
+        selected.append("overthinker")
+        rationales["overthinker"] = "Identifies catastrophic tail risks, boundary failures, and second-order vulnerabilities."
+
+    return selected, rationales
+
+
 async def extract_claims(
-    raw_input: str, provider: LLMProvider, context: str | None = None
+    raw_input: str,
+    provider: LLMProvider,
+    context: str | None = None,
+    agent_mode: str = "auto",
+    selected_agents: list[str] | None = None,
 ) -> Case:
     system_prompt = (
         "Extract the discrete, checkable claims or assumptions embedded in the "
@@ -56,12 +114,28 @@ async def extract_claims(
         response_schema=ExtractedClaims,
     )
     claims = [Claim(id=str(uuid4()), statement=s) for s in result.statements]
+
+    final_mode = (agent_mode or "auto").lower().strip()
+    if final_mode == "custom" and selected_agents:
+        valid_agents = [
+            a for a in selected_agents
+            if a in ("devils_advocate", "receipts", "builder", "overthinker")
+        ]
+        active_agents = valid_agents if valid_agents else ["devils_advocate", "receipts", "builder", "overthinker"]
+        rationales = {}
+    else:
+        final_mode = "auto"
+        active_agents, rationales = determine_auto_agents(claims)
+
     return Case(
         id=str(uuid4()),
         raw_input=raw_input,
         context=context,
         claims=claims,
         status="awaiting_confirmation",
+        agent_mode=final_mode,
+        selected_agents=active_agents,
+        agent_rationales=rationales,
     )
 
 
@@ -179,7 +253,16 @@ _FAILURE_MODE_WEIGHTS: list[tuple[str, list[tuple[str, float]]]] = [
 ]
 
 
-def build_test_plan(case: Case, panel: bool = True) -> list[TestPlanItem]:
+def build_test_plan(
+    case: Case,
+    panel: bool = True,
+    active_agents: list[str] | None = None,
+) -> list[TestPlanItem]:
+    if active_agents is None:
+        active_agents = getattr(case, "selected_agents", None) or [
+            "devils_advocate", "receipts", "builder", "overthinker"
+        ]
+
     items: list[TestPlanItem] = []
     for claim in case.claims:
         statement_lower = claim.statement.lower()
@@ -207,71 +290,90 @@ def build_test_plan(case: Case, panel: bool = True) -> list[TestPlanItem]:
             primary_failure_mode = "evidence"  # default: most claims need evidence testing
 
         if not panel:
-            items.append(
-                TestPlanItem(
-                    id=str(uuid4()),
-                    target_claim=claim.id,
-                    failure_mode=primary_failure_mode,
-                    objective=f"Check whether evidence supports or contradicts: {claim.statement}",
+            # Check if evaluator for primary_failure_mode is in active_agents
+            mode_to_agent = {
+                "assumption": "devils_advocate",
+                "evidence": "receipts",
+                "behavior": "builder",
+                "constraint": "builder",
+                "feasibility": "builder",
+                "edge-case": "overthinker",
+                "alternative": "overthinker",
+            }
+            assigned_agent = mode_to_agent.get(primary_failure_mode, "devils_advocate")
+            if assigned_agent in active_agents:
+                items.append(
+                    TestPlanItem(
+                        id=str(uuid4()),
+                        target_claim=claim.id,
+                        failure_mode=primary_failure_mode,
+                        objective=f"Check whether evidence supports or contradicts: {claim.statement}",
+                    )
                 )
-            )
         else:
-            # Full Adversarial Panel mode:
-            # 1. Devil's Advocate (always stress-tests implicit assumptions & premises)
-            items.append(
-                TestPlanItem(
-                    id=str(uuid4()),
-                    target_claim=claim.id,
-                    failure_mode="assumption",
-                    objective=f"Stress-test implicit premises and counter-incentives behind: {claim.statement}",
+            # Full Adversarial Panel mode (filtered strictly by active_agents):
+            # 1. Devil's Advocate (stress-tests implicit assumptions & premises)
+            if "devils_advocate" in active_agents:
+                items.append(
+                    TestPlanItem(
+                        id=str(uuid4()),
+                        target_claim=claim.id,
+                        failure_mode="assumption",
+                        objective=f"Stress-test implicit premises and counter-incentives behind: {claim.statement}",
+                    )
                 )
-            )
-            # 2. Receipts (always searches external empirical evidence & benchmarks)
-            items.append(
-                TestPlanItem(
-                    id=str(uuid4()),
-                    target_claim=claim.id,
-                    failure_mode="evidence",
-                    objective=f"Check empirical evidence, benchmarks, and real-world data for: {claim.statement}",
+
+            # 2. Receipts (searches external empirical evidence & benchmarks)
+            if "receipts" in active_agents:
+                items.append(
+                    TestPlanItem(
+                        id=str(uuid4()),
+                        target_claim=claim.id,
+                        failure_mode="evidence",
+                        objective=f"Check empirical evidence, benchmarks, and real-world data for: {claim.statement}",
+                    )
                 )
-            )
 
             # 3. Builder: concrete feasibility, dependencies, latency, operational blockers
-            is_lb = claim.load_bearing is not False
-            feasibility_keywords = [
-                "scale", "performance", "cost", "build", "api", "latency",
-                "compliance", "legal", "gdpr", "soc2", "replace", "system",
-                "infrastructure", "architecture", "migration", "database",
-                "backend", "deploy", "server", "code", "engineer", "throughput",
-                "integration"
-            ]
-            has_feasibility = any(kw in statement_lower for kw in feasibility_keywords)
-            if is_lb or has_feasibility:
-                items.append(
-                    TestPlanItem(
-                        id=str(uuid4()),
-                        target_claim=claim.id,
-                        failure_mode="feasibility",
-                        objective=f"Assess concrete operational/technical feasibility and implementation blockers for: {claim.statement}",
+            if "builder" in active_agents:
+                is_lb = claim.load_bearing is not False
+                feasibility_keywords = [
+                    "scale", "performance", "cost", "build", "api", "latency",
+                    "compliance", "legal", "gdpr", "soc2", "replace", "system",
+                    "infrastructure", "architecture", "migration", "database",
+                    "backend", "deploy", "server", "code", "engineer", "throughput",
+                    "integration", "software", "tech", "platform"
+                ]
+                has_feasibility = any(kw in statement_lower for kw in feasibility_keywords)
+                if is_lb or has_feasibility:
+                    items.append(
+                        TestPlanItem(
+                            id=str(uuid4()),
+                            target_claim=claim.id,
+                            failure_mode="feasibility",
+                            objective=f"Assess concrete operational/technical feasibility and implementation blockers for: {claim.statement}",
+                        )
                     )
-                )
 
             # 4. Overthinker: tail risks, boundary failures, edge vulnerabilities
-            edge_keywords = [
-                "unique", "risk", "failure", "attack", "edge", "novel",
-                "competitor", "alternative", "zero", "all", "100%", "never",
-                "guarantee", "security", "exploit", "worst", "unprecedented"
-            ]
-            has_edge = any(kw in statement_lower for kw in edge_keywords)
-            if is_lb or has_edge:
-                items.append(
-                    TestPlanItem(
-                        id=str(uuid4()),
-                        target_claim=claim.id,
-                        failure_mode="edge-case",
-                        objective=f"Identify catastrophic tail risks, boundary failures, and degenerate loops for: {claim.statement}",
+            if "overthinker" in active_agents:
+                is_lb = claim.load_bearing is not False
+                edge_keywords = [
+                    "unique", "risk", "failure", "attack", "edge", "novel",
+                    "competitor", "alternative", "zero", "all", "100%", "never",
+                    "guarantee", "security", "exploit", "worst", "unprecedented",
+                    "loophole", "vulnerability"
+                ]
+                has_edge = any(kw in statement_lower for kw in edge_keywords)
+                if is_lb or has_edge:
+                    items.append(
+                        TestPlanItem(
+                            id=str(uuid4()),
+                            target_claim=claim.id,
+                            failure_mode="edge-case",
+                            objective=f"Identify catastrophic tail risks, boundary failures, and degenerate loops for: {claim.statement}",
+                        )
                     )
-                )
     return items
 
 
@@ -495,7 +597,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         for claim, load_bearing in zip(case.claims, flags):
             claim.load_bearing = load_bearing if isinstance(load_bearing, bool) else True
 
-        case.test_plan = build_test_plan(case, panel=True)
+        case.test_plan = build_test_plan(case, panel=True, active_agents=case.selected_agents)
         case.findings = await run_evaluators(case, case.test_plan, provider)
 
         # Judge: parallel reconcile across claims, seeing all findings for each claim.

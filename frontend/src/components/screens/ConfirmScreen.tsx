@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
+import { AssignedAgentsCard } from "@/components/features/AssignedAgentsCard";
 
 export const ConfirmScreen: React.FC = () => {
-  const { state, dispatch, confirmAndRun, navigateScreen } = useCase();
+  const { state, dispatch, confirmAndRun, navigateScreen, toggleAgentSelection } = useCase();
   const [editingClaimId, setEditingClaimId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [isAdding, setIsAdding] = useState(false);
@@ -273,6 +274,14 @@ export const ConfirmScreen: React.FC = () => {
             </form>
           )}
 
+          {/* Assigned Adversarial Agents Suite & Decision Callout */}
+          <AssignedAgentsCard
+            agentMode={currentCase.agent_mode || "auto"}
+            selectedAgents={currentCase.selected_agents || ["devils_advocate", "receipts", "builder", "overthinker"]}
+            agentRationales={currentCase.agent_rationales}
+            onToggleAgent={toggleAgentSelection}
+          />
+
           {/* Bottom Actions Row */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/30">
             {/* Left Action: Add Assumption */}
@@ -301,7 +310,11 @@ export const ConfirmScreen: React.FC = () => {
                 type="button"
                 id="confirm-run-btn"
                 onClick={confirmAndRun}
-                disabled={currentCase.claims.length === 0 || state.isConfirming}
+                disabled={
+                  currentCase.claims.length === 0 ||
+                  state.isConfirming ||
+                  (currentCase.selected_agents && currentCase.selected_agents.length === 0)
+                }
                 className="bg-primary-container text-on-primary-container font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 {state.isConfirming ? (

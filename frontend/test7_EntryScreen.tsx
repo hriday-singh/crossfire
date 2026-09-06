@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
 import { ingestImage, ingestPdf, ingestUrl } from "@/lib/api";
-import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
-import { detectWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
 
 const isImageFile = (filename: string): boolean => {
   const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
@@ -19,21 +17,7 @@ export const EntryScreen: React.FC = () => {
   const [ingestError, setIngestError] = useState<string | null>(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState("");
-  const [smartUrlNotice, setSmartUrlNotice] = useState<string | null>(null);
-  const [agentMode, setAgentMode] = useState<"auto" | "custom">("auto");
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([
-    "devils_advocate",
-    "receipts",
-    "builder",
-    "overthinker",
-  ]);
-  const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
-
-  const handleToggleAgent = (agentId: string) => {
-    setSelectedAgents((prev) =>
-      prev.includes(agentId) ? prev.filter((id) => id !== agentId) : [...prev, agentId]
-    );
-  };
+  const [isDragging, setIsDragging] = useState(false);
 
   const isMac =
     typeof window !== "undefined" &&
@@ -50,119 +34,29 @@ export const EntryScreen: React.FC = () => {
     }
   }, [rawInput]);
 
-  const autoAddUrl = async (detected: DetectedWebUrl) => {
-    if (isIngesting || attachedContext) return;
-
-    // Separate text in the chat box:
-    if (!detected.remainingText) {
-      setRawInput(`Analyze proposal and assertions from ${detected.hostname}`);
-    } else {
-      setRawInput(detected.remainingText);
-    }
-
-    // Show the separate URL input and set its value
-    setShowUrlInput(true);
-    setUrlInputValue(detected.cleanUrl);
-
-    // Provide friendly notice
-    setSmartUrlNotice(`Web URL ${detected.hostname} detected & added separately.`);
-
-    // Automatically trigger URL ingestion
-    await handleUrlSubmit(detected.cleanUrl);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setRawInput(value);
-
-    // When the user finishes typing a URL with a delimiter (space, comma, semicolon, newline)
-    if (/[\s,;]$/.test(value)) {
-      const detected = detectWebUrl(value);
-      if (detected && !attachedContext && !isIngesting) {
-        autoAddUrl(detected);
-      }
-    }
-  };
-
-  // Debounced detection when user pauses typing after completing a URL
-  useEffect(() => {
-    if (!rawInput.trim() || attachedContext || isIngesting) return;
-
-    const timer = setTimeout(() => {
-      const detected = detectWebUrl(rawInput);
-      if (detected && !attachedContext && !isIngesting) {
-        if (!detected.remainingText || /[\s,;]/.test(rawInput)) {
-          autoAddUrl(detected);
-        }
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [rawInput, attachedContext, isIngesting]);
-
-  const handleBlur = () => {
-    if (!rawInput.trim() || attachedContext || isIngesting) return;
-    const detected = detectWebUrl(rawInput);
-    if (detected && !attachedContext && !isIngesting) {
-      autoAddUrl(detected);
-    }
-  };
-
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (
-      !rawInput.trim() ||
-      state.isExtracting ||
-      isIngesting ||
-      (agentMode === "custom" && selectedAgents.length === 0)
-    ) {
-      return;
-    }
-
-    const agentsPayload = agentMode === "custom" ? selectedAgents : undefined;
-
-    const detected = detectWebUrl(rawInput);
-    if (detected && !attachedContext) {
-      const effectiveInput =
-        detected.remainingText || `Analyze proposal and assertions from ${detected.hostname}`;
-      setIsIngesting(true);
-      try {
-        const res = await ingestUrl(detected.cleanUrl);
-        setAttachedContext(res.context);
-        startExtracting(effectiveInput, res.context, agentMode, agentsPayload);
-      } catch {
-        startExtracting(effectiveInput, null, agentMode, agentsPayload);
-      } finally {
-        setIsIngesting(false);
-      }
-      return;
-    }
-
-    startExtracting(rawInput.trim(), attachedContext, agentMode, agentsPayload);
+    if (!rawInput.trim() || state.isExtracting || isIngesting) return;
+    startExtracting(rawInput.trim(), attachedContext);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
       handleSubmit();
-      return;
-    }
-
-    if (e.key === "Enter" && !e.shiftKey) {
-      const detected = detectWebUrl(rawInput);
-      if (detected && !attachedContext && !isIngesting) {
-        e.preventDefault();
-        autoAddUrl(detected);
-      }
     }
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pasted = e.clipboardData.getData("text").trim();
-    const detected = detectWebUrl(pasted);
-    if (detected && !attachedContext) {
+    if (
+      (pasted.startsWith("http://") || pasted.startsWith("https://")) &&
+      !pasted.includes("\n") &&
+      !pasted.includes(" ") &&
+      !attachedContext
+    ) {
       setShowUrlInput(true);
-      setUrlInputValue(detected.cleanUrl);
+      setUrlInputValue(pasted);
     }
   };
 
@@ -226,20 +120,19 @@ export const EntryScreen: React.FC = () => {
     await processFile(file);
   };
 
-  const handleUrlSubmit = async (urlToSubmit?: string, e?: React.FormEvent) => {
+  const handleUrlSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const target = (urlToSubmit || urlInputValue).trim();
-    if (!target || isIngesting) return;
+    if (!urlInputValue.trim() || isIngesting) return;
 
     setIngestError(null);
     setIsIngesting(true);
 
     try {
-      const res = await ingestUrl(target);
+      const res = await ingestUrl(urlInputValue.trim());
       setAttachedContext(res.context);
-      let displayUrl = target;
+      let displayUrl = urlInputValue.trim();
       try {
-        const parsed = new URL(target.startsWith("www.") ? `https://${target}` : target);
+        const parsed = new URL(displayUrl);
         displayUrl = parsed.hostname;
       } catch {
         // keep raw
@@ -261,7 +154,6 @@ export const EntryScreen: React.FC = () => {
     setAttachedContext(null);
     setAttachmentName(null);
     setIngestError(null);
-    setSmartUrlNotice(null);
   };
 
   const handleDropzoneClick = () => {
@@ -342,8 +234,7 @@ export const EntryScreen: React.FC = () => {
                 ref={textareaRef}
                 id="proposal-input"
                 value={rawInput}
-                onChange={handleInputChange}
-                onBlur={handleBlur}
+                onChange={(e) => setRawInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 placeholder="e.g. We should offer an unlimited free tier for our AI coding assistant or pivot from custom enterprise deployments to a self-serve PLG tier with zero sales assistance..."
@@ -358,29 +249,6 @@ export const EntryScreen: React.FC = () => {
                 </span>
               </div>
             </div>
-
-            {/* Smart Web URL Detection Notice */}
-            {smartUrlNotice && (
-              <div
-                role="status"
-                className="mt-space-2 px-space-3 py-space-1.5 rounded bg-primary-container/15 border border-primary-container/30 text-primary font-body-sm text-xs flex items-center justify-between animate-in fade-in-50"
-              >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="material-symbols-outlined text-[16px] text-primary shrink-0">
-                    auto_awesome
-                  </span>
-                  <span className="truncate">{smartUrlNotice}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSmartUrlNotice(null)}
-                  className="text-outline hover:text-on-surface p-0.5 rounded cursor-pointer shrink-0 transition-colors"
-                  aria-label="Dismiss notice"
-                >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
-                </button>
-              </div>
-            )}
 
             {/* Hidden file input */}
             <input
@@ -526,16 +394,6 @@ export const EntryScreen: React.FC = () => {
               </div>
             )}
 
-            {/* Agent Suite Selection Panel (Auto vs Custom) */}
-            <AgentSelectorPanel
-              agentMode={agentMode}
-              onAgentModeChange={setAgentMode}
-              selectedAgents={selectedAgents}
-              onToggleAgent={handleToggleAgent}
-              isExpanded={isAgentPanelExpanded}
-              onToggleExpand={() => setIsAgentPanelExpanded((prev) => !prev)}
-            />
-
             {/* Action Row */}
             <div className="mt-space-4 pt-space-3 flex items-center justify-between">
               {/* Keyboard Shortcut Hint */}
@@ -558,12 +416,7 @@ export const EntryScreen: React.FC = () => {
               <Button
                 type="submit"
                 id="submit-run-btn"
-                disabled={
-                  !rawInput.trim() ||
-                  state.isExtracting ||
-                  isIngesting ||
-                  (agentMode === "custom" && selectedAgents.length === 0)
-                }
+                disabled={!rawInput.trim() || state.isExtracting || isIngesting}
                 className="inline-flex items-center justify-center gap-space-2 bg-primary-container text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-transform active:scale-[0.98] hover:brightness-110 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[18px]">play_arrow</span>
