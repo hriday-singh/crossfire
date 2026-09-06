@@ -105,7 +105,7 @@ describe("caseReducer", () => {
       type: "SSE_EVENT",
       payload: {
         event: "test_started",
-        data: { test_id: "t1", target_claim_id: "c1", evaluator: "receipts" },
+        data: { test_id: "t1", target_claim_id: "c1", evaluator: "receipts", failure_mode: "evidence" },
       },
     });
     expect(state.activeTests["t1"]).toBeDefined();

@@ -84,6 +84,7 @@ describe("api client", () => {
       const mockResponse: ConfirmCaseResponse = {
         status: "testing",
         case_id: "case-100",
+        message: "Case confirmed and pipeline initiated",
       };
 
       (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

@@ -1,4 +1,3 @@
-import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Button } from "@/components/ui/button";
@@ -20,13 +19,13 @@ describe("UI Primitives", () => {
 
     it("applies variant classes correctly", () => {
       const { rerender } = render(<Button variant="destructive">Delete</Button>);
-      expect(screen.getByRole("button")).toHaveClass("bg-destructive");
+      expect(screen.getByRole("button")).toHaveClass("bg-rose-950/40");
 
       rerender(<Button variant="outline">Cancel</Button>);
       expect(screen.getByRole("button")).toHaveClass("border");
 
       rerender(<Button variant="ghost">Ghost</Button>);
-      expect(screen.getByRole("button")).toHaveClass("hover:bg-muted");
+      expect(screen.getByRole("button")).toHaveClass("hover:bg-zinc-800/60");
     });
 
     it("handles disabled state", () => {
@@ -46,13 +45,13 @@ describe("UI Primitives", () => {
       expect(screen.getByText("Survived")).toHaveClass("text-emerald-400");
 
       rerender(<Badge variant="broken">Broken</Badge>);
-      expect(screen.getByText("Broken")).toHaveClass("text-red-400");
+      expect(screen.getByText("Broken")).toHaveClass("text-rose-400");
 
       rerender(<Badge variant="weakened">Weakened</Badge>);
       expect(screen.getByText("Weakened")).toHaveClass("text-amber-400");
 
       rerender(<Badge variant="unresolved">Unresolved</Badge>);
-      expect(screen.getByText("Unresolved")).toHaveClass("text-purple-300");
+      expect(screen.getByText("Unresolved")).toHaveClass("text-purple-400");
     });
   });
 

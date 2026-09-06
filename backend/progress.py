@@ -203,8 +203,24 @@ class ProgressSummary:
         # Blockers
         if self.blockers and not filter_letter:
             lines.append("\n--- Blockers & Flags ---")
-            for b in self.blockers:
-                lines.append(f"  ! {b}")
+            active_blockers = [
+                b for b in self.blockers if "resolved" not in b.lower()
+            ]
+            resolved_blockers = [
+                b for b in self.blockers if "resolved" in b.lower()
+            ]
+
+            if not active_blockers:
+                lines.append("  (No active blockers)")
+                if verbose:
+                    for b in resolved_blockers:
+                        lines.append(f"  ✓ {b}")
+            else:
+                for b in active_blockers:
+                    lines.append(f"  ! {b}")
+                if verbose and resolved_blockers:
+                    for b in resolved_blockers:
+                        lines.append(f"  ✓ {b}")
 
         return "\n".join(lines)
 

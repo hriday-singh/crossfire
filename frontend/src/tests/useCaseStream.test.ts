@@ -1,4 +1,3 @@
-import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useCaseStream } from "@/hooks/useCaseStream";
@@ -7,10 +6,12 @@ import { AppState, INITIAL_STATE } from "@/context/caseReducer";
 
 describe("useCaseStream hook", () => {
   let mockDispatch: ReturnType<typeof vi.fn>;
+  let mockRefreshCurrentCase: ReturnType<typeof vi.fn>;
   let mockState: AppState;
 
   beforeEach(() => {
     mockDispatch = vi.fn();
+    mockRefreshCurrentCase = vi.fn();
     mockState = {
       ...INITIAL_STATE,
       isStreaming: false,
@@ -25,9 +26,8 @@ describe("useCaseStream hook", () => {
       selectClaim: vi.fn(),
       resetCase: vi.fn(),
       loadPreset: vi.fn(),
-      toggleMockMode: vi.fn(),
-      setPlaybackSpeed: vi.fn(),
       setActiveModal: vi.fn(),
+      refreshCurrentCase: mockRefreshCurrentCase,
     }));
   });
 
@@ -42,42 +42,7 @@ describe("useCaseStream hook", () => {
     expect(mockDispatch).not.toHaveBeenCalled();
   });
 
-  it("dispatches simulation events when isStreaming is true and isMockMode is true", () => {
-    vi.useFakeTimers();
-    mockState = {
-      ...mockState,
-      isStreaming: true,
-      isMockMode: true,
-      playbackSpeed: 10, // speed up mock execution
-      currentCase: {
-        id: "case-sim-1",
-        raw_input: "test",
-        context: null,
-        status: "testing",
-        claims: [],
-        test_plan: [],
-        findings: [],
-        consequences: [],
-      },
-    };
-
-    renderHook(() => useCaseStream());
-
-    // Advance time to trigger simulation timeouts
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "SSE_EVENT",
-      })
-    );
-
-    vi.useRealTimers();
-  });
-
-  it("connects to EventSource when in live backend mode", () => {
+  it("connects to EventSource and dispatches SSE events", () => {
     const listeners: Record<string, (e: any) => void> = {};
     const mockClose = vi.fn();
 
@@ -100,7 +65,6 @@ describe("useCaseStream hook", () => {
     mockState = {
       ...mockState,
       isStreaming: true,
-      isMockMode: false,
       currentCase: {
         id: "case-live-1",
         raw_input: "test",
@@ -132,6 +96,16 @@ describe("useCaseStream hook", () => {
         data: { test_id: "test-live-9" },
       },
     });
+
+    // Trigger run_complete event
+    act(() => {
+      listeners["run_complete"]({
+        data: JSON.stringify({ summary: "done" }),
+      });
+    });
+
+    expect(mockClose).toHaveBeenCalled();
+    expect(mockRefreshCurrentCase).toHaveBeenCalled();
 
     // Unmount closes connection
     unmount();

@@ -1,8 +1,8 @@
 import React from "react";
 import { Finding, TestExecutionState } from "@/types/crossfire";
 import { formatConfidence, formatTestName } from "@/lib/formatters";
-import { MorphingStatusIcon } from "@/components/icons/MorphingStatusIcon";
 import { cn } from "@/lib/utils";
+import { Circle, CircleCheck, Loader2 } from "lucide-react";
 
 interface TestRowProps {
   testId: string;
@@ -27,17 +27,19 @@ export const TestRow: React.FC<TestRowProps> = ({
     <div
       className={cn(
         "group flex flex-col gap-1.5 rounded-md border border-border/40 bg-zinc-950/60 p-3 transition-colors",
-        isRunning && "border-blue-500/40 bg-blue-950/10",
+        isRunning && "border-indigo-500/40 bg-indigo-950/20",
         className
       )}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <MorphingStatusIcon
-            state={state}
-            size={16}
-            className="shrink-0"
-          />
+          {isRunning ? (
+            <Loader2 size={15} className="animate-spin text-indigo-400 shrink-0" />
+          ) : isCompleted ? (
+            <CircleCheck size={15} className="text-zinc-400 shrink-0" />
+          ) : (
+            <Circle size={15} className="text-zinc-600 shrink-0 stroke-dashed" />
+          )}
           <span className="font-mono text-xs font-semibold tracking-wider text-zinc-300 uppercase">
             {testLabel}
           </span>
@@ -54,7 +56,7 @@ export const TestRow: React.FC<TestRowProps> = ({
             className={cn(
               "font-mono text-xs",
               isRunning
-                ? "text-blue-400 animate-pulse"
+                ? "text-indigo-400 animate-pulse"
                 : isCompleted
                 ? "text-zinc-400"
                 : "text-zinc-500"
@@ -76,7 +78,7 @@ export const TestRow: React.FC<TestRowProps> = ({
             </div>
           )}
           {finding.evidence && finding.evidence.length > 0 && (
-            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-blue-400/90 font-mono">
+            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
               <span>{finding.evidence.length} source{finding.evidence.length > 1 ? "s" : ""} verified</span>
             </div>
           )}

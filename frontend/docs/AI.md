@@ -21,7 +21,7 @@ Use when developing and debugging anything
 | **State Management** | React Context + deterministic `useReducer` for SSE events |
 
 **UI Philosophy & Non-Negotiables:**
-- Clean, readable Executive Decision Memo layout. High contrast, generous whitespace, calm typography.
+- Clean, readable Executive Decision Memo layout in Dark Mode (`#09090b` canvas, `#18181b` cards, `#f4f4f5` text). High contrast, generous whitespace, calm typography.
 - Zero fake telemetry: No glowing blue "LIVE" dots, no fake dropzones, no impact meters, no unbuilt settings modals.
 - No 3D, WebGL, or heavy canvas shaders. Fast (<150ms) CSS transitions only.
 

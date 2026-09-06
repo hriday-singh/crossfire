@@ -201,3 +201,136 @@ def test_confirm_rejects_when_case_not_in_awaiting_confirmation(client, sample_c
     assert response.status_code == 400
     assert "Cannot confirm" in response.json()["detail"]
 
+
+def test_post_cases_with_ingestion_context(client, fake_provider_factory):
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    provider = fake_provider_factory(
+        responses=[ExtractedClaims(statements=["Claim with document context"])]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/cases",
+            json={
+                "raw_input": "Launch autonomous grading platform",
+                "context": "Ingested PDF: University policy requires human supervisor for all grades",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["context"] == "Ingested PDF: University policy requires human supervisor for all grades"
+        assert len(body["claims"]) == 1
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_post_cases_validation_error_on_empty_input(client):
+    response = client.post("/cases", json={"raw_input": ""})
+    assert response.status_code == 422
+
+
+def test_confirm_updates_case_with_user_edited_claims(client, monkeypatch, sample_case):
+    import store
+    from core.models import Claim
+
+    store.set(sample_case)
+
+    async def fake_confirm(case_id):
+        pass
+
+    monkeypatch.setattr("api.routes.handle_confirm", fake_confirm)
+
+    edited_claim = Claim(id="c-edited", statement="User edited this specific claim assertion")
+    response = client.post(
+        f"/cases/{sample_case.id}/confirm",
+        json={"claims": [edited_claim.model_dump()]},
+    )
+    assert response.status_code == 202
+    saved_case = store.get(sample_case.id)
+    assert len(saved_case.claims) == 1
+    assert saved_case.claims[0].id == "c-edited"
+    assert saved_case.claims[0].statement == "User edited this specific claim assertion"
+    assert saved_case.status == "testing"
+
+
+def test_stream_returns_404_for_unknown_case(client):
+    response = client.get("/cases/nonexistent-case-uuid/stream")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Case not found"
+
+
+def test_stream_terminates_on_error_event(client, sample_case):
+    import events
+    import store
+
+    store.set(sample_case)
+    queue = events.get_queue(sample_case.id)
+    queue.put_nowait({"event": "error", "data": {"stage": "evaluators", "message": "Provider timeout"}})
+
+    response = client.get(f"/cases/{sample_case.id}/stream")
+    assert response.status_code == 200
+    assert "event: error" in response.text
+    assert "Provider timeout" in response.text
+
+
+def test_post_cases_emits_initial_sse_events(client, fake_provider_factory):
+    import events
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    provider = fake_provider_factory(
+        responses=[ExtractedClaims(statements=["First assertion", "Second assertion"])]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/cases",
+            json={"raw_input": "New proposal testing stream emission"},
+        )
+        assert response.status_code == 200
+        case_id = response.json()["id"]
+
+        queue = events.get_queue(case_id)
+        assert not queue.empty()
+        ev1 = queue.get_nowait()
+        assert ev1["event"] == "claim_map_ready"
+        assert len(ev1["data"]["claims"]) == 2
+
+        ev2 = queue.get_nowait()
+        assert ev2["event"] == "awaiting_confirmation"
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_stream_completed_case_terminates_immediately(client, sample_case):
+    import store
+
+    sample_case.status = "done"
+    store.set(sample_case)
+
+    # Calling stream on already finished case should yield run_complete and close, not hang
+    response = client.get(f"/cases/{sample_case.id}/stream")
+    assert response.status_code == 200
+    assert "event: run_complete" in response.text
+    assert sample_case.id in response.text
+
+
+def test_confirm_rejects_empty_claims_list(client, sample_case):
+    import store
+
+    store.set(sample_case)
+    response = client.post(
+        f"/cases/{sample_case.id}/confirm",
+        json={"claims": []},
+    )
+    assert response.status_code == 400
+    assert "empty claims" in response.json()["detail"].lower()
+
+
+

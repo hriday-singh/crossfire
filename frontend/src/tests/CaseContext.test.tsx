@@ -9,8 +9,6 @@ const TestConsumer: React.FC = () => {
     state,
     resetCase,
     selectClaim,
-    toggleMockMode,
-    setPlaybackSpeed,
     loadPreset,
     setActiveModal,
     startExtracting,
@@ -20,18 +18,15 @@ const TestConsumer: React.FC = () => {
   return (
     <div>
       <div data-testid="active-screen">{state.activeScreen}</div>
-      <div data-testid="is-mock">{String(state.isMockMode)}</div>
+      <div data-testid="is-streaming">{String(state.isStreaming)}</div>
       <div data-testid="selected-claim">{state.selectedClaimId || "none"}</div>
-      <div data-testid="playback-speed">{state.playbackSpeed}</div>
       <div data-testid="active-modal">{state.activeModal}</div>
       <div data-testid="claims-count">{state.currentCase?.claims.length || 0}</div>
 
       <button onClick={resetCase}>Reset</button>
       <button onClick={() => selectClaim("claim-abc")}>Select Claim</button>
-      <button onClick={toggleMockMode}>Toggle Mock</button>
-      <button onClick={() => setPlaybackSpeed(2)}>Set Speed</button>
-      <button onClick={() => loadPreset("fintech")}>Load Preset</button>
-      <button onClick={() => setActiveModal("settings")}>Open Settings</button>
+      <button onClick={() => loadPreset("college-ai")}>Load Preset</button>
+      <button onClick={() => setActiveModal("history")}>Open History</button>
       <button onClick={() => startExtracting("Test proposal")}>Extract</button>
       <button onClick={confirmAndRun}>Confirm and Run</button>
     </div>
@@ -52,25 +47,16 @@ describe("CaseContext", () => {
     );
 
     expect(screen.getByTestId("active-screen")).toHaveTextContent("entry");
-    expect(screen.getByTestId("is-mock")).toHaveTextContent("true");
-    expect(screen.getByTestId("playback-speed")).toHaveTextContent("1");
+    expect(screen.getByTestId("is-streaming")).toHaveTextContent("false");
     expect(screen.getByTestId("active-modal")).toHaveTextContent("none");
 
     // Test select claim
     fireEvent.click(screen.getByText("Select Claim"));
     expect(screen.getByTestId("selected-claim")).toHaveTextContent("claim-abc");
 
-    // Test toggle mock
-    fireEvent.click(screen.getByText("Toggle Mock"));
-    expect(screen.getByTestId("is-mock")).toHaveTextContent("false");
-
-    // Test set playback speed
-    fireEvent.click(screen.getByText("Set Speed"));
-    expect(screen.getByTestId("playback-speed")).toHaveTextContent("2");
-
     // Test modal toggle
-    fireEvent.click(screen.getByText("Open Settings"));
-    expect(screen.getByTestId("active-modal")).toHaveTextContent("settings");
+    fireEvent.click(screen.getByText("Open History"));
+    expect(screen.getByTestId("active-modal")).toHaveTextContent("history");
 
     // Test reset
     fireEvent.click(screen.getByText("Reset"));
@@ -78,19 +64,7 @@ describe("CaseContext", () => {
     expect(screen.getByTestId("selected-claim")).toHaveTextContent("none");
   });
 
-  it("loads presets into currentCase", () => {
-    render(
-      <CaseProvider>
-        <TestConsumer />
-      </CaseProvider>
-    );
-
-    fireEvent.click(screen.getByText("Load Preset"));
-    expect(screen.getByTestId("active-screen")).toHaveTextContent("runner");
-    expect(Number(screen.getByTestId("claims-count").textContent)).toBeGreaterThan(0);
-  });
-
-  it("handles live backend extraction through api.createCase", async () => {
+  it("handles backend extraction through api.createCase", async () => {
     vi.spyOn(api, "createCase").mockResolvedValueOnce({
       id: "case-api-1",
       raw_input: "Input text",
@@ -110,15 +84,40 @@ describe("CaseContext", () => {
       </CaseProvider>
     );
 
-    // Switch to live mode first
-    fireEvent.click(screen.getByText("Toggle Mock"));
-    expect(screen.getByTestId("is-mock")).toHaveTextContent("false");
-
     await act(async () => {
       fireEvent.click(screen.getByText("Extract"));
     });
 
     expect(api.createCase).toHaveBeenCalledWith("Test proposal", undefined);
     expect(screen.getByTestId("active-screen")).toHaveTextContent("confirm");
+  });
+
+  it("loads presets into currentCase via startExtracting", async () => {
+    vi.spyOn(api, "createCase").mockResolvedValueOnce({
+      id: "case-preset-1",
+      raw_input: "College Admissions AI Agent",
+      context: null,
+      status: "awaiting_confirmation",
+      claims: [
+        { id: "c-preset", statement: "Sample claim", load_bearing: true, status: null },
+      ],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    });
+
+    render(
+      <CaseProvider>
+        <TestConsumer />
+      </CaseProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Load Preset"));
+    });
+
+    expect(api.createCase).toHaveBeenCalled();
+    expect(screen.getByTestId("active-screen")).toHaveTextContent("confirm");
+    expect(screen.getByTestId("claims-count")).toHaveTextContent("1");
   });
 });

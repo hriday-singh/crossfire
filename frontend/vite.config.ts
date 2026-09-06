@@ -19,6 +19,15 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 5173,
+    proxy: {
+      "/cases": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
+  },
   // @ts-expect-error vitest config in vite config
   test: {
     globals: true,

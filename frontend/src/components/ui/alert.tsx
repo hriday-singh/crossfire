@@ -7,11 +7,11 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-card text-foreground border-border",
+        default: "bg-card text-foreground border border-border",
         destructive:
-          "border-red-500/40 bg-red-500/10 text-red-300 border-l-4 border-l-red-500 [&>svg]:text-red-400",
+          "border border-rose-800/60 bg-rose-950/40 text-rose-300 [&>svg]:text-rose-400",
         warning:
-          "border-amber-500/40 bg-amber-500/10 text-amber-300 border-l-4 border-l-amber-500 [&>svg]:text-amber-400",
+          "border border-amber-800/60 bg-amber-950/40 text-amber-300 [&>svg]:text-amber-400",
       },
     },
     defaultVariants: {

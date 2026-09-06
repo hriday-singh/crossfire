@@ -1,5 +1,4 @@
-import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { EvidenceDrawer } from "@/components/features/EvidenceDrawer";
 import { Case } from "@/types/crossfire";
@@ -9,7 +8,6 @@ const mockCase: Case = {
   raw_input: "Launch AI legal summarizer",
   context: "High accuracy required",
   status: "done",
-  created_at: "2026-03-01T10:00:00Z",
   claims: [
     {
       id: "claim-test-1",
@@ -82,9 +80,9 @@ describe("EvidenceDrawer", () => {
     expect(screen.getByText("Broken")).toBeInTheDocument();
     expect(screen.getByText("Legal Tech Pricing Report 2026")).toBeInTheDocument();
     expect(
-      screen.getByText("Industry median pricing for AI summarizers sits at $49/mo.")
+      screen.getByText(/Industry median pricing for AI summarizers sits at \$49\/mo/i)
     ).toBeInTheDocument();
-    expect(screen.getByText("Pivot to seat-based $49 tier.")).toBeInTheDocument();
+    expect(screen.getByText(/Pivot to seat-based \$49 tier/i)).toBeInTheDocument();
   });
 
   it("renders load-bearing indicator for load bearing claims", () => {

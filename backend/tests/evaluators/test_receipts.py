@@ -69,16 +69,36 @@ async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
     assert finding.confidence <= 0.35
 
 
-def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_negative(sample_claim):
-    """This isn't really a unit test of one function — it's the project's
-    core invariant (backend spec + direction docs): 'a negative finding with
-    no traceable evidence behind it is the exact failure this architecture
-    exists to prevent.' Leave this here as a reminder to check it explicitly
-    once reconcile() and run_receipts() both exist — a Finding with
-    evidence=[] and a strongly negative `result` should be a red flag your
-    eval_set (tests/eval_set/) specifically checks for.
+@pytest.mark.asyncio
+async def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_negative(
+    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+):
+    """Core invariant (backend spec + direction docs):
+    'A negative finding with no traceable evidence behind it is the exact failure
+    this architecture exists to prevent.'
+
+    Verifies that even if an LLM returns a negative verdict with high confidence,
+    empty evidence strictly caps the finding confidence at <= 0.35.
     """
-    pytest.skip("covered properly by tests/eval_set/ once the full loop exists — see docs/01-TIMELINE.md hour 38-42")
+    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+
+    async def empty_search(c):
+        return []
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
+
+    aggressive_negative = ReceiptsAssessment(
+        result="The claim is completely false and invalid.",
+        reasoning="I believe this is wrong based on general knowledge.",
+        confidence=0.95,
+        contradiction="Unsupported by standard facts.",
+    )
+    provider = fake_provider_factory(responses=[aggressive_negative])
+
+    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    assert finding.evidence == []
+    # Structural invariant: must be downgraded to low confidence
+    assert finding.confidence <= 0.35
 
 
 @pytest.mark.asyncio

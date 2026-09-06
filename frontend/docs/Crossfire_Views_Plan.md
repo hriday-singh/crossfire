@@ -42,15 +42,15 @@ graph TD
 * **Layout & Key Elements:**
   * **Header:** Minimal wordmark (`Crossfire`) with generous breathing room.
   * **Hero Prompt:** A clear, human question: *"What are you considering?"*
-  * **Textarea:** Clean, auto-expanding textarea with a subtle light border and comfortable font size (16px / `text-base` to prevent mobile zooming, with relaxed line height).
-  * **Primary Action:** A single high-contrast button: `"Test Decision"`.
+  * **Textarea:** Clean, auto-expanding textarea with a subtle dark border (`border-zinc-800`), dark surface (`bg-zinc-900`), and crisp text (`text-zinc-100`, comfortable font size 16px / `text-base` to prevent mobile zooming, with relaxed line height).
+  * **Primary Action:** A single high-contrast button: `"Test Decision"` (`bg-white text-zinc-950 font-medium hover:bg-zinc-200`).
 * **Honest Simplicity (No Fake Stuff):**
   * No fake PDF dropzones or file attachment widgets.
   * No model provider dropdowns, temperature sliders, or settings modals.
   * No cycling example carousels or decorative graphics.
 * **Extraction State:**
   * On submit, calls `POST /cases` (`{"raw_input": "..."}`).
-  * Transitions smoothly to a calm skeleton state with 3–4 soft pulsing lines and a quiet caption: *"Extracting core assumptions..."*. No fake percentage spinners.
+  * Transitions smoothly to a calm skeleton state with 3–4 soft pulsing lines (`bg-zinc-800`) and a quiet caption: *"Extracting core assumptions..."*. No fake percentage spinners.
 
 ---
 
@@ -59,13 +59,13 @@ graph TD
 
 * **Role & Purpose:** Maps to `Case.status == "awaiting_confirmation"`. Ensures the system didn't misunderstand the user's premise before compute runs.
 * **Layout & Key Elements:**
-  * **Header Restatement:** Echoes the decision in clean, readable prose so the user knows Crossfire understood their intent.
-  * **Instructions:** *"We extracted these core assumptions. Verify, edit, or remove any before we test."*
-  * **Claim List:** A clean stack of white cards against the warm-white background.
+  * **Header Restatement:** Echoes the decision in clean, readable prose so the user knows Crossfire understood their intent (`text-zinc-100 font-medium`).
+  * **Instructions:** *"We extracted these core assumptions. Verify, edit, or remove any before we test."* (`text-zinc-400`)
+  * **Claim List:** A clean stack of dark cards (`bg-zinc-900 border-zinc-800`) against the deep zinc background (`bg-zinc-950`).
   * **Inline Editing:** Clicking any card switches the statement to an editable text input.
-  * **Delete Affordance:** A simple `(×)` remove button on each card.
-  * **Add Affordance:** A lightweight `"+ Add assumption"` text button for anything the system missed.
-  * **Primary Action:** One clear button: `"Confirm and test assumptions"` $\rightarrow$ `POST /cases/{id}/confirm`.
+  * **Delete Affordance:** A simple `(×)` remove button on each card (`text-zinc-500 hover:text-rose-400`).
+  * **Add Affordance:** A lightweight `"+ Add assumption"` text button for anything the system missed (`text-zinc-400 hover:text-zinc-200`).
+  * **Primary Action:** One clear button: `"Confirm and test assumptions"` $\rightarrow$ `POST /cases/{id}/confirm` (`bg-white text-zinc-950 font-medium`).
 * **Design Character:** A calm, static editing form.
 
 ---
@@ -76,19 +76,19 @@ graph TD
 * **Role & Purpose:** Subscribes to `GET /cases/{id}/stream` when `status == "testing"` and remains the persistent results memo once `status == "done"`. Avoids jarring route navigations.
 * **Layout & Key Elements:**
   * **Executive Summary Header:**
-    * *During testing:* A truthful, quiet status line: *"Testing 4 claims against web evidence and counterarguments..."*
-    * *When complete:* A calm, authoritative summary: *"4 claims tested: 1 survived, 1 weakened, 1 broken, 1 unresolved."*
+    * *During testing:* A truthful, quiet status line: *"Testing 4 claims against web evidence and counterarguments..."* (`text-zinc-400`)
+    * *When complete:* A calm, authoritative summary: *"4 claims tested: 1 survived, 1 weakened, 1 broken, 1 unresolved."* (`text-zinc-200 font-medium`)
     * *No fake telemetry:* No glowing blue "LIVE STREAM" dots, no radar beacons, no simulated counters.
   * **Claim Cards:**
-    * Clean, well-spaced cards (16px padding, soft border, generous margins).
-    * **Load-bearing Indicator:** Subtle badge or label: *"Core foundation"* (for claims where `load_bearing == true`).
-    * **Claim Statement:** Bold, high-contrast, easily scannable.
-    * **Verdict Badge (Strict Color Mapping):**
-      * `survived`: Emerald badge (`#059669` text on `#ecfdf5`).
-      * `weakened`: Amber badge (`#d97706` text on `#fffbeb`).
-      * `broken`: Rose badge (`#e11d48` text on `#fff1f2`).
-      * `unresolved`: Indigo badge (`#4f46e5` text on `#eef2ff`) — *represents a deliberate, measured uncertainty, never gray or disabled.*
-    * **Decision Consequence:** Plain-English explanation of the real-world impact (e.g., *"Customer acquisition costs will double if this assumption fails"*).
+    * Clean, well-spaced dark cards (`bg-zinc-900 border-zinc-800 rounded-lg p-6 hover:border-zinc-700 transition-colors`).
+    * **Load-bearing Indicator:** Subtle badge: *"Core foundation"* (`bg-zinc-800 text-zinc-300 border-zinc-700`, for claims where `load_bearing == true`).
+    * **Claim Statement:** Bold, high-contrast, easily scannable (`text-lg font-medium text-zinc-100`).
+    * **Verdict Badge (Strict Color Mapping in Dark Mode):**
+      * `survived`: Emerald badge (`#34d399` text on `rgba(6, 78, 59, 0.4)` border `rgba(6, 95, 70, 0.5)`).
+      * `weakened`: Amber badge (`#fbbf24` text on `rgba(120, 53, 15, 0.4)` border `rgba(146, 64, 14, 0.5)`).
+      * `broken`: Rose badge (`#f87171` text on `rgba(136, 19, 55, 0.4)` border `rgba(159, 18, 57, 0.5)`).
+      * `unresolved`: Indigo badge (`#818cf8` text on `rgba(49, 46, 129, 0.4)` border `rgba(55, 48, 163, 0.5)`) — *represents a deliberate, measured uncertainty, never gray or disabled.*
+    * **Decision Consequence:** Plain-English explanation of the real-world impact (`text-sm text-zinc-400 mt-2`).
     * **Action Trigger:** A clear, visible button: `"View Evidence & Sources →"` that opens the Evidence Drawer.
 
 ---
@@ -145,7 +145,7 @@ frontend/src/
 
 ## 5. Design Tokens & Styling Rules
 
-* **Theme:** Light-first default (warm white `#fafafa` canvas, pure white `#ffffff` cards, soft neutral `#e4e4e7` borders).
-* **Typography:** System sans-serif (`Inter`, system-ui) with relaxed line height (`leading-relaxed`) and deep charcoal text (`#18181b`) for optimal readability.
+* **Theme:** Dark Mode (`#09090b` canvas, elevated `#18181b` cards, subtle `#27272a` borders, crisp `#f4f4f5` text).
+* **Typography:** System sans-serif (`Inter`, system-ui) with relaxed line height (`leading-relaxed` / 1.6) and high-contrast text (`#f4f4f5`) for optimal reading comfort.
 * **Verdict Colors:** Reserved strictly for claim verdicts—never used for form validation or decorative badges.
 * **Masking Evaluators:** Internal agent names (`devils_advocate`, `receipts`, `builder`) **never appear in the UI**. Only user-facing test types (*Assumption Test*, *Evidence Test*, *Feasibility Test*) are displayed.

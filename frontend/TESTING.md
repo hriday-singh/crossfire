@@ -36,13 +36,12 @@ Every layer of the frontend application has mandatory test requirements:
 | Layer | What Must Be Tested | Test File Pattern |
 |---|---|---|
 | **Reducers & State** | All action types, state transitions, state immutability, localStorage hydration, error recovery | `src/tests/caseReducer.test.ts`, `src/tests/CaseContext.test.tsx` |
-| **Custom Hooks** | Stream connections, mock playback step timing, event dispatching, cleanup on unmount | `src/tests/useCaseStream.test.ts` |
+| **Custom Hooks** | SSE stream connections, event dispatching, error handlers, cleanup on unmount | `src/tests/useCaseStream.test.ts` |
 | **API Client & Networking** | Request payloads, URL parameters, query strings, headers, HTTP 2xx success, HTTP 4xx/5xx `CrossfireApiError` handling | `src/tests/api.test.ts` |
-| **Formatters & Pure Utilities** | All input branches, boundary conditions, zero values, null/undefined safety, string truncations | `src/tests/formatters.test.ts`, `src/tests/utils.test.ts` |
+| **Formatters & Pure Utilities** | All input branches, failure mode to test name mappings, boundary conditions, zero values, null/undefined safety | `src/tests/formatters.test.ts`, `src/tests/utils.test.ts` |
 | **UI Primitives** | Variant classes (default, outline, ghost, destructive), sizes, disabled states, accessibility attributes | `src/tests/ui.test.tsx` |
-| **Feature Components** | Interactive states, click callbacks, conditional badges, drawer toggling, impact meters | `src/tests/ClaimCard.test.tsx`, `src/tests/TestRow.test.tsx`, `src/tests/ImpactMeter.test.tsx`, `src/tests/LiveDot.test.tsx`, `src/tests/EvidenceDrawer.test.tsx` |
-| **Modals & Drawers** | Open/close visibility, speed presets, mock toggles, backdrop clicks, escape key triggers | `src/tests/SettingsModal.test.tsx`, `src/tests/HistoryDrawer.test.tsx` |
-| **Layout & Screen Views** | View routing (`entry` -> `confirm` -> `dashboard`), form validation, preset loading, reality check summary | `src/tests/Header.test.tsx`, `src/tests/ErrorBanner.test.tsx`, `src/tests/screens.test.tsx` |
+| **Feature Components** | Interactive states, click callbacks, conditional badges, drawer toggling, verdict display | `src/tests/ClaimCard.test.tsx`, `src/tests/TestRow.test.tsx`, `src/tests/EvidenceDrawer.test.tsx` |
+| **Layout & Screen Views** | View routing (`entry` -> `confirm` -> `dashboard`), form validation, preset loading, live audit memo | `src/tests/Header.test.tsx`, `src/tests/ErrorBanner.test.tsx`, `src/tests/screens.test.tsx` |
 
 ---
 
@@ -77,10 +76,10 @@ import { CaseProvider } from "@/context/CaseContext";
 import { Header } from "@/components/layout/Header";
 
 describe("Header", () => {
-  it("renders branding and action buttons", () => {
+  it("renders branding and status indicators", () => {
     render(
       <CaseProvider>
-        <Header onToggleDebugDock={() => {}} isDebugDockOpen={false} />
+        <Header />
       </CaseProvider>
     );
     expect(screen.getByText("CROSSFIRE")).toBeInTheDocument();
@@ -120,19 +119,18 @@ describe("api.ts", () => {
 ```
 
 ### D. Testing Custom Hooks & Asynchronous Streams
-Use `renderHook` and `vi.useFakeTimers()` for timed simulation loops:
+Mock `EventSource` to test SSE events and dispatching:
 ```ts
 import { renderHook, act } from "@testing-library/react";
 import { useCaseStream } from "@/hooks/useCaseStream";
 
-it("advances simulation steps on timer ticks", () => {
-  vi.useFakeTimers();
-  // ... renderHook with provider
-  act(() => {
-    vi.advanceTimersByTime(500);
-  });
-  // assert dispatched state changes
-  vi.useRealTimers();
+it("subscribes to EventSource and dispatches on message", () => {
+  // Mock EventSource instance and verify message listeners
+  const mockEventSource = {
+    addEventListener: vi.fn(),
+    close: vi.fn(),
+  };
+  // assert dispatched state changes when SSE messages are received
 });
 ```
 
