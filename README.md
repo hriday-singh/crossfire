@@ -132,7 +132,21 @@ Every test runs blind. Each one forms its own finding without seeing what the ot
 ### Prerequisites
 * **Python:** 3.11 or newer
 * **Node.js:** 18 or newer (with `npm`)
-* An LLM endpoint (Gemini API key, Anthropic API key, local Ollama instance, or an OpenAI-compatible proxy)
+* An LLM endpoint (Free local Gemini-Web2API proxy, direct Gemini API key, Anthropic API key, local Ollama instance, or any OpenAI-compatible proxy)
+
+---
+
+### Out-of-the-Box Quick Start (Zero API Keys Needed)
+
+Crossfire is configured to run **straight out of the box** with zero required paid API keys:
+* **Search & Evidence:** Uses SerpApi when configured, with **automatic fallback to DuckDuckGo Lite** via Scrapling. If `SERPAPI_API_KEY` is not provided (or when its quota is exhausted), Crossfire seamlessly falls back to DuckDuckGo Lite with no API key or subscription needed.
+* **LLM Provider:** Configured by default for the local `gemini-web2api` proxy on port `8081` (`http://localhost:8081/v1`), requiring zero authentication. Direct Gemini (`GEMINI_API_KEY`), Anthropic, and Ollama are also fully supported.
+* **Default Ports:**
+  * **Backend API:** `http://localhost:8000`
+  * **Gemini Proxy:** `http://localhost:8081` (`http://localhost:8081/v1`)
+  * **Frontend UI:** `http://localhost:5173`
+
+---
 
 ### 1. Clone the repository
 ```bash
@@ -140,7 +154,17 @@ git clone https://github.com/hriday-singh/crossfire.git
 cd crossfire
 ```
 
-### 2. Configure and run the backend
+### 2. (Optional) Start the Gemini Proxy (:8081)
+
+If you are using the free local Gemini Web2API proxy:
+* **Windows:** Run `.\run_gemini_proxy.bat` or `.\run_gemini_proxy.ps1`
+* **Or start it manually:**
+  ```bash
+  python gemini_web2api.py --port 8081
+  ```
+The proxy listens on `http://localhost:8081/v1`.
+
+### 3. Configure and run the backend (:8000)
 
 ```bash
 cd backend
@@ -161,43 +185,51 @@ pip install -r requirements.txt
 
 Set up your environment variables:
 ```bash
-# Copy the template
+# Copy the template (configured out of the box for port 8000 & proxy 8081)
 cp .env.example .env
 ```
 
-Open `backend/.env` and select your LLM provider:
+Open `backend/.env` and review your settings:
 
-#### Option A: Direct Gemini API (Recommended for quick start)
+#### Option A: Local Gemini Proxy (Default out-of-the-box, no API key needed)
+```env
+LLM_PROVIDER=openai_compat
+LLM_BASE_URL=http://localhost:8081/v1
+LLM_MODEL=gemini-3.7-flash
+LLM_API_KEY=none
+PORT=8000
+
+# Leave blank to automatically use DuckDuckGo Lite with zero API keys:
+SERPAPI_API_KEY=
+```
+
+#### Option B: Direct Gemini API
 ```env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
-LLM_MODEL=gemini-2.5-flash
+LLM_MODEL=gemini-3.7-flash
+PORT=8000
 ```
 
-#### Option B: Anthropic
+#### Option C: Anthropic Claude
 ```env
 LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 LLM_MODEL=claude-3-5-sonnet-latest
+PORT=8000
 ```
 
-#### Option C: Local or OpenAI-compatible endpoint (Ollama / vLLM / Local Proxy)
-```env
-LLM_PROVIDER=openai_compat
-LLM_BASE_URL=http://localhost:8081/v1
-LLM_MODEL=gemini-2.5-flash
-LLM_API_KEY=
-```
+> **Search & Evidence Note:** When `SERPAPI_API_KEY` is provided, Crossfire retrieves structured Google search results via SerpApi. If `SERPAPI_API_KEY` is empty, missing, or rate-limited, Crossfire automatically and seamlessly falls back to **DuckDuckGo Lite** using an asynchronous scraper. Evidence retrieval works completely out of the box with no paid subscription.
 
-> **Note on search:** Web retrieval uses SerpApi when `SERPAPI_API_KEY` is set, and automatically falls back to DuckDuckGo Lite via Scrapling when it is not, or when the SerpApi quota is exhausted. The fallback runs locally with no API keys or search subscriptions required, so search works out of the box.
-
-Start the backend server:
+Start the backend server on default port 8000:
 ```bash
 uvicorn main:app --reload --port 8000
+# Or run directly:
+python main.py
 ```
 Verify the backend is running by visiting `http://localhost:8000/health`.
 
-### 3. Configure and run the frontend
+### 4. Configure and run the frontend (:5173)
 
 In a new terminal window:
 ```bash
@@ -210,9 +242,9 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`. Vite is configured to proxy API requests (`/cases`, `/ingest`, `/health`) directly to the backend on port 8000.
+The frontend will be available at `http://localhost:5173`. Vite is configured to proxy API requests (`/cases`, `/ingest`, `/health`, `/ready`) directly to the backend on port 8000.
 
-### 4. Running tests
+### 5. Running tests
 
 #### Backend tests
 Run unit and integration tests with pytest:
@@ -291,10 +323,11 @@ The backend can be configured via environment variables in `backend/.env`:
 
 | Variable | Default | Description |
 |---|---|---|
+| `PORT` | `8000` | Default HTTP port for the FastAPI backend |
 | `LLM_PROVIDER` | `openai_compat` | Provider backend: `gemini`, `anthropic`, or `openai_compat` |
-| `LLM_BASE_URL` | `http://localhost:8081/v1` | Base URL used when `LLM_PROVIDER=openai_compat` |
+| `LLM_BASE_URL` | `http://localhost:8081/v1` | Base URL used when `LLM_PROVIDER=openai_compat` (defaults to local Gemini proxy port 8081) |
 | `LLM_MODEL` | `gemini-3.7-flash` | Model identifier passed to the active provider |
-| `SERPAPI_API_KEY` | `""` | Enables SerpApi search; falls back to DuckDuckGo Lite when empty or out of quota |
+| `SERPAPI_API_KEY` | `""` | Optional SerpApi key for Google Search; when omitted or quota exhausted, automatically falls back to DuckDuckGo Lite with zero keys needed |
 | `LLM_API_KEY` | `""` | Optional universal API key override |
 | `EVALUATOR_CONCURRENCY` | `8` | Maximum concurrent evaluator calls during the test stage |
 | `EVALUATOR_TIMEOUT_SECONDS` | `60.0` | Timeout per evaluator call before marking a test timed out |

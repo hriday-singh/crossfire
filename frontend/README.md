@@ -6,9 +6,9 @@ Interactive web client for Crossfire, built with React, Vite, and Tailwind CSS. 
 
 ---
 
-## 🔍 Evidence Grounding via SerpApi
+## 🔍 Evidence Grounding via SerpApi & DuckDuckGo Lite
 
-Real-time search grounding and empirical evidence extraction across all stress-tested claims are powered by **[SerpApi](https://serpapi.com)**. When the **Researcher** agent evaluates empirical claims (pricing, market size, conversion, benchmarks), it cross-checks assumptions against live web results to identify unproven claims and empirical contradictions, complete with citation metadata and provenance badges.
+Real-time search grounding and empirical evidence extraction across all stress-tested claims are powered by **[SerpApi](https://serpapi.com)** with automatic zero-config fallback to **DuckDuckGo Lite** (via Scrapling). When the **Researcher** agent evaluates empirical claims (pricing, market size, conversion, benchmarks), it cross-checks assumptions against live web results to identify unproven claims and empirical contradictions, complete with citation metadata and provenance badges.
 
 ---
 
@@ -87,7 +87,7 @@ npm install
 ```bash
 npm run dev
 ```
-The client starts at `http://localhost:5173` with automatic reverse-proxy routing for backend endpoints (`/cases`, `/ingest`, `/health`).
+The client starts at `http://localhost:5173` with automatic reverse-proxy routing for backend endpoints (`/cases`, `/ingest`, `/health`, `/ready`) to the backend on default port 8000.
 
 ### 3. Run tests and typechecking
 ```bash
