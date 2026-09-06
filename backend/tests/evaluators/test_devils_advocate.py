@@ -12,20 +12,19 @@ from core.models import Finding, TestPlanItem
 async def test_run_devils_advocate_produces_finding_with_reasoning(
     fake_provider_factory, sample_claim, sample_test_plan_item
 ):
-    from core.evaluators.devils_advocate import run_devils_advocate
-    fake_finding = Finding(
-        claim_id=sample_claim.id,
-        test_id=sample_test_plan_item.id,
-        evaluator="devils_advocate",
+    from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
+    fake_output = DevilsAdvocateOutput(
         result="Assumption doesn't hold",
         reasoning="No comparable precedent found",
         confidence=0.6,
+        contradiction="Contrary data exists",
     )
-    provider = fake_provider_factory(responses=[fake_finding])
+    provider = fake_provider_factory(responses=[fake_output])
     finding = await run_devils_advocate(sample_claim, sample_test_plan_item, provider)
     assert finding.evaluator == "devils_advocate"
     assert finding.reasoning == "No comparable precedent found"
     assert finding.confidence == 0.6
+    assert finding.contradiction == "Contrary data exists"
     assert finding.evidence == []
 
 
@@ -33,22 +32,19 @@ async def test_run_devils_advocate_produces_finding_with_reasoning(
 async def test_run_devils_advocate_never_calls_the_evidence_pipeline(
     monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
 ):
-    from core.evaluators.devils_advocate import run_devils_advocate
+    from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
 
     def _fail_if_called(*args, **kwargs):
         raise AssertionError("Devil's Advocate must never call the evidence pipeline")
 
     monkeypatch.setattr("evidence.search.search_evidence", _fail_if_called)
 
-    fake_finding = Finding(
-        claim_id=sample_claim.id,
-        test_id=sample_test_plan_item.id,
-        evaluator="devils_advocate",
+    fake_output = DevilsAdvocateOutput(
         result="Assumption challenged",
         reasoning="Logical critique without external evidence",
         confidence=0.7,
     )
-    provider = fake_provider_factory(responses=[fake_finding])
+    provider = fake_provider_factory(responses=[fake_output])
     finding = await run_devils_advocate(sample_claim, sample_test_plan_item, provider)
     assert finding.evaluator == "devils_advocate"
     assert finding.evidence == []
@@ -86,22 +82,4 @@ async def test_run_devils_advocate_sees_only_its_own_claim(fake_provider_factory
     assert target_claim.statement in call_content
     assert other_claim.statement not in call_content
 
-
-@pytest.mark.asyncio
-async def test_run_overthinker_produces_finding_with_reasoning(
-    fake_provider_factory, sample_claim, sample_test_plan_item
-):
-    from core.evaluators.overthinker import OverthinkerOutput, run_overthinker
-
-    fake_output = OverthinkerOutput(
-        result="Catastrophic edge-case risk",
-        reasoning="Cascade failure under extreme load",
-        confidence=0.8,
-    )
-    provider = fake_provider_factory(responses=[fake_output])
-    finding = await run_overthinker(sample_claim, sample_test_plan_item, provider)
-    assert finding.evaluator == "overthinker"
-    assert finding.reasoning == "Cascade failure under extreme load"
-    assert finding.confidence == 0.8
-    assert finding.evidence == []
 

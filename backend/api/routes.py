@@ -33,12 +33,22 @@ async def create_case(
     provider: Annotated[LLMProvider, Depends(get_llm_provider)],
 ) -> Case:
     """
-    POST /cases: Extract claims from raw input, store case with status awaiting_confirmation.
+    POST /cases: Extract claims from raw input, store case with status awaiting_confirmation,
+    and publish claim_map_ready + awaiting_confirmation SSE events per docs/00-CONTRACTS.md §3.
     """
     case = await extract_claims(payload.raw_input, provider)
     if payload.context:
         case.context = payload.context
     store.set(case)
+
+    # Emit initial SSE events so early stream subscribers receive them
+    await events.publish(
+        case.id,
+        "claim_map_ready",
+        {"claims": [c.model_dump() for c in case.claims]},
+    )
+    await events.publish(case.id, "awaiting_confirmation", {})
+
     return case
 
 
@@ -53,10 +63,21 @@ async def stream_case(case_id: str) -> StreamingResponse:
     the private end-of-stream sentinel, and drops the queue once drained, so this
     handler owns no queue state of its own.
     """
-    if store.get(case_id) is None:
+    case = store.get(case_id)
+    if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
 
     async def event_generator():
+        # If the case already completed and its queue has been drained/closed,
+        # emit the terminal event immediately so the client does not hang indefinitely.
+        queue = events.get_queue(case_id)
+        if case.status in ("done", "error") and queue.empty():
+            if case.status == "done":
+                yield f"event: run_complete\ndata: {json.dumps({'case_id': case_id})}\n\n"
+            else:
+                yield f"event: error\ndata: {json.dumps({'stage': 'execution', 'message': 'Case finished with error'})}\n\n"
+            return
+
         async for item in events.subscribe(case_id):
             event_name = item["event"]
             data = item.get("data", {})
@@ -102,8 +123,19 @@ async def confirm_case(
             detail=f"Cannot confirm case in status '{case.status}'. Must be 'awaiting_confirmation'.",
         )
 
-    if payload and payload.claims:
+    if payload and payload.claims is not None:
+        if len(payload.claims) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot confirm case with empty claims list.",
+            )
         case.claims = payload.claims
+
+    if not case.claims:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot confirm case with no claims.",
+        )
 
     case.status = "testing"
     store.set(case)

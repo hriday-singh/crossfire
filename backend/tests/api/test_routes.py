@@ -277,3 +277,60 @@ def test_stream_terminates_on_error_event(client, sample_case):
     assert "Provider timeout" in response.text
 
 
+def test_post_cases_emits_initial_sse_events(client, fake_provider_factory):
+    import events
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    provider = fake_provider_factory(
+        responses=[ExtractedClaims(statements=["First assertion", "Second assertion"])]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        response = client.post(
+            "/cases",
+            json={"raw_input": "New proposal testing stream emission"},
+        )
+        assert response.status_code == 200
+        case_id = response.json()["id"]
+
+        queue = events.get_queue(case_id)
+        assert not queue.empty()
+        ev1 = queue.get_nowait()
+        assert ev1["event"] == "claim_map_ready"
+        assert len(ev1["data"]["claims"]) == 2
+
+        ev2 = queue.get_nowait()
+        assert ev2["event"] == "awaiting_confirmation"
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_stream_completed_case_terminates_immediately(client, sample_case):
+    import store
+
+    sample_case.status = "done"
+    store.set(sample_case)
+
+    # Calling stream on already finished case should yield run_complete and close, not hang
+    response = client.get(f"/cases/{sample_case.id}/stream")
+    assert response.status_code == 200
+    assert "event: run_complete" in response.text
+    assert sample_case.id in response.text
+
+
+def test_confirm_rejects_empty_claims_list(client, sample_case):
+    import store
+
+    store.set(sample_case)
+    response = client.post(
+        f"/cases/{sample_case.id}/confirm",
+        json={"claims": []},
+    )
+    assert response.status_code == 400
+    assert "empty claims" in response.json()["detail"].lower()
+
+
+

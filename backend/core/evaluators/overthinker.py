@@ -83,18 +83,6 @@ async def run_overthinker(
         response_schema=OverthinkerOutput,
     )
 
-    if isinstance(response, Finding):
-        return Finding(
-            claim_id=claim_id or response.claim_id,
-            test_id=test_id or response.test_id,
-            evaluator="overthinker",
-            result=response.result,
-            evidence=[],
-            reasoning=response.reasoning,
-            confidence=response.confidence,
-            contradiction=response.contradiction,
-        )
-
     if isinstance(response, OverthinkerOutput):
         return Finding(
             claim_id=claim_id,

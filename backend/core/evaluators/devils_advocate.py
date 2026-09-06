@@ -83,19 +83,6 @@ async def run_devils_advocate(
         response_schema=DevilsAdvocateOutput,
     )
 
-    if isinstance(response, Finding):
-        # Allow pre-formed Finding stand-ins from test fixtures
-        return Finding(
-            claim_id=claim_id or response.claim_id,
-            test_id=test_id or response.test_id,
-            evaluator="devils_advocate",
-            result=response.result,
-            evidence=[],  # Devil's Advocate never has external evidence
-            reasoning=response.reasoning,
-            confidence=response.confidence,
-            contradiction=response.contradiction,
-        )
-
     if isinstance(response, DevilsAdvocateOutput):
         return Finding(
             claim_id=claim_id,
