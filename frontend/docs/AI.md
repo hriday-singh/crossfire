@@ -49,11 +49,13 @@ Use when developing and debugging anything
 4. **Implement**
    - Complete the task step by step.
    - Keep changes focused and organized.
+   - **Mandatory Unit Tests**: Every new or changed component, hook, reducer, formatter, or utility MUST ship with unit tests in `src/tests/` in the same pass. See `frontend/TESTING.md`.
    - Explain important decisions when useful.
 
 5. **Verify**
-   - Test or verify each major change.
-   - Check that the implementation actually satisfies the original objective.
+   - **Always run tests**: Execute `npm run test:all` (or `npm run typecheck && npm test`).
+   - Ensure 100% test pass rate with zero failures, zero errors, and zero regressions.
+   - Verify that the implementation actually satisfies the original objective.
    - Fix problems discovered during verification.
 
 6. **Review**
