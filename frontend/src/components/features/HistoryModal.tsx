@@ -198,7 +198,7 @@ export const HistoryModal: React.FC = () => {
                     className="font-code-sm text-code-sm text-primary hover:underline shrink-0 cursor-pointer flex items-center gap-1"
                   >
                     <span>Test this</span>
-                    <span>→</span>
+                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                   </button>
                 </div>
               ))}

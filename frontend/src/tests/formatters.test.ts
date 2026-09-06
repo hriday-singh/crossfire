@@ -6,9 +6,20 @@ import {
   getImpactScore,
   getVerdictConfig,
   truncateUrl,
+  cleanUiText,
 } from "@/lib/formatters";
 
 describe("formatters", () => {
+  it("should clean em-dashes, en-dashes, and emojis from UI text", () => {
+    expect(cleanUiText("Option A — Option B")).toBe("Option A - Option B");
+    expect(cleanUiText("Savings of 25–35%")).toBe("Savings of 25 - 35%");
+    expect(cleanUiText("⚠️ Counter-evidence found")).toBe("Counter-evidence found");
+    expect(cleanUiText("🚀 Next experiment: run test")).toBe("Next experiment: run test");
+    expect(cleanUiText("Finding: 🔬 validated — all clear ✅")).toBe("Finding: validated - all clear");
+    expect(cleanUiText("")).toBe("");
+    expect(cleanUiText(null)).toBe("");
+    expect(cleanUiText(undefined)).toBe("");
+  });
   it("should mask internal backend evaluator names to CI test names (zero agent leakage)", () => {
     expect(formatTestName("evidence")).toBe("Evidence Test");
     expect(formatTestName("feasibility")).toBe("Feasibility Test");

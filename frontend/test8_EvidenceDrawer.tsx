@@ -298,8 +298,11 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                       )}
                     </div>
                     {f.contradiction && (
-                      <p className="font-body-sm text-body-sm text-error font-medium">
-                        ⚠️ {f.contradiction}
+                      <p className="font-body-sm text-body-sm text-error font-medium flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[15px] text-error shrink-0 select-none">
+                          warning
+                        </span>
+                        <span>{f.contradiction}</span>
                       </p>
                     )}
                     <p className="font-body-sm text-body-sm text-on-surface font-medium">

@@ -129,11 +129,11 @@ describe("VerdictBlock", () => {
     );
 
     expect(screen.getByText("Price the fallback human rota before signing.")).toBeInTheDocument();
-    const anchor = screen.getByRole("button", { name: "2 claims →" });
+    const anchor = screen.getByRole("button", { name: /2 claims/ });
     fireEvent.click(anchor);
     expect(onSelectClaim).toHaveBeenCalledWith("c1");
     // The unanchored action gets no link of its own.
-    expect(screen.queryByRole("button", { name: /1 claim →/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /1 claim/ })).not.toBeInTheDocument();
   });
 
   it("says the call is still coming while the run is live", () => {

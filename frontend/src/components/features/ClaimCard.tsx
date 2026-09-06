@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ActiveTestRow, Claim, DecisionConsequence, Finding } from "@/types/crossfire";
-import { formatConfidence, formatTestName, truncateUrl } from "@/lib/formatters";
+import { cleanUiText, formatConfidence, formatTestName, truncateUrl } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { TestRow } from "./TestRow";
 import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
@@ -173,7 +173,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 
       {/* Claim Title */}
       <h2 className="font-headline-md text-headline-md text-on-surface font-medium leading-tight">
-        {claim.statement}
+        {cleanUiText(claim.statement)}
       </h2>
 
       {/* Live Adversarial Test Stream (Visible during active testing) */}
@@ -216,13 +216,13 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           </div>
 
           <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-            {relevantFinding?.result || relevantFinding?.contradiction || consequence?.verdict_reasoning}
+            {cleanUiText(relevantFinding?.result || relevantFinding?.contradiction || consequence?.verdict_reasoning)}
           </p>
 
           {consequence?.verdict_reasoning && (
             <div className="font-body-sm text-body-sm text-on-surface-variant flex items-start gap-1.5 pt-1">
               <span className="material-symbols-outlined text-[15px] text-primary-container shrink-0">gavel</span>
-              <span><strong>Steel Man Verdict:</strong> {consequence.verdict_reasoning}</span>
+              <span><strong>Steel Man Verdict:</strong> {cleanUiText(consequence.verdict_reasoning)}</span>
             </div>
           )}
 
@@ -230,7 +230,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             {relevantFinding?.reasoning && !consequence?.verdict_reasoning && (
               <span className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">database</span>
-                <span>{relevantFinding.reasoning}</span>
+                <span>{cleanUiText(relevantFinding.reasoning)}</span>
               </span>
             )}
             {claimFindings.length > 1 && (
@@ -250,10 +250,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           </span>
           <span className="font-body-md text-body-md text-on-surface-variant truncate">
             {!isExpanded
-              ? consequence?.recommended_change ||
-                (isTestingMode
-                  ? "Formulating strategic recommendation based on adversarial test results..."
-                  : "No plan revision indicated: assumption aligns with findings.")
+              ? (consequence?.recommended_change
+                  ? cleanUiText(consequence.recommended_change)
+                  : isTestingMode
+                    ? "Formulating strategic recommendation based on adversarial test results..."
+                    : "No plan revision indicated: assumption aligns with findings.")
               : "Review full adversarial audit, test plan, and strategic adjustment below."}
           </span>
         </div>
@@ -318,7 +319,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 <span>Why this call</span>
               </span>
               <div className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface space-y-1">
-                <p className="font-medium text-on-surface">{consequence.verdict_reasoning}</p>
+                <p className="font-medium text-on-surface">{cleanUiText(consequence.verdict_reasoning)}</p>
                 {consequence.impact && (
                   <span className="inline-block font-mono text-xs uppercase px-2 py-0.5 rounded bg-surface-container-high text-outline">
                     Impact: {consequence.impact}
@@ -339,19 +340,19 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               {(claim.fatal_flaw || consequence?.fatal_flaw) && (
                 <div className="text-body-sm text-on-surface">
                   <span className="text-error font-semibold text-xs font-mono uppercase mr-1.5">[Fatal Flaw]:</span>
-                  <span>{claim.fatal_flaw || consequence?.fatal_flaw}</span>
+                  <span>{cleanUiText(claim.fatal_flaw || consequence?.fatal_flaw || "")}</span>
                 </div>
               )}
 
               <div className="text-body-sm text-on-surface">
                 <span className="text-primary font-semibold text-xs font-mono uppercase mr-1.5">[Salvaged Claim]:</span>
-                <span className="font-medium">{claim.salvaged_claim || consequence?.salvaged_claim}</span>
+                <span className="font-medium">{cleanUiText(claim.salvaged_claim || consequence?.salvaged_claim || "")}</span>
               </div>
 
               {(claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged) && (
                 <div className="text-body-sm text-on-surface-variant text-xs">
                   <span className="text-outline font-semibold font-mono uppercase mr-1.5">[Trade-off]:</span>
-                  <span>{claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged}</span>
+                  <span>{cleanUiText(claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged || "")}</span>
                 </div>
               )}
             </div>
@@ -384,15 +385,15 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                         <span className="material-symbols-outlined text-[15px] text-error shrink-0 select-none">
                           warning
                         </span>
-                        <span>{f.contradiction}</span>
+                        <span>{cleanUiText(f.contradiction)}</span>
                       </p>
                     )}
                     <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
-                      {f.result}
+                      {cleanUiText(f.result)}
                     </p>
                     {f.reasoning && f.reasoning !== f.result && (
                       <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed text-xs">
-                        {f.reasoning}
+                        {cleanUiText(f.reasoning)}
                       </p>
                     )}
                   </div>
@@ -422,7 +423,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                       rel="noopener noreferrer"
                       className="font-body-md text-body-md font-semibold text-primary hover:underline flex items-center gap-space-2 truncate"
                     >
-                      <span className="truncate">{ev.title || truncateUrl(ev.source_url, 45)}</span>
+                      <span className="truncate">{cleanUiText(ev.title || truncateUrl(ev.source_url, 45))}</span>
                       <span className="material-symbols-outlined text-[15px] shrink-0">open_in_new</span>
                     </a>
                     {ev.provider === "serpapi" && (
@@ -440,7 +441,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                     )}
                   </div>
                   <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
-                    "{ev.snippet}"
+                    "{cleanUiText(ev.snippet)}"
                   </p>
                 </div>
               ))}
@@ -458,7 +459,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                   key={idx}
                   className="font-body-sm text-body-sm text-on-surface bg-error-container/20 border-l-2 border-error p-3 rounded-r"
                 >
-                  {contra}
+                  {cleanUiText(contra)}
                 </p>
               ))}
             </div>
@@ -471,7 +472,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 What to change
               </span>
               <blockquote className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface">
-                "{consequence.recommended_change}"
+                "{cleanUiText(consequence.recommended_change)}"
               </blockquote>
             </div>
           )}
@@ -483,7 +484,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 How to check
               </span>
               <div className="border border-primary-container/40 bg-surface-container-low p-3 rounded text-body-sm text-on-surface">
-                {consequence.next_validation}
+                {cleanUiText(consequence.next_validation)}
               </div>
             </div>
           )}

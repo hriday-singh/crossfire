@@ -342,7 +342,7 @@ export const ConfirmScreen: React.FC = () => {
         <div className="flex items-center gap-space-4 font-body-xs text-body-xs text-outline">
           <span>Crossfire Decision Verification</span>
         </div>
-        <div className="font-body-xs text-body-xs text-outline">© 2025 Crossfire Inc.</div>
+        <div className="font-body-xs text-body-xs text-outline">Crossfire</div>
       </footer>
     </div>
   );

@@ -155,3 +155,18 @@ export function truncateUrl(url: string, maxLength: number = 40): string {
     return url.length <= maxLength ? url : url.slice(0, maxLength - 3) + "...";
   }
 }
+
+/**
+ * Normalizes user-facing UI text by:
+ * 1. Replacing em-dashes (—) and en-dashes (–) with standard hyphens (-)
+ * 2. Removing emojis to maintain clean executive brief typography
+ */
+export function cleanUiText(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(/\s*[\u2014\u2013]\s*/g, " - ")
+    .replace(/[\p{Extended_Pictographic}\uFE00-\uFE0F]/gu, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+

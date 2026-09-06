@@ -122,7 +122,7 @@ export const MOCK_PREVIEW_CASE: Case = {
       result: "Weakened",
       confidence: 0.82,
       contradiction:
-        "While initial redlines generate in seconds, attorney review bottlenecks shift from drafting to verifying AI suggestions, cutting realized time savings to 25–35%.",
+        "While initial redlines generate in seconds, attorney review bottlenecks shift from drafting to verifying AI suggestions, cutting realized time savings to 25-35%.",
       reasoning:
         "Benchmarked pilot data shows that while first-pass redlining is instant, attorneys spend significant time verifying hallucinated citations and fine-print exceptions, limiting turnaround gains.",
       evidence: [

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Case } from "@/types/crossfire";
-import { formatTestName, truncateUrl } from "@/lib/formatters";
+import { cleanUiText, formatTestName, truncateUrl } from "@/lib/formatters";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
@@ -144,9 +144,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
 
             <div className="bg-surface-container-lowest border border-outline-variant rounded p-space-4">
               <p className="font-headline-sm text-headline-sm text-on-surface font-semibold leading-relaxed">
-                <span className="text-outline select-none">“</span>
-                <span>{claim.statement}</span>
-                <span className="text-outline select-none">”</span>
+                {cleanUiText(claim.statement)}
               </p>
             </div>
           </div>
@@ -187,7 +185,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
               </div>
               <div className="bg-surface-container-lowest border border-outline-variant rounded p-space-4 space-y-space-2">
                 <p className="font-body-md text-body-md text-on-surface font-medium leading-relaxed">
-                  {consequence.verdict_reasoning}
+                  {cleanUiText(consequence.verdict_reasoning)}
                 </p>
                 {consequence.impact && (
                   <div className="pt-2 flex items-center gap-2 border-t border-outline-variant/40 text-xs font-mono text-outline">
@@ -211,17 +209,17 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
               {(claim.fatal_flaw || consequence?.fatal_flaw) && (
                 <div className="text-body-sm text-on-surface">
                   <span className="text-error font-semibold font-mono text-xs uppercase mr-1.5">[Fatal Flaw]:</span>
-                  <span>{claim.fatal_flaw || consequence?.fatal_flaw}</span>
+                  <span>{cleanUiText(claim.fatal_flaw || consequence?.fatal_flaw || "")}</span>
                 </div>
               )}
               <div className="text-body-sm text-on-surface">
                 <span className="text-primary font-semibold font-mono text-xs uppercase mr-1.5">[Salvaged Claim]:</span>
-                <span className="font-medium">{claim.salvaged_claim || consequence?.salvaged_claim}</span>
+                <span className="font-medium">{cleanUiText(claim.salvaged_claim || consequence?.salvaged_claim || "")}</span>
               </div>
               {(claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged) && (
                 <div className="text-body-sm text-on-surface-variant text-xs">
                   <span className="text-outline font-semibold font-mono text-xs uppercase mr-1.5">[Trade-off]:</span>
-                  <span>{claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged}</span>
+                  <span>{cleanUiText(claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged || "")}</span>
                 </div>
               )}
             </div>
@@ -274,7 +272,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                       rel="noopener noreferrer"
                       className="font-body-md text-body-md font-semibold text-primary hover:underline flex items-center justify-between gap-space-2 group"
                     >
-                      <span className="truncate">{ev.title || truncateUrl(ev.source_url, 45)}</span>
+                      <span className="truncate">{cleanUiText(ev.title || truncateUrl(ev.source_url, 45))}</span>
                       <span className="material-symbols-outlined text-[16px] shrink-0 text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
                         open_in_new
                       </span>
@@ -304,7 +302,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                     </div>
 
                     <blockquote className="font-body-sm text-body-sm text-on-surface-variant mt-space-3 pl-space-3 border-l-2 border-primary-container leading-relaxed italic bg-surface-container-low/50 py-1.5 rounded-r">
-                      “{ev.snippet}”
+                      "{cleanUiText(ev.snippet)}"
                     </blockquote>
                   </div>
                 ))}
@@ -345,15 +343,15 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                         <span className="material-symbols-outlined text-[15px] text-error shrink-0 select-none">
                           warning
                         </span>
-                        <span>{f.contradiction}</span>
+                        <span>{cleanUiText(f.contradiction)}</span>
                       </p>
                     )}
                     <p className="font-body-sm text-body-sm text-on-surface font-medium">
-                      {f.result}
+                      {cleanUiText(f.result)}
                     </p>
                     {f.reasoning && f.reasoning !== f.result && (
                       <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed text-xs">
-                        {f.reasoning}
+                        {cleanUiText(f.reasoning)}
                       </p>
                     )}
                   </div>
@@ -376,8 +374,10 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
             <div className="border-l-2 border-error bg-error-container/20 p-space-4 rounded-r">
               <p className="font-body-md text-body-md text-on-surface leading-relaxed font-medium">
-                {consequence?.recommended_change ||
-                  "No immediate plan modification indicated: assumption withstands tested failure modes."}
+                {cleanUiText(
+                  consequence?.recommended_change ||
+                    "No immediate plan modification indicated: assumption withstands tested failure modes."
+                )}
               </p>
             </div>
           </div>
@@ -390,10 +390,12 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
             <div className="border border-primary-container/40 bg-on-primary-container/20 rounded p-space-4">
               <p className="font-body-sm text-body-sm text-on-surface leading-relaxed mb-space-4">
-                {consequence?.next_validation ||
-                  (claim.status === "survived"
-                    ? "Proceed with execution; re-test if foundational dependencies or pricing change."
-                    : "Formulate small-batch experiment to validate core assumption directly with users.")}
+                {cleanUiText(
+                  consequence?.next_validation ||
+                    (claim.status === "survived"
+                      ? "Proceed with execution; re-test if foundational dependencies or pricing change."
+                      : "Formulate small-batch experiment to validate core assumption directly with users.")
+                )}
               </p>
               <div className="pt-space-3 border-t border-outline-variant/40 flex items-center justify-between">
                 <span className="font-code-sm text-code-sm text-outline">

@@ -1,5 +1,6 @@
 import React from "react";
 import { Case, Claim } from "@/types/crossfire";
+import { cleanUiText } from "@/lib/formatters";
 
 /**
  * Layer 0-1 of the dashboard: the call, the single thing that forced it, and
@@ -111,7 +112,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
           {headline}
         </h2>
         <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-          {verdict.summary}
+          {cleanUiText(verdict.summary)}
         </p>
         {counts.length > 0 && (
           <p className="font-code-sm text-code-sm text-outline">{counts.join(" · ")}</p>
@@ -137,7 +138,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                   >
                     <div className="flex items-start justify-between gap-space-3">
                       <span className="font-body-md text-body-md text-on-surface">
-                        {claim.statement}
+                        {cleanUiText(claim.statement)}
                       </span>
                       <span
                         className={`font-code-sm text-code-sm font-semibold shrink-0 ${
@@ -149,11 +150,11 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                     </div>
                     {reasoning && (
                       <p className="mt-1 font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                        {reasoning}
+                        {cleanUiText(reasoning)}
                       </p>
                     )}
                     {source && (
-                      <p className="mt-1 font-code-sm text-code-sm text-outline">{source}</p>
+                      <p className="mt-1 font-code-sm text-code-sm text-outline">{cleanUiText(source)}</p>
                     )}
                   </button>
                 </li>
@@ -178,15 +179,16 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                   className="flex items-start justify-between gap-space-3"
                 >
                   <span className="font-body-md text-body-md text-on-surface leading-relaxed">
-                    {next.action}
+                    {cleanUiText(next.action)}
                   </span>
                   {anchor && (
                     <button
                       type="button"
                       onClick={() => onSelectClaim(anchor)}
-                      className="shrink-0 font-code-sm text-code-sm px-2.5 py-0.5 rounded border border-outline-variant text-primary-container hover:bg-surface-container-high transition-colors cursor-pointer"
+                      className="shrink-0 font-code-sm text-code-sm px-2.5 py-0.5 rounded border border-outline-variant text-primary-container hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center gap-1"
                     >
-                      {next.claim_ids.length} claim{next.claim_ids.length > 1 ? "s" : ""} →
+                      <span>{next.claim_ids.length} claim{next.claim_ids.length > 1 ? "s" : ""}</span>
+                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                     </button>
                   )}
                 </li>

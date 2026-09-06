@@ -102,7 +102,7 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
     if (contradictions.length > 0) {
       md += `\n**Contradictions & Counterarguments:**  \n`;
       contradictions.forEach((c) => {
-        md += `> ⚠️ **Counter-evidence:** ${c}\n`;
+        md += `> **Counter-evidence:** ${c}\n`;
       });
     }
 
@@ -115,7 +115,7 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
     // Next validation experiment
     if (consequence?.next_validation) {
       md += `\n**Next Validation Experiment (Smallest Real-World Test):**  \n`;
-      md += `> 🔬 ${consequence.next_validation}\n`;
+      md += `> ${consequence.next_validation}\n`;
     }
 
     md += `\n---\n\n`;
