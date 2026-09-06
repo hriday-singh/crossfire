@@ -1,11 +1,15 @@
 """
-Owner: Dev B. Tavily wrapper — search_depth="basic", one query per claim,
-tenacity-wrapped for transient failures. See docs/03-dev-B-evidence-receipts.md.
+Owner: Dev B. DuckDuckGo search wrapper via Scrapling.
+Extracts external evidence items with search_depth='basic' equivalent (1 query per claim).
+Wrapped in tenacity retry for transient network failures.
 """
 from __future__ import annotations
 
+import html
 import inspect
 import logging
+import re
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Any
 
@@ -75,33 +79,81 @@ DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {
 }
 
 
-class _DefaultTavilyClient:
-    """Thin wrapper around TavilyClient / AsyncTavilyClient."""
-
-    def __init__(self, api_key: str = "") -> None:
-        self.api_key = api_key
-        self._client: Any = None
-
-    def _get_client(self) -> Any:
-        if self._client is None:
-            key = self.api_key or getattr(settings, "tavily_api_key", "")
-            if key:
-                try:
-                    from tavily import AsyncTavilyClient
-
-                    self._client = AsyncTavilyClient(api_key=key)
-                except Exception as err:
-                    logger.warning(f"Could not initialize AsyncTavilyClient: {err}")
-        return self._client
-
-    async def search(self, **kwargs: Any) -> dict[str, Any]:
-        client = self._get_client()
-        if client is None:
-            return {"results": []}
-        return await client.search(**kwargs)
+def _clean_ddg_url(raw_url: str) -> str:
+    """Decodes DuckDuckGo redirect URLs if present, otherwise returns cleaned URL."""
+    if "uddg=" in raw_url:
+        match = re.search(r"uddg=([^&]+)", raw_url)
+        if match:
+            return urllib.parse.unquote(match.group(1))
+    return raw_url
 
 
-_tavily_client: Any = _DefaultTavilyClient(api_key=getattr(settings, "tavily_api_key", ""))
+def parse_duckduckgo_lite_html(html_content: str, max_results: int = 4) -> list[EvidenceItem]:
+    """Parses DuckDuckGo Lite HTML into well-formed EvidenceItem models.
+
+    Filters out internal ads/navigation and extracts clean target URLs, titles, and snippets.
+    """
+    if not html_content:
+        return []
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    link_pattern = re.compile(
+        r"<a\s+([^>]*class=[\"'][^\"']*result-link[^\"']*[\"'][^>]*)>(.*?)</a>",
+        re.DOTALL | re.IGNORECASE,
+    )
+
+    snippet_pattern = re.compile(
+        r"<td\s+[^>]*class=[\"'][^\"']*result-snippet[^\"']*[\"'][^>]*>(.*?)</td>",
+        re.DOTALL | re.IGNORECASE,
+    )
+
+    snippets = list(snippet_pattern.finditer(html_content))
+    items: list[EvidenceItem] = []
+
+    for link_m in link_pattern.finditer(html_content):
+        if len(items) >= max_results:
+            break
+
+        attrs = link_m.group(1)
+        title_raw = link_m.group(2)
+
+        href_m = re.search(r'href=[\"\']([^\"\']+)[\"\']', attrs, re.IGNORECASE)
+        if not href_m:
+            continue
+
+        raw_url = href_m.group(1).strip()
+        url = _clean_ddg_url(raw_url)
+
+        # Skip DuckDuckGo internal ads and helper pages
+        if not url or "duckduckgo.com/y.js" in url or "duckduckgo-help-pages" in url:
+            continue
+        if url.startswith("/") or url.startswith("#"):
+            continue
+
+        title_clean = html.unescape(re.sub(r"<[^>]+>", "", title_raw))
+        title = re.sub(r"\s+", " ", title_clean).strip() or None
+
+        # Find the first snippet appearing after this link
+        link_end = link_m.end()
+        snippet_text = ""
+        for snip_m in snippets:
+            if snip_m.start() >= link_end:
+                snip_raw = snip_m.group(1)
+                snip_clean = html.unescape(re.sub(r"<[^>]+>", "", snip_raw))
+                snippet_text = re.sub(r"\s+", " ", snip_clean).strip()
+                break
+
+        items.append(
+            EvidenceItem(
+                source_url=url,
+                title=title,
+                snippet=snippet_text,
+                retrieved_at=now,
+            )
+        )
+
+    return items
 
 
 @retry(
@@ -110,21 +162,28 @@ _tavily_client: Any = _DefaultTavilyClient(api_key=getattr(settings, "tavily_api
     retry=retry_if_not_exception_type(AssertionError),
     reraise=True,
 )
-async def _execute_search(query: str) -> dict[str, Any]:
-    res = _tavily_client.search(
-        query=query,
-        search_depth="basic",
-        max_results=4,
+async def _execute_search(query: str) -> str:
+    """Executes a search against DuckDuckGo Lite using Scrapling's AsyncFetcher."""
+    from scrapling import AsyncFetcher
+
+    res = await AsyncFetcher.post(
+        "https://lite.duckduckgo.com/lite/",
+        data={"q": query},
+        timeout=15,
     )
-    if inspect.isawaitable(res):
-        return await res
-    return res
+    if hasattr(res, "html_content") and res.html_content:
+        return res.html_content
+    if hasattr(res, "body") and res.body:
+        return res.body.decode("utf-8", errors="ignore")
+    if hasattr(res, "text") and res.text:
+        return res.text
+    return str(res)
 
 
 async def search_evidence(claim: Claim) -> list[EvidenceItem]:
-    """Searches external evidence for a given claim via Tavily.
+    """Searches external evidence for a given claim via DuckDuckGo Lite.
 
-    - Single query per claim (search_depth='basic')
+    - Single query per claim
     - Explicit DEMO_FIXTURES switch when DEMO_MODE is True
     - Gracefully degrades to an empty list on failure (never raises)
     """
@@ -133,29 +192,13 @@ async def search_evidence(claim: Claim) -> list[EvidenceItem]:
         return DEMO_FIXTURES[claim.id]
 
     try:
-        data = await _execute_search(claim.statement)
+        html_resp = await _execute_search(claim.statement)
+        if inspect.isawaitable(html_resp):
+            html_resp = await html_resp
+        return parse_duckduckgo_lite_html(html_resp, max_results=4)
     except AssertionError:
         raise
     except Exception as exc:
-        logger.warning(f"Tavily search failed for claim {claim.id}: {exc}")
+        logger.warning(f"DuckDuckGo search failed for claim {claim.id}: {exc}")
         return []
 
-    results = data.get("results", []) if isinstance(data, dict) else []
-    items: list[EvidenceItem] = []
-    now = datetime.now(timezone.utc).isoformat()
-
-    for item in results:
-        if not isinstance(item, dict):
-            continue
-        url = item.get("url")
-        if not url:
-            continue
-        items.append(
-            EvidenceItem(
-                source_url=url,
-                title=item.get("title"),
-                snippet=item.get("content") or "",
-                retrieved_at=now,
-            )
-        )
-    return items

@@ -117,3 +117,49 @@ async def test_run_receipts_with_llm_curation_enabled(
     assert len(finding.evidence) == 1
     assert finding.evidence[0].snippet == "Crucial sentence confirming the claim."
     assert finding.confidence == 0.85
+
+
+@pytest.mark.asyncio
+async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
+    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+):
+    """Multiple candidate evidence items are curated concurrently and assembled into the final finding."""
+    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.models import EvidenceItem
+    from evidence.curate import CuratedSnippet
+
+    items = [
+        EvidenceItem(
+            source_url=f"https://example.com/item{i}",
+            title=f"Title {i}",
+            snippet=f"Filler text. Key fact {i} directly supporting claim. Extra padding.",
+            retrieved_at="2026-09-06T00:00:00Z",
+        )
+        for i in range(3)
+    ]
+
+    async def fake_search(c):
+        return items
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+
+    curated_responses = [
+        CuratedSnippet(selected_sentences=f"Key fact {i} directly supporting claim.")
+        for i in range(3)
+    ]
+    assessment_response = ReceiptsAssessment(
+        result="Strong supporting evidence found across all sources",
+        reasoning="Multiple corroborating facts confirm the statement.",
+        confidence=0.92,
+        contradiction=None,
+    )
+
+    provider = fake_provider_factory(responses=[*curated_responses, assessment_response])
+
+    finding = await run_receipts(sample_claim, sample_test_plan_item, provider, use_llm_curation=True)
+    assert len(provider.calls) == 4  # 3 concurrent curations + 1 final receipts assessment
+    assert len(finding.evidence) == 3
+    for i, ev in enumerate(finding.evidence):
+        assert ev.snippet == f"Key fact {i} directly supporting claim."
+    assert finding.confidence == 0.92
+

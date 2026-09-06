@@ -1,5 +1,6 @@
 """
-Owner: Dev B. See docs/03-dev-B-evidence-receipts.md hour 2-11 and 11-35.
+Owner: Dev B. Evidence Pipeline Search Tests.
+Covers DuckDuckGo Lite search via Scrapling/curl-cffi and HTML parsing into EvidenceItems.
 """
 from __future__ import annotations
 
@@ -8,64 +9,109 @@ import pytest
 from core.models import EvidenceItem
 
 
+SAMPLE_DDG_HTML = """
+<html>
+<body>
+  <table border="0">
+    <tr>
+      <td valign="top">1.&nbsp;</td>
+      <td>
+        <a rel="nofollow" href="https://example.com/article-1" class="result-link">First Result Title</a>
+      </td>
+    </tr>
+    <tr>
+      <td>&nbsp;&nbsp;&nbsp;</td>
+      <td class="result-snippet">
+        This is the snippet for the <b>first</b> result with some extra facts.
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">2.&nbsp;</td>
+      <td>
+        <a rel="nofollow" href="https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.org%2Ftarget-page&rut=123" class="result-link">Second Result With Redirect</a>
+      </td>
+    </tr>
+    <tr>
+      <td>&nbsp;&nbsp;&nbsp;</td>
+      <td class="result-snippet">
+        Snippet for second result with detailed context.
+      </td>
+    </tr>
+    <tr>
+      <td valign="top">3.&nbsp;</td>
+      <td>
+        <a rel="nofollow" href="https://example.net/page-3" class="result-link">Third Result Title</a>
+      </td>
+    </tr>
+    <tr>
+      <td>&nbsp;&nbsp;&nbsp;</td>
+      <td class="result-snippet">
+        Snippet for third result.
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+
+def test_parse_duckduckgo_lite_html():
+    """Parses DuckDuckGo Lite HTML into well-formed EvidenceItems, decoding redirect URLs and extracting snippets."""
+    from evidence.search import parse_duckduckgo_lite_html
+
+    items = parse_duckduckgo_lite_html(SAMPLE_DDG_HTML, max_results=2)
+    assert len(items) == 2
+    assert all(isinstance(i, EvidenceItem) for i in items)
+
+    # First item: direct URL
+    assert items[0].source_url == "https://example.com/article-1"
+    assert items[0].title == "First Result Title"
+    assert "snippet for the first result" in items[0].snippet
+
+    # Second item: decoded redirect URL
+    assert items[1].source_url == "https://example.org/target-page"
+    assert items[1].title == "Second Result With Redirect"
+    assert "Snippet for second result" in items[1].snippet
+    assert items[1].retrieved_at is not None
+
+
 @pytest.mark.asyncio
 async def test_search_evidence_returns_well_formed_evidence_items(monkeypatch, sample_claim):
-    """Mock the Tavily client call itself, not search_evidence — proves wrapper
-    shapes Tavily's raw response into EvidenceItem correctly."""
+    """Mock raw search response to verify search_evidence parses and returns EvidenceItems correctly."""
     from evidence.search import search_evidence
 
-    fake_results = {
-        "results": [
-            {
-                "url": "https://example.com/item1",
-                "title": "Item 1",
-                "content": "This is content 1 for the claim.",
-            },
-            {
-                "url": "https://example.com/item2",
-                "title": "Item 2",
-                "content": "This is content 2 for the claim.",
-            },
-        ]
-    }
-    monkeypatch.setattr("evidence.search._tavily_client.search", lambda **kwargs: fake_results)
+    async def fake_search(query: str) -> str:
+        return SAMPLE_DDG_HTML
+
+    monkeypatch.setattr("evidence.search._execute_search", fake_search)
     items = await search_evidence(sample_claim)
     assert all(isinstance(i, EvidenceItem) for i in items)
-    assert len(items) == 2
-    assert items[0].source_url == "https://example.com/item1"
-    assert items[0].title == "Item 1"
-    assert items[0].snippet == "This is content 1 for the claim."
-    assert items[0].retrieved_at is not None
+    assert len(items) == 3
+    assert items[0].source_url == "https://example.com/article-1"
+    assert items[1].source_url == "https://example.org/target-page"
 
 
 @pytest.mark.asyncio
 async def test_search_evidence_one_query_per_claim(monkeypatch, sample_claim):
-    """Cost control: assert the Tavily client is called exactly once for a
-    single claim, not once per candidate URL or per retry-that-succeeded."""
+    """Cost/bandwidth control: assert search execution is called exactly once for a single claim."""
     from evidence.search import search_evidence
 
     call_count = 0
 
-    def fake_search(**kwargs):
+    async def fake_search(query: str) -> str:
         nonlocal call_count
         call_count += 1
-        return {
-            "results": [
-                {"url": "https://example.com/1", "title": "1", "content": "C1"},
-                {"url": "https://example.com/2", "title": "2", "content": "C2"},
-            ]
-        }
+        return SAMPLE_DDG_HTML
 
-    monkeypatch.setattr("evidence.search._tavily_client.search", fake_search)
+    monkeypatch.setattr("evidence.search._execute_search", fake_search)
     items = await search_evidence(sample_claim)
     assert call_count == 1
-    assert len(items) == 2
+    assert len(items) == 3
 
 
 @pytest.mark.asyncio
 async def test_search_evidence_demo_mode_returns_fixture_and_skips_real_call(monkeypatch, sample_claim):
-    """DEMO_MODE=True + a claim_id present in DEMO_FIXTURES returns the fixture
-    and makes ZERO real Tavily calls."""
+    """DEMO_MODE=True + a claim_id present in DEMO_FIXTURES returns the fixture and makes ZERO search calls."""
     from evidence.search import DEMO_FIXTURES, search_evidence
 
     fixture_item = EvidenceItem(
@@ -77,23 +123,23 @@ async def test_search_evidence_demo_mode_returns_fixture_and_skips_real_call(mon
     monkeypatch.setattr("evidence.search.settings.DEMO_MODE", True)
     monkeypatch.setattr("evidence.search.DEMO_FIXTURES", {sample_claim.id: [fixture_item]})
 
-    def should_not_be_called(**kwargs):
-        raise AssertionError("Tavily search should not be called in demo mode with matching fixture")
+    def should_not_be_called(query: str):
+        raise AssertionError("Search should not be called in demo mode with matching fixture")
 
-    monkeypatch.setattr("evidence.search._tavily_client.search", should_not_be_called)
+    monkeypatch.setattr("evidence.search._execute_search", should_not_be_called)
     items = await search_evidence(sample_claim)
     assert items == [fixture_item]
 
 
 @pytest.mark.asyncio
-async def test_search_evidence_degrades_gracefully_on_tavily_failure(monkeypatch, sample_claim):
-    """A dead/failing Tavily call returns an empty list, never raises past this function."""
+async def test_search_evidence_degrades_gracefully_on_failure(monkeypatch, sample_claim):
+    """A dead/failing search call returns an empty list, never raises past this function."""
     from evidence.search import search_evidence
 
-    def failing_search(**kwargs):
-        raise ConnectionError("Tavily network failure")
+    async def failing_search(query: str) -> str:
+        raise ConnectionError("Search network failure")
 
-    monkeypatch.setattr("evidence.search._tavily_client.search", failing_search)
+    monkeypatch.setattr("evidence.search._execute_search", failing_search)
     items = await search_evidence(sample_claim)
     assert items == []
 
@@ -106,10 +152,10 @@ async def test_search_evidence_uses_preloaded_demo_fixtures(monkeypatch):
 
     monkeypatch.setattr("evidence.search.settings.DEMO_MODE", True)
 
-    def should_not_be_called(**kwargs):
-        raise AssertionError("Network Tavily call triggered while matching DEMO_FIXTURE exists")
+    def should_not_be_called(query: str):
+        raise AssertionError("Network search triggered while matching DEMO_FIXTURE exists")
 
-    monkeypatch.setattr("evidence.search._tavily_client.search", should_not_be_called)
+    monkeypatch.setattr("evidence.search._execute_search", should_not_be_called)
 
     demo_claim = Claim(id="claim-abc123", statement="Some statement")
     items = await search_evidence(demo_claim)

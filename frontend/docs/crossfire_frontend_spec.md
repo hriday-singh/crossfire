@@ -26,10 +26,10 @@ Instead of an AI chat window that flatters the user, Crossfire behaves like a **
    - `feasibility` $\rightarrow$ **Feasibility Test**
    - `edge-case` $\rightarrow$ **Edge-Case Test**
 2. **Verdict Color Exclusivity:** The four verdict colors are reserved exclusively for claim and test results. They are never reused for form validation, system alerts, or generic badges.
-3. **Unresolved is an Active, Measured Outcome:** The status `unresolved` signifies that the system actively searched and found conflicting, thin, or absent evidence. It is styled in **Violet/Indigo (`#a78bfa`)**—never gray or disabled.
+3. **Unresolved is an Active, Measured Outcome:** The status `unresolved` signifies that the system actively searched and found conflicting, thin, or absent evidence. It is styled in **Violet/Indigo (`#4f46e5`)**—never gray or disabled.
 4. **Single-Entry Simplicity:** One primary input: *"What are you considering?"*. Zero mode pickers, tabs, or personas.
 5. **Evidence Always Accessible:** Every claim card opens a slide-over Evidence Drawer revealing the complete audit trail and primary source citations.
-6. **Restraint Over Spectacle (No 3D):** Dark-mode CI aesthetic. Transitions are fast (<150ms) and functional. No 3D canvases, heavy animations, or sound effects.
+6. **Restraint Over Spectacle (No 3D):** Clean Light-First Decision Memo aesthetic. High-contrast typography, generous whitespace, fast (<150ms) CSS transitions only. Zero fake telemetry (no glowing live dots, no 3D canvas, no impact meters).
 
 ---
 
@@ -52,7 +52,7 @@ frontend/
 ├── src/
 │   ├── main.tsx
 │   ├── App.tsx
-│   ├── globals.css                # CSS variables & design tokens
+│   ├── globals.css                # CSS variables & clean design tokens
 │   ├── types/
 │   │   └── crossfire.ts           # Strict TypeScript contracts mirroring backend
 │   ├── context/
@@ -75,22 +75,21 @@ frontend/
 │   │   │   ├── skeleton.tsx
 │   │   │   └── alert.tsx
 │   │   ├── layout/
-│   │   │   ├── Header.tsx         # Top bar with wordmark & live SSE dot
+│   │   │   ├── Header.tsx         # Clean top bar with wordmark & status text
 │   │   │   └── ErrorBanner.tsx    # Pipeline-level alert banner
 │   │   ├── screens/
 │   │   │   ├── EntryScreen.tsx    # Screen 1: "What are you considering?"
 │   │   │   ├── ConfirmScreen.tsx  # Screen 2: Claim Map Review & Edit
-│   │   │   └── DashboardScreen.tsx# Screens 3 & 4: Live CI Runner & Results
+│   │   │   └── DashboardScreen.tsx# Screen 3: Unified Decision Memo (Live & Done)
 │   │   └── features/
-│   │       ├── ClaimCard.tsx      # Individual claim card with verdict & tests
-│   │       ├── TestRow.tsx        # CI job row with queued/running/done state
-│   │       ├── EvidenceDrawer.tsx # Slide-over audit sheet (9-level hierarchy)
-│   │       ├── ImpactMeter.tsx    # 3-segment monochrome impact readout
-│   │       └── LiveDot.tsx        # Pulsing SSE connection indicator
+│   │       ├── ClaimCard.tsx      # Readable claim card with verdict & consequence
+│   │       ├── VerdictBadge.tsx   # Semantic badge (survived, weakened, broken, unresolved)
+│   │       ├── EvidenceDrawer.tsx # Slide-over audit sheet
+│   │       └── EvidenceSourceItem.tsx # Clean citation link & snippet
 │   └── tests/
 │       ├── caseReducer.test.ts
 │       ├── useCaseStream.test.ts
-│       └── TestRow.test.tsx
+│       └── ClaimCard.test.tsx
 ```
 
 ---
@@ -253,38 +252,38 @@ Browser                          FastAPI Backend (Dev C)
 
 ## 5. Design System Tokens & Visual Consistencies
 
-### 5.1 Color Palette (Strict Dark Mode)
-All screens are styled with dark theme `.dark` on `zinc-950` baseline.
+### 5.1 Color Palette (Clean Light-First, WCAG AA)
+The interface uses a clean, breathable light theme with deep slate contrast for effortless reading.
 
 | Token | Hex Value | Semantic Usage |
 |---|---|---|
-| `--background` | `#09090b` | Main canvas background |
-| `--card` | `#18181b` | Cards, test rows, drawer surface |
-| `--border` | `#27272a` | Subtle row separators, drawer boundary |
-| `--foreground` | `#f4f4f5` | Headlines, claim statements, primary text |
-| `--muted-foreground` | `#a1a1aa` | Secondary text, queued state, confidence, URLs |
-| `--primary` | `#60a5fa` | CTA button, active focus ring, live SSE dot |
+| `--background` | `#fafafa` | Main canvas background (warm off-white) |
+| `--card` | `#ffffff` | Cards, memo container, drawer surface |
+| `--border` | `#e4e4e7` | Subtle card borders, row separators |
+| `--foreground` | `#18181b` | Headlines, claim statements, primary reading text |
+| `--muted-foreground` | `#71717a` | Secondary captions, timestamps, queued state, URLs |
+| `--primary` | `#18181b` | CTA buttons (`text-white`), active focus rings |
 
 ### 5.2 Verdict Visual Tokens (Exclusivity Rule)
 Verdict colors are strictly reserved for claim and test results.
 
-| Verdict | Role | Hex Value | Lucide Icon | Meaning |
-|---|---|---|---|---|
-| `survived` | Success | `#34d399` (Emerald) | `circle-check` | Withstood tests and web evidence |
-| `weakened` | Caution | `#fbbf24` (Amber) | `triangle-alert` | Partial validity; assumptions contested |
-| `broken` | Destructive | `#f87171` (Red) | `circle-x` | Directly refuted by facts/constraints |
-| `unresolved` | Uncertainty | `#a78bfa` (Violet) | `circle-help` | Active outcome: evidence thin/conflicting |
+| Verdict | Role | Text / Icon Color | Badge Background | Lucide Icon | Meaning |
+|---|---|---|---|---|---|
+| `survived` | Success | `#059669` (Emerald) | `#ecfdf5` | `circle-check` | Withstood tests and web evidence |
+| `weakened` | Caution | `#d97706` (Amber) | `#fffbeb` | `triangle-alert` | Partial validity; assumptions contested |
+| `broken` | Destructive | `#e11d48` (Rose) | `#fff1f2` | `circle-x` | Directly refuted by facts/constraints |
+| `unresolved` | Uncertainty | `#4f46e5` (Indigo) | `#eef2ff` | `circle-help` | Active outcome: evidence thin/conflicting |
 
 > [!CAUTION]
 > **Never render `unresolved` in gray.** Gray indicates inactive/queued elements. `unresolved` is an explicit, measured verdict.
 
 ### 5.3 Typography Standards
-- **UI & Prose Stack:** System Sans (`Inter`, `-apple-system`, `sans-serif`) for headers, claim statements, and reasoning.
+- **UI & Prose Stack:** System Sans (`Inter`, system-ui, `sans-serif`) with relaxed line-height (`leading-relaxed` / 1.6) for headers, claim statements, and reasoning.
 - **Monospace Stack:** System Mono (`JetBrains Mono`, `ui-monospace`, `monospace`) strictly for:
   - Mapped test labels (e.g., `ASSUMPTION TEST`)
   - Case & Claim IDs (`case_1024_abcd`, `c1`)
   - Citation URLs and domains
-  - Impact meter readouts and confidence figures
+  - Confidence figures
 
 ### 5.4 Test Name Mapping Matrix
 Backend evaluator names are masked strictly according to `failure_mode`:
@@ -316,54 +315,49 @@ export function mapFailureModeToTestName(failureMode: string): string {
 - **Route / State:** `view == "entry"`, `Case == null`.
 - **Layout:** Centered single column (max-width 640px). Minimal "Crossfire" wordmark top-left.
 - **Elements:**
-  - Label: *"What are you considering?"*
-  - Textarea: Auto-growing, min-height 120px, subtle placeholder examples.
-  - Primary CTA: *"Test this"* button (`#60a5fa`).
-- **Loading State:** Upon submit, textarea transforms into a 3-bar skeleton loader with caption: *"Breaking this into claims..."*.
+  - Label: *"What are you considering?"* (text-xl font-semibold text-zinc-900).
+  - Textarea: Auto-growing, min-height 120px, white background, comfortable padding.
+  - Primary CTA: *"Test Decision"* button (`bg-zinc-900 text-white`).
+- **Loading State:** Upon submit (`POST /cases`), textarea transforms into a 3-bar skeleton loader with caption: *"Extracting core assumptions..."*.
 
-### Screen 2: Claim Map Confirmation View
+### Screen 2: Claim Alignment View
 - **Route / State:** `view == "confirm"`, `Case.status == "awaiting_confirmation"`.
-- **Layout:** Left-aligned single column (max-width 720px).
+- **Layout:** Centered single column (max-width 720px).
 - **Elements:**
-  - Header Echo: Paraphrase of user's decision to verify understanding.
-  - Claim Stack: Editable cards. Clicking allows inline text edits. Small `(x)` button to delete.
-  - Action Link: `"+ Add assumption"` creates client-side claim (`c_custom_n`).
-  - Primary CTA: *"Confirm and run tests"*.
+  - Header Echo: Paraphrase of user's decision in readable prose to verify understanding.
+  - Claim Stack: Clean white cards. Clicking allows inline text edits. Small `(×)` button to delete.
+  - Action Link: `"+ Add assumption"` allows adding an assumption.
+  - Primary CTA: *"Confirm and test assumptions"* $\rightarrow$ `POST /cases/{id}/confirm`.
 - **Constraint:** `load_bearing` flag and `status` badges are **NOT** displayed on this screen.
 
-### Screen 3: Live CI Dashboard (Test Runner)
-- **Route / State:** `view == "dashboard"`, `Case.status == "testing"`.
-- **Layout:** App shell with 56px fixed top bar (wordmark + live pulsing dot + counter banner). Main content max-width 960px.
-- **Organization:** Groups test rows by `target_claim_id`.
-- **Row Lifecycle States:**
-  1. *Queued:* Muted text, dashed circle icon.
-  2. *Running:* Subtle background highlight, animated spinner/pulse.
-  3. *Finding Attached:* Summary excerpt and confidence value reveal.
-  4. *Resolved:* Transitions to verdict badge with brief <300ms flash.
-  5. *Impact Attached:* 3-segment meter chip renders.
+### Screen 3: Decision Memo & Live Audit (Testing $\rightarrow$ Completed)
+- **Route / State:** `view == "dashboard"`, `Case.status == "testing"` or `"done"`.
+- **Layout:** Centered container (max-width 840px).
+- **Live Summary Bar:**
+  - *During testing:* Truthful status: *"Testing 4 claims against web evidence and counterarguments..."*
+  - *When done:* Clean summary banner: *"4 claims tested: 1 survived, 1 weakened, 1 broken, 1 unresolved."*
+  - *Zero fake telemetry:* No glowing blue "LIVE STREAM" dots, no pulsing radar beacons, no simulated meters.
+- **Claim Card Elements:**
+  - Load-bearing tag (*"Core foundation"*) rendered when `load_bearing == true`.
+  - Full claim statement in large, readable text (`text-lg font-medium text-zinc-900`).
+  - Semantic verdict pill badge (`Survived`, `Weakened`, `Broken`, `Unresolved`).
+  - Plain-English decision consequence impact excerpt.
+  - Primary action: `"View Evidence & Sources →"` button opening the slide-over Evidence Drawer.
 
-### Screen 4: Results Dashboard
-- **Route / State:** `view == "dashboard"`, `Case.status == "done"`.
-- **Layout:** Merged directly into Screen 3 component (avoiding layout shifts).
-- **Banner Counter:** *"N of M claims tested. X survived, Y weakened, Z broken, W unresolved."*
-- **Sorting:** Load-bearing claims first, then severity order: `broken` $\rightarrow$ `unresolved` $\rightarrow$ `weakened` $\rightarrow$ `survived`.
-- **Interaction:** Clicking any claim card opens the Evidence Drawer.
-
-### Screen 5: Evidence & Audit Drawer
-- **Component:** Radix / shadcn `Sheet` slide-over from right edge (460px width).
-- **Strict 9-Level Content Hierarchy (Top to Bottom):**
-  1. **CLAIM:** Full `Claim.statement`.
-  2. **WHY IT MATTERS:** Synthesized load-bearing statement (*"If false, the unit economics fail immediately."*).
-  3. **TESTS RUN:** Badges of all tests executed against this claim.
-  4. **EVIDENCE FOUND:** Card for each citation:
-     - Title or domain link (`target="_blank"`, `rel="noreferrer"` with `external-link` icon).
-     - Curated excerpt snippet (max 300 chars).
-     - *Fallback:* If evidence is empty, display: *"No external evidence could be retrieved for this claim."*
-  5. **CONTRADICTIONS:** Rendered with caution accent only when non-null.
-  6. **STATUS:** Final verdict badge repeated for scannability.
-  7. **DECISION IMPACT:** 3-bar monochrome meter for `high` | `medium` | `low`.
-  8. **WHAT CHANGES:** `DecisionConsequence.recommended_change`.
-  9. **NEXT VALIDATION:** Concrete verification step (mandatory for `broken` or `unresolved` load-bearing claims).
+### Screen 4: Evidence & Source Audit Drawer
+- **Component:** Radix / shadcn `Sheet` slide-over from right edge (480px width, white background, border-l border-zinc-200).
+- **Content Hierarchy (Top to Bottom):**
+  1. **CLAIM:** Full `Claim.statement` + Verdict Badge.
+  2. **WHY IT MATTERS:** Synthesized load-bearing statement (*"Core foundation. If false, the unit economics fail immediately."*).
+  3. **TESTS RUN:** Mapped test name pills (e.g., `Evidence Test`, `Feasibility Test`).
+  4. **EVIDENCE FOUND:** Clean citation cards:
+     - Domain link with clean pill (`target="_blank"`, `rel="noreferrer"`).
+     - Source title.
+     - Curated excerpt snippet quote.
+     - *Fallback:* If evidence is empty, display: *"No public evidence could be retrieved for this claim."*
+  5. **CONTRADICTIONS:** Rendered with caution styling only when non-null.
+  6. **RECOMMENDED CHANGE:** `DecisionConsequence.recommended_change` in plain English.
+  7. **NEXT VALIDATION ACTION:** Smallest concrete verification experiment to perform tomorrow.
 
 ---
 

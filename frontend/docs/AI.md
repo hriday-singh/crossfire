@@ -14,15 +14,20 @@ Use when developing and debugging anything
 
 | Layer | Default / Packages |
 |---|---|
-| **Frontend Framework** | React + Vite.js |
-| **3D & WebGL** | `three`, `@react-three/fiber`, `@react-three/drei`, `three-stdlib`, `@types/three` |
-| **Animation & Scroll** | `motion`, `lenis` |
-| **Visuals & Camera** | `@shadergradient/react`, `camera-controls` |
+| **Frontend Framework** | React 19 + TypeScript (Strict Mode) + Vite |
+| **Styling & Design System** | Tailwind CSS (CSS variables) + Radix UI primitives (`shadcn/ui`) |
+| **Icons** | `lucide-react` |
+| **Networking & Streaming** | Native `fetch` + Native `EventSource` (SSE streaming) |
+| **State Management** | React Context + deterministic `useReducer` for SSE events |
+
+**UI Philosophy & Non-Negotiables:**
+- Clean, readable Executive Decision Memo layout. High contrast, generous whitespace, calm typography.
+- Zero fake telemetry: No glowing blue "LIVE" dots, no fake dropzones, no impact meters, no unbuilt settings modals.
+- No 3D, WebGL, or heavy canvas shaders. Fast (<150ms) CSS transitions only.
 
 **Agent Skills & Tooling Active in Workspace:**
 - `shadcn/ui`
-- `nutlope/hallmark`
-- `impeccable`
+- `minimalist-ui`
 
 
 ## Workflow

@@ -3,6 +3,7 @@ Owner: Dev B. See docs/03-dev-B-evidence-receipts.md. Owns the evidence pipeline
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -78,22 +79,23 @@ async def run_receipts(
                 if full_text:
                     ev.snippet = full_text
 
-    # 4. Curate all snippets (enforcing 1-3 sentences max)
-    curated_items: list[EvidenceItem] = []
-    for ev in evidence_items:
+    # 4. Curate all snippets (enforcing 1-3 sentences max, run concurrently)
+    async def _curate_single(ev: EvidenceItem) -> EvidenceItem | None:
         if use_llm_curation:
             curated = await curate_snippet_llm(ev.snippet, claim.statement, provider=provider)
         else:
             curated = curate_snippet(ev.snippet, claim.statement)
         if curated:
-            curated_items.append(
-                EvidenceItem(
-                    source_url=ev.source_url,
-                    title=ev.title,
-                    snippet=curated,
-                    retrieved_at=ev.retrieved_at,
-                )
+            return EvidenceItem(
+                source_url=ev.source_url,
+                title=ev.title,
+                snippet=curated,
+                retrieved_at=ev.retrieved_at,
             )
+        return None
+
+    curated_results = await asyncio.gather(*(_curate_single(ev) for ev in evidence_items))
+    curated_items: list[EvidenceItem] = [item for item in curated_results if item is not None]
 
     # 5. Build prompt for Receipts evaluator
     system_prompt = (

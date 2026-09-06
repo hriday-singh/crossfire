@@ -1,220 +1,151 @@
 # Crossfire — Frontend View Architecture & Screen Plan
 
-This document outlines the complete view architecture for **Crossfire** from a frontend/UI developer's perspective. It explains what screens, drawers, and modal views the application needs to deliver the core experience, and how upcoming Python backend features (file/URL ingestion, multi-model selection, side-by-side comparison, and case history) integrate smoothly into the UI.
+This document outlines the complete view architecture for **Crossfire** from a frontend/UI developer's perspective. It strictly reflects the **currently working backend API** (`backend/api/routes.py`, `backend/core/models.py`, `backend/api/events.py`) and embodies our core UI philosophy: **maximum readability, zero clutter, and zero fake telemetry**.
 
 ---
 
-## 1. Goal Description
+## 1. Goal Description & Philosophy
 
-Crossfire is not a conversational chatbot or a generic AI council; **it is a crash-test rig for high-stakes decisions**. 
+Crossfire is a **rigorous decision testing memo**, not an AI chatbot, a simulated hacker terminal, or an arcade dashboard. 
 
-Instead of an AI chat window that flatters the user, Crossfire behaves like a **developer CI/CD test runner** (think GitHub Actions or Vercel deployment dashboards):
-1. Takes a proposal or business decision.
-2. Extracts its core assumptions into distinct "claims".
-3. Lets the user verify or adjust those claims before testing starts.
-4. Stress-tests each claim against real web evidence and counterarguments.
-5. Surfaces clean verdicts (`survived`, `weakened`, `broken`, `unresolved`) alongside concrete next validation actions.
+Instead of an unreadable, cluttered console or an agreeable AI chat window:
+1. **Inputs a proposal or business decision** via a clean, distraction-free prompt.
+2. **Extracts foundational assumptions** into distinct, testable claims.
+3. **Lets the user review and edit claims** before any compute runs.
+4. **Stress-tests each claim** against live web evidence, counter-arguments, and feasibility constraints.
+5. **Presents an authoritative, readable Decision Memo** with clear verdicts (`survived`, `weakened`, `broken`, `unresolved`) and a 1-click slide-over Evidence Drawer containing real citations.
 
-Our job as UI developers is to make this process feel fast, authoritative, dense, and honest—grounded in structured data rather than chat transcripts.
+Our mandate: **Clean, breathable, honest, and effortless to read.**
 
 ---
 
 ## 2. Core View Flow (The User Journey)
 
-Below is the user flow across the primary views:
+The entire product consists of three focused screens and one slide-over drawer:
 
 ```mermaid
 graph TD
-    V1[View 1: Decision Entry & Ingestion] -->|Submit Decision| Loading[Skeleton: Extracting Claims...]
-    Loading --> V2[View 2: Claim Confirmation Map]
-    V2 -->|Confirm & Run| V3[View 3: Live Test Runner CI Dashboard]
-    V3 -->|SSE Stream Completes| V4[View 4: Results & Verdict Overview]
-    V4 <-->|Click Claim Card| V5[View 5: Evidence & Audit Drawer]
-    
-    subgraph Future Python Extensions
-        V1 -.-> Ext1[Context Dropzone: PDF / URL Upload]
-        V4 -.-> Ext2[Side-by-Side Reality Check Demo]
-        Global[Header Bar] -.-> Ext3[Provider / Engine Settings Modal]
-        Global -.-> Ext4[Run History / Case Library Sidebar]
-    end
+    V1["View 1: Decision Entry<br><i>POST /cases</i>"] -->|"Submit Proposal"| Loading["Calm State: Extracting Claims..."]
+    Loading --> V2["View 2: Claim Alignment<br><i>POST /cases/{id}/confirm</i>"]
+    V2 -->|"Confirm & Run"| V3["View 3: Decision Memo & Audit<br><i>GET /cases/{id}/stream</i>"]
+    V3 <-->|"Click Claim Card"| Drawer["Evidence Drawer (Slide-Over Sheet)<br><i>GET /cases/{id}</i>"]
 ```
 
 ---
 
-## 3. Detailed View Breakdown (UI Developer Perspective)
+## 3. Detailed View Breakdown
 
 ### View 1: Decision Entry View ("What are you considering?")
-*The landing state where the user presents their idea or decision.*
+*The distraction-free starting point.*
 
-* **Role & Purpose:** A distraction-free entry point. It invites the user to state a business proposition, product bet, or strategic dilemma.
+* **Role & Purpose:** A focused, high-contrast entry point that invites the user to state a business proposition, product bet, or strategic dilemma.
 * **Layout & Key Elements:**
-  * **Hero Input Area:** An auto-expanding textarea with a prominent prompt: *"What are you considering?"*
-  * **Rotating Subtle Placeholders:** 2–3 realistic examples cycling quietly (e.g., *"I want to offer a free tier with unlimited AI queries"*, *"We should build a mobile-first college admissions agent"*).
-  * **Primary Action:** A single high-contrast button: `"Test this"`.
-  * **Context / Ingestion Area (Future Python Feature):**
-    * A subtle toggle or drag-and-drop zone: *"Attach background document (PDF) or link (URL)"*.
-    * Once Python's `ingestion/pdf.py` and Scrapling URL scrapers are active, this allows users to upload full pitch decks, whitepapers, or landing pages as supporting context.
-* **Loading State (Extracting Claims):**
-  * When submitted, the input morphs into a sleek skeleton placeholder (3–4 pulsing bars) with the caption *"Breaking this into claims..."*. No fake spinners or percentage gauges.
+  * **Header:** Minimal wordmark (`Crossfire`) with generous breathing room.
+  * **Hero Prompt:** A clear, human question: *"What are you considering?"*
+  * **Textarea:** Clean, auto-expanding textarea with a subtle light border and comfortable font size (16px / `text-base` to prevent mobile zooming, with relaxed line height).
+  * **Primary Action:** A single high-contrast button: `"Test Decision"`.
+* **Honest Simplicity (No Fake Stuff):**
+  * No fake PDF dropzones or file attachment widgets.
+  * No model provider dropdowns, temperature sliders, or settings modals.
+  * No cycling example carousels or decorative graphics.
+* **Extraction State:**
+  * On submit, calls `POST /cases` (`{"raw_input": "..."}`).
+  * Transitions smoothly to a calm skeleton state with 3–4 soft pulsing lines and a quiet caption: *"Extracting core assumptions..."*. No fake percentage spinners.
 
 ---
 
-### View 2: Claim Map Confirmation View
-*The checkpoint where the user and the system align on what is actually being tested.*
+### View 2: Claim Alignment View
+*The checkpoint where user and system align on what is actually being tested.*
 
-* **Role & Purpose:** Before wasting compute running web searches and evaluator models, Crossfire presents the extracted assumptions. This ensures the system didn't misunderstand the user's premise.
+* **Role & Purpose:** Maps to `Case.status == "awaiting_confirmation"`. Ensures the system didn't misunderstand the user's premise before compute runs.
 * **Layout & Key Elements:**
-  * **Header Echo:** A clean paraphrase of the user’s input so they know the AI grasped their intent.
-  * **Claim List (Card Stack):** A stack of compact cards, each containing an individual claim statement.
-  * **Inline Editing:** Clicking a card turns its text into an editable input box; an `(x)` button allows deleting irrelevant assumptions.
-  * **Add Claim Affordance:** A lightweight `"+ Add assumption"` text button for anything the AI missed.
-  * **Primary Action:** A prominent button: `"Confirm and run tests"`.
-* **Design Note:** This is an intentionally calm, static form—the only screen in the app that feels like editing rather than watching a machine run.
+  * **Header Restatement:** Echoes the decision in clean, readable prose so the user knows Crossfire understood their intent.
+  * **Instructions:** *"We extracted these core assumptions. Verify, edit, or remove any before we test."*
+  * **Claim List:** A clean stack of white cards against the warm-white background.
+  * **Inline Editing:** Clicking any card switches the statement to an editable text input.
+  * **Delete Affordance:** A simple `(×)` remove button on each card.
+  * **Add Affordance:** A lightweight `"+ Add assumption"` text button for anything the system missed.
+  * **Primary Action:** One clear button: `"Confirm and test assumptions"` $\rightarrow$ `POST /cases/{id}/confirm`.
+* **Design Character:** A calm, static editing form.
 
 ---
 
-### View 3: Live Test Runner View (The CI Dashboard)
-*The signature screen that watches real tests execute in real time.*
+### View 3: Decision Memo & Live Audit (Testing $\rightarrow$ Completed)
+*The signature screen: a unified, calm executive brief that seamlessly updates.*
 
-* **Role & Purpose:** Visually mirrors a modern continuous-integration (CI) test suite. Claims are the test suites; individual evaluations are the test jobs.
+* **Role & Purpose:** Subscribes to `GET /cases/{id}/stream` when `status == "testing"` and remains the persistent results memo once `status == "done"`. Avoids jarring route navigations.
 * **Layout & Key Elements:**
-  * **Live Stream Header:**
-    * A gentle pulsing connection dot (indicating the Server-Sent Events stream is healthy).
-    * Summary counter: *"4 of 4 claims queued for testing"*.
-  * **Test Job Matrix (Grouped by Claim):**
-    * Each claim forms a group. Inside each group are its assigned tests:
-      * **Assumption Test** (evaluates foundational logic)
-      * **Evidence Test** (searches the web for verifiable facts/competitors)
-      * **Feasibility Test** (evaluates implementation realism)
-      * **Edge-Case Test** (uncovers boundary failures)
-    * **Row States:**
-      * *Queued:* Muted text, dashed circle icon.
-      * *Running:* Active subtle pulse/spin, highlighted row background.
-      * *Finding Attached:* Sub-row appears with a 1-line summary and confidence meter.
-      * *Resolved:* Badge transitions directly to its final verdict.
+  * **Executive Summary Header:**
+    * *During testing:* A truthful, quiet status line: *"Testing 4 claims against web evidence and counterarguments..."*
+    * *When complete:* A calm, authoritative summary: *"4 claims tested: 1 survived, 1 weakened, 1 broken, 1 unresolved."*
+    * *No fake telemetry:* No glowing blue "LIVE STREAM" dots, no radar beacons, no simulated counters.
+  * **Claim Cards:**
+    * Clean, well-spaced cards (16px padding, soft border, generous margins).
+    * **Load-bearing Indicator:** Subtle badge or label: *"Core foundation"* (for claims where `load_bearing == true`).
+    * **Claim Statement:** Bold, high-contrast, easily scannable.
+    * **Verdict Badge (Strict Color Mapping):**
+      * `survived`: Emerald badge (`#059669` text on `#ecfdf5`).
+      * `weakened`: Amber badge (`#d97706` text on `#fffbeb`).
+      * `broken`: Rose badge (`#e11d48` text on `#fff1f2`).
+      * `unresolved`: Indigo badge (`#4f46e5` text on `#eef2ff`) — *represents a deliberate, measured uncertainty, never gray or disabled.*
+    * **Decision Consequence:** Plain-English explanation of the real-world impact (e.g., *"Customer acquisition costs will double if this assumption fails"*).
+    * **Action Trigger:** A clear, visible button: `"View Evidence & Sources →"` that opens the Evidence Drawer.
 
 ---
 
-### View 4: Results & Verdict Dashboard
-*The post-run executive summary once all tests finish.*
+### Slide-Over Drawer: Evidence & Source Audit
+*The transparency layer: inspect the real proof behind every verdict.*
 
-* **Role & Purpose:** The high-level verdict screen. It tells the user which parts of their idea survived, which were damaged, which broke completely, and what is still uncertain.
-* **Layout & Key Elements:**
-  * **Header Scoreboard:**
-    * A permanent summary banner: e.g., *"4 of 4 claims tested: 1 survived, 1 weakened, 1 broken, 1 unresolved"*.
-  * **Prioritized Claim Cards:**
-    * Sorted by importance: **Load-bearing claims first** (marked with an anchor/flag icon: *"If this is false, the decision falls apart"*), then by severity (Broken $\rightarrow$ Unresolved $\rightarrow$ Weakened $\rightarrow$ Survived).
-    * Each card displays:
-      * Claim statement.
-      * Verdict Badge:
-        * 🟢 **Survived** (green, checkmark)
-        * 🟡 **Weakened** (amber, alert triangle)
-        * 🔴 **Broken** (red, cross icon)
-        * 🟣 **Unresolved** (violet/indigo, help circle — *indicates the system checked and found conflicting/thin evidence, not an error!*)
-      * Impact Indicator (a discreet 3-bar intensity meter: High / Medium / Low).
-      * One-line decision update excerpt.
-    * **Primary Interaction:** Clicking any card smoothly slides open the **Evidence Drawer**.
-
----
-
-### View 5: Evidence & Audit Slide-Over Drawer (The Deep Dive Sheet)
-*The transparency layer: why the system made its call and what you should do next.*
-
-* **Role & Purpose:** A right-hand slide-over panel (Sheet) that opens without navigating away from the dashboard. This contains the proof behind every verdict.
+* **Role & Purpose:** A right-hand slide-over sheet (`Sheet` primitive) opening smoothly without navigating away from the memo. Fetches or reads the full `Case` object (`GET /cases/{id}`).
 * **Layout & Key Elements (Top to Bottom):**
-  1. **Claim Statement:** The full text of the claim.
-  2. **Why It Matters:** Plain-English explanation of why this claim is load-bearing to the whole decision.
-  3. **Tests Run:** List of tests executed with their individual results.
-  4. **Evidence Found:** Web sources retrieved (clickable title, URL link, curated snippet). If web searches yielded nothing, an honest callout: *"No public evidence could be retrieved"*.
-  5. **Contradictions:** Any counter-evidence or nuances that push against the finding.
-  6. **Verdict & Adjudication Reasoning:** How the final status was reconciled.
-  7. **Decision Impact & What Changes:** Actionable guidance on how to adjust your plan.
-  8. **Next Validation Step:** The single smallest real-world test you can run tomorrow to remove remaining doubt (e.g., *"Run a 10-person landing page test on price sensitivity"*).
+  1. **Claim Statement:** Full, prominent statement.
+  2. **Verdict & Reasoning:** The verdict badge and the evaluator's plain-language reasoning.
+  3. **Real Evidence Sources (`EvidenceItem` list):**
+     * Clickable primary source URL with clean domain label.
+     * Source title.
+     * Curated quote/snippet retrieved by Tavily / Scrapling.
+     * *Honest Empty State:* If web evidence was absent, an explicit, truthful callout: *"No public evidence could be retrieved for this claim"*.
+  4. **Contradictions:** Explicit counterarguments or conflicting data found, if any.
+  5. **Recommended Change:** Actionable guidance on how to adjust your decision or business plan.
+  6. **Next Validation Step:** The smallest concrete real-world test to perform (rendered when present).
 
 ---
 
-### View 6: Error & Edge-Case Views
-*Clear, non-destructive failure handling.*
+### View 4: Error Handling
+*Clear, non-destructive feedback.*
 
-* **Row-Level Test Failures:** If a single test or search query fails, only that specific row flags a warning; other tests and claims complete normally.
-* **System/Pipeline Failure:** A top banner with plain-language feedback and a collapsible drawer for technical diagnostics.
-* **Stream Disconnection Notice:** If the SSE stream drops, the "live" indicator changes from pulsing blue to amber, letting the user reconnect without losing progress.
-
----
-
-### Future Python Feature Views (Extensions & Power Tools)
-
-These views support the backend capabilities slated for upcoming hours and phases:
-
-#### View 7: Side-by-Side "Reality Check" Demo View
-* **Why it exists:** Demonstrates the core value proposition for pitch/demo audiences.
-* **Layout:** A split-screen 2-column view:
-  * **Left Column ("Standard AI Assistant"):** Shows the polite, agreeable, generic response you get from asking standard ChatGPT/Claude/Gemini: *"That sounds like a wonderful startup idea! Here are 5 ways to succeed..."*
-  * **Right Column ("Crossfire Crash Test"):** The structured Crossfire breakdown highlighting the broken assumption and competitor evidence that invalidates the premise.
-
-#### View 8: Provider & Engine Configuration Modal
-* **Why it exists:** Crossfire's backend supports swapping models (Gemini, Claude, GPT-4o, Local Ollama).
-* **Layout:** A clean modal dialog accessible via a settings gear icon in the header:
-  * Dropdown selector for active LLM engine.
-  * Local model host configuration (e.g., pointing to `http://localhost:11434` for Ollama).
-  * API Key status indicators.
-
-#### View 9: Case History & Run Library Drawer
-* **Why it exists:** Once persistence is enabled in Python (`store.py`), users can revisit past crash tests.
-* **Layout:** A slide-out left sidebar showing past runs, timestamps, input summaries, and verdict ratios, enabling users to test "Idea Revision 2" and compare it with "Idea Revision 1".
+* **Test-Level Failure:** If an evaluator error occurs on a single test, only that claim indicates an issue; the rest of the memo finishes cleanly.
+* **Pipeline-Level Failure:** A clean alert banner at the top of the memo explaining the issue in plain English, with a retry option.
 
 ---
 
-## 4. UI Architecture & Component Hierarchy
+## 4. UI Component Architecture
 
-To keep the UI clean, maintainable, and aligned with standard component libraries (React + Tailwind + shadcn/ui):
+Streamlined, lightweight, and built purely with standard React + Tailwind + Radix UI:
 
 ```
-apps/web (or frontend/src)
+frontend/src/
 ├── components/
-│   ├── ui/                       # Radix UI primitives (Button, Textarea, Card, Sheet, Badge, Alert)
+│   ├── ui/                       # Radix / shadcn primitives (Button, Textarea, Card, Sheet, Badge, Alert)
 │   ├── layout/
-│   │   ├── Header.tsx            # Logo, SSE connection status dot, Settings trigger
-│   │   └── Shell.tsx             # Central constrained container (max-w-5xl)
-│   ├── entry/
-│   │   ├── DecisionInput.tsx     # Hero prompt & auto-growing textarea
-│   │   └── IngestionDropzone.tsx # Future PDF / URL upload zone
-│   ├── confirmation/
-│   │   ├── ClaimMapList.tsx      # Editable list of extracted claims
-│   │   └── ClaimEditCard.tsx     # Single editable claim card
-│   ├── runner/
-│   │   ├── LiveCounterBanner.tsx # "N of M claims tested..."
-│   │   ├── TestMatrix.tsx        # CI-style list grouped by claim
-│   │   └── TestJobRow.tsx        # Individual test state row (queued, running, resolved)
-│   ├── dashboard/
-│   │   ├── VerdictScoreboard.tsx # Final summary metrics
-│   │   ├── ClaimCard.tsx         # Prioritized card with verdict badge & impact meter
-│   │   └── ImpactMeter.tsx       # 3-segment bar visual
-│   ├── drawer/
-│   │   ├── EvidenceDrawer.tsx    # Slide-over Sheet (Claim -> Evidence -> Decision Consequence)
-│   │   └── SourceLink.tsx        # Web citation snippet card
-│   ├── demo/
-│   │   └── SideBySideView.tsx    # Split comparison view (Standard AI vs Crossfire)
-│   └── settings/
-│       └── ProviderModal.tsx     # Model provider / API settings
+│   │   ├── Header.tsx            # Clean wordmark and connection state text
+│   │   └── Container.tsx         # Centered container with generous reading width (max-w-4xl)
+│   ├── screens/
+│   │   ├── EntryScreen.tsx       # View 1: Decision input
+│   │   ├── ConfirmScreen.tsx     # View 2: Claim alignment checklist
+│   │   └── DashboardScreen.tsx   # View 3: Unified memo & live audit
+│   ├── features/
+│   │   ├── ClaimCard.tsx         # Readable card with verdict badge & consequence
+│   │   ├── VerdictBadge.tsx      # Semantic badge (survived, weakened, broken, unresolved)
+│   │   ├── EvidenceDrawer.tsx    # Slide-over audit sheet
+│   │   └── EvidenceSourceItem.tsx# Real citation link and snippet
 ```
 
 ---
 
 ## 5. Design Tokens & Styling Rules
 
-* **Theme:** Dark mode by default (dark slate / zinc-950 base) with monospace accents for IDs, test labels, and URLs.
-* **Verdict Color Role Exclusivity:**
-  * 🟢 **Survived:** Emerald (`#34d399`)
-  * 🟡 **Weakened:** Amber (`#fbbf24`)
-  * 🔴 **Broken:** Red (`#f87171`)
-  * 🟣 **Unresolved:** Violet (`#a78bfa`) — *Deliberately distinct from gray so it never looks disabled or missed.*
-* **Rule on Evaluator Names:** Internal Python worker names (`devils_advocate`, `receipts`, `builder`) are strictly mapped to user-facing test labels (*Assumption Test*, *Evidence Test*, *Feasibility Test*) and never exposed in the interface.
-
----
-
-## 6. Key Architectural Alignments
-
-1. **Single View vs Two Routes for Testing & Results:** We recommend making the **Live Test Runner (View 3)** and **Results Dashboard (View 4)** the same screen component. As tests finish, the rows seamlessly transition into their completed cards rather than triggering a disruptive full-page navigation.
-2. **Entry Screen Simplicity:** We keep the entry screen strictly to one text box (no tab switchers or mode pickers), with the document/URL upload nestled cleanly underneath as an optional attachment.
-3. **Side-by-Side View Scope:** The side-by-side comparison (View 7) will exist as a dedicated presentation route (e.g., `/demo`) rather than cluttering the primary user workflow.
+* **Theme:** Light-first default (warm white `#fafafa` canvas, pure white `#ffffff` cards, soft neutral `#e4e4e7` borders).
+* **Typography:** System sans-serif (`Inter`, system-ui) with relaxed line height (`leading-relaxed`) and deep charcoal text (`#18181b`) for optimal readability.
+* **Verdict Colors:** Reserved strictly for claim verdicts—never used for form validation or decorative badges.
+* **Masking Evaluators:** Internal agent names (`devils_advocate`, `receipts`, `builder`) **never appear in the UI**. Only user-facing test types (*Assumption Test*, *Evidence Test*, *Feasibility Test*) are displayed.
