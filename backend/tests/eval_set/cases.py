@@ -84,6 +84,16 @@ def _does_not_crash(case: Case) -> None:
         )
 
 
+def _dead_source_degrades(case: Case) -> None:
+    _does_not_crash(case)
+    # Architectural invariant: empty evidence must never produce a high-confidence refutation
+    for f in case.findings:
+        if not f.evidence and f.confidence > 0.35:
+            raise AssertionError(
+                f"Finding for {f.claim_id} has confidence {f.confidence} > 0.35 despite zero evidence:\n{_summary(case)}"
+            )
+
+
 # --- the set -----------------------------------------------------------------
 
 EVAL_CASES: list[EvalCase] = [
@@ -135,5 +145,23 @@ EVAL_CASES: list[EvalCase] = [
         raw_input="idk maybe an app for students?",
         prop="degenerate input completes the run instead of erroring mid-demo",
         check=_does_not_crash,
+    ),
+    EvalCase(
+        id="dead_link_evidence",
+        raw_input=(
+            "We are launching an exclusive AI patent search tool that scrapes internal non-public "
+            "filings from the proprietary portal at https://defunct-patents-internal-xyz-987654321.org/api."
+        ),
+        prop="unreachable or dead external sources degrade gracefully rather than crashing or asserting unsourced rejections",
+        check=_dead_source_degrades,
+    ),
+    EvalCase(
+        id="thin_evidence_scrutiny",
+        raw_input=(
+            "Our consumer countertop coffee roaster utilizes quantum tunneling micro-coils to "
+            "achieve 99.8% thermal efficiency with zero heat dissipation."
+        ),
+        prop="an extraordinary physical claim with no verifiable mainstream scientific backing gets caught or weakened",
+        check=_catches_a_flaw,
     ),
 ]
