@@ -3,6 +3,7 @@ import { Case } from "@/types/crossfire";
 import { formatTestName, truncateUrl } from "@/lib/formatters";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
+import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
 
 interface EvidenceDrawerProps {
   claimId: string | null;
@@ -224,10 +225,13 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
 
           {/* Evidence Found */}
           <div>
-            <div className="flex items-center justify-between mb-space-2">
-              <span className="font-code-sm text-code-sm uppercase tracking-wider text-outline font-medium">
-                Evidence Found
-              </span>
+            <div className="flex items-center justify-between mb-space-2 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-code-sm text-code-sm uppercase tracking-wider text-outline font-medium">
+                  Evidence Found
+                </span>
+                <PoweredBySerpApiBadge variant="header" />
+              </div>
               <span className="font-code-sm text-code-sm text-outline">Verified Citation</span>
             </div>
 
@@ -259,9 +263,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                           : "Verified Source"}
                       </span>
                       {ev.provider === "serpapi" && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25">
-                          via SerpApi
-                        </span>
+                        <PoweredBySerpApiBadge variant="inline" />
                       )}
                       {ev.provider === "duckduckgo" && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">

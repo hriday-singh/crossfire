@@ -18,12 +18,15 @@ const TestController = () => {
 };
 
 describe("FAQ Data & Drawer Component", () => {
-  it("contains all 9 compiled FAQ items with questions and answers", () => {
-    expect(FAQ_ITEMS).toHaveLength(9);
+  it("contains all compiled FAQ items with questions and answers", () => {
+    expect(FAQ_ITEMS).toHaveLength(10);
 
     const questions = FAQ_ITEMS.map((item) => item.question);
     expect(questions).toContain("What is Crossfire, in one line?");
     expect(questions).toContain("Isn't this just a wrapper around an AI model?");
+    expect(questions).toContain(
+      "How does Crossfire search and retrieve real-world evidence?"
+    );
     expect(questions).toContain("How is this better than just using one AI model directly?");
     expect(questions).toContain("How is this not just an AI assistant or chatbot?");
     expect(questions).toContain("What stops the different tests from just agreeing with each other?");

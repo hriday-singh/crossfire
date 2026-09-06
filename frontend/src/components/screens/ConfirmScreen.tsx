@@ -3,6 +3,7 @@ import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
 import { AssignedAgentsCard } from "@/components/features/AssignedAgentsCard";
 import { DEFAULT_AGENT_IDS } from "@/lib/agents";
+import { PoweredBySerpApiBadge, SerpApiIcon } from "@/components/ui/serpapi";
 
 export const ConfirmScreen: React.FC = () => {
   const { state, dispatch, confirmAndRun, navigateScreen, toggleAgentSelection } = useCase();
@@ -120,11 +121,17 @@ export const ConfirmScreen: React.FC = () => {
             )}
           </div>
 
+          {/* SerpApi Live Evidence Verification Banner */}
+          <PoweredBySerpApiBadge variant="banner" className="mb-6" />
+
           {/* Section Header */}
-          <div className="flex items-center justify-between mb-4 px-1">
-            <span className="font-label-mono text-label-mono uppercase tracking-wider text-on-surface-variant font-semibold">
-              Assumptions to Validate
-            </span>
+          <div className="flex items-center justify-between mb-4 px-1 flex-wrap gap-2">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-on-surface-variant font-semibold">
+                Assumptions to Validate
+              </span>
+              <PoweredBySerpApiBadge variant="header" />
+            </div>
             <span className="font-body-xs text-body-xs text-outline">
               {currentCase.claims.length} ready to verify
             </span>
@@ -353,9 +360,20 @@ export const ConfirmScreen: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
-        <div className="flex items-center gap-space-4 font-body-xs text-body-xs text-outline">
+      <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-space-4 font-body-xs text-body-xs text-outline flex-wrap">
           <span>Crossfire Decision Verification</span>
+          <span>·</span>
+          <a
+            href="https://serpapi.com?utm_source=crossfire&utm_medium=confirm_footer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 hover:text-on-surface transition-colors"
+          >
+            <span>Search powered by</span>
+            <SerpApiIcon size={12} />
+            <span className="font-semibold text-primary">SerpApi</span>
+          </a>
         </div>
         <div className="font-body-xs text-body-xs text-outline">© 2025 Crossfire Inc.</div>
       </footer>

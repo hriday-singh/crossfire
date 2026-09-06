@@ -45,15 +45,19 @@ class SettingsProxy:
         object.__setattr__(self, "_base", base)
 
     def __getattr__(self, name: str) -> Any:
-        if name == "DEMO_MODE":
+        if name in ("DEMO_MODE", "demo_mode"):
             return getattr(self._base, "demo_mode", False)
-        if name == "SERPAPI_API_KEY":
+        if name in ("SERPAPI_API_KEY", "serpapi_api_key"):
             return getattr(self._base, "serpapi_api_key", "")
         return getattr(self._base, name)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name in ("DEMO_MODE", "SERPAPI_API_KEY"):
-            object.__setattr__(self, name, value)
+        if name in ("DEMO_MODE", "demo_mode"):
+            object.__setattr__(self, "DEMO_MODE", value)
+            object.__setattr__(self, "demo_mode", value)
+        elif name in ("SERPAPI_API_KEY", "serpapi_api_key"):
+            object.__setattr__(self, "SERPAPI_API_KEY", value)
+            object.__setattr__(self, "serpapi_api_key", value)
         else:
             object.__setattr__(self, name, value)
 

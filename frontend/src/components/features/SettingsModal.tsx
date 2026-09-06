@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { GEMINI_WEB_MODELS, formatModelName, formatProviderName } from "@/lib/models";
+import { SerpApiIcon } from "@/components/ui/serpapi";
 
 export const SettingsModal: React.FC = () => {
   const { state, dispatch, setActiveModal, resetCase, selectModel, setDebugMode, enterPreview } = useCase();
@@ -174,6 +175,56 @@ export const SettingsModal: React.FC = () => {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Live Search & Evidence Engine */}
+          <div className="space-y-space-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold">
+                Live Search &amp; Evidence Engine
+              </h3>
+              <span className="flex items-center gap-1.5 font-code-sm text-code-sm text-verdict-survived">
+                <span className="w-2 h-2 rounded-full bg-verdict-survived inline-block" />
+                <span>Connected</span>
+              </span>
+            </div>
+
+            <div className="bg-surface-container border border-outline-variant/60 rounded-lg p-space-4 space-y-space-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-surface-container-high border border-outline-variant/40 shrink-0">
+                    <SerpApiIcon size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-headline-sm text-headline-sm font-semibold text-on-surface text-sm">
+                        SerpApi
+                      </span>
+                      <span className="font-code-sm text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold uppercase">
+                        Primary Search Engine
+                      </span>
+                    </div>
+                    <p className="font-code-sm text-xs text-outline mt-0.5">
+                      Real-time Google search scraping &amp; structured evidence parsing
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href="https://serpapi.com?utm_source=crossfire&utm_medium=settings_modal"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-code-sm text-xs text-primary hover:underline flex items-center gap-1 shrink-0 ml-2"
+                >
+                  <span>serpapi.com</span>
+                  <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                </a>
+              </div>
+
+              <div className="border-t border-outline-variant/30 pt-2.5 flex items-center justify-between text-xs font-code-sm text-outline">
+                <span>Grounding Protocol:</span>
+                <span className="text-on-surface-variant font-mono">SERP_API_KEY (REST API)</span>
+              </div>
             </div>
           </div>
 
