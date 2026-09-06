@@ -91,8 +91,19 @@ if (Test-Path $ReqDev) {
     Write-Host "[OK] Development dependencies installed." -ForegroundColor Green
 }
 
-# 6. Configure VS Code settings for automatic detection
-Write-Host "[INFO] Configuring VS Code interpreter settings..." -ForegroundColor Yellow
+# 6. Configure VS Code settings and root junction for seamless auto-activation
+Write-Host "[INFO] Configuring VS Code interpreter and terminal auto-activation settings..." -ForegroundColor Yellow
+
+# Ensure root junction exists so VS Code automatically picks up .venv at workspace root
+$RootVenvDir = Join-Path $WorkspaceRootDir ".venv"
+if (-not (Test-Path $RootVenvDir)) {
+    try {
+        New-Item -ItemType Junction -Path $RootVenvDir -Target $VenvDir -Force | Out-Null
+        Write-Host "    [OK] Created workspace root .venv junction" -ForegroundColor Green
+    } catch {
+        Write-Warning "Could not create root .venv junction: $_"
+    }
+}
 
 function Update-VsCodeSettings {
     param (
@@ -128,16 +139,92 @@ function Update-VsCodeSettings {
 # Workspace root settings (when opening crossfire/)
 $RootVsCodeDir = Join-Path $WorkspaceRootDir ".vscode"
 Update-VsCodeSettings -SettingsDir $RootVsCodeDir -NewSettings @{
+    "terminal.integrated.defaultProfile.windows" = 'PowerShell'
+    "terminal.integrated.profiles.windows" = @{
+        "PowerShell" = @{
+            "source" = "PowerShell"
+            "icon" = "terminal-powershell"
+            "args" = @(
+                "-NoExit",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", '& { if (Test-Path ''${workspaceFolder}\backend\.venv\Scripts\Activate.ps1'') { . ''${workspaceFolder}\backend\.venv\Scripts\Activate.ps1'' } elseif (Test-Path ''${workspaceFolder}\.venv\Scripts\Activate.ps1'') { . ''${workspaceFolder}\.venv\Scripts\Activate.ps1'' } }'
+            )
+        }
+        "PowerShell 7 (pwsh)" = @{
+            "source" = "pwsh"
+            "icon" = "terminal-powershell"
+            "args" = @(
+                "-NoExit",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", '& { if (Test-Path ''${workspaceFolder}\backend\.venv\Scripts\Activate.ps1'') { . ''${workspaceFolder}\backend\.venv\Scripts\Activate.ps1'' } elseif (Test-Path ''${workspaceFolder}\.venv\Scripts\Activate.ps1'') { . ''${workspaceFolder}\.venv\Scripts\Activate.ps1'' } }'
+            )
+        }
+        "Command Prompt" = @{
+            "path" = '${env:windir}\System32\cmd.exe'
+            "icon" = "terminal-cmd"
+            "args" = @(
+                "/k",
+                'if exist "${workspaceFolder}\backend\.venv\Scripts\activate.bat" (call "${workspaceFolder}\backend\.venv\Scripts\activate.bat") else if exist "${workspaceFolder}\.venv\Scripts\activate.bat" (call "${workspaceFolder}\.venv\Scripts\activate.bat")'
+            )
+        }
+    }
+    "terminal.integrated.env.windows" = @{
+        "PATH" = '${workspaceFolder}\backend\.venv\Scripts;${workspaceFolder}\.venv\Scripts;${env:PATH}'
+        "VIRTUAL_ENV" = '${workspaceFolder}\backend\.venv'
+        "PYTHONPATH" = '${workspaceFolder}\backend;${workspaceFolder}'
+    }
     "python.defaultInterpreterPath" = '${workspaceFolder}/backend/.venv/Scripts/python.exe'
     "python.terminal.activateEnvironment" = $true
+    "python.terminal.activateEnvInCurrentTerminal" = $true
+    "python.venvPath" = '${workspaceFolder}/backend'
+    "python-envs.terminal.autoActivationType" = 'shellStartup'
+    "python-envs.workspaceSearchPaths" = @('backend', 'backend/.venv', '.venv')
     "python.analysis.extraPaths" = @('${workspaceFolder}/backend')
 }
 
 # Backend folder settings (when opening backend/ directly)
 $BackendVsCodeDir = Join-Path $BackendDir ".vscode"
 Update-VsCodeSettings -SettingsDir $BackendVsCodeDir -NewSettings @{
+    "terminal.integrated.defaultProfile.windows" = 'PowerShell'
+    "terminal.integrated.profiles.windows" = @{
+        "PowerShell" = @{
+            "source" = "PowerShell"
+            "icon" = "terminal-powershell"
+            "args" = @(
+                "-NoExit",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", '& { if (Test-Path ''${workspaceFolder}\.venv\Scripts\Activate.ps1'') { . ''${workspaceFolder}\.venv\Scripts\Activate.ps1'' } }'
+            )
+        }
+        "PowerShell 7 (pwsh)" = @{
+            "source" = "pwsh"
+            "icon" = "terminal-powershell"
+            "args" = @(
+                "-NoExit",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", '& { if (Test-Path ''${workspaceFolder}\.venv\Scripts\Activate.ps1'') { . ''${workspaceFolder}\.venv\Scripts\Activate.ps1'' } }'
+            )
+        }
+        "Command Prompt" = @{
+            "path" = '${env:windir}\System32\cmd.exe'
+            "icon" = "terminal-cmd"
+            "args" = @(
+                "/k",
+                'if exist "${workspaceFolder}\.venv\Scripts\activate.bat" (call "${workspaceFolder}\.venv\Scripts\activate.bat")'
+            )
+        }
+    }
+    "terminal.integrated.env.windows" = @{
+        "PATH" = '${workspaceFolder}\.venv\Scripts;${env:PATH}'
+        "VIRTUAL_ENV" = '${workspaceFolder}\.venv'
+        "PYTHONPATH" = '${workspaceFolder}'
+    }
     "python.defaultInterpreterPath" = '${workspaceFolder}/.venv/Scripts/python.exe'
     "python.terminal.activateEnvironment" = $true
+    "python.terminal.activateEnvInCurrentTerminal" = $true
+    "python.venvPath" = '${workspaceFolder}'
+    "python-envs.terminal.autoActivationType" = 'shellStartup'
+    "python-envs.workspaceSearchPaths" = @('.venv')
     "python.analysis.extraPaths" = @('${workspaceFolder}')
 }
 
