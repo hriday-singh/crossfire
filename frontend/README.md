@@ -1,4 +1,4 @@
-# 🚀 Crossfire (Frontend)
+# Crossfire (Frontend)
 
 [![Powered by SerpApi](https://img.shields.io/badge/Search%20Grounding-Powered%20by%20SerpApi-377FEA?style=flat&logoColor=white)](https://serpapi.com)
 
@@ -6,13 +6,13 @@ Interactive web client for Crossfire, built with React, Vite, and Tailwind CSS. 
 
 ---
 
-## 🔍 Evidence Grounding via SerpApi & DuckDuckGo Lite
+## Evidence Grounding via SerpApi & DuckDuckGo Lite
 
 Real-time search grounding and empirical evidence extraction across all stress-tested claims are powered by **[SerpApi](https://serpapi.com)** with automatic zero-config fallback to **DuckDuckGo Lite** (via Scrapling). When the **Researcher** agent evaluates empirical claims (pricing, market size, conversion, benchmarks), it cross-checks assumptions against live web results to identify unproven claims and empirical contradictions, complete with citation metadata and provenance badges.
 
 ---
 
-## 🤖 The Testing Panel & Agent Identities
+## The Testing Panel & Agent Identities
 
 Crossfire employs 4 specialized evaluator agents running independent, blind tests, adjudicated by a judicial reconciler:
 
@@ -24,10 +24,10 @@ Crossfire employs 4 specialized evaluator agents running independent, blind test
 | **Operator** (`operator`, alias `overthinker`) | **Operational Friction Test** | `operational_friction`, `adoption`, `bureaucracy` | Stress-tests operational friction, adoption inertia, enterprise procurement/CISO gatekeeping, regulatory liability, and process drag. |
 | **Steel Man** (`steelman` / `steel_man`) | **Steel Man Verdict** | Judicial Reconciliation | Central adjudicator running the **Break to Rebuild** protocol. Synthesizes findings, enforces the evidence gate, and re-architects broken claims. |
 
-### 🛡️ Strict UI Masking Rule (Zero Leakage)
+### Strict UI Masking Rule (Zero Leakage)
 In accordance with Crossfire design standards, internal persona identifiers (`devils_advocate`, `receipts`, `builder`, `operator`) are **strictly masked** in client-facing UI components and rendered as objective test suites (*Assumption Test*, *Evidence Test*, *Feasibility Test*, *Operational Friction Test*).
 
-### 🔨 Steel Man Protocol: "Break to Rebuild"
+### Steel Man Protocol: "Break to Rebuild"
 When an assumption is broken or weakened, the Steel Man does not simply reject the proposal. It outputs:
 1. **Fatal Flaw:** The precise structural or empirical vulnerability that invalidates the original claim.
 2. **Salvaged Claim:** The minimal viable re-architecture of the assumption that preserves the founder's strategic upside while bypassing the fatal flaw.
@@ -35,7 +35,7 @@ When an assumption is broken or weakened, the Steel Man does not simply reject t
 
 ---
 
-## 🖥️ Screen Flow & Key Features
+## Screen Flow & Key Features
 
 1. **Proposal Entry Canvas (`EntryScreen`):**
    - Natural language proposal input (up to 500 characters).
@@ -66,7 +66,7 @@ When an assumption is broken or weakened, the Steel Man does not simply reject t
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 * **Framework:** React 18 (TypeScript) + Vite
 * **Styling:** Tailwind CSS with CSS custom properties design tokens
@@ -76,7 +76,7 @@ When an assumption is broken or weakened, the Steel Man does not simply reject t
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Install dependencies
 ```bash

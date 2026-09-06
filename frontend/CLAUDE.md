@@ -106,7 +106,7 @@ You are working inside the `frontend/` workspace of the Crossfire project as **D
 ## 1. Non-Negotiable Testing Rules
 
 Before modifying, creating, or finishing any frontend code, you must read and adhere to:
-👉 **[`frontend/TESTING.md`](./TESTING.md)**
+**[`frontend/TESTING.md`](./TESTING.md)**
 
 ### Critical Mandates:
 1. **Unit test everything**: Every component, hook, reducer action, screen, or utility must ship with matching unit tests in `src/tests/` in the same change. Never defer tests.
