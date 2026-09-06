@@ -34,7 +34,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `run_pipeline()` full orchestration + SSE queue | `[x]` | `events.py` (queue per case_id) + `run_pipeline`/`run_evaluators`/`handle_confirm` in `core/loop.py` |
 | Second provider | `[x]` | `OpenAICompatibleProvider` implemented for local proxy (http://localhost:8081/v1) |
 | `builder.py` (if time) | `[x]` | Feasibility Test; structured `BuilderVerdict`, no search — `evidence=[]` by design |
-| `tests/eval_set/` harness | `[ ]` | |
+| `tests/eval_set/` harness | `[x]` | 6 cases in `tests/eval_set/cases.py`; real pipeline, opt-in via `CROSSFIRE_EVAL_LIVE=1` |
 
 **Last updated:** Dev A
 **Note:** `OpenAICompatibleProvider` wired and tested against local `gemini-web2api` proxy (`http://localhost:8081/v1`, model `gemini-3.7-flash`). `GeminiProvider` delegates to the proxy when configured. Both text and Pydantic structured output verified live and with unit tests.
@@ -86,6 +86,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 
 Anything that needs another dev's attention goes here, tagged with their name. Clear it once resolved instead of deleting the line — leave a one-word "resolved" so there's a record.
 
+- **@Dev B / @Dev C** — the eval set is the acceptance test for your work. `CROSSFIRE_EVAL_LIVE=1 pytest tests/eval_set -s` runs 6 hand-picked decisions through the real pipeline against the real provider (skipped by default, so normal `pytest` stays offline and fast). Today it's 4 failed / 3 passed (7th test is an offline guard on the case list), and the failures are correct: with no `dispatch()` and no evidence there are zero findings, so every claim reconciles to `unresolved`. `mixed_evidence` and `vague_input` pass only because `unresolved`/"didn't crash" is what they assert — they are not yet evidence of anything working. Those turn green as your tracks land — add cases for your own area to `tests/eval_set/cases.py`.
 - **@Dev C** — `core/evaluators/builder.py` is live: `run_builder(item, case, provider) -> Finding`, `evaluator="builder"`, maps to the UI's **Feasibility Test**. Route the `constraint`/feasibility failure mode to it in `dispatch()`.
 - **@Dev C** — `dispatch()` does not exist anywhere in the repo. `core/loop.py` imports it optionally and runs without it, so nothing is blocked, but every claim comes back `unresolved` until it lands. Expected: `async def dispatch(item: TestPlanItem, case: Case, provider: LLMProvider) -> Finding` importable as `from core.evaluators import dispatch`.
 - **@Dev C** — SSE transport is done and waiting for you: `events.subscribe(case_id)`, `core.loop.handle_confirm(case_id)`. See the Dev A note above.
