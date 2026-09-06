@@ -67,18 +67,19 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 
 | Task | Status | Notes |
 |---|---|---|
-| `POST /cases` | `[ ]` | |
-| `GET /cases/{id}/stream` | `[ ]` | |
-| `devils_advocate.py` producing real `Finding` | `[ ]` | |
-| `POST /cases/{id}/confirm` (202, non-blocking) | `[ ]` | |
-| `GET /cases/{id}` | `[ ]` | |
-| `dispatch()` routing wired with Dev A | `[ ]` | |
-| SSE events verified against contract | `[ ]` | |
-| Claim-confirmation gate is real, not client-faked | `[ ]` | |
-| `overthinker.py` (stretch) | `[ ]` | |
+| `POST /cases` | `[x]` | Calls `extract_claims`, saves to store, returns `awaiting_confirmation` |
+| `GET /cases/{id}/stream` | `[x]` | Opens immediately, reads from queue, emits SSE events matching contract §3 |
+| `devils_advocate.py` producing real `Finding` | `[x]` | Assumption test, prompt-only, isolated to single claim, zero tool chains |
+| `POST /cases/{id}/confirm` (202, non-blocking) | `[x]` | Validates state gate, launches background `run_pipeline()`, returns 202 immediately |
+| `GET /cases/{id}` | `[x]` | Returns full Case for evidence drawer |
+| `dispatch()` routing wired with Dev A | `[~]` | Evaluators ready; waiting for Dev A to implement `run_evaluators()` call site |
+| SSE events verified against contract | `[x]` | Verified documented event ordering in SSE stream |
+| Claim-confirmation gate is real, not client-faked | `[x]` | Rejects confirm requests when not in `awaiting_confirmation` status |
+| `overthinker.py` (stretch) | `[x]` | Edge-case test evaluator implemented and unit tested |
 
-**Last updated:** — by — at hour —
-**Note:**
+**Last updated:** Dev C
+**Note:** Checkpoint 1 and Checkpoint 2 deliverables complete. All 9 route and evaluator unit tests pass. `dispatch()` routing will be hooked into Dev A's `run_evaluators()` once Dev A writes the orchestrator in `core/loop.py`.
+
 
 ---
 
