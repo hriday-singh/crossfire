@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tests for ingestion/markdown.py text extraction and context curation.
 """
 from __future__ import annotations
@@ -35,8 +35,21 @@ def test_extract_markdown_text_empty_raises_value_error():
 
 
 @pytest.mark.asyncio
-async def test_ingest_markdown_bounded_length():
+async def test_ingest_markdown_without_claim_statement_returns_full_context():
     long_md = "# Header\n\n" + ("Word " * 600)
     result = await ingest_markdown(long_md)
-    assert len(result) <= 2005
-    assert result.endswith("...")
+    assert "# Header" in result
+    assert result == long_md.strip()
+
+
+@pytest.mark.asyncio
+async def test_ingest_markdown_with_claim_statement_curates_context(sample_claim):
+    sample_text = (
+        "Some unrelated background filler about weather. "
+        f"Key sentence directly relating to {sample_claim.statement}. "
+        "More irrelevant corporate boilerplates."
+    )
+    curated_context = await ingest_markdown(sample_text, claim_statement=sample_claim.statement)
+    assert sample_claim.statement in curated_context
+    assert len(curated_context) <= 600
+

@@ -57,7 +57,7 @@ async def ingest_markdown(
     """Ingests a Markdown document and extracts curated context for Case.context.
 
     If claim_statement is supplied, applies the curation pipeline (LLM or heuristic)
-    to yield only the most relevant sentences. Otherwise returns clean bounded text.
+    to yield only the most relevant sentences. Otherwise returns full extracted text.
     """
     raw_text = extract_markdown_text(source)
 
