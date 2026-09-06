@@ -161,6 +161,8 @@ tools/gemini-web2api/
 gemini-web2api/
 cookie.txt
 .agents/
+/AGENTS.md
+/CLAUDE.md
 
 
 

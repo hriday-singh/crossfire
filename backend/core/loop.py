@@ -64,14 +64,70 @@ async def classify_load_bearing(claim: Claim, case: Case, provider: LLMProvider)
     return result.answer
 
 
+# Keyword buckets, checked in order — first match wins. Routes claims by what
+# they actually need tested, not round-robin across evaluators.
+_FAILURE_MODE_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
+    ("evidence", ("pay", "trust", "adopt", "will use", "demand")),
+    ("behavior", ("will scale", "performance", "latency", "load", "concurrent")),
+    ("constraint", ("compliance", "certif", "legal", "regulat", "theme", "screen")),
+    ("alternative", ("only option", "no competitor", "unique", "first")),
+]
+
+
 def build_test_plan(case: Case) -> list[TestPlanItem]:
-    raise NotImplementedError
+    items: list[TestPlanItem] = []
+    for claim in case.claims:
+        statement_lower = claim.statement.lower()
+        failure_mode = "evidence"  # default: most claims need evidence testing
+        for mode, keywords in _FAILURE_MODE_KEYWORDS:
+            if any(kw in statement_lower for kw in keywords):
+                failure_mode = mode
+                break
+        items.append(
+            TestPlanItem(
+                id=str(uuid4()),
+                target_claim=claim.id,
+                failure_mode=failure_mode,
+                objective=f"Check whether evidence supports or contradicts: {claim.statement}",
+            )
+        )
+    return items
+
+
+class ReconcileVerdict(BaseModel):
+    status: ClaimStatus
+    reasoning: str
 
 
 async def reconcile(
     claim: Claim, findings: list[Finding], provider: LLMProvider
 ) -> tuple[ClaimStatus, str]:
-    raise NotImplementedError
+    system_prompt = (
+        "You reconcile evaluator findings into a single verdict for a claim. "
+        "Never vote — judge evidence quality directly. A finding with no evidence "
+        "carries no weight regardless of what it claims. If findings assert opposite "
+        "conclusions with comparable evidence, or evidence overall is thin/absent, "
+        "the status must be 'unresolved' — never a forced winner. Otherwise pick "
+        "'survived' (claim holds), 'weakened' (holds but with caveats), or 'broken' "
+        "(claim is false). Explain which findings drove the verdict."
+    )
+    findings_summary = "\n".join(
+        f"- evaluator={f.evaluator}, result={f.result!r}, evidence_count={len(f.evidence)}, "
+        f"reasoning={f.reasoning!r}, contradiction={f.contradiction!r}"
+        for f in findings
+    )
+    messages = [
+        {
+            "role": "user",
+            "content": f"Claim: {claim.statement}\nFindings:\n{findings_summary}",
+        }
+    ]
+    result = await provider.generate(
+        system_prompt=system_prompt,
+        messages=messages,
+        response_schema=ReconcileVerdict,
+    )
+    return result.status, result.reasoning
 
 
 def build_consequences(case: Case) -> list[DecisionConsequence]:

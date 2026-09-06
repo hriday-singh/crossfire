@@ -28,8 +28,8 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `GeminiProvider` wired | `[x]` | wired to delegate to proxy / OpenAICompat |
 | `extract_claims()` | `[x]` | narrow `ExtractedClaims` schema, maps onto `Case` |
 | `classify_load_bearing()` v1 | `[x]` | locked framing in `docs/dev-a/research/01-load-bearing.md` |
-| `build_test_plan()` | `[ ]` | |
-| `reconcile()` | `[ ]` | |
+| `build_test_plan()` | `[x]` | keyword-bucket routing (evidence/behavior/constraint/alternative) |
+| `reconcile()` | `[x]` | structured-LLM verdict, decision locked in `docs/dev-a/research/02-reconcile.md` |
 | `build_consequences()` | `[ ]` | |
 | `run_pipeline()` full orchestration + SSE queue | `[ ]` | |
 | Second provider | `[x]` | `OpenAICompatibleProvider` implemented for local proxy (http://localhost:8081/v1) |

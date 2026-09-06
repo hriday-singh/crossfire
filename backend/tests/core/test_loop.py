@@ -34,6 +34,48 @@ async def test_extract_claims_produces_awaiting_confirmation_case(fake_provider_
 
 
 @pytest.mark.asyncio
+async def test_extract_claims_multiple_statements_and_uniqueness(fake_provider_factory):
+    import uuid
+    from core.loop import ExtractedClaims, extract_claims
+
+    statements = [
+        "Clinics will pay $500/month for automated transcription",
+        "Physicians will review rather than write notes from scratch",
+        "HIPAA compliance certification can be obtained in under 60 days",
+    ]
+    provider = fake_provider_factory(responses=[ExtractedClaims(statements=statements)])
+    case = await extract_claims("Building AI scribe for medical clinics", provider)
+
+    assert case.status == "awaiting_confirmation"
+    assert case.raw_input == "Building AI scribe for medical clinics"
+    assert len(case.claims) == 3
+
+    # Verify UUID format and uniqueness
+    case_uuid = uuid.UUID(case.id)
+    assert str(case_uuid) == case.id
+
+    claim_ids = [c.id for c in case.claims]
+    assert len(set(claim_ids)) == 3
+    for cid in claim_ids:
+        assert str(uuid.UUID(cid)) == cid
+
+    assert [c.statement for c in case.claims] == statements
+    for c in case.claims:
+        assert c.status is None
+        assert c.load_bearing is None
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_empty_statements(fake_provider_factory):
+    from core.loop import ExtractedClaims, extract_claims
+
+    provider = fake_provider_factory(responses=[ExtractedClaims(statements=[])])
+    case = await extract_claims("gibberish without claims", provider)
+    assert case.status == "awaiting_confirmation"
+    assert case.claims == []
+
+
+@pytest.mark.asyncio
 async def test_classify_load_bearing_obvious_yes(fake_provider_factory, sample_claim, sample_case):
     """A claim like 'students will trust autonomous submission' — if false, the
     decision changes materially. Assert the function returns True, and that
@@ -47,6 +89,8 @@ async def test_classify_load_bearing_obvious_yes(fake_provider_factory, sample_c
     result = await classify_load_bearing(sample_claim, sample_case, provider)
     assert result is True
     assert LOAD_BEARING_QUESTION in provider.calls[0]["system_prompt"]
+    assert sample_case.raw_input in provider.calls[0]["messages"][0]["content"]
+    assert sample_claim.statement in provider.calls[0]["messages"][0]["content"]
 
 
 @pytest.mark.asyncio
@@ -70,7 +114,14 @@ async def test_build_test_plan_routes_different_claims_to_different_failure_mode
     will scale') produce TestPlanItems with different failure_mode values —
     a plan where every item has the same failure_mode is a failing test.
     """
-    pytest.skip("fill in once core.loop.build_test_plan exists")
+    from core.loop import build_test_plan
+
+    plan = build_test_plan(sample_case)
+    assert len(plan) == len(sample_case.claims)
+    failure_modes = {item.failure_mode for item in plan}
+    assert len(failure_modes) > 1
+    target_claim_ids = {item.target_claim for item in plan}
+    assert target_claim_ids == {c.id for c in sample_case.claims}
 
 
 # --- Hour 18-25: reconcile() ---
@@ -79,14 +130,14 @@ async def test_build_test_plan_routes_different_claims_to_different_failure_mode
 async def test_reconcile_unanimous_strong_evidence_yields_confident_status(
     fake_provider_factory, sample_claim, sample_finding
 ):
-    """SKELETON:
-    from core.loop import reconcile
-    provider = fake_provider_factory(responses=[ClaimStatus.SURVIVED])
+    from core.loop import ReconcileVerdict, reconcile
+
+    provider = fake_provider_factory(
+        responses=[ReconcileVerdict(status=ClaimStatus.SURVIVED, reasoning="Comparable case supports the claim")]
+    )
     status, reasoning = await reconcile(sample_claim, [sample_finding], provider)
     assert status in (ClaimStatus.SURVIVED, ClaimStatus.WEAKENED, ClaimStatus.BROKEN)
     assert reasoning  # non-empty — this is what the evidence drawer shows
-    """
-    pytest.skip("fill in once core.loop.reconcile exists")
 
 
 @pytest.mark.asyncio
@@ -97,7 +148,19 @@ async def test_reconcile_conflicting_thin_evidence_yields_unresolved(
     thin evidence must NOT be forced to a winner. If your reconcile() always
     picks a side, this is the test that catches it.
     """
-    pytest.skip("fill in once core.loop.reconcile exists")
+    from core.loop import ReconcileVerdict, reconcile
+
+    provider = fake_provider_factory(
+        responses=[
+            ReconcileVerdict(
+                status=ClaimStatus.UNRESOLVED,
+                reasoning="Findings disagree with comparable evidence quality",
+            )
+        ]
+    )
+    status, reasoning = await reconcile(sample_claim, conflicting_findings, provider)
+    assert status == ClaimStatus.UNRESOLVED
+    assert reasoning
 
 
 def test_reconcile_never_lets_evaluator_set_its_own_status(sample_finding):

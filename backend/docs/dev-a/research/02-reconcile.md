@@ -41,3 +41,15 @@ Free text, persisted onto `DecisionConsequence.verdict_reasoning` (contract note
 ## Rule for this file
 
 Work the three-state example (unanimous / conflicting / thin) by hand before writing code. If you can't produce the right `ClaimStatus` on paper for all three, the rule isn't ready for Antigravity yet.
+
+## Decision (locked)
+
+Same pattern as `classify_load_bearing()`: a single structured LLM call (`response_schema`), not hand-rolled string-matching against `Finding.result` (no fixed vocabulary exists for it in the frozen contract).
+
+- **Feature 1 (evidence quality signal):** Don't trust evaluators' `confidence` float — uncalibrated across Receipts/Devil's Advocate/Builder. Surface raw signal instead: evidence count and emptiness per finding, given to the LLM in the prompt. It judges quality from that, same as `classify_load_bearing` judges materiality from raw context.
+- **Feature 2 (criticality weighting):** `load_bearing` does **not** enter `reconcile()`'s prompt or logic. It only affects `build_consequences()` (whether `next_validation` is mandatory). Keeps a wrong verdict traceable to one cause (evidence), not two compounding ones.
+- **Feature 3 (conflict/thin → UNRESOLVED):** No hand-rolled "conflicting" vs "thin" string rule. Prompt instructs the LLM explicitly: a finding with no evidence carries no weight regardless of what it claims; findings asserting opposite conclusions with comparable evidence must yield `UNRESOLVED`, never a forced pick.
+- **Feature 4 (verdict_reasoning format):** No change. Stays free text `str` per `docs/00-CONTRACTS.md` §1 — settled, no frozen-contract sync needed. Dev C's `verdict_ready` SSE field is unaffected.
+- **Feature 5 (downstream consumers):** No code impact now — `build_consequences()` (Hour 18-25) is where `load_bearing` gates `next_validation`, per Feature 2 above.
+
+Implementation: `core.loop.reconcile()`, internal `ReconcileVerdict(status: ClaimStatus, reasoning: str)` schema, mirrors `LoadBearingAnswer`.

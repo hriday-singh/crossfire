@@ -73,3 +73,80 @@ def test_claim_requires_id_and_statement(missing_field):
     del fields[missing_field]
     with pytest.raises(ValidationError):
         Claim(**fields)
+
+
+def test_claim_invalid_status_raises_validation_error():
+    with pytest.raises(ValidationError):
+        Claim(id="c1", statement="x", status="unsupported_status")
+
+
+def test_evidence_item_minimal_and_full():
+    item = EvidenceItem(
+        source_url="https://example.com/source",
+        snippet="Key finding snippet",
+        retrieved_at="2026-09-06T12:00:00Z",
+    )
+    assert item.title is None
+    assert item.source_url == "https://example.com/source"
+
+    item_with_title = EvidenceItem(
+        source_url="https://example.com/source",
+        title="Source Article",
+        snippet="Key finding snippet",
+        retrieved_at="2026-09-06T12:00:00Z",
+    )
+    assert item_with_title.title == "Source Article"
+
+    with pytest.raises(ValidationError):
+        EvidenceItem(source_url="https://example.com/source", snippet="Key snippet")
+
+
+def test_test_plan_item_validation():
+    tpi = TestPlanItem(
+        id="test-item-1",
+        target_claim="claim-1",
+        failure_mode="evidence",
+        objective="Verify market size with external data",
+    )
+    assert tpi.id == "test-item-1"
+    assert tpi.target_claim == "claim-1"
+    assert tpi.failure_mode == "evidence"
+    assert tpi.objective == "Verify market size with external data"
+
+    with pytest.raises(ValidationError):
+        TestPlanItem(id="t1", target_claim="c1")
+
+
+def test_case_full_json_roundtrip(sample_claim, sample_test_plan_item, sample_finding):
+    dc = DecisionConsequence(
+        claim_id=sample_claim.id,
+        impact="high",
+        recommended_change="Drop autonomous submission",
+        next_validation="Interview 10 college counselors",
+        verdict_reasoning="High user resistance expected",
+    )
+    case = Case(
+        id="case-full-1",
+        raw_input="AI college counselor",
+        context="https://example.com/context",
+        claims=[sample_claim],
+        test_plan=[sample_test_plan_item],
+        findings=[sample_finding],
+        consequences=[dc],
+        status="testing",
+    )
+
+    json_str = case.model_dump_json()
+    reconstructed = Case.model_validate_json(json_str)
+
+    assert reconstructed.id == case.id
+    assert reconstructed.status == "testing"
+    assert reconstructed.context == "https://example.com/context"
+    assert len(reconstructed.claims) == 1
+    assert reconstructed.claims[0].statement == sample_claim.statement
+    assert len(reconstructed.test_plan) == 1
+    assert reconstructed.test_plan[0].failure_mode == "evidence"
+    assert len(reconstructed.findings) == 1
+    assert reconstructed.findings[0].evaluator == "receipts"
+    assert len(reconstructed.consequences) == 1
+    assert reconstructed.consequences[0].next_validation == "Interview 10 college counselors"

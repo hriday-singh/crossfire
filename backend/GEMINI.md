@@ -60,6 +60,7 @@ backend/
     pdf.py
   store.py                       # Dev A
   config.py                       # Dev A
+  progress.py                     # Dev A, progress CLI tracker
 tests/
   eval_set/                        # Dev A owns the harness; each dev adds cases for their own module
 ```
@@ -89,6 +90,7 @@ No two devs write to the same file except `main.py` and `PROGRESS.md` — see `d
   2. Update your section in `PROGRESS.md` — one line: what's done, what's blocked, what's next.
 - Don't batch this up for later. The whole point of `PROGRESS.md` is that at hour 11 and hour 35, anyone can read it and know the real state without a status meeting.
 - If you're blocked on another dev's piece, say so in `PROGRESS.md`'s "Blockers" section, tagged with their name — don't just wait silently.
+- **Progress CLI**: Run `python progress.py` (or `python backend/progress.py`) to see overall completion percentage, per-dev breakdown, and remaining tasks. Supports `--dev [A|B|C]`, `--json`, and `--verbose`. When asked "What's the progress?", run this script and report the result.
 
 ## 7. Definition of Done (per task)
 
