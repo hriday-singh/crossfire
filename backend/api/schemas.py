@@ -51,6 +51,12 @@ class IngestImageRequest(BaseModel):
     claim_statement: str | None = Field(default=None, description="Optional claim statement to focus curation on")
 
 
+class IngestMarkdownRequest(BaseModel):
+    markdown_text: str | None = Field(default=None, description="Raw text content of the Markdown document")
+    markdown_base64: str | None = Field(default=None, description="Optional base64-encoded binary content of the Markdown document")
+    claim_statement: str | None = Field(default=None, description="Optional claim statement to focus curation on")
+
+
 class IngestResponse(BaseModel):
     context: str = Field(..., description="Curated context extracted from the document or URL")
     character_count: int = Field(..., description="Length of the extracted context in characters")

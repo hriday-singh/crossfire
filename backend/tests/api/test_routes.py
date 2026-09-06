@@ -530,6 +530,38 @@ def test_post_ingest_image_empty_text_rejected(client, monkeypatch):
     assert "No extractable text found in image" in response.json()["detail"]
 
 
+def test_post_ingest_markdown_text_success(client):
+    response = client.post(
+        "/ingest/markdown",
+        json={"markdown_text": "# Product Requirements\n\n- Scale to 1M daily users."},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "# Product Requirements" in data["context"]
+    assert data["character_count"] > 0
+
+
+def test_post_ingest_markdown_base64_success(client):
+    import base64
+    encoded = base64.b64encode(b"# Research Findings\n\nMarket CAGR is 14.2%.").decode("ascii")
+    response = client.post(
+        "/ingest/markdown",
+        json={"markdown_base64": encoded},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "Market CAGR is 14.2%." in data["context"]
+
+
+def test_post_ingest_markdown_no_input_rejected(client):
+    response = client.post(
+        "/ingest/markdown",
+        json={},
+    )
+    assert response.status_code == 400
+    assert "Either markdown_text or markdown_base64 must be provided" in response.json()["detail"]
+
+
 def test_post_cases_custom_agents(client, fake_provider_factory):
     from api.routes import get_llm_provider
     from core.loop import ExtractedClaims

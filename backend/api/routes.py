@@ -21,13 +21,14 @@ from api.schemas import (
     ConfirmCaseResponse,
     CreateCaseRequest,
     IngestImageRequest,
+    IngestMarkdownRequest,
     IngestPdfRequest,
     IngestResponse,
     IngestUrlRequest,
 )
 from core.loop import extract_claims, handle_confirm, run_baseline
 from core.models import Case
-from ingestion import ingest_image, ingest_pdf, ingest_url
+from ingestion import ingest_image, ingest_markdown, ingest_pdf, ingest_url
 from providers import get_provider
 from providers.base import LLMProvider
 
@@ -354,5 +355,55 @@ async def handle_ingest_image(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to ingest image: {exc}",
         )
+
+
+@router.post(
+    "/ingest/markdown",
+    response_model=IngestResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def handle_ingest_markdown(
+    payload: IngestMarkdownRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> IngestResponse:
+    """
+    POST /ingest/markdown: Ingests Markdown text or base64-encoded .md content,
+    curates it, and returns context.
+    """
+    if not payload.markdown_text and not payload.markdown_base64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either markdown_text or markdown_base64 must be provided.",
+        )
+
+    if payload.markdown_text:
+        source_data: str | bytes = payload.markdown_text
+    else:
+        try:
+            source_data = base64.b64decode(payload.markdown_base64, validate=True)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid base64 Markdown data: {exc}",
+            )
+
+    try:
+        context = await ingest_markdown(
+            source=source_data,
+            claim_statement=payload.claim_statement,
+            provider=provider,
+        )
+        return IngestResponse(context=context, character_count=len(context))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to ingest Markdown: {exc}",
+        )
+
 
 

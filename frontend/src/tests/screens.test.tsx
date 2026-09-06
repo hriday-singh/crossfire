@@ -123,6 +123,38 @@ describe("Screen Components", () => {
       expect(screen.queryByText(/Screenshot: dashboard_metrics\.png/i)).not.toBeInTheDocument();
     });
 
+    it("handles Markdown file upload via ingestMarkdown and displays pill", async () => {
+      const ingestMdSpy = vi.spyOn(api, "ingestMarkdown").mockResolvedValueOnce({
+        context: "Extracted strategy notes from PRD markdown file",
+        character_count: 540,
+      });
+
+      const { container } = render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+      expect(fileInput).toBeInTheDocument();
+
+      const file = new File(["# Product Spec\n\nGoal: Scale auth service"], "spec.md", { type: "text/markdown" });
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
+
+      expect(ingestMdSpy).toHaveBeenCalledWith(file);
+      await waitFor(() => {
+        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
+        expect(screen.getByText(/Notes: spec\.md/i)).toBeInTheDocument();
+      });
+
+      // Remove attachment
+      const removeBtn = screen.getByLabelText(/Remove attachment Notes: spec\.md/i);
+      fireEvent.click(removeBtn);
+      expect(screen.queryByText(/Notes: spec\.md/i)).not.toBeInTheDocument();
+    });
+
     it("displays error alert when dropped file type is not supported", async () => {
       const { container } = render(
         <CaseProvider>

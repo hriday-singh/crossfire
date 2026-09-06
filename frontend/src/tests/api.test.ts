@@ -6,6 +6,7 @@ import {
   getCase,
   getStreamUrl,
   ingestImage,
+  ingestMarkdown,
   ingestPdf,
   ingestUrl,
   getHealth,
@@ -344,6 +345,71 @@ describe("api client", () => {
       await expect(ingestImage("dummy-base64")).rejects.toThrow(
         "No extractable text found in image: OCR detected no text."
       );
+    });
+  });
+
+  describe("ingestMarkdown", () => {
+    it("posts string markdown payload to /ingest/markdown and returns IngestResponse", async () => {
+      const mockResponse: IngestResponse = {
+        context: "Extracted and curated context from markdown",
+        character_count: 42,
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const res = await ingestMarkdown("# Title\n\nContent here", "Test claim");
+      expect(fetch).toHaveBeenCalledWith(
+        "/ingest/markdown",
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            markdown_text: "# Title\n\nContent here",
+            claim_statement: "Test claim",
+          }),
+        })
+      );
+      expect(res).toEqual(mockResponse);
+    });
+
+    it("accepts a File object and extracts text directly", async () => {
+      const mockResponse: IngestResponse = {
+        context: "Extracted notes",
+        character_count: 15,
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const file = new File(["# My Markdown Notes"], "notes.md", { type: "text/markdown" });
+      const res = await ingestMarkdown(file);
+      expect(fetch).toHaveBeenCalledWith(
+        "/ingest/markdown",
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            markdown_text: "# My Markdown Notes",
+            claim_statement: null,
+          }),
+        })
+      );
+      expect(res).toEqual(mockResponse);
+    });
+
+    it("throws CrossfireApiError on non-ok status", async () => {
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ detail: "Empty Markdown document with no text content." }),
+      });
+
+      await expect(ingestMarkdown("")).rejects.toThrow("Empty Markdown document with no text content.");
     });
   });
 

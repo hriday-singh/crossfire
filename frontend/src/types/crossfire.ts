@@ -137,6 +137,12 @@ export interface IngestImageRequest {
   claim_statement?: string | null;
 }
 
+export interface IngestMarkdownRequest {
+  markdown_text?: string | null;
+  markdown_base64?: string | null;
+  claim_statement?: string | null;
+}
+
 export interface IngestResponse {
   context: string;
   character_count: number;

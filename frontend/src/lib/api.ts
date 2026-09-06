@@ -4,6 +4,7 @@ import {
   ConfirmCaseResponse,
   CreateCaseRequest,
   IngestImageRequest,
+  IngestMarkdownRequest,
   IngestPdfRequest,
   IngestResponse,
   IngestUrlRequest,
@@ -228,6 +229,61 @@ export async function ingestUrl(
     const errorBody = await res.json().catch(() => null);
     throw new CrossfireApiError(
       errorBody?.detail || `Failed to ingest URL (${res.status})`,
+      res.status,
+      errorBody
+    );
+  }
+
+  return (await res.json()) as IngestResponse;
+}
+
+export async function fileToText(file: File | Blob): Promise<string> {
+  if (typeof (file as Blob).text === "function") {
+    try {
+      return await (file as Blob).text();
+    } catch {
+      // Fallback to FileReader if text() throws
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string) || "");
+    reader.onerror = (err) => reject(err);
+    reader.readAsText(file);
+  });
+}
+
+export async function ingestMarkdown(
+  fileOrText: File | Blob | string,
+  claimStatement?: string | null,
+  baseUrl: string = DEFAULT_API_BASE
+): Promise<IngestResponse> {
+  let text: string;
+
+  if (typeof fileOrText === "string") {
+    text = fileOrText;
+  } else {
+    text = await fileToText(fileOrText);
+  }
+
+  const payload: IngestMarkdownRequest = {
+    markdown_text: text,
+    claim_statement: claimStatement || null,
+  };
+
+  const url = `${baseUrl}/ingest/markdown`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new CrossfireApiError(
+      errorBody?.detail || `Failed to ingest Markdown (${res.status})`,
       res.status,
       errorBody
     );

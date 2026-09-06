@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
-import { ingestImage, ingestPdf } from "@/lib/api";
+import { ingestImage, ingestMarkdown, ingestPdf } from "@/lib/api";
 import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
 import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 import {
@@ -24,6 +24,11 @@ const MAX_PROPOSAL_CHARS = 500;
 const isImageFile = (filename: string): boolean => {
   const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
   return [".png", ".jpg", ".jpeg", ".webp"].includes(ext);
+};
+
+const isMarkdownFile = (filename: string): boolean => {
+  const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
+  return [".md", ".markdown", ".txt", ".text"].includes(ext);
 };
 
 export const EntryScreen: React.FC = () => {
@@ -93,7 +98,26 @@ export const EntryScreen: React.FC = () => {
 
   const handleTextChange = (value: string) => {
     if (value.length > MAX_PROPOSAL_CHARS) {
-      setRawInput(value.slice(0, MAX_PROPOSAL_CHARS));
+      const proposalText = value.slice(0, MAX_PROPOSAL_CHARS);
+      const overflowText = value.slice(MAX_PROPOSAL_CHARS).trim();
+
+      setRawInput(proposalText);
+
+      if (overflowText) {
+        const blobCount =
+          attachments.filter((a) => a.type === "text_blob").length + 1;
+        const newBlob: EntryAttachment = {
+          id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: "text_blob",
+          name: `Context Snippet #${blobCount}`,
+          context: overflowText,
+          charCount: overflowText.length,
+        };
+        setAttachments((prev) => [...prev, newBlob]);
+        setSmartNotice(
+          `Proposal populated with first 500 characters. Moved excess (${overflowText.length.toLocaleString()} chars) to context snippet.`,
+        );
+      }
       return;
     }
 
@@ -144,9 +168,28 @@ export const EntryScreen: React.FC = () => {
 
       const remaining = detectedMulti.remainingText;
       if (remaining) {
-        setRawInput((prev) =>
-          prev ? `${prev} ${remaining}`.trim() : remaining,
-        );
+        const combined = rawInput
+          ? `${rawInput} ${remaining}`.trim()
+          : remaining;
+        if (combined.length > MAX_PROPOSAL_CHARS) {
+          const proposalText = combined.slice(0, MAX_PROPOSAL_CHARS);
+          const overflowText = combined.slice(MAX_PROPOSAL_CHARS).trim();
+          setRawInput(proposalText);
+          if (overflowText) {
+            const blobCount =
+              attachments.filter((a) => a.type === "text_blob").length + 1;
+            const newBlob: EntryAttachment = {
+              id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              type: "text_blob",
+              name: `Context Snippet #${blobCount}`,
+              context: overflowText,
+              charCount: overflowText.length,
+            };
+            setAttachments((prev) => [...prev, newBlob]);
+          }
+        } else {
+          setRawInput(combined);
+        }
       }
       setSmartNotice(
         detectedMulti.urls.length === 1
@@ -156,26 +199,34 @@ export const EntryScreen: React.FC = () => {
       return;
     }
 
-    // 2. Full-block creation: If the pasted content exceeds character limit,
-    // convert the ENTIRE pasted text into a context block attachment instead of chopping it.
+    // 2. Large text exceeds 500 characters:
+    // Extract first 500 characters for proposal AND compact excess into a text blob!
     if (
       pasted.length > MAX_PROPOSAL_CHARS ||
       rawInput.length + pasted.length > MAX_PROPOSAL_CHARS
     ) {
       e.preventDefault();
-      const blobCount =
-        attachments.filter((a) => a.type === "text_blob").length + 1;
-      const newBlob: EntryAttachment = {
-        id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        type: "text_blob",
-        name: `Context Block #${blobCount}`,
-        context: pasted,
-        charCount: pasted.length,
-      };
-      setAttachments((prev) => [...prev, newBlob]);
-      setSmartNotice(
-        `Large text (${pasted.length.toLocaleString()} chars) attached as full context block.`,
-      );
+      const combined = rawInput ? `${rawInput} ${pasted}`.trim() : pasted;
+      const proposalText = combined.slice(0, MAX_PROPOSAL_CHARS);
+      const overflowText = combined.slice(MAX_PROPOSAL_CHARS).trim();
+
+      setRawInput(proposalText);
+
+      if (overflowText) {
+        const blobCount =
+          attachments.filter((a) => a.type === "text_blob").length + 1;
+        const newBlob: EntryAttachment = {
+          id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: "text_blob",
+          name: `Context Snippet #${blobCount}`,
+          context: overflowText,
+          charCount: overflowText.length,
+        };
+        setAttachments((prev) => [...prev, newBlob]);
+        setSmartNotice(
+          `Proposal populated with first 500 characters. Moved excess (${overflowText.length.toLocaleString()} chars) to context snippet.`,
+        );
+      }
       return;
     }
   };
@@ -240,8 +291,18 @@ export const EntryScreen: React.FC = () => {
 
     try {
       const isImage = isImageFile(file.name);
-      const res = isImage ? await ingestImage(file) : await ingestPdf(file);
-      const label = isImage ? `Screenshot: ${file.name}` : file.name;
+      const isMd = isMarkdownFile(file.name);
+      let res;
+      let label = file.name;
+      if (isImage) {
+        res = await ingestImage(file);
+        label = `Screenshot: ${file.name}`;
+      } else if (isMd) {
+        res = await ingestMarkdown(file);
+        label = `Notes: ${file.name}`;
+      } else {
+        res = await ingestPdf(file);
+      }
       const newFileAttachment: EntryAttachment = {
         id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: "file",
@@ -250,11 +311,34 @@ export const EntryScreen: React.FC = () => {
         charCount: res.character_count,
       };
       setAttachments((prev) => [...prev, newFileAttachment]);
+
+      // 500-character get: If proposal input is empty, prefill first 500 characters of extracted context
+      if (!rawInput.trim() && res.context) {
+        const snippet = res.context.slice(0, MAX_PROPOSAL_CHARS).trim();
+        if (snippet) {
+          setRawInput(snippet);
+        }
+      }
     } catch (err: unknown) {
-      const errorMsg =
-        (err as { message?: string })?.message ||
-        "Failed to extract text from file.";
-      setIngestError(errorMsg);
+      const rawMsg = (err as { message?: string })?.message || "";
+      const lower = rawMsg.toLowerCase();
+      if (
+        lower.includes("could not parse") ||
+        lower.includes("failed to extract") ||
+        lower.includes("empty") ||
+        lower.includes("no extractable text") ||
+        lower.includes("invalid") ||
+        lower.includes("syntaxerror")
+      ) {
+        setIngestError(
+          `Unable to read text from "${file.name}". You can paste the text directly into the proposal box.`,
+        );
+      } else {
+        setIngestError(
+          rawMsg ||
+            `Unable to process "${file.name}". Please check the file or paste its content directly.`,
+        );
+      }
     } finally {
       setIsIngesting(false);
     }
@@ -290,10 +374,20 @@ export const EntryScreen: React.FC = () => {
     if (!file) return;
 
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-    const allowed = [".pdf", ".png", ".jpg", ".jpeg", ".webp"];
+    const allowed = [
+      ".pdf",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".webp",
+      ".md",
+      ".markdown",
+      ".txt",
+      ".text",
+    ];
     if (!allowed.includes(ext)) {
       setIngestError(
-        "Only PDF documents and image screenshots (.png, .jpg, .jpeg, .webp) are supported.",
+        "Supported formats: PDF documents, screenshots/images, or text files (.txt, .md). You can also paste text directly.",
       );
       return;
     }
@@ -428,7 +522,6 @@ export const EntryScreen: React.FC = () => {
                 ref={textareaRef}
                 id="proposal-input"
                 value={rawInput}
-                maxLength={MAX_PROPOSAL_CHARS}
                 onChange={(e) => handleTextChange(e.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
@@ -481,7 +574,7 @@ export const EntryScreen: React.FC = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.md,.markdown"
               className="hidden"
               onChange={handleFileChange}
             />
@@ -562,8 +655,7 @@ export const EntryScreen: React.FC = () => {
                     attach_file
                   </span>
                   <span className="font-body-sm text-body-sm truncate text-outline group-hover:text-on-surface">
-                    + Add reference link or upload document (PDF, Screenshot /
-                    Image)
+                    + Add reference link or upload document (PDF, MD, Image)
                   </span>
                 </button>
                 <div className="flex items-center gap-space-2 shrink-0 pl-space-2">
