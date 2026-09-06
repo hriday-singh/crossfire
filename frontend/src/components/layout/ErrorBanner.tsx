@@ -12,11 +12,11 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss }) =>
   if (!error) return null;
 
   return (
-    <div className="w-full border-b border-rose-500/30 bg-rose-950/30 px-6 py-3 transition-all">
+    <div className="w-full border-b border-rose-800/60 bg-rose-950/40 px-6 py-3 transition-all text-rose-300">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-rose-400 shrink-0">
-            <AlertTriangle size={18} />
+            <AlertTriangle size={16} />
           </span>
           <div className="text-xs text-rose-200 truncate">
             <span className="font-mono uppercase font-semibold text-rose-400 mr-2">
