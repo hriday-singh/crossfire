@@ -167,6 +167,52 @@ def build_query(statement: str) -> str:
     return " ".join(kept) or (statement or "").strip()
 
 
+def source_class_to_tier(source_class: str, url: str = "") -> int:
+    """Categorizes a source into authority tiers:
+    - Tier 1: Primary docs, SEC/regulatory filings, government portals, official API/developer docs.
+    - Tier 2: Neutral reporting, technical journalism, forums (Reddit, StackOverflow).
+    - Tier 3: Company landing pages, marketing copy, blog posts, sponsored content.
+    """
+    sc = (source_class or "").lower().strip()
+    if not sc and url:
+        sc = classify_source(url)
+
+    if sc in ("primary", "institutional"):
+        return 1
+    if sc in ("community", "web"):
+        return 2
+    if sc in ("blog", "marketing"):
+        return 3
+    return 2
+
+
+def build_adversarial_query(statement: str) -> str:
+    """Transforms a statement into an adversarial 'debunk' query.
+
+    Actively probes for complaints, churn, limitations, and failure rather than validation.
+    """
+    base = build_query(statement)
+    if not base:
+        return (statement or "").strip()
+    cleaned = re.sub(r"\b(best|highest|reliable|proven|guaranteed|safe|secure)\b", "", base, flags=re.I).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned) or base
+    return f"{cleaned} complaints churn failure alternative"
+
+
+def build_competitor_query(statement: str) -> str:
+    """Transforms a statement into a competitor triangulation query.
+
+    Targets closest competitors or market leaders to empirically verify claims of uniqueness.
+    """
+    base = build_query(statement)
+    if not base:
+        return (statement or "").strip()
+    feature = re.sub(r"\b(unique|only|first|exclusive|unmatched|sole|proprietary|cheaper than)\b", "", base, flags=re.I).strip()
+    feature = re.sub(r"\s+", " ", feature) or base
+    return f"{feature} competitor market leader alternative"
+
+
+
 def _clean_ddg_url(raw_url: str) -> str:
     """Decodes DuckDuckGo redirect URLs if present, otherwise returns cleaned URL."""
     clean = html.unescape(raw_url)
@@ -270,10 +316,10 @@ async def _execute_search(query: str) -> str:
     return str(res)
 
 
-async def search_evidence(claim: Claim) -> list[EvidenceItem]:
+async def search_evidence(claim: Claim, query_override: str | None = None) -> list[EvidenceItem]:
     """Searches external evidence for a given claim via DuckDuckGo Lite.
 
-    - Single query per claim
+    - Single query per claim (or query_override if provided)
     - Explicit DEMO_FIXTURES switch when DEMO_MODE is True
     - Gracefully degrades to an empty list on failure (never raises)
     """
@@ -282,7 +328,8 @@ async def search_evidence(claim: Claim) -> list[EvidenceItem]:
         return DEMO_FIXTURES[claim.id]
 
     try:
-        html_resp = await _execute_search(build_query(claim.statement))
+        query = query_override or build_query(claim.statement)
+        html_resp = await _execute_search(query)
         if inspect.isawaitable(html_resp):
             html_resp = await html_resp
         return rank_by_source_class(parse_duckduckgo_lite_html(html_resp, max_results=4))
@@ -291,4 +338,5 @@ async def search_evidence(claim: Claim) -> list[EvidenceItem]:
     except Exception as exc:
         logger.warning(f"DuckDuckGo search failed for claim {claim.id}: {exc}")
         return []
+
 

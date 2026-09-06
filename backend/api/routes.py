@@ -182,7 +182,7 @@ async def confirm_case(
             )
         valid_agents = []
         for a in payload.selected_agents:
-            normalized = "operator" if a == "overthinker" else a
+            normalized = "operator" if a == "overthinker" else ("receipts" if a == "researcher" else a)
             if normalized in ("devils_advocate", "receipts", "builder", "operator"):
                 if normalized not in valid_agents:
                     valid_agents.append(normalized)

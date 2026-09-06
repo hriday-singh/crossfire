@@ -80,6 +80,8 @@ def normalize_agents(picks: list[AgentPick]) -> tuple[list[str], dict[str, str]]
         agent = (pick.agent or "").strip().lower()
         if agent == "overthinker":
             agent = "operator"
+        if agent == "researcher":
+            agent = "receipts"
         if agent in KNOWN_AGENTS and agent not in selected:
             selected.append(agent)
             rationales[agent] = one_line(pick.rationale) or DEFAULT_RATIONALES[agent]
