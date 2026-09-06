@@ -6,8 +6,7 @@ This is the build spec for the frontend, written the same way `crossfire_backend
 - Styling: Tailwind CSS + shadcn/ui (Radix primitives, CSS-variable theming, `lucide-react` icons — shadcn's default icon set).
 - Mode: dark only. No light theme, no toggle. One less surface to design, test, and get wrong in 48 hours.
 - Ambition level: polished but simple. Clean execution of a known interface pattern (CI dashboard), not a custom design system. Every visual decision below optimizes for "fast to build correctly" over "distinctive."
-- No 3D. See section 9.
-
+- No 3D. See section 9
 ---
 
 ## 1. Why this direction, in one paragraph
