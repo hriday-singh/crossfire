@@ -36,6 +36,8 @@ class EvidenceItem(BaseModel):
     title: str | None = None
     snippet: str                            # curated, not the full page
     retrieved_at: str
+    stance: str = "context"                 # supports | contradicts | context — how it bears on the claim
+    source_class: str = "unranked"          # primary | institutional | press | community | blog | unranked
 
 
 class Finding(BaseModel):
@@ -47,6 +49,17 @@ class Finding(BaseModel):
     reasoning: str
     confidence: float
     contradiction: str | None = None
+
+
+class CaseVerdict(BaseModel):
+    """One case-level judgement replacing N near-identical per-claim ones."""
+
+    decision_state: str                     # proceed | proceed_with_changes | hold | drop
+    summary: str
+    survived: list[str] = []                # claim ids
+    broken: list[str] = []
+    unproven: list[str] = []                # weakened + unresolved
+    next_actions: list[str] = []            # 2-3 merged, deduped
 
 
 class DecisionConsequence(BaseModel):
@@ -66,7 +79,9 @@ class Case(BaseModel):
     test_plan: list[TestPlanItem] = []
     findings: list[Finding] = []
     consequences: list[DecisionConsequence] = []
-    status: str = "extracting"              # extracting | awaiting_confirmation | testing | done | error
+    case_verdict: CaseVerdict | None = None  # set at the end of the run
+    status: str = "extracting"              # extracting | needs_input | awaiting_confirmation | testing | done | error
+    gate_message: str | None = None         # set when the input was too open-ended to test
     agent_mode: str = "auto"                # "auto" | "custom"
     selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, overthinker
         "devils_advocate",

@@ -46,7 +46,7 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
           <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">
             Agent Suite:{" "}
             {agentMode === "auto" ? (
-              <span className="text-primary-container">Auto (Recommended: tailored to claims)</span>
+              <span className="text-primary-container">Auto (Recommended — tailored to claims)</span>
             ) : (
               <span className="text-on-surface">
                 Custom ({selectedAgents.length} of {ALL_AGENTS.length} active)
@@ -98,7 +98,7 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
           <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
             {agentMode === "auto"
               ? "Crossfire will analyze your extracted assumptions and automatically select the most rigorous test agents (e.g., Empirical Evidence, Feasibility, Tail Risks) with transparent rationales."
-              : "Choose which specialized adversarial agents will stress-test your proposal. Each agent corresponds to a specific test."}
+              : "Choose which specialized adversarial evaluators will stress-test your proposal."}
           </p>
 
           {/* Agent Selection Grid (Active in Custom mode, or preview in Auto mode) */}
@@ -138,15 +138,12 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                           htmlFor={`agent-checkbox-${agent.id}`}
                           className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs cursor-pointer truncate"
                         >
-                          {agent.name}
+                          {agent.testName}
                         </label>
                         <span className="material-symbols-outlined text-[16px] text-outline ml-1 shrink-0">
                           {agent.icon}
                         </span>
                       </div>
-                      <p className="font-code-sm text-[11px] text-primary-container font-medium mt-0.5">
-                        Conducts: {agent.testName}
-                      </p>
                       <p className="font-code-sm text-code-sm text-outline mt-0.5">
                         {agent.shortRole}
                       </p>

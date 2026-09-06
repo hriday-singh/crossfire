@@ -57,8 +57,8 @@ describe("formatters", () => {
   it("should format confidence numbers cleanly", () => {
     expect(formatConfidence(0.8123)).toBe("0.81");
     expect(formatConfidence(0)).toBe("0.00");
-    expect(formatConfidence(null)).toBe("—");
-    expect(formatConfidence(undefined)).toBe("—");
+    expect(formatConfidence(null)).toBe("-");
+    expect(formatConfidence(undefined)).toBe("-");
   });
 
   it("should truncate URLs cleanly without broken protocols", () => {

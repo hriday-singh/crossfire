@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     )
     use_llm_curation: bool = Field(default=False, alias="USE_LLM_CURATION")
 
+    # Fan-out control: a full panel over 5 claims is ~20 concurrent LLM calls.
+    evaluator_concurrency: int = Field(default=8, alias="EVALUATOR_CONCURRENCY")
+    evaluator_timeout_seconds: float = Field(default=60.0, alias="EVALUATOR_TIMEOUT_SECONDS")
+
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("cors_allowed_origins", mode="after")

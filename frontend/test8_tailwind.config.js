@@ -96,7 +96,6 @@ export default {
         "space-1": "0.25rem",
         "gutter": "1rem",
         "space-2": "0.5rem",
-        "space-2.5": "0.625rem",
         "pane-min-width": "320px",
         "space-6": "1.5rem",
         "space-5": "1.25rem",

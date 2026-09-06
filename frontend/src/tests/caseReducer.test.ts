@@ -222,4 +222,54 @@ describe("caseReducer", () => {
     expect(state.engineInfo?.model).toBe("gemini-3.7-flash");
     expect(state.engineInfo?.provider).toBe("openai_compat");
   });
+
+  it("should handle SET_AGENT_MODE, TOGGLE_AGENT_SELECTION, and SET_SELECTED_AGENTS", () => {
+    const initialStateWithCase = {
+      ...INITIAL_STATE,
+      currentCase: {
+        id: "case-agents",
+        raw_input: "Test input",
+        context: null,
+        status: "awaiting_confirmation" as const,
+        agent_mode: "auto" as const,
+        selected_agents: ["devils_advocate", "receipts", "builder"],
+        claims: [],
+        test_plan: [],
+        findings: [],
+        consequences: [],
+      },
+    };
+
+    // Set agent mode
+    let state = caseReducer(initialStateWithCase, {
+      type: "SET_AGENT_MODE",
+      payload: "custom",
+    });
+    expect(state.currentCase?.agent_mode).toBe("custom");
+
+    // Toggle out existing agent
+    state = caseReducer(state, {
+      type: "TOGGLE_AGENT_SELECTION",
+      payload: "builder",
+    });
+    expect(state.currentCase?.selected_agents).toEqual(["devils_advocate", "receipts"]);
+
+    // Toggle in non-existing agent
+    state = caseReducer(state, {
+      type: "TOGGLE_AGENT_SELECTION",
+      payload: "overthinker",
+    });
+    expect(state.currentCase?.selected_agents).toEqual([
+      "devils_advocate",
+      "receipts",
+      "overthinker",
+    ]);
+
+    // Explicitly set selected agents
+    state = caseReducer(state, {
+      type: "SET_SELECTED_AGENTS",
+      payload: ["receipts"],
+    });
+    expect(state.currentCase?.selected_agents).toEqual(["receipts"]);
+  });
 });

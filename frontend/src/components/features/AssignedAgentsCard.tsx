@@ -17,9 +17,9 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
   const activeCount = selectedAgents.length;
   const isAuto = agentMode === "auto";
 
-  // Build the list of active agent names for the "I'm going to use this, this, this" statement
-  const activeAgentNames = ALL_AGENTS.filter((a) => selectedAgents.includes(a.id)).map(
-    (a) => a.testName
+  // Build the list of active agent names and corresponding tests
+  const activeAgentDescriptions = ALL_AGENTS.filter((a) => selectedAgents.includes(a.id)).map(
+    (a) => `${a.name} (${a.testName})`
   );
 
   return (
@@ -58,11 +58,11 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
         className="bg-surface-container rounded-lg p-3 border border-outline-variant/50 text-body-sm leading-relaxed"
       >
         <span className="text-on-surface font-medium">Crossfire Pipeline: </span>
-        {activeAgentNames.length > 0 ? (
+        {activeAgentDescriptions.length > 0 ? (
           <span className="text-on-surface-variant">
             I'm going to use{" "}
             <span className="text-primary-container font-semibold">
-              {activeAgentNames.join(", ")}
+              {activeAgentDescriptions.join(", ")}
             </span>
             . You can select or deselect any agents below before starting.
           </span>
@@ -105,19 +105,24 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
                       htmlFor={`confirm-agent-${agent.id}`}
                       className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs cursor-pointer truncate"
                     >
-                      {agent.testName}
+                      {agent.name}
                     </label>
                   </div>
 
-                  <span
-                    className={`font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
-                      isSelected
-                        ? "bg-verdict-survived/15 text-verdict-survived border border-verdict-survived/30"
-                        : "bg-surface-container-high text-outline"
-                    }`}
-                  >
-                    {isSelected ? "Active" : "Excluded"}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-outline border border-outline-variant/40">
+                      Runs {agent.testName}
+                    </span>
+                    <span
+                      className={`font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
+                        isSelected
+                          ? "bg-verdict-survived/15 text-verdict-survived border border-verdict-survived/30"
+                          : "bg-surface-container-high text-outline"
+                      }`}
+                    >
+                      {isSelected ? "Active" : "Excluded"}
+                    </span>
+                  </div>
                 </div>
 
                 <p className="font-code-sm text-code-sm text-outline mb-1.5 flex items-center gap-1">

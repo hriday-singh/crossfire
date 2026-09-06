@@ -79,6 +79,94 @@ DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {
 }
 
 
+# Source ranking is by URL shape only — no domain allowlist, because a curated
+# list of "good sites" is exactly the thing that stops working outside the
+# scenarios it was written for.
+SOURCE_CLASS_RANK: dict[str, int] = {
+    "primary": 0,        # the party that actually sets the fact: government, or a vendor's own docs
+    "institutional": 1,  # universities, standards bodies, non-profits
+    "web": 2,            # ordinary sites, press, unknown
+    "community": 3,      # forums, Q&A, user-generated
+    "blog": 4,           # personal/marketing publishing platforms
+}
+
+_COMMUNITY_HOSTS = ("reddit.", "quora.", "stackoverflow.", "stackexchange.", "answers.", "forum.", "forums.")
+_BLOG_HOSTS = ("medium.com", "substack.com", "blogspot.", "wordpress.", "wixsite.", "tumblr.", "blog.")
+_PRIMARY_SUBDOMAINS = ("docs.", "developer.", "developers.", "support.", "help.", "policy.", "policies.", "legal.")
+
+
+def classify_source(url: str) -> str:
+    """Buckets a URL by what kind of authority it carries, from its host alone."""
+    host = (urllib.parse.urlparse(url).hostname or "").lower().lstrip(".")
+    if not host:
+        return "web"
+    labels = host.split(".")
+    if "gov" in labels or "mil" in labels or "int" in labels:
+        return "primary"
+    if host.startswith(_PRIMARY_SUBDOMAINS):
+        return "primary"
+    if "edu" in labels or "ac" in labels or labels[-1] == "org":
+        return "institutional"
+    if any(h in host for h in _COMMUNITY_HOSTS):
+        return "community"
+    if any(h in host for h in _BLOG_HOSTS):
+        return "blog"
+    return "web"
+
+
+def rank_by_source_class(items: list[EvidenceItem]) -> list[EvidenceItem]:
+    """Stamps source_class on each item and orders authority first, stably."""
+    for item in items:
+        item.source_class = classify_source(item.source_url)
+    return sorted(items, key=lambda i: SOURCE_CLASS_RANK.get(i.source_class, 2))
+
+
+# Words carrying no retrieval signal in any domain: function words, modals, and
+# the predictive framing that makes a claim a claim ("we expect X will ...").
+_QUERY_STOPWORDS = {
+    "a", "an", "the", "and", "or", "but", "if", "then", "than", "that", "this", "these", "those",
+    "is", "are", "was", "were", "be", "been", "being", "am", "do", "does", "did", "doing",
+    "have", "has", "had", "having", "will", "would", "can", "could", "shall", "should", "may",
+    "might", "must", "of", "in", "on", "at", "to", "for", "with", "without", "from", "by",
+    "as", "into", "about", "over", "under", "between", "through", "during", "before", "after",
+    "we", "i", "you", "they", "he", "she", "it", "our", "my", "your", "their", "its", "his", "her",
+    "assume", "assumes", "assuming", "expect", "expects", "expected", "believe", "believes",
+    "think", "thinks", "suppose", "likely", "probably", "enough", "very", "more", "most", "much",
+    "not", "no", "any", "all", "some", "such", "own", "same", "so", "up", "out", "down", "off",
+    "there", "here", "when", "where", "which", "who", "whom", "why", "how", "what",
+}
+
+_MAX_QUERY_TERMS = 8
+
+
+def build_query(statement: str) -> str:
+    """Turns a full-sentence claim into a short keyword query.
+
+    Search engines answer keywords, not predictions — posting the sentence
+    verbatim is why so many claims came back inconclusive. Numbers, currency
+    and capitalised names are kept whole; everything else is filtered against a
+    domain-neutral stopword set. Falls back to the raw statement if filtering
+    leaves nothing.
+    """
+    tokens = re.findall(r"[\w$%.,/-]*\w[\w$%.,/-]*", statement or "")
+    kept: list[str] = []
+    for raw in tokens:
+        token = raw.strip(".,/-")
+        if not token:
+            continue
+        lowered = token.lower()
+        is_proper = token[0].isupper() and lowered not in _QUERY_STOPWORDS
+        has_digit = any(ch.isdigit() for ch in token)
+        if not (is_proper or has_digit):
+            if lowered in _QUERY_STOPWORDS or len(lowered) < 3:
+                continue
+        if lowered not in {k.lower() for k in kept}:
+            kept.append(token)
+        if len(kept) >= _MAX_QUERY_TERMS:
+            break
+    return " ".join(kept) or (statement or "").strip()
+
+
 def _clean_ddg_url(raw_url: str) -> str:
     """Decodes DuckDuckGo redirect URLs if present, otherwise returns cleaned URL."""
     clean = html.unescape(raw_url)
@@ -194,10 +282,10 @@ async def search_evidence(claim: Claim) -> list[EvidenceItem]:
         return DEMO_FIXTURES[claim.id]
 
     try:
-        html_resp = await _execute_search(claim.statement)
+        html_resp = await _execute_search(build_query(claim.statement))
         if inspect.isawaitable(html_resp):
             html_resp = await html_resp
-        return parse_duckduckgo_lite_html(html_resp, max_results=4)
+        return rank_by_source_class(parse_duckduckgo_lite_html(html_resp, max_results=4))
     except AssertionError:
         raise
     except Exception as exc:

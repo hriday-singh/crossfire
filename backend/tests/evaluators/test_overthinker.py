@@ -11,7 +11,7 @@ from core.models import Case, Claim, Finding, TestPlanItem
 
 @pytest.mark.asyncio
 async def test_run_overthinker_produces_finding_with_reasoning(
-    fake_provider_factory, sample_claim, sample_test_plan_item
+    fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     fake_output = OverthinkerOutput(
         result="Catastrophic edge-case risk",
@@ -20,7 +20,7 @@ async def test_run_overthinker_produces_finding_with_reasoning(
         contradiction="System deadlock under quota exhaustion",
     )
     provider = fake_provider_factory(responses=[fake_output])
-    finding = await run_overthinker(sample_claim, sample_test_plan_item, provider)
+    finding = await run_overthinker(sample_test_plan_item, sample_case, provider)
 
     assert finding.evaluator == "overthinker"
     assert finding.claim_id == sample_claim.id
@@ -34,7 +34,7 @@ async def test_run_overthinker_produces_finding_with_reasoning(
 
 @pytest.mark.asyncio
 async def test_run_overthinker_never_calls_the_evidence_pipeline(
-    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     def _fail_if_called(*args, **kwargs):
         raise AssertionError("Overthinker must never call the evidence pipeline")
@@ -47,39 +47,31 @@ async def test_run_overthinker_never_calls_the_evidence_pipeline(
         confidence=0.75,
     )
     provider = fake_provider_factory(responses=[fake_output])
-    finding = await run_overthinker(sample_claim, sample_test_plan_item, provider)
+    finding = await run_overthinker(sample_test_plan_item, sample_case, provider)
 
     assert finding.evaluator == "overthinker"
     assert finding.evidence == []
 
 
 @pytest.mark.asyncio
-async def test_run_overthinker_supports_all_signature_variants(
+async def test_run_overthinker_takes_only_the_contract_signature(
     fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
+    """Contract §4: (item, case, provider) and nothing else. The old
+    isinstance-sniffing of three argument orders is gone, so passing a Claim
+    first must fail loudly rather than silently working."""
     fake_output = OverthinkerOutput(
         result="Boundary failure",
         reasoning="Input parameter overflows buffer",
         confidence=0.85,
     )
+    provider = fake_provider_factory(responses=[fake_output])
+    finding = await run_overthinker(sample_test_plan_item, sample_case, provider)
+    assert finding.claim_id == sample_claim.id
+    assert finding.test_id == sample_test_plan_item.id
 
-    # Signature 1: (claim, item, provider)
-    p1 = fake_provider_factory(responses=[fake_output])
-    f1 = await run_overthinker(sample_claim, sample_test_plan_item, p1)
-    assert f1.claim_id == sample_claim.id
-    assert f1.test_id == sample_test_plan_item.id
-
-    # Signature 2: (item, case, provider)
-    p2 = fake_provider_factory(responses=[fake_output])
-    f2 = await run_overthinker(sample_test_plan_item, sample_case, p2)
-    assert f2.claim_id == sample_test_plan_item.target_claim
-    assert f2.test_id == sample_test_plan_item.id
-
-    # Signature 3: (claim, item, case, provider)
-    p3 = fake_provider_factory(responses=[fake_output])
-    f3 = await run_overthinker(sample_claim, sample_test_plan_item, sample_case, p3)
-    assert f3.claim_id == sample_claim.id
-    assert f3.test_id == sample_test_plan_item.id
+    with pytest.raises(AttributeError):
+        await run_overthinker(sample_claim, sample_test_plan_item, provider)
 
 
 @pytest.mark.asyncio
@@ -145,12 +137,12 @@ async def test_run_overthinker_includes_case_context(fake_provider_factory):
 
 @pytest.mark.asyncio
 async def test_run_overthinker_handles_raw_string_response(
-    fake_provider_factory, sample_claim, sample_test_plan_item
+    fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     provider = fake_provider_factory(
         responses=["Raw analytical critique of edge case without JSON structure"]
     )
-    finding = await run_overthinker(sample_claim, sample_test_plan_item, provider)
+    finding = await run_overthinker(sample_test_plan_item, sample_case, provider)
 
     assert finding.evaluator == "overthinker"
     assert finding.claim_id == sample_claim.id
@@ -160,7 +152,7 @@ async def test_run_overthinker_handles_raw_string_response(
 
 @pytest.mark.asyncio
 async def test_run_overthinker_raises_on_missing_provider(
-    sample_claim, sample_test_plan_item
+    sample_case, sample_claim, sample_test_plan_item
 ):
     with pytest.raises(ValueError, match="LLMProvider must be provided"):
-        await run_overthinker(sample_claim, sample_test_plan_item, None)
+        await run_overthinker(sample_test_plan_item, sample_case, None)

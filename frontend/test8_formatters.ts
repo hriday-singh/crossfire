@@ -132,7 +132,7 @@ export function formatImpact(impact: string | null | undefined): string {
 
 export function formatConfidence(confidence: number | null | undefined): string {
   if (confidence === null || confidence === undefined || isNaN(confidence)) {
-    return "-";
+    return "—";
   }
   return confidence.toFixed(2);
 }

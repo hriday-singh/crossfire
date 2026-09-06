@@ -96,8 +96,13 @@ async def test_search_evidence_returns_well_formed_evidence_items(monkeypatch, s
     items = await search_evidence(sample_claim)
     assert all(isinstance(i, EvidenceItem) for i in items)
     assert len(items) == 3
-    assert items[0].source_url == "https://example.com/article-1"
-    assert items[1].source_url == "https://example.org/target-page"
+    # Stage 2: authority-ranked, not page-ranked — .org (institutional) leads .com (web).
+    assert items[0].source_url == "https://example.org/target-page"
+    assert items[0].source_class == "institutional"
+    assert {i.source_url for i in items} >= {
+        "https://example.com/article-1",
+        "https://example.org/target-page",
+    }
 
 
 @pytest.mark.asyncio

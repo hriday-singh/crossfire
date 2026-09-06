@@ -10,12 +10,12 @@ from core.models import Finding
 
 @pytest.mark.asyncio
 async def test_run_receipts_produces_finding_with_evidence(
-    fake_provider_factory, sample_claim, sample_test_plan_item, sample_finding
+    fake_provider_factory, sample_case, sample_claim, sample_test_plan_item, sample_finding
 ):
     from core.evaluators.receipts import run_receipts
 
     provider = fake_provider_factory(responses=[sample_finding])
-    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
     assert isinstance(finding, Finding)
     assert finding.evaluator == "receipts"
     assert finding.claim_id == sample_claim.id
@@ -24,7 +24,7 @@ async def test_run_receipts_produces_finding_with_evidence(
 
 @pytest.mark.asyncio
 async def test_run_receipts_calls_through_llm_provider_not_google_genai_directly(
-    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item, sample_finding
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item, sample_finding
 ):
     """Architectural guard: nothing talks to google-genai directly outside providers/gemini.py."""
     import sys
@@ -37,14 +37,14 @@ async def test_run_receipts_calls_through_llm_provider_not_google_genai_directly
     monkeypatch.setitem(sys.modules, "google.genai", ForbiddenModule())
 
     provider = fake_provider_factory(responses=[sample_finding])
-    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
     assert finding.evaluator == "receipts"
     assert len(provider.calls) == 1
 
 
 @pytest.mark.asyncio
 async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
-    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     """When search_evidence + fetch both come back empty, Receipts still produces a Finding."""
     from core.evaluators.receipts import ReceiptsAssessment, run_receipts
@@ -62,7 +62,7 @@ async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
     )
     provider = fake_provider_factory(responses=[canned_assessment])
 
-    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
     assert isinstance(finding, Finding)
     assert finding.evaluator == "receipts"
     assert finding.evidence == []
@@ -71,7 +71,7 @@ async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
 
 @pytest.mark.asyncio
 async def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_negative(
-    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     """Core invariant (backend spec + direction docs):
     'A negative finding with no traceable evidence behind it is the exact failure
@@ -95,7 +95,7 @@ async def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_neg
     )
     provider = fake_provider_factory(responses=[aggressive_negative])
 
-    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
     assert finding.evidence == []
     # Structural invariant: must be downgraded to low confidence
     assert finding.confidence <= 0.35
@@ -103,7 +103,7 @@ async def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_neg
 
 @pytest.mark.asyncio
 async def test_run_receipts_with_llm_curation_enabled(
-    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     """When use_llm_curation=True, receipts uses curate_snippet_llm for snippets."""
     from core.evaluators.receipts import ReceiptsAssessment, run_receipts
@@ -132,7 +132,7 @@ async def test_run_receipts_with_llm_curation_enabled(
 
     provider = fake_provider_factory(responses=[curated_response, assessment_response])
 
-    finding = await run_receipts(sample_claim, sample_test_plan_item, provider, use_llm_curation=True)
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider, use_llm_curation=True)
     assert len(provider.calls) == 2
     assert len(finding.evidence) == 1
     assert finding.evidence[0].snippet == "Crucial sentence confirming the claim."
@@ -141,7 +141,7 @@ async def test_run_receipts_with_llm_curation_enabled(
 
 @pytest.mark.asyncio
 async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
-    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     """Multiple candidate evidence items are curated concurrently and assembled into the final finding."""
     from core.evaluators.receipts import ReceiptsAssessment, run_receipts
@@ -176,7 +176,7 @@ async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
 
     provider = fake_provider_factory(responses=[*curated_responses, assessment_response])
 
-    finding = await run_receipts(sample_claim, sample_test_plan_item, provider, use_llm_curation=True)
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider, use_llm_curation=True)
     assert len(provider.calls) == 4  # 3 concurrent curations + 1 final receipts assessment
     assert len(finding.evidence) == 3
     for i, ev in enumerate(finding.evidence):

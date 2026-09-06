@@ -33,6 +33,9 @@ describe("useCaseStream hook", () => {
       enterPreview: vi.fn(),
       setPreviewView: vi.fn(),
       exitPreview: vi.fn(),
+      toggleAgentSelection: vi.fn(),
+      setAgentMode: vi.fn(),
+      setSelectedAgents: vi.fn(),
     }));
   });
 

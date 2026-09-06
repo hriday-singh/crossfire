@@ -15,6 +15,8 @@ from fastapi.responses import StreamingResponse
 import events
 import store
 from api.schemas import (
+    BaselineRequest,
+    BaselineResponse,
     ConfirmCaseRequest,
     ConfirmCaseResponse,
     CreateCaseRequest,
@@ -23,7 +25,7 @@ from api.schemas import (
     IngestResponse,
     IngestUrlRequest,
 )
-from core.loop import extract_claims, handle_confirm
+from core.loop import extract_claims, handle_confirm, run_baseline
 from core.models import Case
 from ingestion import ingest_image, ingest_pdf, ingest_url
 from providers import get_provider
@@ -62,6 +64,12 @@ async def create_case(
         selected_agents=payload.selected_agents,
     )
     store.set(case)
+
+    # An input that named no concrete decision never enters the pipeline — the
+    # frontend shows gate_message and asks again instead of testing invented claims.
+    if case.status == "needs_input":
+        await events.publish(case.id, "needs_input", {"message": case.gate_message})
+        return case
 
     # Emit initial SSE events so early stream subscribers receive them
     await events.publish(
@@ -205,6 +213,26 @@ async def get_case(case_id: str) -> Case:
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return case
+
+
+@router.post(
+    "/baseline",
+    response_model=BaselineResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit_public_endpoint)],
+)
+async def create_baseline(
+    payload: BaselineRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> BaselineResponse:
+    """
+    POST /baseline: one plain, un-engineered model call on the same raw input.
+
+    This exists so "better than a good prompt" is demonstrable rather than
+    asserted (direction doc §10). It is deliberately not sandbagged.
+    """
+    answer = await run_baseline(payload.raw_input, provider, context=payload.context)
+    return BaselineResponse(raw_input=payload.raw_input, answer=answer)
 
 
 @router.post(

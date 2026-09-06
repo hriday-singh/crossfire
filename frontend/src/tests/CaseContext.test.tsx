@@ -13,6 +13,9 @@ const TestConsumer: React.FC = () => {
     setActiveModal,
     startExtracting,
     confirmAndRun,
+    toggleAgentSelection,
+    setAgentMode,
+    setSelectedAgents,
   } = useCase();
 
   return (
@@ -22,6 +25,10 @@ const TestConsumer: React.FC = () => {
       <div data-testid="selected-claim">{state.selectedClaimId || "none"}</div>
       <div data-testid="active-modal">{state.activeModal}</div>
       <div data-testid="claims-count">{state.currentCase?.claims.length || 0}</div>
+      <div data-testid="agent-mode">{state.currentCase?.agent_mode || "none"}</div>
+      <div data-testid="selected-agents">
+        {(state.currentCase?.selected_agents || []).join(",")}
+      </div>
 
       <button onClick={resetCase}>Reset</button>
       <button onClick={() => selectClaim("claim-abc")}>Select Claim</button>
@@ -29,6 +36,9 @@ const TestConsumer: React.FC = () => {
       <button onClick={() => setActiveModal("history")}>Open History</button>
       <button onClick={() => startExtracting("Test proposal")}>Extract</button>
       <button onClick={confirmAndRun}>Confirm and Run</button>
+      <button onClick={() => toggleAgentSelection("builder")}>Toggle Builder</button>
+      <button onClick={() => setAgentMode("custom")}>Set Custom Mode</button>
+      <button onClick={() => setSelectedAgents(["receipts", "builder"])}>Set Receipts Builder</button>
     </div>
   );
 };
@@ -88,7 +98,12 @@ describe("CaseContext", () => {
       fireEvent.click(screen.getByText("Extract"));
     });
 
-    expect(api.createCase).toHaveBeenCalledWith("Test proposal", undefined);
+    expect(api.createCase).toHaveBeenCalledWith(
+      "Test proposal",
+      undefined,
+      undefined,
+      undefined
+    );
     expect(screen.getByTestId("active-screen")).toHaveTextContent("confirm");
   });
 
@@ -127,6 +142,8 @@ describe("CaseContext", () => {
       raw_input: "Testing proposition",
       context: null,
       status: "awaiting_confirmation",
+      agent_mode: "auto",
+      selected_agents: ["devils_advocate", "receipts"],
       claims: [
         { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
       ],
@@ -159,9 +176,63 @@ describe("CaseContext", () => {
     expect(screen.getByTestId("active-screen")).toHaveTextContent("runner");
     expect(screen.getByTestId("is-streaming")).toHaveTextContent("true");
     await waitFor(() => {
-      expect(api.confirmCase).toHaveBeenCalledWith("case-confirm-test", [
-        { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
-      ]);
+      expect(api.confirmCase).toHaveBeenCalledWith(
+        "case-confirm-test",
+        [{ id: "c-1", statement: "Claim 1", load_bearing: true, status: null }],
+        ["devils_advocate", "receipts"]
+      );
     });
+  });
+
+  it("allows updating agent mode and toggling agent selection", async () => {
+    vi.spyOn(api, "createCase").mockResolvedValueOnce({
+      id: "case-agent-test",
+      raw_input: "Agent test proposition",
+      context: null,
+      status: "awaiting_confirmation",
+      agent_mode: "auto",
+      selected_agents: ["devils_advocate", "receipts", "builder", "overthinker"],
+      claims: [
+        { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
+      ],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    });
+
+    render(
+      <CaseProvider>
+        <TestConsumer />
+      </CaseProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Extract"));
+    });
+
+    expect(screen.getByTestId("agent-mode")).toHaveTextContent("auto");
+    expect(screen.getByTestId("selected-agents")).toHaveTextContent(
+      "devils_advocate,receipts,builder,overthinker"
+    );
+
+    // Toggle builder
+    act(() => {
+      fireEvent.click(screen.getByText("Toggle Builder"));
+    });
+    expect(screen.getByTestId("selected-agents")).toHaveTextContent(
+      "devils_advocate,receipts,overthinker"
+    );
+
+    // Set custom mode
+    act(() => {
+      fireEvent.click(screen.getByText("Set Custom Mode"));
+    });
+    expect(screen.getByTestId("agent-mode")).toHaveTextContent("custom");
+
+    // Set specific agents
+    act(() => {
+      fireEvent.click(screen.getByText("Set Receipts Builder"));
+    });
+    expect(screen.getByTestId("selected-agents")).toHaveTextContent("receipts,builder");
   });
 });

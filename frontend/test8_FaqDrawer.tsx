@@ -68,7 +68,7 @@ export const FaqDrawer: React.FC = () => {
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="px-space-6 py-space-4 bg-surface-container border-b border-outline-variant/60 flex flex-col gap-space-3 shrink-0">
+        <div className="px-space-6 py-space-3 bg-surface-container border-b border-outline-variant/60 flex flex-col gap-space-2.5 shrink-0">
           {/* Search Input */}
           <div className="relative w-full">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
@@ -94,7 +94,7 @@ export const FaqDrawer: React.FC = () => {
           </div>
 
           {/* Category Chips */}
-          <div className="flex items-center gap-space-2.5 overflow-x-auto scrollbar-none pt-0.5 pb-1">
+          <div className="flex items-center gap-space-2 overflow-x-auto scrollbar-none">
             {categories.map((cat) => {
               const isSelected = selectedCategory === cat;
               return (
@@ -102,9 +102,9 @@ export const FaqDrawer: React.FC = () => {
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-code-sm transition-colors cursor-pointer shrink-0 border ${
+                  className={`px-space-2.5 py-1 rounded text-xs font-code-sm transition-colors cursor-pointer shrink-0 border ${
                     isSelected
-                      ? "bg-primary-container text-on-primary-container border-primary-container font-semibold shadow-xs"
+                      ? "bg-primary-container text-on-primary-container border-primary-container font-semibold"
                       : "bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high border-outline-variant"
                   }`}
                 >
@@ -192,7 +192,7 @@ export const FaqDrawer: React.FC = () => {
 
         {/* Footer */}
         <div className="px-space-6 py-space-3 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-outline font-code-sm text-code-sm shrink-0">
-          <span>Crossfire: Independent Decision Testing</span>
+          <span>Crossfire — Independent Decision Testing</span>
           <a
             href="https://github.com/hriday-singh/crossfire"
             target="_blank"

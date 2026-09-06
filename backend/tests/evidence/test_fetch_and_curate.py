@@ -6,6 +6,22 @@ from __future__ import annotations
 
 import pytest
 
+from core.models import Case, TestPlanItem
+
+
+def _case_for(claim) -> Case:
+    """Evaluators resolve their own claim from the case (contract §4)."""
+    return Case(id="case-under-test", raw_input="Decision under test", claims=[claim])
+
+
+def _item_for(claim) -> TestPlanItem:
+    return TestPlanItem(
+        id=f"test-{claim.id}",
+        target_claim=claim.id,
+        failure_mode="evidence",
+        objective=f"Check evidence for: {claim.statement}",
+    )
+
 
 @pytest.mark.asyncio
 async def test_deep_fetch_only_triggered_for_load_bearing_thin_snippet(
@@ -48,14 +64,14 @@ async def test_deep_fetch_only_triggered_for_load_bearing_thin_snippet(
     monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
     provider = fake_provider_factory(responses=[sample_finding])
 
-    await run_receipts(non_lb_claim, sample_test_plan_item, provider)
+    await run_receipts(_item_for(non_lb_claim), _case_for(non_lb_claim), provider)
     assert len(fetch_calls) == 0
 
     # 2. Load-bearing claim with thin snippet: MUST trigger deep fetch
     lb_claim = Claim(id="c-lb", statement="Test statement", load_bearing=True)
     provider2 = fake_provider_factory(responses=[sample_finding])
 
-    await run_receipts(lb_claim, sample_test_plan_item, provider2)
+    await run_receipts(_item_for(lb_claim), _case_for(lb_claim), provider2)
     assert len(fetch_calls) == 1
     assert fetch_calls[0] == "https://example.com/item1"
 
@@ -111,7 +127,7 @@ async def test_fetch_failure_drops_the_source_without_crashing(
 
     monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
     provider = fake_provider_factory(responses=[sample_finding])
-    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    finding = await run_receipts(_item_for(sample_claim), _case_for(sample_claim), provider)
     assert finding is not None
     assert finding.evaluator == "receipts"
 

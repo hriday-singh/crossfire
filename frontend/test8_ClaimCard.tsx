@@ -139,7 +139,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         };
       }
       return {
-        label: "Validation Inconclusive: Open Risk",
+        label: "Validation Inconclusive — Open Risk",
         icon: "help_outline",
         classes: "text-secondary",
       };
@@ -212,7 +212,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         <div className="flex items-center gap-space-2">
           {isLoadBearing ? (
             <span
-              title="Load-bearing assumption: if false, the entire plan fails"
+              title="Load-bearing assumption — if false, the entire plan fails"
               className="font-label-mono text-label-mono uppercase tracking-wider px-space-2 py-0.5 rounded bg-surface-container-highest text-primary-container font-semibold"
             >
               Load-bearing assumption
@@ -334,7 +334,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               ? consequence?.recommended_change ||
                 (isTestingMode
                   ? "Formulating strategic recommendation based on adversarial test results..."
-                  : "No plan revision indicated: assumption aligns with findings.")
+                  : "No plan revision indicated — assumption aligns with findings.")
               : "Review full adversarial audit, test plan, and strategic adjustment below."}
           </span>
         </div>
@@ -427,11 +427,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                       )}
                     </div>
                     {f.contradiction && (
-                      <p className="font-body-sm text-body-sm text-error font-medium flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[15px] text-error shrink-0 select-none">
-                          warning
-                        </span>
-                        <span>{f.contradiction}</span>
+                      <p className="font-body-sm text-body-sm text-error font-medium">
+                        ⚠️ {f.contradiction}
                       </p>
                     )}
                     <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">

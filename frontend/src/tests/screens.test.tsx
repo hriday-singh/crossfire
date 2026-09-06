@@ -311,6 +311,9 @@ describe("Screen Components", () => {
         enterPreview: vi.fn(),
         setPreviewView: vi.fn(),
         exitPreview: vi.fn(),
+        toggleAgentSelection: vi.fn(),
+        setAgentMode: vi.fn(),
+        setSelectedAgents: vi.fn(),
       });
 
       render(<ConfirmScreen />);

@@ -1,19 +1,34 @@
 """
-Owner: Dev A. Hour-by-hour build order in docs/02-dev-A-core-loop-providers.md.
-RESEARCH FIRST before implementing classify_load_bearing (docs/dev-a/research/01-load-bearing.md)
-and reconcile (docs/dev-a/research/02-reconcile.md) — decide there first, then implement here.
+Owner: Dev A. Extraction, planning, evaluation, reconciliation and synthesis.
+
+Domain-neutral by construction. There are no keyword lists in this file: what a
+claim needs tested is decided by the load-bearing ranking and the active agent
+panel, never by string-matching words that only appear in the demo prompts. A
+claim about a lease, a hiring decision, a clinical protocol or a database
+migration all route the same way.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+from math import ceil
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 import events
 import store
-from core.models import Case, Claim, ClaimStatus, DecisionConsequence, Finding, TestPlanItem
+from config import get_settings
+from core.models import (
+    Case,
+    CaseVerdict,
+    Claim,
+    ClaimStatus,
+    DecisionConsequence,
+    Finding,
+    TestPlanItem,
+)
+from core.textutil import clamp_sentences, one_line
 from providers import get_provider
 from providers.base import LLMProvider
 
@@ -25,66 +40,18 @@ except ImportError:  # not landed yet — the pipeline runs without findings unt
     dispatch = None
 
 
-class ExtractedClaims(BaseModel):
-    """Narrow extraction schema — not the frozen Case shape. Asking the model
-    to fill Case's full fields directly risks hallucinated/unrequested fields;
-    this stays small and gets mapped onto Case here."""
-
-    statements: list[str]
-
-
-FEASIBILITY_KEYWORDS: list[str] = [
-    "scale", "performance", "cost", "build", "api", "latency", "compliance",
-    "legal", "gdpr", "soc2", "replace", "system", "infrastructure",
-    "architecture", "migration", "database", "backend", "deploy", "server",
-    "code", "engineer", "throughput", "integration", "software", "tech",
-    "platform", "load", "bandwidth", "memory", "cpu",
-]
-
-EDGE_RISK_KEYWORDS: list[str] = [
-    "unique", "risk", "failure", "attack", "edge", "novel", "competitor",
-    "alternative", "zero", "all", "100%", "never", "guarantee", "security",
-    "exploit", "worst", "unprecedented", "bypass", "fraud", "hack",
-    "loophole", "vulnerability", "catastrophic",
-]
-
-EVIDENCE_KEYWORDS: list[str] = [
-    "pay", "$", "dollar", "price", "pricing", "cost", "revenue", "demand",
-    "adopt", "trust", "will use", "churn", "conversion", "sales", "market",
-    "users", "customers", "growth", "cac", "ltv", "retention",
-]
-
-
-def determine_auto_agents(claims: list[Claim]) -> tuple[list[str], dict[str, str]]:
-    """Analyzes extracted claims and determines the recommended active agent panel
-    with human-readable rationales."""
-    combined_text = " ".join(c.statement.lower() for c in claims)
-    selected: list[str] = ["devils_advocate"]
-    rationales: dict[str, str] = {
-        "devils_advocate": "Stress-tests implicit premises, unstated assumptions, and logical contradictions across all claims."
-    }
-
-    # Evidence test (Receipts)
-    has_evidence = any(kw in combined_text for kw in EVIDENCE_KEYWORDS)
-    selected.append("receipts")
-    if has_evidence:
-        rationales["receipts"] = "Searches empirical web evidence, market benchmarks, pricing, and adoption data."
-    else:
-        rationales["receipts"] = "Verifies factual assertions and external market reality via live search citations."
-
-    # Feasibility test (Builder)
-    has_feasibility = any(kw in combined_text for kw in FEASIBILITY_KEYWORDS)
-    if has_feasibility or len(claims) >= 3:
-        selected.append("builder")
-        rationales["builder"] = "Evaluates engineering feasibility, API limits, performance bottlenecks, and operational constraints."
-
-    # Edge-Case test (Overthinker)
-    has_edge = any(kw in combined_text for kw in EDGE_RISK_KEYWORDS)
-    if has_edge or len(claims) >= 4:
-        selected.append("overthinker")
-        rationales["overthinker"] = "Identifies catastrophic tail risks, boundary failures, and second-order vulnerabilities."
-
-    return selected, rationales
+from core.agent_panel import (
+    KNOWN_AGENTS,
+    AGENT_FAILURE_MODE,
+    AGENT_OBJECTIVE,
+    DEFAULT_RATIONALES,
+    SINGLE_PASS_PRIORITY,
+    AgentPick,
+    ExtractedClaims,
+    normalize_agents,
+    EXTRACTION_SYSTEM_PROMPT,
+    build_test_plan,
+)
 
 
 async def extract_claims(
@@ -94,44 +61,50 @@ async def extract_claims(
     agent_mode: str = "auto",
     selected_agents: list[str] | None = None,
 ) -> Case:
-    system_prompt = (
-        "Extract the discrete, checkable claims or assumptions embedded in the "
-        "user's input. Each statement must be a single factual or predictive "
-        "assertion that could independently turn out true or false.\n"
-        "Include both the direct assertions stated by the user AND any critical "
-        "implicit or unstated assumptions required for the proposal to succeed "
-        "(e.g., market demand, cost limits, user behavior, technical feasibility, "
-        "security, or operational containment). "
-        "Return 2 to 5 crisp, falsifiable claims."
-    )
     user_content = raw_input
     if context:
         user_content = f"Proposal under evaluation:\n{raw_input}\n\nSupporting / Context Document:\n{context}"
 
     result = await provider.generate(
-        system_prompt=system_prompt,
+        system_prompt=EXTRACTION_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_content}],
         response_schema=ExtractedClaims,
     )
-    claims = [Claim(id=str(uuid4()), statement=s) for s in result.statements]
 
     final_mode = (agent_mode or "auto").lower().strip()
     if final_mode == "custom" and selected_agents:
-        valid_agents = [
-            a for a in selected_agents
-            if a in ("devils_advocate", "receipts", "builder", "overthinker")
-        ]
-        active_agents = valid_agents if valid_agents else ["devils_advocate", "receipts", "builder", "overthinker"]
-        rationales = {}
+        valid = [a for a in selected_agents if a in KNOWN_AGENTS]
+        active_agents = valid or list(KNOWN_AGENTS)
+        rationales: dict[str, str] = {}
     else:
         final_mode = "auto"
-        active_agents, rationales = determine_auto_agents(claims)
+        active_agents, rationales = normalize_agents(getattr(result, "agents", []))
+
+    # Input gate (Stage 5 / direction doc §3): an untestable input is redirected,
+    # not silently turned into invented claims.
+    statements = list(getattr(result, "statements", []) or [])
+    if not getattr(result, "testable", True) or not statements:
+        return Case(
+            id=str(uuid4()),
+            raw_input=raw_input,
+            context=context,
+            claims=[],
+            status="needs_input",
+            gate_message=one_line(
+                getattr(result, "redirect", None)
+                or "Name the specific decision you are weighing, and what you would do if it went wrong.",
+                240,
+            ),
+            agent_mode=final_mode,
+            selected_agents=active_agents,
+            agent_rationales=rationales,
+        )
 
     return Case(
         id=str(uuid4()),
         raw_input=raw_input,
         context=context,
-        claims=claims,
+        claims=[Claim(id=str(uuid4()), statement=s) for s in statements],
         status="awaiting_confirmation",
         agent_mode=final_mode,
         selected_agents=active_agents,
@@ -139,242 +112,70 @@ async def extract_claims(
     )
 
 
-class LoadBearingAnswer(BaseModel):
-    answer: bool
-
-
 LOAD_BEARING_QUESTION = (
     "If this claim turns out false, would the recommended decision materially change?"
 )
 
 
-async def classify_load_bearing(claim: Claim, case: Case, provider: LLMProvider) -> bool:
-    system_prompt = (
-        "You judge whether a single claim is load-bearing for a decision. "
-        f"Answer only this question, yes or no: {LOAD_BEARING_QUESTION}"
+class LoadBearingRanking(BaseModel):
+    """Ranking, not N independent booleans — asked one claim at a time the model
+    says yes to everything, and adaptive scrutiny stops existing."""
+
+    ranked_indices: list[int] = Field(
+        default_factory=list,
+        description="Claim numbers, most load-bearing first. Every claim appears exactly once.",
     )
+
+
+def load_bearing_cap(n_claims: int) -> int:
+    return max(1, ceil(n_claims / 2)) if n_claims else 0
+
+
+async def rank_load_bearing(case: Case, provider: LLMProvider) -> list[bool]:
+    """Returns one flag per claim, in `case.claims` order.
+
+    At most ceil(n/2) claims come back load-bearing. On any failure the top half
+    by original order is used, so the run still differentiates.
+    """
+    claims = case.claims
+    if not claims:
+        return []
+
+    cap = load_bearing_cap(len(claims))
+    fallback = [i < cap for i in range(len(claims))]
+
     case_content = case.raw_input
     if case.context:
         case_content = f"Proposal: {case.raw_input}\nContext Document: {case.context}"
 
-    messages = [
-        {
-            "role": "user",
-            "content": f"Context: {case_content}\nClaim: {claim.statement}",
-        }
-    ]
-    result = await provider.generate(
-        system_prompt=system_prompt,
-        messages=messages,
-        response_schema=LoadBearingAnswer,
+    numbered = "\n".join(f"{i + 1}. {c.statement}" for i, c in enumerate(claims))
+    system_prompt = (
+        "You rank the claims a decision rests on by how much weight they carry. "
+        "The decision may be of any kind — never assume a domain.\n"
+        f"Order them by this question, most load-bearing first: {LOAD_BEARING_QUESTION}\n"
+        "Return every claim number exactly once. Do not add or drop claims."
     )
-    return result.answer
+    try:
+        result = await provider.generate(
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": f"Decision: {case_content}\nClaims:\n{numbered}"}],
+            response_schema=LoadBearingRanking,
+        )
+        order = [i - 1 for i in (result.ranked_indices or []) if 1 <= i <= len(claims)]
+        # Dedupe, then append anything the model dropped so no claim goes untested.
+        seen: list[int] = []
+        for i in order:
+            if i not in seen:
+                seen.append(i)
+        seen += [i for i in range(len(claims)) if i not in seen]
+    except Exception as exc:
+        logger.warning("Load-bearing ranking failed (%s); falling back to claim order.", exc)
+        return fallback
 
-
-# Keyword buckets with weights. Routes claims by what they actually need tested
-# using weighted scoring so specific empirical/evidence, behavioral, or constraint
-# signals take precedence over generic assumption markers (e.g. 'assume', 'expect').
-_FAILURE_MODE_WEIGHTS: list[tuple[str, list[tuple[str, float]]]] = [
-    (
-        "evidence",
-        [
-            ("pay", 2.5),
-            ("$", 2.5),
-            ("dollar", 2.5),
-            ("price", 2.5),
-            ("pricing", 2.5),
-            ("cost", 2.5),
-            ("revenue", 2.5),
-            ("demand", 2.5),
-            ("adopt", 2.5),
-            ("trust", 2.5),
-            ("will use", 2.0),
-            ("churn", 2.5),
-            ("conversion", 2.5),
-            ("sales", 2.5),
-            ("market", 2.0),
-        ],
-    ),
-    (
-        "behavior",
-        [
-            ("will scale", 2.5),
-            ("scale", 2.0),
-            ("performance", 2.0),
-            ("latency", 2.0),
-            ("load", 2.0),
-            ("concurrent", 2.0),
-            ("throughput", 2.0),
-            ("qps", 2.0),
-            ("uptime", 2.0),
-        ],
-    ),
-    (
-        "constraint",
-        [
-            ("compliance", 2.5),
-            ("certif", 2.0),
-            ("legal", 2.0),
-            ("regulat", 2.0),
-            ("hipaa", 2.5),
-            ("gdpr", 2.5),
-            ("soc2", 2.5),
-            ("theme", 2.0),
-            ("screen", 2.0),
-        ],
-    ),
-    (
-        "alternative",
-        [
-            ("only option", 2.5),
-            ("no competitor", 2.5),
-            ("unique", 2.0),
-            ("first to market", 2.5),
-            ("first", 1.5),
-            ("unprecedented", 2.0),
-            ("novel", 1.5),
-        ],
-    ),
-    (
-        "assumption",
-        [
-            ("assume", 1.0),
-            ("premise", 1.0),
-            ("expect", 1.0),
-            ("suppose", 1.0),
-            ("believe", 1.0),
-            ("willing", 1.0),
-            ("natural", 1.0),
-            ("obvious", 1.0),
-            ("users prefer", 1.5),
-            ("people want", 1.5),
-        ],
-    ),
-]
-
-
-def build_test_plan(
-    case: Case,
-    panel: bool = True,
-    active_agents: list[str] | None = None,
-) -> list[TestPlanItem]:
-    if active_agents is None:
-        active_agents = getattr(case, "selected_agents", None) or [
-            "devils_advocate", "receipts", "builder", "overthinker"
-        ]
-
-    items: list[TestPlanItem] = []
-    for claim in case.claims:
-        statement_lower = claim.statement.lower()
-        mode_scores: dict[str, float] = {}
-
-        for mode, weighted_keywords in _FAILURE_MODE_WEIGHTS:
-            score = sum(
-                weight
-                for kw, weight in weighted_keywords
-                if kw in statement_lower
-            )
-            if score > 0:
-                mode_scores[mode] = score
-
-        if mode_scores:
-            # Pick highest score; tie-breaker preserves order in _FAILURE_MODE_WEIGHTS
-            primary_failure_mode = max(
-                mode_scores.keys(),
-                key=lambda m: (
-                    mode_scores[m],
-                    -[fm[0] for fm in _FAILURE_MODE_WEIGHTS].index(m),
-                ),
-            )
-        else:
-            primary_failure_mode = "evidence"  # default: most claims need evidence testing
-
-        if not panel:
-            # Check if evaluator for primary_failure_mode is in active_agents
-            mode_to_agent = {
-                "assumption": "devils_advocate",
-                "evidence": "receipts",
-                "behavior": "builder",
-                "constraint": "builder",
-                "feasibility": "builder",
-                "edge-case": "overthinker",
-                "alternative": "overthinker",
-            }
-            assigned_agent = mode_to_agent.get(primary_failure_mode, "devils_advocate")
-            if assigned_agent in active_agents:
-                items.append(
-                    TestPlanItem(
-                        id=str(uuid4()),
-                        target_claim=claim.id,
-                        failure_mode=primary_failure_mode,
-                        objective=f"Check whether evidence supports or contradicts: {claim.statement}",
-                    )
-                )
-        else:
-            # Full Adversarial Panel mode (filtered strictly by active_agents):
-            # 1. Devil's Advocate (stress-tests implicit assumptions & premises)
-            if "devils_advocate" in active_agents:
-                items.append(
-                    TestPlanItem(
-                        id=str(uuid4()),
-                        target_claim=claim.id,
-                        failure_mode="assumption",
-                        objective=f"Stress-test implicit premises and counter-incentives behind: {claim.statement}",
-                    )
-                )
-
-            # 2. Receipts (searches external empirical evidence & benchmarks)
-            if "receipts" in active_agents:
-                items.append(
-                    TestPlanItem(
-                        id=str(uuid4()),
-                        target_claim=claim.id,
-                        failure_mode="evidence",
-                        objective=f"Check empirical evidence, benchmarks, and real-world data for: {claim.statement}",
-                    )
-                )
-
-            # 3. Builder: concrete feasibility, dependencies, latency, operational blockers
-            if "builder" in active_agents:
-                is_lb = claim.load_bearing is not False
-                feasibility_keywords = [
-                    "scale", "performance", "cost", "build", "api", "latency",
-                    "compliance", "legal", "gdpr", "soc2", "replace", "system",
-                    "infrastructure", "architecture", "migration", "database",
-                    "backend", "deploy", "server", "code", "engineer", "throughput",
-                    "integration", "software", "tech", "platform"
-                ]
-                has_feasibility = any(kw in statement_lower for kw in feasibility_keywords)
-                if is_lb or has_feasibility:
-                    items.append(
-                        TestPlanItem(
-                            id=str(uuid4()),
-                            target_claim=claim.id,
-                            failure_mode="feasibility",
-                            objective=f"Assess concrete operational/technical feasibility and implementation blockers for: {claim.statement}",
-                        )
-                    )
-
-            # 4. Overthinker: tail risks, boundary failures, edge vulnerabilities
-            if "overthinker" in active_agents:
-                is_lb = claim.load_bearing is not False
-                edge_keywords = [
-                    "unique", "risk", "failure", "attack", "edge", "novel",
-                    "competitor", "alternative", "zero", "all", "100%", "never",
-                    "guarantee", "security", "exploit", "worst", "unprecedented",
-                    "loophole", "vulnerability"
-                ]
-                has_edge = any(kw in statement_lower for kw in edge_keywords)
-                if is_lb or has_edge:
-                    items.append(
-                        TestPlanItem(
-                            id=str(uuid4()),
-                            target_claim=claim.id,
-                            failure_mode="edge-case",
-                            objective=f"Identify catastrophic tail risks, boundary failures, and degenerate loops for: {claim.statement}",
-                        )
-                    )
-    return items
+    flags = [False] * len(claims)
+    for i in seen[:cap]:
+        flags[i] = True
+    return flags
 
 
 class ReconcileVerdict(BaseModel):
@@ -382,39 +183,74 @@ class ReconcileVerdict(BaseModel):
     reasoning: str
 
 
+RECONCILE_SYSTEM_PROMPT = (
+    "You are the judge in an adversarial decision review. Several evaluators tested one "
+    "claim independently; reconcile their findings into a single verdict. The decision "
+    "may be of any kind — never assume a domain.\n\n"
+    "Do not count votes. Judge the quality of what each finding rests on. A finding "
+    "carrying a real source outweighs one that only reasons. Absence of evidence is not "
+    "refutation: a finding that merely failed to find support cannot break a claim, it "
+    "can only leave it unproven.\n\n"
+    "Pick: 'survived' (holds, and something backs it), 'weakened' (holds with real "
+    "friction or caveats), 'broken' (a source or a hard contradiction refutes it), "
+    "'unresolved' (findings conflict at comparable strength, or nothing substantive was "
+    "found either way).\n\n"
+    "Reasoning: at most 3 sentences, naming the specific number, source, rule or "
+    "contradiction that decided it. No generic advice."
+)
+
+
 async def reconcile(
     claim: Claim, findings: list[Finding], provider: LLMProvider
 ) -> tuple[ClaimStatus, str]:
-    system_prompt = (
-        "You are the senior judicial reconciler in the Crossfire adversarial decision engine. "
-        "You reconcile findings from multiple adversarial evaluators (Devil's Advocate, Receipts evidence, "
-        "Builder feasibility, and Overthinker edge-cases) into a single rigorous verdict for a claim. "
-        "Never vote — judge evidence quality and analytical rigor directly. A finding with verified empirical "
-        "citations carries high weight. Logical contradictions or unaddressed tail risks weaken or break "
-        "a claim even if optimistic evidence exists. If findings assert opposite conclusions with comparable "
-        "evidence, or evidence overall is thin/absent, the status must be 'unresolved' — never a forced winner. "
-        "Otherwise pick 'survived' (claim holds with high confidence), 'weakened' (holds with significant caveats or friction), "
-        "or 'broken' (claim is refuted or foundationally flawed). "
-        "In your reasoning, synthesize across the evaluators, citing specific evidence numbers, benchmarks, "
-        "or logical contradictions."
-    )
     findings_summary = "\n".join(
         f"- evaluator={f.evaluator}, result={f.result!r}, evidence_count={len(f.evidence)}, "
+        f"sources={[e.source_url for e in f.evidence] or 'none'}, "
         f"confidence={f.confidence}, reasoning={f.reasoning!r}, contradiction={f.contradiction!r}"
         for f in findings
     )
-    messages = [
-        {
-            "role": "user",
-            "content": f"Claim: {claim.statement}\nFindings:\n{findings_summary}",
-        }
-    ]
     result = await provider.generate(
-        system_prompt=system_prompt,
-        messages=messages,
+        system_prompt=RECONCILE_SYSTEM_PROMPT,
+        messages=[
+            {"role": "user", "content": f"Claim: {claim.statement}\nFindings:\n{findings_summary}"}
+        ],
         response_schema=ReconcileVerdict,
     )
-    return result.status, result.reasoning
+    return result.status, clamp_sentences(result.reasoning)
+
+
+def has_sourced_contradiction(findings: list[Finding]) -> bool:
+    """A claim only breaks on a contradiction traceable to an actual source."""
+    return any(f.evidence and (f.contradiction or "").strip() for f in findings)
+
+
+def apply_evidence_gate(
+    status: ClaimStatus, reasoning: str, findings: list[Finding]
+) -> tuple[ClaimStatus, str]:
+    """Stage 1a. `broken` requires one finding carrying both evidence and a
+    contradiction. Reasoning-only evaluators can weaken; they cannot break."""
+    if status is ClaimStatus.BROKEN and not has_sourced_contradiction(findings):
+        note = (
+            "Downgraded from broken to weakened: no finding carried a contradiction "
+            "traceable to a source, and absence of evidence is not refutation."
+        )
+        return ClaimStatus.WEAKENED, f"{reasoning} {note}".strip()
+    return status, reasoning
+
+
+def rank_findings(findings: list[Finding]) -> list[Finding]:
+    """Lead with the finding that actually moved the verdict, not whichever
+    evaluator returned first (Stage 3)."""
+    return sorted(
+        findings,
+        key=lambda f: (
+            bool(f.evidence and (f.contradiction or "").strip()),
+            bool((f.contradiction or "").strip()),
+            len(f.evidence),
+            f.confidence,
+        ),
+        reverse=True,
+    )
 
 
 _IMPACT_BY_STATUS = {
@@ -463,12 +299,26 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
 class StrategicConsequenceOutput(BaseModel):
     impact: str = Field(description="Impact level: 'high', 'medium', or 'low'")
     recommended_change: str = Field(
-        description="A commercially or technically actionable, concrete strategic pivot or mitigation tailored to what failed or weakened. Never generic."
+        description="One concrete change to the decision itself, specific to what failed. Never generic."
     )
     next_validation: str | None = Field(
         default=None,
-        description="The smallest, lowest-cost next real-world validation experiment (e.g. a 30-day shadow test, a canary deploy) to de-risk this assumption. Null if survived.",
+        description="The smallest, cheapest real check that would settle this before committing. Null if survived.",
     )
+
+
+CONSEQUENCE_SYSTEM_PROMPT = (
+    "One claim a decision rests on has been tested and did not fully hold. Say what "
+    "changes as a result. The decision may be of any kind — a purchase, a treatment, a "
+    "hire, a move, a build — so never assume a domain and never reach for business "
+    "jargon that does not fit it.\n"
+    "1. 'impact': 'high' if load-bearing and broken/unresolved, 'medium' if weakened, else 'low'.\n"
+    "2. 'recommended_change': one concrete change to this decision, in one or two "
+    "sentences, referencing what specifically failed. Not 'rework the assumption'.\n"
+    "3. 'next_validation': the smallest, cheapest real check that would settle it — "
+    "a call to make, a document to read, a small trial to run, a number to look up. "
+    "It must be something a person could start this week."
+)
 
 
 async def _synthesize_single_consequence(
@@ -483,40 +333,34 @@ async def _synthesize_single_consequence(
 
     try:
         findings_ctx = "\n".join(
-            f"- [{f.evaluator.upper()}]: result={f.result} | reasoning={f.reasoning} | contradiction={f.contradiction}"
+            f"- [{f.evaluator}]: result={f.result} | reasoning={f.reasoning} | contradiction={f.contradiction}"
             for f in findings
         )
-        system_prompt = (
-            "You are a strategic executive advisor in the Crossfire decision validation engine. "
-            "A foundational claim within a proposal has been stress-tested and found to be broken, weakened, "
-            "or unresolved. Your task is to formulate:\n"
-            "1. 'impact': 'high' if load-bearing and broken/unresolved, 'medium' if weakened, 'low' otherwise.\n"
-            "2. 'recommended_change': An actionable, concrete strategic pivot or mitigation tailored to what failed. "
-            "Do NOT speak in generic platitudes like 'Drop or rework the assumption'. Propose a realistic, specific pivot "
-            "(e.g., 'Adopt a hybrid AI-first containment model with automated sentiment escalation', 'Deploy a shadow test pipeline before replacing legacy servers').\n"
-            "3. 'next_validation': The smallest, cheapest real-world experiment to test this risk before committing capital "
-            "(e.g., 'Run a 30-day shadow containment test on tier-1 refund requests', 'Deploy a canary test on 5% of traffic measuring latency and memory')."
-        )
-        user_content = (
-            f"Overall Proposal: {case.raw_input}\n"
-            f"Claim Statement: {claim.statement}\n"
-            f"Verdict: {claim.status.value if claim.status else 'untested'} (Load-bearing: {claim.load_bearing})\n"
-            f"Evaluator Findings:\n{findings_ctx or 'No detailed findings.'}"
-        )
         result = await provider.generate(
-            system_prompt=system_prompt,
-            messages=[{"role": "user", "content": user_content}],
+            system_prompt=CONSEQUENCE_SYSTEM_PROMPT,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Decision under review: {case.raw_input}\n"
+                        f"Claim: {claim.statement}\n"
+                        f"Verdict: {claim.status.value if claim.status else 'untested'} "
+                        f"(load-bearing: {claim.load_bearing})\n"
+                        f"Findings:\n{findings_ctx or 'No detailed findings.'}"
+                    ),
+                }
+            ],
             response_schema=StrategicConsequenceOutput,
         )
-        if result and isinstance(result, StrategicConsequenceOutput):
+        if isinstance(result, StrategicConsequenceOutput):
             if result.impact:
                 consequence.impact = result.impact.lower()
             if result.recommended_change:
-                consequence.recommended_change = result.recommended_change
+                consequence.recommended_change = clamp_sentences(result.recommended_change, 2)
             if result.next_validation is not None:
-                consequence.next_validation = result.next_validation
+                consequence.next_validation = clamp_sentences(result.next_validation, 2)
     except Exception as exc:
-        logger.debug(f"LLM consequence synthesis bypassed for claim {claim.id}: {exc}")
+        logger.debug("LLM consequence synthesis bypassed for claim %s: %s", claim.id, exc)
     return consequence
 
 
@@ -539,16 +383,154 @@ async def synthesize_consequences(
     return case.consequences
 
 
+class CaseVerdictOutput(BaseModel):
+    decision_state: str = Field(
+        description="One of: proceed, proceed_with_changes, hold, drop"
+    )
+    summary: str = Field(description="At most 3 sentences: where the decision stands and why.")
+    next_actions: list[str] = Field(
+        default_factory=list,
+        description="2 to 3 merged actions covering everything that failed. No near-duplicates.",
+    )
+
+
+_DECISION_STATES = ("proceed", "proceed_with_changes", "hold", "drop")
+
+
+def _fallback_decision_state(case: Case) -> str:
+    """Used when the synthesis call fails — derived from the verdicts alone."""
+    lb = [c for c in case.claims if c.load_bearing] or case.claims
+    if any(c.status is ClaimStatus.BROKEN for c in lb):
+        return "drop"
+    if any(c.status is ClaimStatus.UNRESOLVED for c in lb):
+        return "hold"
+    if any(c.status is ClaimStatus.WEAKENED for c in lb):
+        return "proceed_with_changes"
+    return "proceed"
+
+
+CASE_VERDICT_SYSTEM_PROMPT = (
+    "You close out an adversarial review of one decision. Every claim it rests on has "
+    "already been judged individually. Produce the case-level answer, not a restatement "
+    "of the claims. The decision may be of any kind — never assume a domain.\n"
+    "- 'decision_state': 'proceed' (nothing load-bearing failed), 'proceed_with_changes' "
+    "(it survives with named modifications), 'hold' (a load-bearing claim is unproven and "
+    "must be settled first), 'drop' (a load-bearing claim was refuted by a source).\n"
+    "- 'summary': at most 3 sentences. Say what held, what did not, and what that means "
+    "for the decision. Name the specific thing that decided it.\n"
+    "- 'next_actions': 2 to 3 actions total, merged across claims. If several claims "
+    "failed for the same underlying reason, that is ONE action. Each must be concrete "
+    "enough to start this week. No near-duplicates."
+)
+
+
+async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerdict:
+    """One call producing the case-level state and deduped actions (Stage 4)."""
+    survived = [c.id for c in case.claims if c.status is ClaimStatus.SURVIVED]
+    broken = [c.id for c in case.claims if c.status is ClaimStatus.BROKEN]
+    unproven = [
+        c.id
+        for c in case.claims
+        if c.status in (ClaimStatus.WEAKENED, ClaimStatus.UNRESOLVED)
+    ]
+
+    verdict = CaseVerdict(
+        decision_state=_fallback_decision_state(case),
+        summary="",
+        survived=survived,
+        broken=broken,
+        unproven=unproven,
+        next_actions=[],
+    )
+
+    claim_lines = "\n".join(
+        f"- [{c.status.value if c.status else 'untested'}]"
+        f"{' (load-bearing)' if c.load_bearing else ''} {c.statement}"
+        for c in case.claims
+    )
+    consequence_lines = "\n".join(
+        f"- {cons.recommended_change}"
+        + (f" | check: {cons.next_validation}" if cons.next_validation else "")
+        for cons in case.consequences
+    )
+
+    try:
+        result = await provider.generate(
+            system_prompt=CASE_VERDICT_SYSTEM_PROMPT,
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Decision: {case.raw_input}\n\n"
+                        f"Claim verdicts:\n{claim_lines}\n\n"
+                        f"Per-claim changes already proposed:\n{consequence_lines or 'none'}"
+                    ),
+                }
+            ],
+            response_schema=CaseVerdictOutput,
+        )
+        state = (getattr(result, "decision_state", "") or "").strip().lower()
+        if state in _DECISION_STATES:
+            verdict.decision_state = state
+        verdict.summary = clamp_sentences(getattr(result, "summary", "") or "")
+        # Dedupe defensively — the merge is the entire point of this call.
+        seen: set[str] = set()
+        for action in getattr(result, "next_actions", []) or []:
+            action = clamp_sentences(action, 2)
+            key = action.lower()
+            if action and key not in seen:
+                seen.add(key)
+                verdict.next_actions.append(action)
+        verdict.next_actions = verdict.next_actions[:3]
+    except Exception as exc:
+        logger.warning("Case verdict synthesis failed (%s); using derived state.", exc)
+
+    if not verdict.summary:
+        verdict.summary = (
+            f"{len(survived)} claim(s) held, {len(broken)} refuted, {len(unproven)} unproven."
+        )
+    if not verdict.next_actions:
+        verdict.next_actions = [
+            cons.next_validation for cons in case.consequences if cons.next_validation
+        ][:3]
+    return verdict
+
+
+def _degraded_finding(item: TestPlanItem, exc: BaseException) -> Finding:
+    """A failed evaluator becomes a visible zero-confidence finding, never silence.
+
+    Not an `error` SSE event: routes.py terminates the stream on `error`, which
+    would kill the whole run because one test failed.
+    """
+    return Finding(
+        claim_id=item.target_claim,
+        test_id=item.id,
+        evaluator=item.failure_mode,
+        result=f"Test did not complete ({type(exc).__name__}).",
+        evidence=[],
+        reasoning=f"This evaluator failed to return a finding: {exc}",
+        confidence=0.0,
+        contradiction=None,
+    )
+
+
 async def run_evaluators(
     case: Case, plan: list[TestPlanItem], provider: LLMProvider
 ) -> list[Finding]:
     """Every evaluator sees only its own TestPlanItem + the case — never another
-    evaluator's output (docs/00-CONTRACTS.md §4). One failing evaluator must not
-    take the run down, so exceptions come back as values and get dropped; the
-    claim then reconciles on whatever findings survived.
+    evaluator's output (docs/00-CONTRACTS.md §4).
+
+    Fan-out is capped and each call is bounded by a timeout: a full panel over
+    five claims is ~20 concurrent LLM calls, and one hung provider connection
+    should not hold the run open for the httpx default.
     """
     if dispatch is None:
         return []
+
+    settings = get_settings()
+    limit = asyncio.Semaphore(getattr(settings, "evaluator_concurrency", 8))
+    timeout = getattr(settings, "evaluator_timeout_seconds", 60.0)
+
     for item in plan:
         await events.publish(
             case.id,
@@ -559,10 +541,18 @@ async def run_evaluators(
                 "evaluator": item.failure_mode,
             },
         )
-    results = await asyncio.gather(
-        *(dispatch(item, case, provider) for item in plan), return_exceptions=True
-    )
-    findings = [r for r in results if isinstance(r, Finding)]
+
+    async def _run_one(item: TestPlanItem) -> Finding:
+        async with limit:
+            try:
+                return await asyncio.wait_for(dispatch(item, case, provider), timeout=timeout)
+            except Exception as exc:
+                logger.warning(
+                    "Evaluator %s failed for claim %s: %s", item.failure_mode, item.target_claim, exc
+                )
+                return _degraded_finding(item, exc)
+
+    findings = list(await asyncio.gather(*(_run_one(item) for item in plan)))
     for finding in findings:
         await events.publish(
             case.id,
@@ -587,15 +577,9 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
     try:
         case.status = "testing"
 
-        flags = await asyncio.gather(
-            *(classify_load_bearing(claim, case, provider) for claim in case.claims),
-            return_exceptions=True,
-        )
-        if case.claims and all(isinstance(f, Exception) for f in flags):
-            raise flags[0]
-
+        flags = await rank_load_bearing(case, provider)
         for claim, load_bearing in zip(case.claims, flags):
-            claim.load_bearing = load_bearing if isinstance(load_bearing, bool) else True
+            claim.load_bearing = load_bearing
 
         case.test_plan = build_test_plan(case, panel=True, active_agents=case.selected_agents)
         case.findings = await run_evaluators(case, case.test_plan, provider)
@@ -607,13 +591,13 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 return clm, ClaimStatus.UNRESOLVED, "No evaluator produced a finding for this claim."
             try:
                 st, rsn = await reconcile(clm, claim_findings, provider)
-                return clm, st, rsn
             except Exception as exc:
                 return (
                     clm,
                     ClaimStatus.UNRESOLVED,
                     f"Reconciliation error ({exc}); marked unresolved.",
                 )
+            return (clm, *apply_evidence_gate(st, rsn, claim_findings))
 
         reconcile_results = await asyncio.gather(
             *(_reconcile_single(clm) for clm in case.claims)
@@ -633,6 +617,13 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 },
             )
 
+        # The drawer reads case.findings in order; lead with what moved the verdict.
+        case.findings = [
+            f
+            for clm in case.claims
+            for f in rank_findings([x for x in case.findings if x.claim_id == clm.id])
+        ] + [f for f in case.findings if f.claim_id not in {c.id for c in case.claims}]
+
         case.consequences = build_consequences(case)
         for consequence in case.consequences:
             # build_consequences() can only synthesize this from status; the real
@@ -640,17 +631,20 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             if consequence.claim_id in reasonings:
                 consequence.verdict_reasoning = reasonings[consequence.claim_id]
 
-        # Synthesize bespoke LLM pivots and smallest experiments if provider is available
-        if provider is not None:
-            try:
-                case.consequences = await synthesize_consequences(case, provider, reasonings=reasonings)
-            except Exception as exc:
-                logger.debug(f"Synthesizing consequences fallback: {exc}")
+        try:
+            case.consequences = await synthesize_consequences(case, provider, reasonings=reasonings)
+        except Exception as exc:
+            logger.debug("Synthesizing consequences fallback: %s", exc)
 
         for consequence in case.consequences:
             await events.publish(
                 case.id, "consequence_ready", {"consequence": consequence.model_dump()}
             )
+
+        case.case_verdict = await synthesize_case_verdict(case, provider)
+        await events.publish(
+            case.id, "case_verdict", {"case_verdict": case.case_verdict.model_dump()}
+        )
 
         case.status = "done"
         await events.publish(case.id, "run_complete", {"case_id": case.id})
@@ -661,6 +655,27 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
     finally:
         store.set(case)
         await events.close(case.id)
+
+
+BASELINE_SYSTEM_PROMPT = (
+    "Answer the user's question directly and helpfully, as a capable assistant would."
+)
+
+
+async def run_baseline(raw_input: str, provider: LLMProvider, context: str | None = None) -> str:
+    """One plain, un-engineered model call on the same input (Stage 6).
+
+    Deliberately not sandbagged: the comparison is only worth anything if this is
+    a genuinely good single-prompt answer.
+    """
+    content = raw_input
+    if context:
+        content = f"{raw_input}\n\nSupporting document:\n{context}"
+    response = await provider.generate(
+        system_prompt=BASELINE_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": content}],
+    )
+    return response if isinstance(response, str) else str(response)
 
 
 # create_task returns a task the event loop only weakly references; without a

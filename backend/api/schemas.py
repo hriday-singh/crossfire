@@ -55,3 +55,15 @@ class IngestResponse(BaseModel):
     context: str = Field(..., description="Curated context extracted from the document or URL")
     character_count: int = Field(..., description="Length of the extracted context in characters")
 
+
+
+class BaselineRequest(BaseModel):
+    raw_input: str = Field(..., min_length=1, max_length=10000, description="The same raw input the case was built from")
+    context: str | None = Field(default=None, max_length=50000, description="Optional ingested document or URL context")
+
+
+class BaselineResponse(BaseModel):
+    """One plain model call on the same input, for side-by-side contrast with the run."""
+
+    raw_input: str
+    answer: str

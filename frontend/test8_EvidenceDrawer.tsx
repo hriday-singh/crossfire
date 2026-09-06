@@ -298,11 +298,8 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                       )}
                     </div>
                     {f.contradiction && (
-                      <p className="font-body-sm text-body-sm text-error font-medium flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[15px] text-error shrink-0 select-none">
-                          warning
-                        </span>
-                        <span>{f.contradiction}</span>
+                      <p className="font-body-sm text-body-sm text-error font-medium">
+                        ⚠️ {f.contradiction}
                       </p>
                     )}
                     <p className="font-body-sm text-body-sm text-on-surface font-medium">
@@ -334,7 +331,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             <div className="border-l-2 border-error bg-error-container/20 p-space-4 rounded-r">
               <p className="font-body-md text-body-md text-on-surface leading-relaxed font-medium">
                 {consequence?.recommended_change ||
-                  "No immediate plan modification indicated: assumption withstands tested failure modes."}
+                  "No immediate plan modification indicated — assumption withstands tested failure modes."}
               </p>
             </div>
           </div>

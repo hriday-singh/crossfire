@@ -1,16 +1,19 @@
 """
 Owner: Dev B. See docs/03-dev-B-evidence-receipts.md. Owns the evidence pipeline.
+
+The only evaluator that can bring an outside source back, and therefore the only
+one whose finding can break a claim (Stage 1a evidence gate in core/loop.py).
 """
 from __future__ import annotations
 
 import asyncio
 import logging
 import re
-from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.models import Case, Claim, EvidenceItem, Finding, TestPlanItem
+from core.textutil import SPECIFICITY_RULE, clamp_sentences, one_line
 from evidence.curate import curate_snippet, curate_snippet_llm
 from evidence.fetch import fetch_page
 from evidence.search import search_evidence
@@ -18,12 +21,43 @@ from providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
+_STANCES = ("supports", "contradicts", "context")
+
+
+class CitedSource(BaseModel):
+    source_url: str = Field(description="The source URL exactly as given to you")
+    stance: str = Field(description="One of: supports, contradicts, context")
+
 
 class ReceiptsAssessment(BaseModel):
-    result: str
-    reasoning: str
-    confidence: float
-    contradiction: str | None = None
+    result: str = Field(description="One line, under 140 characters: what the sources show")
+    reasoning: str = Field(description="At most 3 sentences, citing what the sources actually say")
+    confidence: float = Field(ge=0.0, le=1.0)
+    contradiction: str | None = Field(
+        default=None,
+        description="What a source directly contradicts, quoted or paraphrased. Null unless a source really says it.",
+    )
+    cited: list[CitedSource] = Field(
+        default_factory=list,
+        description="Only the sources you actually used, each with how it bears on the claim.",
+    )
+
+
+RECEIPTS_SYSTEM_PROMPT = (
+    "You are the Receipts evaluator in an adversarial decision review. You judge one "
+    "claim against sources retrieved from the open web. The decision may be of any kind "
+    "— never assume a domain.\n\n"
+    "Rules:\n"
+    "1. Judge only from the snippets provided. Never fill gaps from memory.\n"
+    "2. Finding nothing is not refutation. With no relevant source, say so plainly and "
+    "keep confidence at or below 0.35, and leave 'contradiction' null.\n"
+    "3. Populate 'contradiction' ONLY when a specific source states something the claim "
+    "cannot survive. Name what it says.\n"
+    "4. Sources are labelled by class. A government, official or first-party source "
+    "outweighs a blog or a forum post saying the opposite.\n"
+    "5. In 'cited', list only the sources you actually relied on, each marked "
+    "'supports', 'contradicts' or 'context'. Leave out the ones you ignored."
+)
 
 
 def _is_thin_snippet(snippet: str) -> bool:
@@ -32,46 +66,48 @@ def _is_thin_snippet(snippet: str) -> bool:
     return len(s) < 150 or len(re.findall(r"(?<=[.!?])\s+", s)) < 2
 
 
+def _apply_citations(items: list[EvidenceItem], cited: list[CitedSource]) -> list[EvidenceItem]:
+    """Keeps the sources the evaluator actually used, stamped with their stance.
+
+    Attaching all four hits regardless of whether anything referenced them is
+    what made the drawer four undifferentiated links. If the model cited nothing,
+    everything is kept as unstanced context rather than throwing evidence away.
+    """
+    by_url = {item.source_url: item for item in items}
+    kept: list[EvidenceItem] = []
+    for citation in cited or []:
+        item = by_url.get(citation.source_url)
+        if item is None or item in kept:
+            continue
+        stance = (citation.stance or "").strip().lower()
+        item.stance = stance if stance in _STANCES else "context"
+        kept.append(item)
+    return kept or items
+
+
 async def run_receipts(
-    first: TestPlanItem | Claim,
-    second: Case | TestPlanItem,
+    item: TestPlanItem,
+    case: Case,
     provider: LLMProvider,
     *,
     use_llm_curation: bool = False,
 ) -> Finding:
-    """Executes the Receipts evaluation for a given claim and test plan item.
+    """Executes the Receipts evaluation for one TestPlanItem.
 
-    - Resolves claim and test plan item from flexible parameter order
-    - Retrieves candidate evidence via search_evidence()
-    - Adaptive Scrutiny: triggers Scrapling deep-fetch (fetch_page) only when
-      claim.load_bearing is True and the snippet is thin (< 150 chars / < 2 sentences)
-    - Curates snippets using curate_snippet() (or curate_snippet_llm() if use_llm_curation=True)
-    - Evaluates evidence strictly via LLMProvider (never touches google-genai directly)
-    - Degrades gracefully on zero evidence (produces a low-confidence Finding)
+    - Retrieves candidate evidence via search_evidence() (keyword query, source-ranked)
+    - Adaptive Scrutiny: deep-fetches (fetch_page) only when the claim is
+      load-bearing and the snippet is thin (< 150 chars / < 2 sentences)
+    - Curates every snippet down to 1-3 sentences
+    - Keeps only the sources the evaluator says it used, each with a stance
+    - Degrades to a low-confidence finding on zero evidence, never a confident negative
     """
-    # 1. Resolve arguments
-    if isinstance(first, Claim) and isinstance(second, TestPlanItem):
-        claim = first
-        item = second
-    elif isinstance(first, TestPlanItem) and isinstance(second, Case):
-        item = first
-        case = second
-        found = next((c for c in case.claims if c.id == item.target_claim), None)
-        claim = found if found is not None else Claim(id=item.target_claim, statement=item.objective)
-    elif isinstance(first, TestPlanItem) and isinstance(second, Claim):
-        item = first
-        claim = second
-    else:
-        # Generic fallback
-        claim = getattr(first, "statement", None) and first  # type: ignore
-        item = second  # type: ignore
-        if not isinstance(claim, Claim):
-            claim = Claim(id=getattr(item, "target_claim", "claim-unknown"), statement=getattr(item, "objective", ""))
+    claim = next((c for c in case.claims if c.id == item.target_claim), None)
+    if claim is None:
+        claim = Claim(id=item.target_claim, statement=item.objective)
 
-    # 2. Search evidence (DuckDuckGo via Scrapling)
     evidence_items = await search_evidence(claim)
 
-    # 3. Adaptive Scrutiny: deep-fetch top 1-2 URLs only if load_bearing and snippet is thin
+    # Adaptive Scrutiny: deep-fetch top 1-2 URLs only if load_bearing and snippet is thin
     if claim.load_bearing is True and evidence_items:
         for ev in evidence_items[:2]:
             if _is_thin_snippet(ev.snippet):
@@ -79,106 +115,83 @@ async def run_receipts(
                 if full_text:
                     ev.snippet = full_text
 
-    # 4. Curate all snippets (enforcing 1-3 sentences max, run concurrently)
     async def _curate_single(ev: EvidenceItem) -> EvidenceItem | None:
         if use_llm_curation:
             curated = await curate_snippet_llm(ev.snippet, claim.statement, provider=provider)
         else:
             curated = curate_snippet(ev.snippet, claim.statement)
-        if curated:
-            return EvidenceItem(
-                source_url=ev.source_url,
-                title=ev.title,
-                snippet=curated,
-                retrieved_at=ev.retrieved_at,
-            )
-        return None
+        if not curated:
+            return None
+        return EvidenceItem(
+            source_url=ev.source_url,
+            title=ev.title,
+            snippet=curated,
+            retrieved_at=ev.retrieved_at,
+            source_class=ev.source_class,
+        )
 
     curated_results = await asyncio.gather(*(_curate_single(ev) for ev in evidence_items))
-    curated_items: list[EvidenceItem] = [item for item in curated_results if item is not None]
-
-    # 5. Build prompt for Receipts evaluator
-    system_prompt = (
-        "You are the 'Receipts' evaluator in the Crossfire verification pipeline. "
-        "Your task is to objectively evaluate whether real-world evidence supports or refutes "
-        "the given claim.\n\n"
-        "Rules:\n"
-        "1. Base your evaluation strictly on the provided evidence snippets.\n"
-        "2. If no evidence is provided or evidence is inconclusive, state this clearly in reasoning "
-        "and keep confidence low (<= 0.35).\n"
-        "3. If evidence directly supports the claim, state how and assign confidence (0.6 - 0.95).\n"
-        "4. If evidence contradicts the claim, explain the contradiction and populate the contradiction field.\n"
-        "5. A negative finding with no evidence is never a confident negative."
-    )
+    curated_items: list[EvidenceItem] = [ev for ev in curated_results if ev is not None]
 
     if curated_items:
         evidence_str = "\n\n".join(
-            f"Source: {ev.source_url}\nTitle: {ev.title or 'N/A'}\nSnippet: {ev.snippet}"
+            f"Source: {ev.source_url}\nClass: {ev.source_class}\n"
+            f"Title: {ev.title or 'N/A'}\nSnippet: {ev.snippet}"
             for ev in curated_items
         )
     else:
         evidence_str = "No external evidence found or search returned empty results."
 
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                f"Claim ID: {claim.id}\n"
-                f"Claim Statement: {claim.statement}\n"
-                f"Test Plan Objective: {item.objective}\n\n"
-                f"Curated Evidence:\n{evidence_str}"
-            ),
-        }
-    ]
-
-    # 6. Call LLMProvider
     response = await provider.generate(
-        system_prompt=system_prompt,
-        messages=messages,
+        system_prompt=f"{RECEIPTS_SYSTEM_PROMPT}\n\n{SPECIFICITY_RULE}",
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Claim: {claim.statement}\n"
+                    f"Objective: {item.objective}\n\n"
+                    f"Retrieved sources:\n{evidence_str}"
+                ),
+            }
+        ],
         response_schema=ReceiptsAssessment,
     )
 
-    # 7. Normalize result to Finding
     if isinstance(response, Finding):
-        # Already a Finding instance (e.g. from canned test fixture)
+        # Already a Finding (canned test fixture) — keep it, but hold the invariant.
+        evidence = curated_items or response.evidence
         return Finding(
             claim_id=claim.id,
             test_id=item.id,
             evaluator="receipts",
-            result=response.result,
-            evidence=curated_items or response.evidence,
-            reasoning=response.reasoning,
-            confidence=response.confidence if (curated_items or response.evidence) else min(response.confidence, 0.35),
-            contradiction=response.contradiction,
+            result=one_line(response.result),
+            evidence=evidence,
+            reasoning=clamp_sentences(response.reasoning),
+            confidence=response.confidence if evidence else min(response.confidence, 0.35),
+            contradiction=response.contradiction if evidence else None,
         )
 
     if isinstance(response, ReceiptsAssessment):
-        confidence = response.confidence
-        if not curated_items:
-            # Bound confidence if zero evidence
-            confidence = min(confidence, 0.35)
+        evidence = _apply_citations(curated_items, response.cited)
+        # Without a source, a negative is an absence of evidence, not a refutation.
         return Finding(
             claim_id=claim.id,
             test_id=item.id,
             evaluator="receipts",
-            result=response.result,
-            evidence=curated_items,
-            reasoning=response.reasoning,
-            confidence=confidence,
-            contradiction=response.contradiction,
+            result=one_line(response.result),
+            evidence=evidence,
+            reasoning=clamp_sentences(response.reasoning),
+            confidence=response.confidence if evidence else min(response.confidence, 0.35),
+            contradiction=response.contradiction if evidence else None,
         )
 
-    # Fallback for plain string / unexpected response
-    res_str = str(response)
-    confidence = 0.5 if curated_items else 0.2
     return Finding(
         claim_id=claim.id,
         test_id=item.id,
         evaluator="receipts",
         result="Evidence evaluation completed",
         evidence=curated_items,
-        reasoning=res_str,
-        confidence=confidence,
+        reasoning=clamp_sentences(str(response)),
+        confidence=0.5 if curated_items else 0.2,
         contradiction=None,
     )
-

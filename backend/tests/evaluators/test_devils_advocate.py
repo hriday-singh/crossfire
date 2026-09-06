@@ -10,7 +10,7 @@ from core.models import Finding, TestPlanItem
 
 @pytest.mark.asyncio
 async def test_run_devils_advocate_produces_finding_with_reasoning(
-    fake_provider_factory, sample_claim, sample_test_plan_item
+    fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
     fake_output = DevilsAdvocateOutput(
@@ -20,7 +20,7 @@ async def test_run_devils_advocate_produces_finding_with_reasoning(
         contradiction="Contrary data exists",
     )
     provider = fake_provider_factory(responses=[fake_output])
-    finding = await run_devils_advocate(sample_claim, sample_test_plan_item, provider)
+    finding = await run_devils_advocate(sample_test_plan_item, sample_case, provider)
     assert finding.evaluator == "devils_advocate"
     assert finding.reasoning == "No comparable precedent found"
     assert finding.confidence == 0.6
@@ -30,7 +30,7 @@ async def test_run_devils_advocate_produces_finding_with_reasoning(
 
 @pytest.mark.asyncio
 async def test_run_devils_advocate_never_calls_the_evidence_pipeline(
-    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
 
@@ -45,7 +45,7 @@ async def test_run_devils_advocate_never_calls_the_evidence_pipeline(
         confidence=0.7,
     )
     provider = fake_provider_factory(responses=[fake_output])
-    finding = await run_devils_advocate(sample_claim, sample_test_plan_item, provider)
+    finding = await run_devils_advocate(sample_test_plan_item, sample_case, provider)
     assert finding.evaluator == "devils_advocate"
     assert finding.evidence == []
 

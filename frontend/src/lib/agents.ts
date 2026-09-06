@@ -27,7 +27,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
   },
   {
     id: "receipts",
-    name: "Receipts Search",
+    name: "Receipts",
     testName: "Evidence Test",
     shortRole: "Empirical market reality",
     description: "Retrieves verifiable market signals, web sources, unit economics, and public citations via live search.",

@@ -176,4 +176,24 @@ describe("FAQ Data & Drawer Component", () => {
 
     expect(screen.getByTestId("active-modal").textContent).toBe("faq");
   });
+
+  it("renders category tags at the top with proper spacing and padding classes", () => {
+    render(
+      <CaseProvider>
+        <TestController />
+        <FaqDrawer />
+      </CaseProvider>
+    );
+
+    fireEvent.click(screen.getByText("Open FAQ"));
+
+    const allChip = screen.getByRole("button", { name: "All" });
+    expect(allChip).toHaveClass("px-3", "py-1.5", "rounded-md");
+
+    const chipsContainer = allChip.parentElement;
+    expect(chipsContainer).toHaveClass("gap-space-2.5", "pt-0.5", "pb-1");
+
+    // Verify footer text uses colon instead of em dash
+    expect(screen.getByText("Crossfire: Independent Decision Testing")).toBeInTheDocument();
+  });
 });

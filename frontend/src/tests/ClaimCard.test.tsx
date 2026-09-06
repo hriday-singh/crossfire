@@ -20,7 +20,7 @@ describe("ClaimCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Broken")).toBeInTheDocument();
     expect(
-      screen.getByTitle("Load-bearing assumption — if false, the entire plan fails")
+      screen.getByTitle("Load-bearing assumption: if false, the entire plan fails")
     ).toBeInTheDocument();
   });
 

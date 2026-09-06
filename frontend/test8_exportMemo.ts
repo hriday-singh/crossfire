@@ -22,17 +22,17 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
   ).length;
 
   // Strategic Executive Assessment
-  let strategicVerdict = "VALIDATED STRATEGY: FOUNDATIONAL ASSUMPTIONS HOLD";
+  let strategicVerdict = "VALIDATED STRATEGY — FOUNDATIONAL ASSUMPTIONS HOLD";
   let executiveSummary =
     "All tested foundational assumptions survived adversarial stress-testing. Proceed with execution.";
   if (brokenCount > 0 && loadBearingBroken > 0) {
-    strategicVerdict = "HIGH STRATEGIC RISK: CRITICAL ASSUMPTIONS BROKEN";
+    strategicVerdict = "HIGH STRATEGIC RISK — CRITICAL ASSUMPTIONS BROKEN";
     executiveSummary = `${loadBearingBroken} core load-bearing assumption(s) failed adversarial verification. Fundamental plan revision required before committing resources.`;
   } else if (brokenCount > 0 || weakenedCount > 0) {
-    strategicVerdict = "MODERATE STRATEGIC RISK: ASSUMPTIONS WEAKENED";
+    strategicVerdict = "MODERATE STRATEGIC RISK — ASSUMPTIONS WEAKENED";
     executiveSummary = `${brokenCount + weakenedCount} assumption(s) challenged by empirical counterarguments. Targeted tactical adjustments advised.`;
   } else if (unresolvedCount > 0) {
-    strategicVerdict = "INCONCLUSIVE: EMPIRICAL EVIDENCE GAPS";
+    strategicVerdict = "INCONCLUSIVE — EMPIRICAL EVIDENCE GAPS";
     executiveSummary = `${unresolvedCount} assumption(s) remain unresolved due to limited empirical data. Run targeted validation experiments.`;
   }
 
@@ -102,7 +102,7 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
     if (contradictions.length > 0) {
       md += `\n**Contradictions & Counterarguments:**  \n`;
       contradictions.forEach((c) => {
-        md += `> **Counter-evidence:** ${c}\n`;
+        md += `> ⚠️ **Counter-evidence:** ${c}\n`;
       });
     }
 
@@ -115,13 +115,13 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
     // Next validation experiment
     if (consequence?.next_validation) {
       md += `\n**Next Validation Experiment (Smallest Real-World Test):**  \n`;
-      md += `> **Next validation:** ${consequence.next_validation}\n`;
+      md += `> 🔬 ${consequence.next_validation}\n`;
     }
 
     md += `\n---\n\n`;
   });
 
-  md += `*Generated via Crossfire Decision Testing Memo: Autonomous Adversarial Stress Testing*\n`;
+  md += `*Generated via Crossfire Decision Testing Memo — Autonomous Adversarial Stress Testing*\n`;
   return md;
 }
 
