@@ -137,7 +137,7 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // 1. Ingestion view
     fireEvent.click(screen.getByTestId("preview-btn-entry"));
-    expect(screen.getByPlaceholderText(/e\.g\. We should offer an unlimited free tier/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/e\.g\. We should rewrite the billing service/i)).toBeInTheDocument();
 
     // 2. Extracting view
     fireEvent.click(screen.getByTestId("preview-btn-extracting"));

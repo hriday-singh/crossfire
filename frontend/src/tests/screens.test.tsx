@@ -17,7 +17,7 @@ describe("Screen Components", () => {
         </CaseProvider>
       );
 
-      expect(screen.getByPlaceholderText(/unlimited free tier/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/rewrite the billing service/i)).toBeInTheDocument();
       const submitBtn = screen.getByRole("button", { name: /Test Decision/i });
       expect(submitBtn).toBeInTheDocument();
       expect(submitBtn).toHaveClass("bg-primary-container", "hover:bg-blue-600", "text-white");
@@ -33,7 +33,7 @@ describe("Screen Components", () => {
       const edTechPreset = screen.getByText("College Admissions AI Agent");
       fireEvent.click(edTechPreset);
 
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i) as HTMLTextAreaElement;
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i) as HTMLTextAreaElement;
       expect(textarea.value).toContain("apply to college");
     });
 
@@ -215,7 +215,7 @@ describe("Screen Components", () => {
         </CaseProvider>
       );
 
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
       await act(async () => {
         fireEvent.paste(textarea, {
           clipboardData: {
@@ -238,7 +238,7 @@ describe("Screen Components", () => {
         </CaseProvider>
       );
 
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
 
       // Type proposal containing a web URL followed by space
       await act(async () => {
@@ -267,7 +267,7 @@ describe("Screen Components", () => {
         </CaseProvider>
       );
 
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
 
       // Type standalone web URL followed by space
       await act(async () => {
@@ -293,7 +293,7 @@ describe("Screen Components", () => {
         </CaseProvider>
       );
 
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
 
       // Paste text that exceeds 500 characters
       const longText = "Strategic memo detailing enterprise adoption trends. ".repeat(20);
@@ -326,7 +326,7 @@ describe("Screen Components", () => {
       );
 
       const runBtn = screen.getByRole("button", { name: /Test Decision/i });
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
 
       // Initially empty (0 characters)
       expect(runBtn).toBeDisabled();
@@ -352,7 +352,7 @@ describe("Screen Components", () => {
       );
 
       const runBtn = screen.getByRole("button", { name: /Test Decision/i });
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
 
       // 6 characters
       fireEvent.change(textarea, { target: { value: "abcdef" } });
@@ -370,7 +370,7 @@ describe("Screen Components", () => {
         </CaseProvider>
       );
 
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
 
       // Initially empty: should say "0 characters", NOT "0 / 500 characters"
       expect(screen.getByText("0 characters")).toBeInTheDocument();
@@ -401,7 +401,7 @@ describe("Screen Components", () => {
       );
 
       const runBtn = screen.getByRole("button", { name: /Test Decision/i });
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      const textarea = screen.getByPlaceholderText(/rewrite the billing service/i);
 
       // Initially empty -> disabled
       expect(runBtn).toBeDisabled();

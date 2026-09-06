@@ -506,7 +506,7 @@ export const EntryScreen: React.FC = () => {
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder="e.g. We should offer an unlimited free tier to acquire users..."
+                placeholder="e.g. We should rewrite the billing service in Go before Q4. The Node version can't hold 10k concurrent webhooks and we're hitting the ceiling monthly."
                 rows={4}
                 autoFocus
                 className="w-full bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-md text-body-md rounded-lg p-space-4 resize-none transition-all outline-none focus:bg-surface-container-low min-h-[130px] leading-relaxed border border-transparent focus:border-outline-variant"
