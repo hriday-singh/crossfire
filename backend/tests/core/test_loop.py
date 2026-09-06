@@ -442,10 +442,14 @@ class SchemaProvider:
         if name in self.overrides:
             value = self.overrides[name]
             return value(messages) if callable(value) else value
+        if name == "SteelManVerdict" and "ReconcileVerdict" in self.overrides:
+            value = self.overrides["ReconcileVerdict"]
+            return value(messages) if callable(value) else value
         if response_schema is None:
             return "plain answer"
         from core.evaluators._reasoning import ReasoningOutput
         from core.evaluators.builder import BuilderVerdict
+        from core.evaluators.operator import OperatorVerdict
         from core.evaluators.receipts import ReceiptsAssessment
         from core.loop import (
             CaseVerdictOutput,
@@ -464,11 +468,27 @@ class SchemaProvider:
             "BuilderVerdict": lambda: BuilderVerdict(
                 result="Achievable", reasoning="Ordinary effort.", confidence=0.6
             ),
+            "OperatorVerdict": lambda: OperatorVerdict(
+                result="Operational friction manageable",
+                reasoning="Standard administrative approval needed.",
+                confidence=0.6,
+            ),
             "ReceiptsAssessment": lambda: ReceiptsAssessment(
                 result="No source found", reasoning="Nothing relevant returned.", confidence=0.2
             ),
+            "SteelManVerdict": lambda: ReconcileVerdict(
+                status=ClaimStatus.WEAKENED,
+                reasoning="Holds with caveats.",
+                fatal_flaw="Unverified adoption rate.",
+                salvaged_claim="Pilot with 5 enterprise customers before full rollout.",
+                tradeoff_acknowledged="Slower initial revenue growth.",
+            ),
             "ReconcileVerdict": lambda: ReconcileVerdict(
-                status=ClaimStatus.WEAKENED, reasoning="Holds with caveats."
+                status=ClaimStatus.WEAKENED,
+                reasoning="Holds with caveats.",
+                fatal_flaw="Unverified adoption rate.",
+                salvaged_claim="Pilot with 5 enterprise customers before full rollout.",
+                tradeoff_acknowledged="Slower initial revenue growth.",
             ),
             "StrategicConsequenceOutput": lambda: StrategicConsequenceOutput(
                 impact="medium",

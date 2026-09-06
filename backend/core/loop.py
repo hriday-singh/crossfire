@@ -223,11 +223,15 @@ async def rank_load_bearing(case: Case, provider: LLMProvider) -> list[bool]:
 
 
 from core.reconcile import (  # noqa: F401
+    STEEL_MAN_PERSONA,
+    STEEL_MAN_SYSTEM_PROMPT,
+    SteelManVerdict,
     ReconcileVerdict,
     RECONCILE_SYSTEM_PROMPT,
     reconcile,
     has_sourced_contradiction,
     apply_evidence_gate,
+    apply_steelman_gate,
     rank_findings,
 )
 
@@ -254,9 +258,18 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
             continue  # not yet tested, nothing to report
 
         impact = _IMPACT_BY_STATUS[claim.status] if claim.load_bearing else "low"
-        recommended_change = _RECOMMENDED_CHANGE_BY_STATUS[claim.status].format(
-            statement=claim.statement
-        )
+        if claim.salvaged_claim:
+            if claim.tradeoff_acknowledged:
+                recommended_change = (
+                    f"Salvaged claim: {claim.salvaged_claim} "
+                    f"(Trade-off: {claim.tradeoff_acknowledged})"
+                )
+            else:
+                recommended_change = f"Salvaged claim: {claim.salvaged_claim}"
+        else:
+            recommended_change = _RECOMMENDED_CHANGE_BY_STATUS[claim.status].format(
+                statement=claim.statement
+            )
 
         next_validation = None
         if claim.load_bearing and claim.status in (ClaimStatus.BROKEN, ClaimStatus.UNRESOLVED):
@@ -270,6 +283,9 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
                 next_validation=next_validation,
                 verdict_reasoning=f"Reconciled as {claim.status.value} "
                 f"({'load-bearing' if claim.load_bearing else 'not load-bearing'}).",
+                fatal_flaw=claim.fatal_flaw,
+                salvaged_claim=claim.salvaged_claim,
+                tradeoff_acknowledged=claim.tradeoff_acknowledged,
             )
         )
     return consequences
@@ -315,6 +331,14 @@ async def _synthesize_single_consequence(
             f"- [{f.evaluator}]: result={f.result} | reasoning={f.reasoning} | contradiction={f.contradiction}"
             for f in findings
         )
+        mitigation_info = ""
+        if claim.fatal_flaw or claim.salvaged_claim:
+            mitigation_info = (
+                f"\nSteel Man Mitigation Analysis:\n"
+                f"- Fatal Flaw: {claim.fatal_flaw or 'None'}\n"
+                f"- Salvaged Claim: {claim.salvaged_claim or 'None'}\n"
+                f"- Trade-off Acknowledged: {claim.tradeoff_acknowledged or 'None'}"
+            )
         result = await provider.generate(
             system_prompt=CONSEQUENCE_SYSTEM_PROMPT,
             messages=[
@@ -326,6 +350,7 @@ async def _synthesize_single_consequence(
                         f"Verdict: {claim.status.value if claim.status else 'untested'} "
                         f"(load-bearing: {claim.load_bearing})\n"
                         f"Findings:\n{findings_ctx or 'No detailed findings.'}"
+                        f"{mitigation_info}"
                     ),
                 }
             ],
@@ -340,6 +365,10 @@ async def _synthesize_single_consequence(
                 consequence.next_validation = clamp_sentences(result.next_validation, 2)
     except Exception as exc:
         logger.debug("LLM consequence synthesis bypassed for claim %s: %s", claim.id, exc)
+
+    consequence.fatal_flaw = claim.fatal_flaw
+    consequence.salvaged_claim = claim.salvaged_claim
+    consequence.tradeoff_acknowledged = claim.tradeoff_acknowledged
     return consequence
 
 
@@ -611,39 +640,59 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         )
         case.findings = await run_evaluators(case, case.test_plan, provider)
 
-        # Judge: parallel reconcile across claims, seeing all findings for each claim.
+        # Steelman: parallel reconcile across claims, seeing all findings for each claim.
         # One claim failing degrades that claim; every claim failing means the
         # provider is down, and a run of nothing but UNRESOLVED is worse to serve
         # than an `error` the frontend can actually show.
-        judge_errors: list[BaseException] = []
+        steelman_errors: list[BaseException] = []
 
         async def _reconcile_single(clm: Claim) -> tuple[Claim, ClaimStatus, str]:
             claim_findings = [f for f in case.findings if f.claim_id == clm.id]
             if not claim_findings:
+                clm.status = ClaimStatus.UNRESOLVED
+                clm.fatal_flaw = None
+                clm.salvaged_claim = None
+                clm.tradeoff_acknowledged = None
                 return clm, ClaimStatus.UNRESOLVED, "No evaluator produced a finding for this claim."
             await emit_activity(
                 case.id,
-                "Judge",
+                "Steelman",
                 f"Reconciling evidence for: {clm.statement[:55]}...",
                 claim_id=clm.id,
                 action="reconciling",
             )
             try:
-                st, rsn = await reconcile(clm, claim_findings, provider)
+                verdict = await reconcile(clm, claim_findings, provider)
             except Exception as exc:
-                judge_errors.append(exc)
+                steelman_errors.append(exc)
+                clm.status = ClaimStatus.UNRESOLVED
+                clm.fatal_flaw = None
+                clm.salvaged_claim = None
+                clm.tradeoff_acknowledged = None
                 return (
                     clm,
                     ClaimStatus.UNRESOLVED,
                     f"Reconciliation error ({exc}); marked unresolved.",
                 )
-            return (clm, *apply_evidence_gate(st, rsn, claim_findings))
+
+            if isinstance(verdict, SteelManVerdict):
+                gated = apply_steelman_gate(verdict, claim_findings)
+                clm.status = gated.status
+                clm.fatal_flaw = gated.fatal_flaw
+                clm.salvaged_claim = gated.salvaged_claim
+                clm.tradeoff_acknowledged = gated.tradeoff_acknowledged
+                return clm, gated.status, gated.reasoning
+            else:
+                st, rsn = verdict
+                gated_st, gated_rsn = apply_evidence_gate(st, rsn, claim_findings)
+                clm.status = gated_st
+                return clm, gated_st, gated_rsn
 
         reconcile_results = await asyncio.gather(
             *(_reconcile_single(clm) for clm in case.claims)
         )
-        if case.claims and len(judge_errors) == len(case.claims):
-            raise judge_errors[0]
+        if case.claims and len(steelman_errors) == len(case.claims):
+            raise steelman_errors[0]
 
         reasonings: dict[str, str] = {}
         for clm, st, reasoning in reconcile_results:
@@ -656,6 +705,9 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     "claim_id": clm.id,
                     "status": clm.status.value,
                     "verdict_reasoning": reasoning,
+                    "fatal_flaw": clm.fatal_flaw,
+                    "salvaged_claim": clm.salvaged_claim,
+                    "tradeoff_acknowledged": clm.tradeoff_acknowledged,
                 },
             )
 
@@ -669,9 +721,14 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         case.consequences = build_consequences(case)
         for consequence in case.consequences:
             # build_consequences() can only synthesize this from status; the real
-            # Judge reasoning only exists here, so it gets threaded in.
+            # Steelman reasoning only exists here, so it gets threaded in.
             if consequence.claim_id in reasonings:
                 consequence.verdict_reasoning = reasonings[consequence.claim_id]
+            matching_claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
+            if matching_claim:
+                consequence.fatal_flaw = matching_claim.fatal_flaw
+                consequence.salvaged_claim = matching_claim.salvaged_claim
+                consequence.tradeoff_acknowledged = matching_claim.tradeoff_acknowledged
 
         try:
             await emit_activity(
@@ -685,6 +742,14 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             logger.debug("Synthesizing consequences fallback: %s", exc)
 
         for consequence in case.consequences:
+            matching_claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
+            if matching_claim:
+                if matching_claim.fatal_flaw and not consequence.fatal_flaw:
+                    consequence.fatal_flaw = matching_claim.fatal_flaw
+                if matching_claim.salvaged_claim and not consequence.salvaged_claim:
+                    consequence.salvaged_claim = matching_claim.salvaged_claim
+                if matching_claim.tradeoff_acknowledged and not consequence.tradeoff_acknowledged:
+                    consequence.tradeoff_acknowledged = matching_claim.tradeoff_acknowledged
             await events.publish(
                 case.id, "consequence_ready", {"consequence": consequence.model_dump()}
             )
