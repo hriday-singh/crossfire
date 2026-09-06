@@ -53,7 +53,13 @@ export interface AppState {
   activeModal: "none" | "history" | "logs" | "faq" | "settings";
   startedAt: number | null;
   completedAt: number | null;
-  engineInfo: { status: string; provider: string; model: string } | null;
+  engineInfo: {
+    status: string;
+    provider: string;
+    model: string;
+    llm_base_url?: string;
+    backend_port?: number;
+  } | null;
   isDebugMode: boolean;
   previewView: PreviewView;
   savedRealState: SavedRealState | null;

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     llm_base_url: str = Field(default="http://localhost:8081/v1", alias="LLM_BASE_URL")
     llm_model: str = Field(default="gemini-3.7-flash", alias="LLM_MODEL")
     curation_llm_model: str = Field(default="gemini-3.7-flash", alias="CURATION_LLM_MODEL")
+    port: int = Field(default=8000, alias="PORT")
     cors_allowed_origins: list[str] | str = Field(
         default=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
         alias="CORS_ALLOWED_ORIGINS",

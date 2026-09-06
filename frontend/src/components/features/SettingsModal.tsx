@@ -109,8 +109,16 @@ export const SettingsModal: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center justify-between text-body-sm">
-                <span className="text-on-surface-variant">Backend Endpoint:</span>
-                <span className="font-mono text-outline">http://localhost:8000</span>
+                <span className="text-on-surface-variant">Gemini Proxy Endpoint:</span>
+                <span className="font-mono text-outline">
+                  {state.engineInfo?.llm_base_url?.replace(/\/v1\/?$/, "") || "http://localhost:8081"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-body-sm">
+                <span className="text-on-surface-variant">Backend API Endpoint:</span>
+                <span className="font-mono text-outline">
+                  {state.engineInfo?.backend_port ? `http://localhost:${state.engineInfo.backend_port}` : "http://localhost:8000"}
+                </span>
               </div>
             </div>
           </div>

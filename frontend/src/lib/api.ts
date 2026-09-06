@@ -296,6 +296,8 @@ export interface HealthStatus {
   status: string;
   provider: string;
   model: string;
+  llm_base_url?: string;
+  backend_port?: number;
 }
 
 export async function getHealth(baseUrl: string = DEFAULT_API_BASE): Promise<HealthStatus> {

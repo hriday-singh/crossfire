@@ -26,6 +26,7 @@ def test_settings_defaults():
     assert settings.llm_provider == "openai_compat"
     assert settings.llm_base_url == "http://localhost:8081/v1"
     assert settings.llm_model == "gemini-3.7-flash"
+    assert settings.port == 8000
 
 
 def test_settings_environment_overrides(monkeypatch):
@@ -38,6 +39,7 @@ def test_settings_environment_overrides(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "test-override-key")
     monkeypatch.setenv("LLM_BASE_URL", "http://custom:9000/v1")
     monkeypatch.setenv("LLM_MODEL", "custom-model")
+    monkeypatch.setenv("PORT", "8005")
 
     settings = Settings(_env_file=None)
     assert settings.gemini_api_key == "test-gemini-key"
@@ -49,6 +51,7 @@ def test_settings_environment_overrides(monkeypatch):
     assert settings.llm_api_key == "test-override-key"
     assert settings.llm_base_url == "http://custom:9000/v1"
     assert settings.llm_model == "custom-model"
+    assert settings.port == 8005
 
 
 def test_get_settings_lru_cache():

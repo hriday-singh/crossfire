@@ -51,6 +51,8 @@ describe("SettingsModal", () => {
 
     expect(screen.getByText("gemini-3.7-flash")).toBeInTheDocument();
     expect(screen.getByText("openai_compat")).toBeInTheDocument();
+    expect(screen.getByText("http://localhost:8081")).toBeInTheDocument();
+    expect(screen.getByText("http://localhost:8000")).toBeInTheDocument();
   });
 
   it("closes when close button is clicked", () => {

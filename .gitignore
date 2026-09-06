@@ -129,6 +129,14 @@ downloads/
 .LSOverride
 ._*
 *.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
 
 # Windows
 Thumbs.db

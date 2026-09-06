@@ -36,7 +36,15 @@ def health_check():
         "status": "ok",
         "provider": settings.llm_provider,
         "model": settings.llm_model,
+        "llm_base_url": settings.llm_base_url,
+        "backend_port": settings.port,
     }
 
 
 app.include_router(router)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="127.0.0.1", port=settings.port, reload=True)

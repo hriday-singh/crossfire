@@ -520,7 +520,9 @@ export const EntryScreen: React.FC = () => {
                       : "text-outline"
                   }`}
                 >
-                  {rawInput.length} / {MAX_PROPOSAL_CHARS} characters
+                  {rawInput.length === 0
+                    ? "0 characters"
+                    : `${rawInput.length} / ${MAX_PROPOSAL_CHARS} characters`}
                 </span>
               </div>
             </div>

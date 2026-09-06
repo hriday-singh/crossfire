@@ -363,6 +363,24 @@ describe("Screen Components", () => {
       expect(runBtn).not.toBeDisabled();
     });
 
+    it("displays '0 characters' without '/ 500' when proposal textarea is empty, and displays 'X / 500 characters' when populated", () => {
+      render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+
+      // Initially empty: should say "0 characters", NOT "0 / 500 characters"
+      expect(screen.getByText("0 characters")).toBeInTheDocument();
+      expect(screen.queryByText(/0 \/ 500/i)).not.toBeInTheDocument();
+
+      // When text is typed: shows length with limit
+      fireEvent.change(textarea, { target: { value: "Pivot to B2B SaaS" } });
+      expect(screen.getByText("17 / 500 characters")).toBeInTheDocument();
+    });
+
     it("enables run test button when a content block is attached even if textarea is empty", async () => {
       const createCaseSpy = vi.spyOn(api, "createCase").mockResolvedValueOnce({
         id: "case-blob-test",
