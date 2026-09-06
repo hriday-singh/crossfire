@@ -35,7 +35,8 @@ describe("SettingsModal", () => {
     fireEvent.click(screen.getByText("Open Settings"));
     expect(screen.getByRole("heading", { name: "System Settings" })).toBeInTheDocument();
     expect(screen.getByText(/Active LLM Provider & Model/i)).toBeInTheDocument();
-    expect(screen.getByText(/Adversarial Evaluator Suite/i)).toBeInTheDocument();
+    expect(screen.getByText(/Available Gemini Web Models/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Adversarial Evaluator Suite/i)).not.toBeInTheDocument();
   });
 
   it("displays model and provider information from engineInfo", () => {
@@ -63,5 +64,21 @@ describe("SettingsModal", () => {
     const closeBtn = screen.getByLabelText("Close settings modal");
     fireEvent.click(closeBtn);
     expect(screen.queryByRole("heading", { name: "System Settings" })).not.toBeInTheDocument();
+  });
+
+  it("allows selecting a different model and updates engineInfo and notice", () => {
+    render(
+      <CaseProvider>
+        <TestWrapper />
+      </CaseProvider>
+    );
+
+    fireEvent.click(screen.getByText("Open Settings"));
+    const thinkingModelBtn = screen.getByRole("button", { name: /Gemini 3.5 Flash Thinking/i });
+    fireEvent.click(thinkingModelBtn);
+
+    expect(
+      screen.getByText(/Switched active engine model to Gemini 3.5 Flash Thinking/i)
+    ).toBeInTheDocument();
   });
 });

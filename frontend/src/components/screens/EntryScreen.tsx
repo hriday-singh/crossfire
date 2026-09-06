@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ingestImage, ingestPdf } from "@/lib/api";
 import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
 import { AttachmentBar, EntryAttachment } from "@/components/features/AttachmentBar";
+import { EntryPresetsBar } from "@/components/features/EntryPresetsBar";
 import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
 
 const MAX_PROPOSAL_CHARS = 500;
@@ -72,43 +73,19 @@ export const EntryScreen: React.FC = () => {
 
   const autoAddDetectedUrl = (detected: DetectedWebUrl) => {
     addUrlAttachment(detected.cleanUrl, detected.hostname);
-
-    if (!detected.remainingText) {
-      setRawInput(`Analyze proposal and assertions from ${detected.hostname}`);
-    } else {
-      setRawInput(detected.remainingText);
-    }
-
+    setRawInput(detected.remainingText);
     setSmartNotice(`Web URL ${detected.hostname} detected & added to attachments.`);
   };
 
   const handleTextChange = (value: string) => {
-    // 1. Check for excess character overflow beyond 500 characters
     if (value.length > MAX_PROPOSAL_CHARS) {
-      const proposalText = value.slice(0, MAX_PROPOSAL_CHARS);
-      const overflowText = value.slice(MAX_PROPOSAL_CHARS).trim();
-
-      if (overflowText) {
-        const blobCount = attachments.filter((a) => a.type === "text_blob").length + 1;
-        const newBlob: EntryAttachment = {
-          id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: "text_blob",
-          name: `Context Snippet #${blobCount}`,
-          context: overflowText,
-          charCount: overflowText.length,
-        };
-        setAttachments((prev) => [...prev, newBlob]);
-        setSmartNotice(
-          `Proposal exceeded 500 characters. Moved excess (${overflowText.length.toLocaleString()} chars) to context blob.`
-        );
-      }
-      setRawInput(proposalText);
+      setRawInput(value.slice(0, MAX_PROPOSAL_CHARS));
       return;
     }
 
     setRawInput(value);
 
-    // 2. When the user finishes typing a URL with a delimiter (space, comma, semicolon, newline)
+    // When the user finishes typing a URL with a delimiter (space, comma, semicolon, newline)
     if (/[\s,;]$/.test(value)) {
       const detected = detectWebUrl(value);
       if (detected) {
@@ -143,20 +120,16 @@ export const EntryScreen: React.FC = () => {
     const pasted = e.clipboardData.getData("text").trim();
     if (!pasted) return;
 
-    // Check if pasted text contains URLs
+    // 1. Check if pasted text contains URLs
     const detectedMulti = extractAllWebUrls(pasted);
     if (detectedMulti.urls.length > 0) {
       e.preventDefault();
       detectedMulti.urls.forEach((u) => addUrlAttachment(u.cleanUrl, u.hostname));
 
-      // Also handle text overflow on remaining text
       const remaining = detectedMulti.remainingText;
-      const combined = rawInput ? `${rawInput} ${remaining}`.trim() : remaining;
-      handleTextChange(
-        combined || (detectedMulti.urls.length === 1
-          ? `Analyze proposal and assertions from ${detectedMulti.urls[0].hostname}`
-          : "Analyze proposal and assertions from attached references")
-      );
+      if (remaining) {
+        setRawInput((prev) => (prev ? `${prev} ${remaining}`.trim() : remaining));
+      }
       setSmartNotice(
         detectedMulti.urls.length === 1
           ? `Web URL ${detectedMulti.urls[0].hostname} added to attachments.`
@@ -165,11 +138,23 @@ export const EntryScreen: React.FC = () => {
       return;
     }
 
-    // Check if pasted plain text exceeds character limit
-    if (rawInput.length + pasted.length > MAX_PROPOSAL_CHARS) {
+    // 2. Full-block creation: If the pasted content exceeds character limit,
+    // convert the ENTIRE pasted text into a context block attachment instead of chopping it.
+    if (pasted.length > MAX_PROPOSAL_CHARS || (rawInput.length + pasted.length > MAX_PROPOSAL_CHARS)) {
       e.preventDefault();
-      const combined = `${rawInput}${rawInput ? " " : ""}${pasted}`;
-      handleTextChange(combined);
+      const blobCount = attachments.filter((a) => a.type === "text_blob").length + 1;
+      const newBlob: EntryAttachment = {
+        id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: "text_blob",
+        name: `Context Block #${blobCount}`,
+        context: pasted,
+        charCount: pasted.length,
+      };
+      setAttachments((prev) => [...prev, newBlob]);
+      setSmartNotice(
+        `Large text (${pasted.length.toLocaleString()} chars) attached as full context block.`
+      );
+      return;
     }
   };
 
@@ -401,6 +386,7 @@ export const EntryScreen: React.FC = () => {
                 ref={textareaRef}
                 id="proposal-input"
                 value={rawInput}
+                maxLength={MAX_PROPOSAL_CHARS}
                 onChange={(e) => handleTextChange(e.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
@@ -619,65 +605,11 @@ export const EntryScreen: React.FC = () => {
             </div>
           </form>
 
-          {/* Recent Runs Quick-Jump Bar */}
-          <div className="mt-space-6 flex items-start gap-space-2 text-outline font-code-sm text-code-sm">
-            <span className="material-symbols-outlined text-[16px] text-outline mt-0.5 shrink-0">
-              lightbulb
-            </span>
-            <div className="flex flex-wrap items-center gap-x-space-3 gap-y-1 font-body-sm text-body-sm">
-              <span className="text-outline">Example proposals:</span>
-              <button
-                type="button"
-                onClick={() =>
-                  setRawInput(
-                    "I want to build an AI that helps students apply to college, including submitting applications on their behalf."
-                  )
-                }
-                className="text-on-surface-variant hover:text-primary-container transition-colors underline decoration-outline-variant underline-offset-4 cursor-pointer"
-              >
-                <span>College application submission AI</span>
-                <span className="sr-only">College Admissions AI Agent</span>
-              </button>
-              <span className="text-outline-variant">·</span>
-              <button
-                type="button"
-                onClick={() =>
-                  setRawInput(
-                    "We should offer an unlimited free tier for our AI coding assistant to acquire developers at zero CAC, monetizing only on enterprise teams."
-                  )
-                }
-                className="text-on-surface-variant hover:text-primary-container transition-colors underline decoration-outline-variant underline-offset-4 cursor-pointer"
-              >
-                Unlimited free-tier SaaS unit economics
-              </button>
-              <span className="text-outline-variant">·</span>
-              <button
-                type="button"
-                onClick={() =>
-                  setRawInput(
-                    "A niche vertical AI agent that crawls local dental clinic websites, auto-generates localized patient education blogs, and posts them via WordPress."
-                  )
-                }
-                className="text-on-surface-variant hover:text-primary-container transition-colors underline decoration-outline-variant underline-offset-4 cursor-pointer"
-              >
-                SEO automation for local practices
-              </button>
-            </div>
-          </div>
-
-          {/* FAQ Discovery Quick-Link */}
-          <div className="mt-space-4 flex items-center justify-end">
-            <button
-              type="button"
-              onClick={() => setActiveModal("faq")}
-              className="flex items-center gap-1.5 text-outline hover:text-on-surface font-code-sm text-code-sm transition-colors cursor-pointer group"
-            >
-              <span className="material-symbols-outlined text-[15px] text-outline group-hover:text-primary-container">
-                help_outline
-              </span>
-              <span>How does Crossfire work? View FAQ</span>
-            </button>
-          </div>
+          {/* Presets and FAQ Discovery Bar */}
+          <EntryPresetsBar
+            onSelectPreset={setRawInput}
+            onOpenFaq={() => setActiveModal("faq")}
+          />
         </div>
       </div>
 

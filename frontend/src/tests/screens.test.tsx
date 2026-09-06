@@ -224,7 +224,7 @@ describe("Screen Components", () => {
       });
     });
 
-    it("auto-generates proposal prompt when only a web URL is typed", async () => {
+    it("does not inject synthetic analyzing text when only a web URL is typed", async () => {
       render(
         <CaseProvider>
           <EntryScreen />
@@ -240,8 +240,8 @@ describe("Screen Components", () => {
         });
       });
 
-      // Verify intelligent proposal title was provided
-      expect(textarea).toHaveValue("Analyze proposal and assertions from github.com");
+      // Verify no synthetic analyzing text was injected
+      expect(textarea).toHaveValue("");
 
       // Verify URL was added as attachment pill
       await waitFor(() => {
@@ -250,7 +250,7 @@ describe("Screen Components", () => {
       });
     });
 
-    it("shows character count limit and converts overflow text to text blob", async () => {
+    it("attaches full copied text into a context block when pasting text exceeding 500 characters", async () => {
       render(
         <CaseProvider>
           <EntryScreen />
@@ -259,19 +259,26 @@ describe("Screen Components", () => {
 
       const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
 
-      // Type text that exceeds 500 characters
-      const longText = "A".repeat(520);
+      // Paste text that exceeds 500 characters
+      const longText = "Strategic memo detailing enterprise adoption trends. ".repeat(20);
       await act(async () => {
-        fireEvent.change(textarea, { target: { value: longText } });
+        fireEvent.paste(textarea, {
+          clipboardData: {
+            getData: () => longText,
+          },
+        });
       });
 
-      // Verify proposal is capped at 500 characters
-      expect((textarea as HTMLTextAreaElement).value.length).toBe(500);
+      // Verify proposal input was not trimmed with 500 characters of the block
+      expect((textarea as HTMLTextAreaElement).value).toBe("");
 
-      // Verify overflow text became a text blob attachment
+      // Verify the ENTIRE pasted text became a context block attachment
       await waitFor(() => {
         expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText(/Context Snippet/i)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /^Context Block #1$/i })).toBeInTheDocument();
+        expect(screen.getByRole("status")).toHaveTextContent(
+          /Large text .* attached as full context block/i
+        );
       });
     });
   });
@@ -330,6 +337,7 @@ describe("Screen Components", () => {
         toggleAgentSelection: vi.fn(),
         setAgentMode: vi.fn(),
         setSelectedAgents: vi.fn(),
+        selectModel: vi.fn(),
       });
 
       render(<ConfirmScreen />);

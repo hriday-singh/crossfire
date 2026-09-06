@@ -173,7 +173,22 @@ describe("caseReducer", () => {
   });
 
   it("should process activity SSE events and update activeTestActivities", () => {
-    let state = caseReducer(INITIAL_STATE, {
+    // Activity events require a currentCase (SSE_EVENT returns early without one)
+    const stateWithCase = {
+      ...INITIAL_STATE,
+      currentCase: {
+        id: "case-act-1",
+        raw_input: "Test input",
+        context: null,
+        status: "testing" as const,
+        claims: [{ id: "c1", statement: "Test claim", load_bearing: true, status: null }],
+        test_plan: [],
+        findings: [],
+        consequences: [],
+      },
+    };
+
+    let state = caseReducer(stateWithCase, {
       type: "SSE_EVENT",
       payload: {
         event: "activity",
@@ -190,9 +205,11 @@ describe("caseReducer", () => {
     expect(state.activities).toHaveLength(1);
     expect(state.activities[0].tag).toBe("Evidence Test");
     expect(state.activities[0].text).toContain("Querying DuckDuckGo");
+    // Keyed by claim_id, action, tag, and mapped failure_mode
     expect(state.activeTestActivities["c1"]).toContain("Querying DuckDuckGo");
+    expect(state.activeTestActivities["search"]).toContain("Querying DuckDuckGo");
     expect(state.activeTestActivities["Evidence Test"]).toContain("Querying DuckDuckGo");
-    expect(state.activeTestActivities["receipts"]).toContain("Querying DuckDuckGo");
+    expect(state.activeTestActivities["evidence"]).toContain("Querying DuckDuckGo");
 
     // Test capping at 100
     for (let i = 0; i < 110; i++) {

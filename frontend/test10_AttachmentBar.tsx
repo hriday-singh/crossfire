@@ -89,12 +89,11 @@ export const AttachmentBar: React.FC<AttachmentBarProps> = ({
             type="button"
             data-testid="attachment-overflow-pill"
             onClick={() => setIsExpanded(true)}
-            className="inline-flex items-center gap-1 bg-surface-container-high border border-outline-variant/70 rounded-full px-space-2.5 py-1 text-xs font-body-sm font-medium text-primary-container hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer shadow-xs"
+            className="flex items-center gap-1 bg-surface-container-high border border-outline-variant/70 rounded-full px-space-2.5 py-1 text-xs font-code-sm text-primary hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer shadow-xs"
             aria-label={`Show ${overflowCount} more attachment${overflowCount > 1 ? "s" : ""}`}
           >
-            <span className="font-semibold tracking-tight">+{overflowCount}</span>
-            <span className="text-outline text-[11px] font-normal">more</span>
-            <span className="material-symbols-outlined text-[14px] text-outline">expand_more</span>
+            <span>+{overflowCount}</span>
+            <span className="material-symbols-outlined text-[14px]">expand_more</span>
           </button>
         )}
 
@@ -102,7 +101,7 @@ export const AttachmentBar: React.FC<AttachmentBarProps> = ({
           <button
             type="button"
             onClick={() => setIsExpanded(false)}
-            className="inline-flex items-center gap-1 text-xs font-body-sm text-outline hover:text-on-surface px-space-2.5 py-1 rounded-full border border-outline-variant/40 hover:border-outline-variant/80 transition-colors cursor-pointer"
+            className="flex items-center gap-0.5 text-xs font-code-sm text-outline hover:text-on-surface px-space-2 py-1 rounded transition-colors cursor-pointer"
           >
             <span>Compact</span>
             <span className="material-symbols-outlined text-[14px]">expand_less</span>

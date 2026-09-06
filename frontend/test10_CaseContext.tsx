@@ -23,7 +23,6 @@ interface CaseContextValue {
   navigateScreen: (screen: AppState["activeScreen"]) => void;
   setActiveModal: (modal: AppState["activeModal"]) => void;
   refreshCurrentCase: () => Promise<void>;
-  selectModel?: (modelId: string) => void;
   setDebugMode: (enabled: boolean) => void;
   enterPreview: (view?: PreviewView) => void;
   setPreviewView: (view: PreviewView) => void;
@@ -34,7 +33,6 @@ const CaseContext = createContext<CaseContextValue | null>(null);
 
 const STORAGE_KEY_HISTORY = "crossfire_case_history";
 const STORAGE_KEY_DEBUG = "crossfire_debug";
-const STORAGE_KEY_MODEL = "crossfire_selected_model";
 
 export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(caseReducer, INITIAL_STATE, (initial) => {
@@ -47,14 +45,10 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const urlParams = new URLSearchParams(window.location.search);
         isDebug = urlParams.get("debug") === "true" || urlParams.get("debug") === "1";
       }
-      const savedModel = localStorage.getItem(STORAGE_KEY_MODEL);
       return {
         ...initial,
         caseHistory: parsedHistory,
         isDebugMode: isDebug,
-        engineInfo: savedModel
-          ? { status: "ok", provider: "openai_compat", model: savedModel }
-          : initial.engineInfo,
       };
     } catch {
       return initial;
@@ -68,14 +62,7 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const health = await getHealth();
         if (isMounted) {
-          const savedModel = localStorage.getItem(STORAGE_KEY_MODEL);
-          dispatch({
-            type: "SET_ENGINE_INFO",
-            payload: {
-              ...health,
-              model: savedModel || health.model,
-            },
-          });
+          dispatch({ type: "SET_ENGINE_INFO", payload: health });
         }
       } catch (err) {
         console.warn("Backend health check failed:", err);
@@ -216,22 +203,6 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: "SET_ACTIVE_MODAL", payload: modal });
   };
 
-  const selectModel = (modelId: string) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_MODEL, modelId);
-    } catch {
-      // ignore
-    }
-    dispatch({
-      type: "SET_ENGINE_INFO",
-      payload: {
-        status: state.engineInfo?.status || "ok",
-        provider: state.engineInfo?.provider || "openai_compat",
-        model: modelId,
-      },
-    });
-  };
-
   return (
     <CaseContext.Provider
       value={{
@@ -248,7 +219,6 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigateScreen,
         setActiveModal,
         refreshCurrentCase,
-        selectModel,
         setDebugMode,
         enterPreview,
         setPreviewView,

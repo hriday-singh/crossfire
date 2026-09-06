@@ -4,10 +4,9 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { GEMINI_WEB_MODELS, formatModelName, formatProviderName } from "@/lib/models";
 
 export const SettingsModal: React.FC = () => {
-  const { state, dispatch, setActiveModal, resetCase, selectModel, setDebugMode, enterPreview } = useCase();
+  const { state, dispatch, setActiveModal, resetCase, setDebugMode, enterPreview } = useCase();
   const isOpen = state.activeModal === "settings";
   const [clearedNotice, setClearedNotice] = useState<string | null>(null);
-  const [selectedNotice, setSelectedNotice] = useState<string | null>(null);
 
   const handleClearHistory = () => {
     if (confirm("Clear all locally stored decision cases?")) {
@@ -36,16 +35,18 @@ export const SettingsModal: React.FC = () => {
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-space-4 pt-space-6 px-space-6 border-b border-outline-variant shrink-0 bg-surface-container-low">
-          <div className="flex items-center gap-space-2">
-            <span className="material-symbols-outlined text-primary-container text-[20px]">
-              settings
-            </span>
-            <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-normal">
-              System Settings
-            </h2>
-            <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5 rounded border border-outline-variant">
-              Runtime
-            </span>
+          <div className="flex items-center gap-space-4">
+            <div className="w-10 h-10 rounded-lg bg-surface-container border border-outline-variant/60 flex items-center justify-center text-primary-container shrink-0">
+              <span className="material-symbols-outlined text-[22px]">settings</span>
+            </div>
+            <div>
+              <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-normal">
+                System Settings
+              </h2>
+              <p className="font-code-sm text-code-sm text-outline mt-1">
+                Runtime configuration, active models &amp; local storage
+              </p>
+            </div>
           </div>
 
           <button
@@ -63,12 +64,6 @@ export const SettingsModal: React.FC = () => {
           {clearedNotice && (
             <div className="bg-primary-container/20 border border-primary-container/40 text-primary-container px-space-4 py-space-2 rounded text-body-sm">
               {clearedNotice}
-            </div>
-          )}
-          {selectedNotice && (
-            <div className="bg-primary-container/20 border border-primary-container/40 text-primary-container px-space-4 py-space-2 rounded text-body-sm flex items-center gap-2 animate-in fade-in-50">
-              <span className="material-symbols-outlined text-[18px]">check_circle</span>
-              <span>{selectedNotice}</span>
             </div>
           )}
 
@@ -129,26 +124,17 @@ export const SettingsModal: React.FC = () => {
               {GEMINI_WEB_MODELS.map((model) => {
                 const isActive = (state.engineInfo?.model || "gemini-3.7-flash").toLowerCase() === model.id.toLowerCase();
                 return (
-                  <button
+                  <div
                     key={model.id}
-                    type="button"
-                    onClick={() => {
-                      selectModel?.(model.id);
-                      setSelectedNotice(`Switched active engine model to ${model.name}`);
-                      setTimeout(() => setSelectedNotice(null), 3000);
-                    }}
-                    className={`w-full text-left rounded-xl p-space-3 border transition-all cursor-pointer ${
+                    className={`rounded-xl p-space-3 border transition-colors ${
                       isActive
-                        ? "bg-surface-container-high border-primary-container/60 ring-1 ring-primary-container/30 shadow-xs"
-                        : "bg-surface-container border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container-high/60"
+                        ? "bg-surface-container-high border-primary-container/50 ring-1 ring-primary-container/30"
+                        : "bg-surface-container border-outline-variant/40"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-space-2">
-                        <span className={`material-symbols-outlined text-[18px] ${isActive ? "text-primary-container" : "text-outline"}`}>
-                          {isActive ? "radio_button_checked" : "radio_button_unchecked"}
-                        </span>
-                        <span className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs">
+                        <span className="font-headline-sm text-headline-sm text-on-surface font-medium text-xs">
                           {model.name}
                         </span>
                         {model.tag && (
@@ -163,15 +149,15 @@ export const SettingsModal: React.FC = () => {
                           ACTIVE
                         </span>
                       ) : (
-                        <span className="font-code-sm text-code-sm text-outline font-mono hover:text-on-surface">
-                          Select
+                        <span className="font-code-sm text-code-sm text-outline font-mono">
+                          {model.id}
                         </span>
                       )}
                     </div>
-                    <p className="font-body-sm text-body-sm text-on-surface-variant mt-1.5 text-xs leading-relaxed pl-6">
+                    <p className="font-body-sm text-body-sm text-on-surface-variant mt-1 text-xs leading-relaxed">
                       {model.description}
                     </p>
-                  </button>
+                  </div>
                 );
               })}
             </div>

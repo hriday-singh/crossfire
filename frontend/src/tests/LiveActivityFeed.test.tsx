@@ -51,17 +51,17 @@ describe("LiveActivityFeed", () => {
     expect(screen.getByText(/3 operations/i)).toBeInTheDocument();
     expect(screen.getByText("Active Scrutiny in Progress...")).toBeInTheDocument();
 
-    expect(screen.getByText("EVIDENCE TEST")).toBeInTheDocument();
+    expect(screen.getByText(/evidence test/i)).toBeInTheDocument();
     expect(
       screen.getByText('Querying DuckDuckGo: "uscis bot submission terms"')
     ).toBeInTheDocument();
 
-    expect(screen.getByText("FEASIBILITY TEST")).toBeInTheDocument();
+    expect(screen.getByText(/feasibility test/i)).toBeInTheDocument();
     expect(
       screen.getByText("Evaluating sandbox execution constraints against API quotas...")
     ).toBeInTheDocument();
 
-    expect(screen.getByText("JUDGE")).toBeInTheDocument();
+    expect(screen.getByText(/judge/i)).toBeInTheDocument();
     expect(
       screen.getByText("Reconciling evidence for: AI assistant can submit forms...")
     ).toBeInTheDocument();

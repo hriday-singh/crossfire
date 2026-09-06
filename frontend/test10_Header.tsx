@@ -55,15 +55,15 @@ export const Header: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveModal("settings")}
-            className="hidden sm:flex items-center gap-2 h-8 px-2.5 border border-outline-variant hover:border-primary-container/60 rounded-md select-none font-code-sm text-xs bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer max-w-[170px]"
-            title={`Active Engine: ${formatModelName(state.engineInfo?.model)} (${formatProviderName(state.engineInfo?.provider)}) · Click to open Settings`}
+            className="hidden sm:flex items-center gap-space-2 px-space-2.5 py-1 border border-outline-variant hover:border-primary-container/60 rounded select-none font-code-sm text-code-sm bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer"
+            title={`Backend: ${formatProviderName(state.engineInfo?.provider)} · Click to open Settings`}
           >
             <span
-              className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+              className={`inline-block w-2 h-2 rounded-full ${
                 state.engineInfo ? "bg-verdict-survived" : "bg-outline animate-pulse"
               }`}
             />
-            <span className="text-on-surface font-medium truncate">
+            <span className="text-on-surface font-medium">
               {formatModelName(state.engineInfo?.model)}
             </span>
           </button>

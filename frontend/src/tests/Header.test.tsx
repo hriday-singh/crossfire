@@ -36,11 +36,10 @@ describe("Header", () => {
 
     const claimMapBtn = screen.getByRole("button", { name: /02 Claim Map/i });
     const liveRunnerBtn = screen.getByRole("button", { name: /03 Live Runner/i });
-    const auditSheetBtn = screen.getByRole("button", { name: /04 Audit Sheet/i });
 
     expect(claimMapBtn).toBeDisabled();
     expect(liveRunnerBtn).toBeDisabled();
-    expect(auditSheetBtn).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /04 Audit Sheet/i })).not.toBeInTheDocument();
   });
 
   it("renders separate history and settings buttons", () => {

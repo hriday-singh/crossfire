@@ -19,7 +19,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   // Auto-scroll to latest activity when streaming
   useEffect(() => {
     if (isExpanded && isStreaming && feedEndRef.current) {
-      feedEndRef.current.scrollIntoView({ behavior: "smooth" });
+      feedEndRef.current.scrollIntoView?.({ behavior: "smooth" });
     }
   }, [activities.length, isExpanded, isStreaming]);
 
