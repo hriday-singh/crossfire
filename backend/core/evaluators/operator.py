@@ -71,7 +71,8 @@ async def run_operator(item: TestPlanItem, case: Case, provider: LLMProvider) ->
 
     context = case.raw_input
     if case.context:
-        context += f"\nAdditional context: {case.context}"
+        ctx_excerpt = case.context[:4000] if len(case.context) > 4000 else case.context
+        context += f"\nAdditional context: {ctx_excerpt}"
 
     case_id = getattr(case, "id", None)
     if case_id:

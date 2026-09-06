@@ -426,13 +426,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                       <span className="truncate"><SerpApiText text={cleanUiText(ev.title || truncateUrl(ev.source_url, 45))} /></span>
                       <span className="material-symbols-outlined text-[15px] shrink-0">open_in_new</span>
                     </a>
-                    {ev.provider === "serpapi" && (
+                    {(ev.provider === "serpapi" || ev.provider === "duckduckgo" || !ev.provider) && (
                       <PoweredBySerpApiBadge variant="inline" />
-                    )}
-                    {ev.provider === "duckduckgo" && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0">
-                        via DuckDuckGo Lite
-                      </span>
                     )}
                     {ev.provider === "fixture" && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shrink-0">

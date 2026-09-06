@@ -10,8 +10,8 @@ from core.models import Claim
 
 
 class CreateCaseRequest(BaseModel):
-    raw_input: str = Field(..., min_length=1, max_length=10000, description="Raw statement or proposal to evaluate")
-    context: str | None = Field(default=None, max_length=50000, description="Optional ingested document or URL context")
+    raw_input: str = Field(..., min_length=1, max_length=50000, description="Raw statement or proposal to evaluate")
+    context: str | None = Field(default=None, max_length=500000, description="Optional ingested document or URL context")
     agent_mode: str | None = Field(default="auto", description="Agent selection mode: 'auto' or 'custom'")
     selected_agents: list[str] | None = Field(
         default=None,
@@ -64,8 +64,8 @@ class IngestResponse(BaseModel):
 
 
 class BaselineRequest(BaseModel):
-    raw_input: str = Field(..., min_length=1, max_length=10000, description="The same raw input the case was built from")
-    context: str | None = Field(default=None, max_length=50000, description="Optional ingested document or URL context")
+    raw_input: str = Field(..., min_length=1, max_length=50000, description="The same raw input the case was built from")
+    context: str | None = Field(default=None, max_length=500000, description="Optional ingested document or URL context")
 
 
 class BaselineResponse(BaseModel):

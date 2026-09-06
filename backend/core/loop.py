@@ -68,7 +68,13 @@ async def extract_claims(
 ) -> Case:
     user_content = raw_input
     if context:
-        user_content = f"Proposal under evaluation:\n{raw_input}\n\nSupporting / Context Document:\n{context}"
+        prompt_ctx = context
+        if len(context) > 8000:
+            prompt_ctx = (
+                context[:8000]
+                + "\n\n[Context excerpted for claim extraction. Full document retained in case.]"
+            )
+        user_content = f"Proposal under evaluation:\n{raw_input}\n\nSupporting / Context Document:\n{prompt_ctx}"
 
     result = await provider.generate(
         system_prompt=EXTRACTION_SYSTEM_PROMPT,

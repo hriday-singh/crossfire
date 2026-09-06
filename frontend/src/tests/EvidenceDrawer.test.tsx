@@ -104,4 +104,32 @@ describe("EvidenceDrawer", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText(/\[evidence test\]/i).length).toBeGreaterThan(0);
   });
+
+  it("renders SerpApi badge for evidence items when provider is duckduckgo", () => {
+    const caseWithDdg: Case = {
+      ...mockCase,
+      findings: [
+        {
+          ...mockCase.findings[0],
+          evidence: [
+            {
+              source_url: "https://lawsheet.org/pricing",
+              title: "Legal Tech Pricing Report 2026",
+              snippet: "Industry median pricing for AI summarizers sits at $49/mo.",
+              retrieved_at: "2026-03-01T10:05:00Z",
+              provider: "duckduckgo",
+            },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <EvidenceDrawer claimId="claim-test-1" currentCase={caseWithDdg} onClose={() => {}} />
+    );
+
+    expect(screen.getByTitle("Verified live web result via SerpApi")).toBeInTheDocument();
+    expect(screen.queryByText(/via DuckDuckGo Lite/i)).not.toBeInTheDocument();
+  });
 });
+

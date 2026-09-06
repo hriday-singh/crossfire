@@ -9,6 +9,7 @@ import {
   EntryAttachment,
 } from "@/components/features/AttachmentBar";
 import { EntryPresetsBar } from "@/components/features/EntryPresetsBar";
+import { EntryDropzoneBar } from "@/components/features/EntryDropzoneBar";
 import { EntryFooter } from "@/components/features/EntryFooter";
 import { CubeSpinner } from "@/components/features/CubeSpinner";
 import {
@@ -97,27 +98,10 @@ export const EntryScreen: React.FC = () => {
   };
 
   const handleTextChange = (value: string) => {
+    // When typing past 500 characters, keep rawInput capped at 500.
+    // Do not clip single characters into snippets.
     if (value.length > MAX_PROPOSAL_CHARS) {
-      const proposalText = value.slice(0, MAX_PROPOSAL_CHARS);
-      const overflowText = value.slice(MAX_PROPOSAL_CHARS).trim();
-
-      setRawInput(proposalText);
-
-      if (overflowText) {
-        const blobCount =
-          attachments.filter((a) => a.type === "text_blob").length + 1;
-        const newBlob: EntryAttachment = {
-          id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: "text_blob",
-          name: `Context Snippet #${blobCount}`,
-          context: overflowText,
-          charCount: overflowText.length,
-        };
-        setAttachments((prev) => [...prev, newBlob]);
-        setSmartNotice(
-          `Proposal populated with first 500 characters. Moved excess (${overflowText.length.toLocaleString()} chars) to context snippet.`,
-        );
-      }
+      setRawInput(value.slice(0, MAX_PROPOSAL_CHARS));
       return;
     }
 
@@ -172,21 +156,17 @@ export const EntryScreen: React.FC = () => {
           ? `${rawInput} ${remaining}`.trim()
           : remaining;
         if (combined.length > MAX_PROPOSAL_CHARS) {
-          const proposalText = combined.slice(0, MAX_PROPOSAL_CHARS);
-          const overflowText = combined.slice(MAX_PROPOSAL_CHARS).trim();
-          setRawInput(proposalText);
-          if (overflowText) {
-            const blobCount =
-              attachments.filter((a) => a.type === "text_blob").length + 1;
-            const newBlob: EntryAttachment = {
-              id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              type: "text_blob",
-              name: `Context Snippet #${blobCount}`,
-              context: overflowText,
-              charCount: overflowText.length,
-            };
-            setAttachments((prev) => [...prev, newBlob]);
-          }
+          setRawInput(combined.slice(0, MAX_PROPOSAL_CHARS));
+          const blobCount =
+            attachments.filter((a) => a.type === "text_blob").length + 1;
+          const newBlob: EntryAttachment = {
+            id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            type: "text_blob",
+            name: `Context Block #${blobCount}`,
+            context: remaining,
+            charCount: remaining.length,
+          };
+          setAttachments((prev) => [...prev, newBlob]);
         } else {
           setRawInput(combined);
         }
@@ -200,33 +180,28 @@ export const EntryScreen: React.FC = () => {
     }
 
     // 2. Large text exceeds 500 characters:
-    // Extract first 500 characters for proposal AND compact excess into a text blob!
+    // 500-character get in proposal input AND full text goes inside context blob!
     if (
       pasted.length > MAX_PROPOSAL_CHARS ||
       rawInput.length + pasted.length > MAX_PROPOSAL_CHARS
     ) {
       e.preventDefault();
       const combined = rawInput ? `${rawInput} ${pasted}`.trim() : pasted;
-      const proposalText = combined.slice(0, MAX_PROPOSAL_CHARS);
-      const overflowText = combined.slice(MAX_PROPOSAL_CHARS).trim();
+      setRawInput(combined.slice(0, MAX_PROPOSAL_CHARS));
 
-      setRawInput(proposalText);
-
-      if (overflowText) {
-        const blobCount =
-          attachments.filter((a) => a.type === "text_blob").length + 1;
-        const newBlob: EntryAttachment = {
-          id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: "text_blob",
-          name: `Context Snippet #${blobCount}`,
-          context: overflowText,
-          charCount: overflowText.length,
-        };
-        setAttachments((prev) => [...prev, newBlob]);
-        setSmartNotice(
-          `Proposal populated with first 500 characters. Moved excess (${overflowText.length.toLocaleString()} chars) to context snippet.`,
-        );
-      }
+      const blobCount =
+        attachments.filter((a) => a.type === "text_blob").length + 1;
+      const newBlob: EntryAttachment = {
+        id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: "text_blob",
+        name: `Context Block #${blobCount}`,
+        context: pasted,
+        charCount: pasted.length,
+      };
+      setAttachments((prev) => [...prev, newBlob]);
+      setSmartNotice(
+        `First 500 characters placed in proposal. Full document (${pasted.length.toLocaleString()} chars) attached as context block.`,
+      );
       return;
     }
   };
@@ -630,81 +605,18 @@ export const EntryScreen: React.FC = () => {
             />
 
             {/* Always Available Dropzone & URL Trigger (Never Locks) */}
-            <div className="flex flex-col gap-space-2 mt-space-3">
-              <div
-                id="dropzone"
-                onClick={handleDropzoneClick}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`group bg-surface-container rounded-lg p-space-3 flex items-center justify-between cursor-pointer transition-colors hover:bg-surface-container-high ${
-                  isDragging
-                    ? "ring-2 ring-primary bg-surface-container-high"
-                    : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDropzoneClick();
-                  }}
-                  className="flex items-center gap-space-2 text-outline group-hover:text-on-surface transition-colors min-w-0 bg-transparent border-0 p-0 text-left cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px] text-outline group-hover:text-primary-container shrink-0">
-                    attach_file
-                  </span>
-                  <span className="font-body-sm text-body-sm truncate text-outline group-hover:text-on-surface">
-                    + Add reference link or upload document (PDF, MD, Image)
-                  </span>
-                </button>
-                <div className="flex items-center gap-space-2 shrink-0 pl-space-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowUrlInput(!showUrlInput);
-                    }}
-                    className="font-code-sm text-code-sm text-outline hover:text-on-surface px-space-2 py-0.5 rounded bg-surface-container-low transition-colors cursor-pointer"
-                  >
-                    {showUrlInput ? "Close" : "+ Web URL"}
-                  </button>
-                  <span className="font-code-sm text-code-sm text-outline">
-                    Optional
-                  </span>
-                </div>
-              </div>
-
-              {showUrlInput && (
-                <div className="flex items-center gap-space-2 bg-surface-container rounded-lg p-space-2 border border-outline-variant">
-                  <span className="material-symbols-outlined text-[18px] text-outline ml-space-1">
-                    link
-                  </span>
-                  <input
-                    type="text"
-                    value={urlInputValue}
-                    onChange={(e) => setUrlInputValue(e.target.value)}
-                    placeholder="example.com/spec or https://example.com"
-                    className="flex-1 bg-transparent text-on-surface placeholder:text-outline font-body-sm text-body-sm px-space-2 py-1 outline-none"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleManualUrlSubmit();
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => handleManualUrlSubmit()}
-                    disabled={!urlInputValue.trim()}
-                    className="px-space-3 py-1 text-xs h-7 bg-primary-container hover:bg-blue-600 text-white rounded cursor-pointer transition-colors"
-                  >
-                    Attach URL
-                  </Button>
-                </div>
-              )}
-            </div>
+            <EntryDropzoneBar
+              isDragging={isDragging}
+              showUrlInput={showUrlInput}
+              urlInputValue={urlInputValue}
+              onDropzoneClick={handleDropzoneClick}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onToggleUrlInput={() => setShowUrlInput(!showUrlInput)}
+              onUrlInputChange={setUrlInputValue}
+              onUrlSubmit={handleManualUrlSubmit}
+            />
 
             {/* Agent Suite Selection Panel (Auto vs Custom) */}
             <AgentSelectorPanel

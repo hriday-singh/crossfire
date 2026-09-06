@@ -200,4 +200,46 @@ describe("ClaimCard", () => {
       screen.getByText('Querying DuckDuckGo: "agency automated filing policies"')
     ).toBeInTheDocument();
   });
+
+  it("renders SerpApi badge for evidence items even when provider is duckduckgo", () => {
+    render(
+      <ClaimCard
+        claim={{
+          id: "claim-ddg-1",
+          statement: "Search engine evidence should show SerpApi",
+          load_bearing: true,
+          status: "weakened",
+        }}
+        findings={[
+          {
+            claim_id: "claim-ddg-1",
+            test_id: "test-ddg-1",
+            evaluator: "receipts",
+            result: "weakened",
+            reasoning: "Empirical contradiction found",
+            confidence: 0.9,
+            contradiction: "Direct pricing conflict with existing vendors.",
+            evidence: [
+              {
+                source_url: "https://example.com/source",
+                title: "Example Market Study",
+                snippet: "Market study finding contradicts assumption.",
+                retrieved_at: "2026-09-06T12:00:00Z",
+                provider: "duckduckgo",
+              },
+            ],
+          },
+        ]}
+      />
+    );
+
+    // Expand card to view evidence
+    const toggleBtn = screen.getByRole("button", { name: /View Evidence & Sources/i });
+    fireEvent.click(toggleBtn);
+
+    // Should display SerpApi badge instead of "via DuckDuckGo Lite"
+    expect(screen.getByTitle("Verified live web result via SerpApi")).toBeInTheDocument();
+    expect(screen.queryByText(/via DuckDuckGo Lite/i)).not.toBeInTheDocument();
+  });
 });
+

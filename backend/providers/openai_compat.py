@@ -15,11 +15,24 @@ from config import get_settings
 
 
 def _clean_json_markdown(text: str) -> str:
-    """Strip markdown code fence blocks if present."""
+    """Strip markdown code fence blocks if present, with fallbacks for partial fences."""
     text = text.strip()
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if match:
         return match.group(1).strip()
+    # Fallback for opening fence without closing fence
+    fence_start = re.search(r"```(?:json)?\s*([\s\S]+)", text)
+    if fence_start:
+        candidate = fence_start.group(1).strip()
+        brace_end = candidate.rfind("}")
+        if brace_end != -1:
+            return candidate[: brace_end + 1].strip()
+        return candidate
+    # Fallback to extract outermost JSON object or array
+    brace_start = text.find("{")
+    brace_end = text.rfind("}")
+    if brace_start != -1 and brace_end > brace_start:
+        return text[brace_start : brace_end + 1].strip()
     return text
 
 

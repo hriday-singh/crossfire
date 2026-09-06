@@ -19,7 +19,8 @@ async def run_baseline(raw_input: str, provider: LLMProvider, context: str | Non
     """
     content = raw_input
     if context:
-        content = f"{raw_input}\n\nSupporting document:\n{context}"
+        ctx_excerpt = context[:8000] if len(context) > 8000 else context
+        content = f"{raw_input}\n\nSupporting document:\n{ctx_excerpt}"
     response = await provider.generate(
         system_prompt=BASELINE_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": content}],

@@ -286,13 +286,8 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                           ? `Retrieved ${new Date(ev.retrieved_at).toLocaleDateString()}`
                           : "Verified Source"}
                       </span>
-                      {ev.provider === "serpapi" && (
+                      {(ev.provider === "serpapi" || ev.provider === "duckduckgo" || !ev.provider) && (
                         <PoweredBySerpApiBadge variant="inline" />
-                      )}
-                      {ev.provider === "duckduckgo" && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
-                          via DuckDuckGo Lite
-                        </span>
                       )}
                       {ev.provider === "fixture" && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
