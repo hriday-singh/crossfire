@@ -107,9 +107,9 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
           <div className="flex items-center gap-space-2">
             <span className="material-symbols-outlined text-primary text-[20px]">fact_check</span>
             <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-normal">
-              Evidence &amp; Audit Trail
+              Evidence
             </h2>
-            <span className="sr-only">Audit Trail & Evidence</span>
+            <span className="sr-only">Evidence</span>
             <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5 rounded border border-outline-variant">
               {formattedClaimId}
             </span>
@@ -127,11 +127,11 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-space-8 py-space-6 space-y-space-6">
-          {/* Target Assumption */}
+          {/* The claim */}
           <div>
             <div className="flex items-center justify-between gap-space-2 mb-space-2">
               <span className="font-code-sm text-code-sm uppercase tracking-wider text-outline font-medium">
-                Target Assumption
+                The claim
               </span>
               <span
                 className={`inline-flex items-center gap-1 px-space-2 py-0.5 rounded border font-code-sm text-code-sm font-semibold ${statusBadge.classes}`}
@@ -182,7 +182,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             <div>
               <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary-container mb-space-2 font-medium flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">gavel</span>
-                <span>Judge Reconciled Verdict</span>
+                <span>Why this call</span>
               </div>
               <div className="bg-surface-container-lowest border border-outline-variant rounded p-space-4 space-y-space-2">
                 <p className="font-body-md text-body-md text-on-surface font-medium leading-relaxed">
@@ -200,11 +200,11 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
           )}
 
-          {/* Tests Executed (DESIGN.md Screen 4 §3) */}
+          {/* Tests run (DESIGN.md Screen 4 §3) */}
           {tests.length > 0 && (
             <div>
               <div className="font-code-sm text-code-sm uppercase tracking-wider text-outline mb-space-2 font-medium">
-                Tests Executed ({tests.length})
+                {tests.length} tests run
               </div>
               <div className="flex flex-wrap gap-2">
                 {tests.map((t) => (
@@ -250,7 +250,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                       </span>
                     </a>
 
-                    <div className="font-code-sm text-code-sm text-outline mt-space-1.5 flex items-center gap-space-2">
+                    <div className="font-code-sm text-code-sm text-outline mt-space-1.5 flex items-center gap-space-2 flex-wrap">
                       <span className="font-mono text-primary/80">{getDomain(ev.source_url)}</span>
                       <span>·</span>
                       <span>
@@ -258,6 +258,21 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                           ? `Retrieved ${new Date(ev.retrieved_at).toLocaleDateString()}`
                           : "Verified Source"}
                       </span>
+                      {ev.provider === "serpapi" && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25">
+                          via SerpApi
+                        </span>
+                      )}
+                      {ev.provider === "duckduckgo" && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                          via DuckDuckGo Lite
+                        </span>
+                      )}
+                      {ev.provider === "fixture" && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
+                          via Demo Fixture
+                        </span>
+                      )}
                     </div>
 
                     <blockquote className="font-body-sm text-body-sm text-on-surface-variant mt-space-3 pl-space-3 border-l-2 border-primary-container leading-relaxed italic bg-surface-container-low/50 py-1.5 rounded-r">
@@ -278,7 +293,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
           {/* Nuance & Counter-points */}
           <div>
             <div className="font-code-sm text-code-sm uppercase tracking-wider text-outline mb-space-2 font-medium">
-              Adversarial Evaluator Perspectives ({findings.length})
+              What the {findings.length} tests found
             </div>
             {findings.length > 0 ? (
               <div className="space-y-3">
@@ -339,11 +354,11 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
           </div>
 
-          {/* Next Concrete Step */}
+          {/* How to check */}
           <div>
             <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary font-medium mb-space-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[15px]">rocket_launch</span>
-              <span>Next Concrete Step</span>
+              <span>How to check</span>
             </div>
             <div className="border border-primary-container/40 bg-on-primary-container/20 rounded p-space-4">
               <p className="font-body-sm text-body-sm text-on-surface leading-relaxed mb-space-4">

@@ -113,12 +113,16 @@ async def run_receipts(
     case_id = getattr(case, "id", None)
     if case_id:
         try:
+            from config import get_settings
             from core.activity import emit_activity
             from evidence.search import build_query
+            cfg = get_settings()
+            has_serp = bool(getattr(cfg, "SERPAPI_API_KEY", "") or getattr(cfg, "serpapi_api_key", ""))
+            provider_label = "SerpApi (Google)" if has_serp else "DuckDuckGo Lite"
             await emit_activity(
                 case_id,
                 tag="Evidence Test",
-                text=f'Querying DuckDuckGo: "{build_query(claim.statement)}"',
+                text=f'Querying {provider_label}: "{build_query(claim.statement)}"',
                 claim_id=claim.id,
                 action="search",
             )
@@ -131,11 +135,20 @@ async def run_receipts(
         try:
             import urllib.parse
             top_host = urllib.parse.urlparse(evidence_items[0].source_url).hostname or "external site"
+            provider_tag = getattr(evidence_items[0], "provider", "web")
+            if provider_tag == "serpapi":
+                provider_display = "SerpApi"
+            elif provider_tag == "duckduckgo":
+                provider_display = "DuckDuckGo Lite"
+            elif provider_tag == "fixture":
+                provider_display = "Verified Fixture"
+            else:
+                provider_display = "Web Search"
             from core.activity import emit_activity
             await emit_activity(
                 case_id,
                 tag="Evidence Test",
-                text=f"Found {len(evidence_items)} candidate sources (top: {top_host})",
+                text=f"Found {len(evidence_items)} candidate sources via {provider_display} (top: {top_host})",
                 claim_id=claim.id,
                 action="results",
             )

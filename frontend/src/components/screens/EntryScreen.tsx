@@ -3,6 +3,7 @@ import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
 import { ingestImage, ingestPdf } from "@/lib/api";
 import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
+import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 import { AttachmentBar, EntryAttachment } from "@/components/features/AttachmentBar";
 import { EntryPresetsBar } from "@/components/features/EntryPresetsBar";
 import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
@@ -24,12 +25,7 @@ export const EntryScreen: React.FC = () => {
   const [urlInputValue, setUrlInputValue] = useState("");
   const [smartNotice, setSmartNotice] = useState<string | null>(null);
   const [agentMode, setAgentMode] = useState<"auto" | "custom">("auto");
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([
-    "devils_advocate",
-    "receipts",
-    "builder",
-    "overthinker",
-  ]);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([...DEFAULT_AGENT_IDS]);
   const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 

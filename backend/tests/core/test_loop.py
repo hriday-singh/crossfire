@@ -450,6 +450,7 @@ class SchemaProvider:
         from core.loop import (
             CaseVerdictOutput,
             LoadBearingRanking,
+            NextActionOutput,
             ReconcileVerdict,
             StrategicConsequenceOutput,
         )
@@ -477,7 +478,9 @@ class SchemaProvider:
             "CaseVerdictOutput": lambda: CaseVerdictOutput(
                 decision_state="proceed_with_changes",
                 summary="Holds with named changes.",
-                next_actions=["Confirm the figure in writing."],
+                next_actions=[
+                    NextActionOutput(action="Confirm the figure in writing.", claim_ids=[])
+                ],
             ),
         }
         if name in defaults:

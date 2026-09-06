@@ -12,15 +12,15 @@ describe("AgentSelectorPanel Component", () => {
       <AgentSelectorPanel
         agentMode="auto"
         onAgentModeChange={vi.fn()}
-        selectedAgents={["devils_advocate", "receipts", "builder", "overthinker"]}
+        selectedAgents={["devils_advocate", "receipts", "builder", "operator"]}
         onToggleAgent={vi.fn()}
         isExpanded={false}
         onToggleExpand={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByTestId("agent-selector-panel")).toBeInTheDocument();
-    expect(screen.getByText(/Auto \(Recommended: tailored to claims\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Auto \(Recommended\)/i)).toBeInTheDocument();
     expect(screen.getByText("Configure")).toBeInTheDocument();
     // In collapsed state, the expanded body is not shown
     expect(screen.queryByText(/Auto-Select Suite/i)).not.toBeInTheDocument();
@@ -32,11 +32,11 @@ describe("AgentSelectorPanel Component", () => {
       <AgentSelectorPanel
         agentMode="auto"
         onAgentModeChange={vi.fn()}
-        selectedAgents={["devils_advocate", "receipts", "builder", "overthinker"]}
+        selectedAgents={["devils_advocate", "receipts", "builder", "operator"]}
         onToggleAgent={vi.fn()}
         isExpanded={false}
         onToggleExpand={handleExpand}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByRole("button"));
@@ -55,7 +55,7 @@ describe("AgentSelectorPanel Component", () => {
         onToggleAgent={handleToggle}
         isExpanded={true}
         onToggleExpand={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText(/Custom Selection/i)).toBeInTheDocument();
@@ -65,13 +65,15 @@ describe("AgentSelectorPanel Component", () => {
     expect(screen.getByText("Devil's Advocate")).toBeInTheDocument();
     expect(screen.getByText("Receipts")).toBeInTheDocument();
     expect(screen.getByText("Builder")).toBeInTheDocument();
-    expect(screen.getByText("Overthinker")).toBeInTheDocument();
+    expect(screen.getByText("Operator")).toBeInTheDocument();
 
     // Verify corresponding test names are explicitly shown
     expect(screen.getByText("Conducts: Assumption Test")).toBeInTheDocument();
     expect(screen.getByText("Conducts: Evidence Test")).toBeInTheDocument();
     expect(screen.getByText("Conducts: Feasibility Test")).toBeInTheDocument();
-    expect(screen.getByText("Conducts: Edge-Case Test")).toBeInTheDocument();
+    expect(
+      screen.getByText("Conducts: Operational Friction Test"),
+    ).toBeInTheDocument();
 
     // Toggle agent by selecting the agent
     const builderCheckbox = screen.getByRole("checkbox", { name: /Builder/i });
@@ -81,7 +83,9 @@ describe("AgentSelectorPanel Component", () => {
     expect(handleToggle).toHaveBeenCalledWith("builder");
 
     // Switch mode to auto
-    const autoOption = screen.getByRole("button", { name: /Auto \(Recommended\)/i });
+    const autoOption = screen.getByRole("button", {
+      name: /Auto \(Recommended\)/i,
+    });
     fireEvent.click(autoOption);
     expect(handleModeChange).toHaveBeenCalledWith("auto");
   });
@@ -95,11 +99,11 @@ describe("AgentSelectorPanel Component", () => {
         onToggleAgent={vi.fn()}
         isExpanded={true}
         onToggleExpand={vi.fn()}
-      />
+      />,
     );
 
     expect(
-      screen.getByText(/Please select at least 1 agent/i)
+      screen.getByText(/Please select at least 1 agent/i),
     ).toBeInTheDocument();
   });
 });
@@ -118,13 +122,17 @@ describe("AssignedAgentsCard Component", () => {
         selectedAgents={["builder", "devils_advocate"]}
         agentRationales={rationales}
         onToggleAgent={handleToggle}
-      />
+      />,
     );
 
     expect(screen.getByTestId("assigned-agents-panel")).toBeInTheDocument();
     expect(screen.getByText(/I'm going to use/i)).toBeInTheDocument();
-    expect(screen.getByText(/Builder \(Feasibility Test\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Devil's Advocate \(Assumption Test\)/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Builder \(Feasibility Test\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Devil's Advocate \(Assumption Test\)/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/2 of 4 agents armed/i)).toBeInTheDocument();
 
     // Verify corresponding test badges are shown
@@ -133,10 +141,14 @@ describe("AssignedAgentsCard Component", () => {
 
     // Verify rationale text is displayed
     expect(
-      screen.getByText("System architecture and technical complexity identified.")
+      screen.getByText(
+        "System architecture and technical complexity identified.",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Core critical assumptions identified in market thesis.")
+      screen.getByText(
+        "Core critical assumptions identified in market thesis.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -149,7 +161,7 @@ describe("AssignedAgentsCard Component", () => {
         selectedAgents={["builder"]}
         agentRationales={{}}
         onToggleAgent={handleToggle}
-      />
+      />,
     );
 
     const card = screen.getByTestId("agent-card-devils_advocate");
@@ -164,11 +176,11 @@ describe("AssignedAgentsCard Component", () => {
         selectedAgents={[]}
         agentRationales={{}}
         onToggleAgent={vi.fn()}
-      />
+      />,
     );
 
     expect(
-      screen.getByText(/At least 1 test agent must be active/i)
+      screen.getByText(/At least 1 test agent must be active/i),
     ).toBeInTheDocument();
   });
 });

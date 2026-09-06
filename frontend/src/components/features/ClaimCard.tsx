@@ -92,105 +92,16 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const statusBadge = getStatusBadge();
   const isLoadBearing = claim.load_bearing ?? true;
 
-  // Determine finding header label & style dynamically
-  const getFindingHeadline = () => {
-    const evaluator = relevantFinding?.evaluator?.toLowerCase();
-
-    if (claim.status === "broken") {
-      if (evaluator === "devils_advocate") {
-        return {
-          label: "Fatal Assumption Flaw Identified",
-          icon: "gavel",
-          classes: "text-error",
-        };
-      }
-      if (evaluator === "builder") {
-        return {
-          label: "Critical Feasibility Blocker",
-          icon: "handyman",
-          classes: "text-error",
-        };
-      }
-      if (evaluator === "overthinker") {
-        return {
-          label: "Catastrophic Tail Risk Discovered",
-          icon: "warning",
-          classes: "text-error",
-        };
-      }
-      return {
-        label: "Critical Contradiction Discovered",
-        icon: "report",
-        classes: "text-error",
-      };
-    }
-
-    if (claim.status === "unresolved") {
-      if (evaluator === "receipts") {
-        return {
-          label: "Empirical Evidence Inconclusive",
-          icon: "search",
-          classes: "text-secondary",
-        };
-      }
-      if (evaluator === "builder") {
-        return {
-          label: "Feasibility Assessment Indeterminate",
-          icon: "sync_problem",
-          classes: "text-secondary",
-        };
-      }
-      return {
-        label: "Validation Inconclusive: Open Risk",
-        icon: "help_outline",
-        classes: "text-secondary",
-      };
-    }
-
-    if (claim.status === "weakened") {
-      if (evaluator === "devils_advocate") {
-        return {
-          label: "Vulnerable Implicit Premise",
-          icon: "psychology",
-          classes: "text-tertiary",
-        };
-      }
-      if (evaluator === "builder") {
-        return {
-          label: "Operational Friction & Scaling Limits",
-          icon: "speed",
-          classes: "text-tertiary",
-        };
-      }
-      if (evaluator === "overthinker") {
-        return {
-          label: "Boundary Condition Vulnerability",
-          icon: "crisis_alert",
-          classes: "text-tertiary",
-        };
-      }
-      return {
-        label: "Challenged by Empirical Counter-Evidence",
-        icon: "warning",
-        classes: "text-tertiary",
-      };
-    }
-
-    if (evaluator === "receipts") {
-      return {
-        label: "Supported by Empirical Evidence",
-        icon: "verified",
-        classes: "text-primary-container",
-      };
-    }
-    return {
-      label: "Survived Adversarial Stress-Test",
-      icon: "check_circle",
-      classes: "text-primary-container",
-    };
+  // One plain label per status. The sentence below it already says the specific thing.
+  const FINDING_HEADLINES: Record<string, { label: string; icon: string; classes: string }> = {
+    broken: { label: "Didn't hold up", icon: "cancel", classes: "text-error" },
+    weakened: { label: "Held up only partly", icon: "warning", classes: "text-tertiary" },
+    unresolved: { label: "Couldn't be settled", icon: "help", classes: "text-secondary" },
+    survived: { label: "Held up", icon: "check_circle", classes: "text-primary-container" },
   };
 
-  const findingHeadline = getFindingHeadline();
+  const findingHeadline =
+    FINDING_HEADLINES[claim.status || "survived"] || FINDING_HEADLINES.survived;
 
   return (
     <div
@@ -214,14 +125,14 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         <div className="flex items-center gap-space-2">
           {isLoadBearing ? (
             <span
-              title="Load-bearing assumption: if false, the entire plan fails"
+              title="If this claim is wrong, the plan fails"
               className="font-label-mono text-label-mono uppercase tracking-wider px-space-2 py-0.5 rounded bg-surface-container-highest text-primary-container font-semibold"
             >
-              Load-bearing assumption
+              If this is wrong, the plan fails
             </span>
           ) : (
             <span className="font-label-mono text-label-mono uppercase tracking-wider px-space-2 py-0.5 rounded bg-surface-container-highest text-outline font-semibold">
-              Peripheral assertion
+              Minor point
             </span>
           )}
           <span className="font-code-sm text-code-sm text-outline">
@@ -376,7 +287,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           {tests.length > 0 && (
             <div className="space-y-2">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
-                Tests Executed ({tests.length})
+                {tests.length} tests run
               </span>
               <div className="space-y-1.5">
                 {tests.map((t) => (
@@ -403,7 +314,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             <div className="space-y-1.5">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-primary-container font-semibold flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[15px]">gavel</span>
-                <span>Judge Reconciled Verdict</span>
+                <span>Why this call</span>
               </span>
               <div className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface space-y-1">
                 <p className="font-medium text-on-surface">{consequence.verdict_reasoning}</p>
@@ -416,11 +327,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             </div>
           )}
 
-          {/* Adversarial Evaluator Perspectives */}
+          {/* What the tests found */}
           {claimFindings.length > 0 && (
             <div className="space-y-2">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
-                Adversarial Evaluator Perspectives ({claimFindings.length})
+                What the {claimFindings.length} tests found
               </span>
               <div className="space-y-2">
                 {claimFindings.map((f, i) => (
@@ -464,22 +375,39 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           {allEvidence.length > 0 && (
             <div className="space-y-2">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
-                Primary Source Citations ({allEvidence.length})
+                Sources ({allEvidence.length})
               </span>
               {allEvidence.map((ev, i) => (
                 <div
                   key={i}
                   className="rounded-lg border border-outline-variant bg-surface-container-lowest p-4 space-y-2"
                 >
-                  <a
-                    href={ev.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-body-md text-body-md font-semibold text-primary hover:underline flex items-center justify-between gap-space-2"
-                  >
-                    <span>{ev.title || truncateUrl(ev.source_url, 45)}</span>
-                    <span className="material-symbols-outlined text-[15px]">open_in_new</span>
-                  </a>
+                  <div className="flex items-center justify-between gap-space-2">
+                    <a
+                      href={ev.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-body-md text-body-md font-semibold text-primary hover:underline flex items-center gap-space-2 truncate"
+                    >
+                      <span className="truncate">{ev.title || truncateUrl(ev.source_url, 45)}</span>
+                      <span className="material-symbols-outlined text-[15px] shrink-0">open_in_new</span>
+                    </a>
+                    {ev.provider === "serpapi" && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25 shrink-0">
+                        via SerpApi
+                      </span>
+                    )}
+                    {ev.provider === "duckduckgo" && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0">
+                        via DuckDuckGo Lite
+                      </span>
+                    )}
+                    {ev.provider === "fixture" && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shrink-0">
+                        via Demo Fixture
+                      </span>
+                    )}
+                  </div>
                   <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
                     "{ev.snippet}"
                   </p>
@@ -492,7 +420,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           {allContradictions.length > 0 && (
             <div className="space-y-1">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-error font-semibold block">
-                Contradictions Surfaced
+                What contradicts it
               </span>
               {allContradictions.map((contra, idx) => (
                 <p
@@ -505,11 +433,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             </div>
           )}
 
-          {/* Recommended Strategic Adjustment */}
+          {/* What to change */}
           {consequence?.recommended_change && (
             <div className="space-y-1">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
-                Recommended Strategic Adjustment
+                What to change
               </span>
               <blockquote className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface">
                 "{consequence.recommended_change}"
@@ -521,7 +449,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           {consequence?.next_validation && (
             <div className="space-y-1">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-primary font-semibold block">
-                Next Validation Step
+                How to check
               </span>
               <div className="border border-primary-container/40 bg-surface-container-low p-3 rounded text-body-sm text-on-surface">
                 {consequence.next_validation}

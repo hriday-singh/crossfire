@@ -39,6 +39,7 @@ class EvidenceItem(BaseModel):
     retrieved_at: str
     stance: str = "context"                 # supports | contradicts | context — how it bears on the claim
     source_class: str = "unranked"          # primary | institutional | press | community | blog | unranked
+    provider: str = "duckduckgo"            # serpapi | duckduckgo | fixture
 
 
 class Finding(BaseModel):

@@ -69,9 +69,9 @@ export const MOCK_PREVIEW_CASE: Case = {
       objective: "Evaluate empirical MSA structural variation and clause categorization accuracy.",
     },
     {
-      id: "test-c4-overthinker",
+      id: "test-c4-operator",
       target_claim: "c-preview-4",
-      failure_mode: "edge-case",
+      failure_mode: "operational_friction",
       objective: "Explore enterprise CISO gatekeeping and repository permissioning friction.",
     },
   ],
@@ -144,8 +144,8 @@ export const MOCK_PREVIEW_CASE: Case = {
     },
     {
       claim_id: "c-preview-4",
-      test_id: "test-c4-overthinker",
-      evaluator: "overthinker",
+      test_id: "test-c4-operator",
+      evaluator: "operator",
       result: "Unresolved",
       confidence: 0.65,
       contradiction:
@@ -196,6 +196,30 @@ export const MOCK_PREVIEW_CASE: Case = {
         "Test customer willingness to upload single PDFs manually versus requiring full OAuth repository access.",
     },
   ],
+  case_verdict: {
+    decision_state: "drop",
+    summary:
+      "Bar guidance and professional-indemnity cover both require an attorney to sign the redline, so \"replacing external legal review\" cannot ship as written. It survives only as a copilot that drafts redlines an attorney ratifies.",
+    survived: ["c-preview-3"],
+    broken: ["c-preview-1"],
+    unproven: ["c-preview-2", "c-preview-4"],
+    next_actions: [
+      {
+        action:
+          "Interview 5 General Counsels on whether 1-click human ratification satisfies their compliance policy.",
+        claim_ids: ["c-preview-1"],
+      },
+      {
+        action:
+          "Run a 2-week design-partner pilot measuring attorney hours before and after the tool.",
+        claim_ids: ["c-preview-2"],
+      },
+      {
+        action: "Price a SOC-2 Type II audit before committing to the enterprise segment.",
+        claim_ids: [],
+      },
+    ],
+  },
 };
 
 /**
@@ -233,10 +257,10 @@ export const MOCK_PREVIEW_TESTS: Record<string, ActiveTestRow> = {
     state: "completed",
     finding: MOCK_PREVIEW_CASE.findings[2],
   },
-  "test-c4-overthinker": {
-    test_id: "test-c4-overthinker",
+  "test-c4-operator": {
+    test_id: "test-c4-operator",
     target_claim: "c-preview-4",
-    failure_mode: "edge-case",
+    failure_mode: "operational_friction",
     objective: "Explore enterprise CISO gatekeeping and repository OAuth friction",
     state: "running",
   },
