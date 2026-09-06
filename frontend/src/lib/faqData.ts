@@ -18,7 +18,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Architecture",
     question: "Isn't this just a wrapper around an AI model?",
     answer:
-      "No. A wrapper is one prompt in, one answer out. Crossfire never lets a single model call answer the question directly. It runs a fixed process: pull out the claims, test the important ones independently (some pulling real evidence off the web), then a separate step weighs it all and decides. That's a process, not a prompt with a personality on it.",
+      "No. A wrapper is one prompt in, one answer out. Crossfire never lets a single model call answer the question directly. It runs a fixed process: pull out the claims, test the important ones independently (pulling live evidence off the web powered by SerpApi), then a separate step weighs it all and decides. That's a process, not a prompt with a personality on it.",
+  },
+  {
+    id: "serpapi-evidence-retrieval",
+    category: "Architecture",
+    question: "How does Crossfire search and retrieve real-world evidence?",
+    answer:
+      "Crossfire is powered by SerpApi for real-time web search and structured evidence retrieval. When adversarial agents test load-bearing assumptions, SerpApi executes real-time queries across Google Search, extracting fresh citations, market figures, and counter-arguments so decisions are grounded in live reality rather than stale LLM hallucinations.",
   },
   {
     id: "better-than-one-model",

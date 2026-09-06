@@ -3,6 +3,7 @@ import { ActiveTestRow, Claim, DecisionConsequence, Finding } from "@/types/cros
 import { formatConfidence, truncateUrl } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { TestRow } from "./TestRow";
+import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
 
 interface ClaimCardProps {
   claim: Claim;
@@ -374,9 +375,12 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           {/* Primary Citations */}
           {allEvidence.length > 0 && (
             <div className="space-y-2">
-              <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
-                Sources ({allEvidence.length})
-              </span>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
+                  Sources ({allEvidence.length})
+                </span>
+                <PoweredBySerpApiBadge variant="header" />
+              </div>
               {allEvidence.map((ev, i) => (
                 <div
                   key={i}
@@ -393,9 +397,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                       <span className="material-symbols-outlined text-[15px] shrink-0">open_in_new</span>
                     </a>
                     {ev.provider === "serpapi" && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/25 shrink-0">
-                        via SerpApi
-                      </span>
+                      <PoweredBySerpApiBadge variant="inline" />
                     )}
                     {ev.provider === "duckduckgo" && (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0">

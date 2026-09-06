@@ -7,6 +7,7 @@ import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 import { AttachmentBar, EntryAttachment } from "@/components/features/AttachmentBar";
 import { EntryPresetsBar } from "@/components/features/EntryPresetsBar";
 import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
+import { PoweredBySerpApiBadge, SerpApiIcon } from "@/components/ui/serpapi";
 
 const MAX_PROPOSAL_CHARS = 500;
 
@@ -349,9 +350,12 @@ export const EntryScreen: React.FC = () => {
 
           {/* Header Module */}
           <div className="flex flex-col items-start mb-space-5">
-            <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider mb-space-2">
-              Decision Proposal
-            </span>
+            <div className="flex items-center justify-between w-full gap-2 mb-space-2 flex-wrap">
+              <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider">
+                Decision Proposal
+              </span>
+              <PoweredBySerpApiBadge variant="hero" />
+            </div>
             <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mb-space-2">
               What decision are you testing?
             </h1>
@@ -575,20 +579,27 @@ export const EntryScreen: React.FC = () => {
 
             {/* Action Row */}
             <div className="mt-space-4 pt-space-3 flex items-center justify-between">
-              {/* Keyboard Shortcut Hint */}
-              <div className="flex items-center gap-space-1.5 text-outline font-code-sm text-code-sm">
-                <span className="material-symbols-outlined text-[14px]">
-                  {isMac ? "keyboard_command_key" : "keyboard"}
+              <div className="flex items-center gap-space-3 flex-wrap">
+                {/* Keyboard Shortcut Hint */}
+                <div className="flex items-center gap-space-1.5 text-outline font-code-sm text-code-sm">
+                  <span className="material-symbols-outlined text-[14px]">
+                    {isMac ? "keyboard_command_key" : "keyboard"}
+                  </span>
+                  <span>Press</span>
+                  <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
+                    {isMac ? "⌘" : "Ctrl"}
+                  </kbd>
+                  <span>+</span>
+                  <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
+                    Enter
+                  </kbd>
+                  <span>to analyze</span>
+                </div>
+                <span className="text-outline-variant hidden md:inline">·</span>
+                <span className="hidden md:inline-flex items-center gap-1.5 text-outline font-code-sm text-xs">
+                  <SerpApiIcon size={12} />
+                  <span>Grounding via SerpApi</span>
                 </span>
-                <span>Press</span>
-                <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
-                  {isMac ? "⌘" : "Ctrl"}
-                </kbd>
-                <span>+</span>
-                <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
-                  Enter
-                </kbd>
-                <span>to analyze</span>
               </div>
 
               {/* Primary CTA Trigger */}
@@ -615,8 +626,22 @@ export const EntryScreen: React.FC = () => {
 
       {/* Footer */}
       <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
-        <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-outline font-code-sm text-code-sm">
-          <span>Crossfire: Open-source decision testing platform.</span>
+        <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-outline font-code-sm text-code-sm flex-wrap gap-2">
+          <div className="flex items-center gap-space-3 flex-wrap">
+            <span>Crossfire: Open-source decision testing platform.</span>
+            <span className="text-outline-variant hidden sm:inline">·</span>
+            <a
+              href="https://serpapi.com?utm_source=crossfire&utm_medium=footer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 hover:text-on-surface transition-colors"
+              title="Search results powered by SerpApi"
+            >
+              <span>Search powered by</span>
+              <SerpApiIcon size={13} />
+              <span className="font-semibold text-primary">SerpApi</span>
+            </a>
+          </div>
           <div className="flex items-center gap-space-4">
             <a
               className="hover:text-on-surface transition-colors"

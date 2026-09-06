@@ -1,6 +1,10 @@
 # Crossfire
 
+[![Powered by SerpApi](https://img.shields.io/badge/Search%20Grounding-Powered%20by%20SerpApi-377FEA?style=flat&logoColor=white)](https://serpapi.com)
+
 Crossfire is a decision-testing engine. It takes a business, technical, or product decision you are about to commit resources to, breaks it down into the specific claims the decision depends on, tests the critical ones independently, and outputs a structured test report with a verdict per claim and concrete next steps.
+
+> **Powered by [SerpApi](https://serpapi.com)**: Real-time search grounding and empirical evidence extraction across all stress-tested claims are powered by SerpApi. Every load-bearing assumption is cross-checked against live web results to identify unproven claims and empirical contradictions.
 
 It is not a chatbot, an idea generator, or an advisory council. You give it a decision; it gives you back claims, tests, empirical evidence, and verdicts.
 
@@ -8,56 +12,89 @@ It is not a chatbot, an idea generator, or an advisory council. You give it a de
 
 ## How it works
 
-When you submit a proposal or decision dilemma, Crossfire runs through a five-stage pipeline:
+When you submit a proposal or decision dilemma, Crossfire runs it through a fixed pipeline:
 
 ```
-[Proposal / Dilemma]
+[Proposal / Dilemma]  (text, URL, PDF, or image)
         │
         ▼
-1. Claim extraction (2–5 falsifiable claims)
+1. Claim extraction + input gate + agent selection
+   ├── not testable? → returns a redirect, no invented claims
+   └── testable?     → up to 5 falsifiable claims + the panel this decision needs
         │
         ▼
-2. User confirmation (edit, add, or prune claims before tests run)
+2. User confirmation (edit, add, or prune claims and tests before compute is spent)
+        │  POST /cases/{id}/confirm → 202 Accepted in <50ms, run continues in background
+        │  every stage below streams to the browser over SSE
+        ▼
+3. Load-bearing ranking (at most half the claims; failure collapses the decision)
         │
         ▼
-3. Load-bearing analysis (identifies claims whose failure collapses the decision)
+4. Test plan routing
+   ├── load-bearing claim → full active panel
+   └── secondary claim    → single pass (Evidence Test preferred)
         │
         ▼
-4. Independent test execution (parallel, blind evaluations)
-   ├── Assumption Test (logic, hidden premises, incentive mismatches)
-   ├── Evidence Test (live web search and empirical benchmarks)
-   ├── Feasibility Test (technical constraints, infrastructure, scaling limits)
-   └── Edge-Case Test (boundary failures, abuse vectors, systemic tail risks)
+5. Independent test execution (parallel, blind evaluations)
+   ├── Assumption Test          (logic, hidden premises, incentive mismatches)
+   ├── Evidence Test            (live web search, deep-fetch, empirical benchmarks)
+   ├── Feasibility Test         (technical constraints, infrastructure, scaling limits)
+   └── Operational Friction Test (adoption inertia, red tape, liability, process drag)
         │
         ▼
-5. Judicial reconciliation & strategic consequence synthesis
+6. Judicial reconciliation, per claim, in parallel
+        │  evidence gate: "broken" requires a source-traceable contradiction
+        ▼
+7. Strategic consequence synthesis (impact, pivot, smallest next validation)
+        │
+        ▼
+8. Case verdict (proceed / proceed with changes / hold / drop + next actions)
         │
         ▼
 [Decision Memo & Evidence Drawer]
 ```
 
-### 1. Claim extraction and confirmation
-Crossfire parses your input into two to five discrete, checkable claims. Before running any tests or searches, the system displays these claims so you can edit, remove, or add assumptions. This prevents the engine from spending compute investigating misread intent.
+### 1. Claim extraction, input gate, and agent selection
+Crossfire parses your input into up to five discrete, checkable claims. Input can be typed directly or ingested from a URL, PDF, or image.
 
-### 2. Load-bearing classification
-A claim is load-bearing if its failure would materially change the decision. For example, in an automated compliance product, "Regulators accept automated audit trails" is load-bearing; "Users prefer weekly email digests" is not. Crossfire concentrates its deepest scrutiny and web evidence retrieval on load-bearing claims.
+If the input is not testable, Crossfire does not manufacture claims out of it — the case comes back asking you to name the specific decision you are weighing and what you would do if it went wrong.
 
-### 3. Isolated test panel
-The evaluation panel runs four tests in parallel. To prevent groupthink, each test executes in strict isolation: no evaluator sees what another evaluator found during the run.
+The same model that reads the decision also picks which tests it needs, with a one-sentence rationale per pick. There is no keyword table: a fixed keyword map can only encode the scenarios someone thought of in advance, and identical words mean different things in different domains. You can also pin the panel manually.
+
+### 2. Confirmation and streaming
+Before running any tests or searches, the system displays the claims and the selected panel so you can edit, remove, or add. This prevents the engine from spending compute investigating misread intent.
+
+Confirming does not block. The request returns immediately and the run continues as a background task, publishing every load-bearing flag, verdict, consequence, and progress message to the browser over Server-Sent Events as it happens.
+
+### 3. Load-bearing ranking
+A claim is load-bearing if its failure would materially change the decision. For example, in an automated compliance product, "Regulators accept automated audit trails" is load-bearing; "Users prefer weekly email digests" is not. Crossfire ranks the claims rather than flagging each in isolation, and at most half of them come back load-bearing — that is the constraint that forces prioritisation instead of treating everything as critical.
+
+### 4. Adaptive test routing
+Load-bearing claims get the full active panel. Secondary claims get a single pass, preferring the Evidence Test, because it is the only test that can return an outside source and a sourced contradiction is the only thing that can break a claim. That asymmetry is where the compute budget actually goes.
+
+### 5. Isolated test panel
+Tests run in parallel. To prevent groupthink, each executes in strict isolation: no evaluator sees what another evaluator found during the run. A test that fails outright becomes a low-confidence finding rather than taking down the run.
 
 * **Assumption Test:** Evaluates deductive logic, unstated premises, cognitive blind spots, and misaligned incentives without searching the web.
-* **Evidence Test:** Queries public sources and competitor documentation via DuckDuckGo Lite and Scrapling. If initial snippets are thin on load-bearing claims, it deep-fetches candidate pages. If no public evidence exists, confidence is capped at 0.35 to avoid confident false negatives.
-* **Feasibility Test:** Evaluates technical and operational viability, including required APIs, data access, latency budgets, unit economics, and regulatory boundaries (GDPR, HIPAA, SOC2).
-* **Edge-Case Test:** Stress-tests boundary conditions, adversarial exploitation, abuse vectors, and second-order systemic feedback loops.
+* **Evidence Test:** Queries public sources and competitor documentation via SerpApi, falling back to DuckDuckGo Lite through Scrapling when no key is configured or the quota is exhausted. Results are ranked by source class (primary, institutional, press, community, blog). If initial snippets are thin on load-bearing claims, it deep-fetches candidate pages. If no public evidence exists, confidence is capped at 0.35 to avoid confident false negatives.
+* **Feasibility Test:** Evaluates technical and operational viability, including required APIs, data access, latency budgets, unit economics, threat model, and regulatory boundaries (GDPR, HIPAA, SOC2).
+* **Operational Friction Test:** Stress-tests the things that kill decisions after the tech works — adoption inertia, enterprise gatekeeping and procurement, regulatory liability, and process drag.
 
-### 4. Judicial reconciliation
-Evaluators do not vote, and scores are never averaged. A dedicated reconciliation step reviews the findings across all tests for each claim. Documented empirical contradictions from the Evidence Test or hard architectural blockers from the Feasibility Test will break a claim even if other tests found no objections.
+### 6. Judicial reconciliation
+Evaluators do not vote, and scores are never averaged. A dedicated reconciliation step reviews the findings across all tests for each claim, running per claim in parallel.
 
-### 5. Strategic consequences
+The gate that matters: a claim can only be marked **broken** if some finding carries both evidence and a contradiction traceable to a source. Reasoning alone can weaken a claim; it can never break one. An unsupported "broken" verdict is downgraded to "weakened" and the downgrade is written into the reasoning you see.
+
+### 7. Strategic consequences
 For any claim that does not cleanly survive, Crossfire synthesizes concrete recommendations:
 * **Impact rating:** High, medium, or low based on whether the claim was load-bearing.
 * **Strategic pivot:** A concrete operational adjustment rather than generic advice.
 * **Smallest next validation:** The lowest-cost real-world experiment to de-risk remaining uncertainty before spending capital.
+
+### 8. Case verdict
+The run closes with a single decision state — **proceed**, **proceed with changes**, **hold**, or **drop** — the claims sorted into survived, broken, and unproven, and two to three deduplicated next actions anchored to the specific claims that triggered them.
+
+Every synthesis step has a deterministic fallback. If the model fails at ranking, consequences, or the final verdict, a rule-based version ships instead. The report degrades in polish, never in existence.
 
 ---
 
@@ -151,7 +188,7 @@ LLM_MODEL=gemini-2.5-flash
 LLM_API_KEY=
 ```
 
-> **Note on search:** Web retrieval uses DuckDuckGo Lite via Scrapling. It operates locally with no API keys or search subscriptions required.
+> **Note on search:** Web retrieval uses SerpApi when `SERPAPI_API_KEY` is set, and automatically falls back to DuckDuckGo Lite via Scrapling when it is not, or when the SerpApi quota is exhausted. The fallback runs locally with no API keys or search subscriptions required, so search works out of the box.
 
 Start the backend server:
 ```bash
@@ -221,10 +258,14 @@ crossfire/
 ├── backend/
 │   ├── api/             # FastAPI routes, request models, and SSE endpoints
 │   ├── core/
-│   │   ├── evaluators/  # Assumption, Evidence, Feasibility, and Edge-Case test runners
-│   │   ├── loop.py      # Pipeline orchestrator: extraction, planning, reconciliation
-│   │   └── models.py    # Pydantic data contracts (Case, Claim, Finding, Consequence)
-│   ├── evidence/        # Scrapling search and web-page retrieval engine
+│   │   ├── evaluators/  # Assumption, Evidence, Feasibility, and Operational Friction runners
+│   │   ├── agent_panel.py # Agent catalog, failure-mode routing, and test-plan construction
+│   │   ├── reconcile.py # Judge: per-claim reconciliation, evidence gate, finding ranking
+│   │   ├── baseline.py  # Single-prompt control answer for side-by-side comparison
+│   │   ├── loop.py      # Pipeline orchestrator: extraction, ranking, synthesis
+│   │   └── models.py    # Pydantic data contracts (Case, Claim, Finding, CaseVerdict)
+│   ├── evidence/        # SerpApi + Scrapling search and web-page retrieval engine
+│   ├── events.py        # Per-case SSE event queues
 │   ├── ingestion/       # PDF and image ingestion (PyMuPDF, RapidOCR)
 │   ├── providers/       # LLM provider adapters (Gemini, Anthropic, OpenAI-compatible)
 │   ├── config.py        # Environment settings and validation
@@ -251,7 +292,8 @@ The backend can be configured via environment variables in `backend/.env`:
 |---|---|---|
 | `LLM_PROVIDER` | `openai_compat` | Provider backend: `gemini`, `anthropic`, or `openai_compat` |
 | `LLM_BASE_URL` | `http://localhost:8081/v1` | Base URL used when `LLM_PROVIDER=openai_compat` |
-| `LLM_MODEL` | `gemini-2.5-flash` | Model identifier passed to the active provider |
+| `LLM_MODEL` | `gemini-3.7-flash` | Model identifier passed to the active provider |
+| `SERPAPI_API_KEY` | `""` | Enables SerpApi search; falls back to DuckDuckGo Lite when empty or out of quota |
 | `LLM_API_KEY` | `""` | Optional universal API key override |
 | `EVALUATOR_CONCURRENCY` | `8` | Maximum concurrent evaluator calls during the test stage |
 | `EVALUATOR_TIMEOUT_SECONDS` | `60.0` | Timeout per evaluator call before marking a test timed out |

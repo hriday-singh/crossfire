@@ -87,7 +87,9 @@ def test_clean_ddg_url_preserves_query_parameters_and_html_entities():
 @pytest.mark.asyncio
 async def test_search_evidence_returns_well_formed_evidence_items(monkeypatch, sample_claim):
     """Mock raw search response to verify search_evidence parses and returns EvidenceItems correctly."""
-    from evidence.search import search_evidence
+    from evidence.search import search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "")
 
     async def fake_search(query: str) -> str:
         return SAMPLE_DDG_HTML
@@ -108,8 +110,9 @@ async def test_search_evidence_returns_well_formed_evidence_items(monkeypatch, s
 @pytest.mark.asyncio
 async def test_search_evidence_one_query_per_claim(monkeypatch, sample_claim):
     """Cost/bandwidth control: assert search execution is called exactly once for a single claim."""
-    from evidence.search import search_evidence
+    from evidence.search import search_evidence, settings
 
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "")
     call_count = 0
 
     async def fake_search(query: str) -> str:
@@ -148,7 +151,9 @@ async def test_search_evidence_demo_mode_returns_fixture_and_skips_real_call(mon
 @pytest.mark.asyncio
 async def test_search_evidence_degrades_gracefully_on_failure(monkeypatch, sample_claim):
     """A dead/failing search call returns an empty list, never raises past this function."""
-    from evidence.search import search_evidence
+    from evidence.search import search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "")
 
     async def failing_search(query: str) -> str:
         raise ConnectionError("Search network failure")
@@ -239,7 +244,9 @@ def test_rank_by_source_class_puts_authority_first():
 
 @pytest.mark.asyncio
 async def test_search_evidence_sends_keywords_not_the_sentence(monkeypatch, sample_claim):
-    from evidence.search import search_evidence
+    from evidence.search import search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "")
 
     sent: list[str] = []
 
@@ -251,3 +258,146 @@ async def test_search_evidence_sends_keywords_not_the_sentence(monkeypatch, samp
     await search_evidence(sample_claim)
     assert sent and sent[0] != sample_claim.statement
     assert len(sent[0].split()) <= 8
+
+
+def test_parse_serpapi_response_extracts_organic_results():
+    from evidence.search import parse_serpapi_response
+
+    sample_serpapi = {
+        "organic_results": [
+            {
+                "position": 1,
+                "title": "Official Policy Guide",
+                "link": "https://agency.gov/policy",
+                "snippet": "Official government regulations on automated submissions.",
+            },
+            {
+                "position": 2,
+                "title": "Industry Analysis",
+                "link": "https://example.edu/paper",
+                "snippet": "Academic analysis of workflow integrity.",
+            },
+        ]
+    }
+    items = parse_serpapi_response(sample_serpapi, max_results=2)
+    assert len(items) == 2
+    assert items[0].source_url == "https://agency.gov/policy"
+    assert items[0].title == "Official Policy Guide"
+    assert items[0].snippet == "Official government regulations on automated submissions."
+    assert items[0].provider == "serpapi"
+    assert items[1].provider == "serpapi"
+
+
+def test_parse_serpapi_response_detects_quota_exhaustion():
+    import pytest
+    from evidence.search import SerpApiQuotaExceededError, parse_serpapi_response
+
+    quota_error_payload = {
+        "error": "Your account has run out of searches."
+    }
+    with pytest.raises(SerpApiQuotaExceededError):
+        parse_serpapi_response(quota_error_payload)
+
+
+@pytest.mark.asyncio
+async def test_search_evidence_uses_serpapi_when_key_present(monkeypatch, sample_claim):
+    from evidence.search import search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "test-serp-key")
+
+    async def fake_serpapi(query: str, api_key: str, max_results: int = 4):
+        return [
+            EvidenceItem(
+                source_url="https://docs.example.com/api",
+                title="SerpApi Result",
+                snippet="Snipped returned via SerpApi.",
+                retrieved_at="2026-09-06T00:00:00Z",
+                provider="serpapi",
+            )
+        ]
+
+    def should_not_be_called(query: str):
+        raise AssertionError("DuckDuckGo should not be called when SerpApi succeeds")
+
+    monkeypatch.setattr("evidence.search._execute_serpapi_search", fake_serpapi)
+    monkeypatch.setattr("evidence.search._execute_search", should_not_be_called)
+
+    items = await search_evidence(sample_claim)
+    assert len(items) == 1
+    assert items[0].provider == "serpapi"
+    assert items[0].source_url == "https://docs.example.com/api"
+
+
+@pytest.mark.asyncio
+async def test_search_evidence_falls_back_to_ddg_on_serpapi_quota_exhausted(monkeypatch, sample_claim):
+    from evidence.search import SerpApiQuotaExceededError, search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "test-serp-key")
+
+    async def failing_serpapi(query: str, api_key: str, max_results: int = 4):
+        raise SerpApiQuotaExceededError("Account has run out of searches (HTTP 429)")
+
+    ddg_called = False
+
+    async def fake_ddg_search(query: str) -> str:
+        nonlocal ddg_called
+        ddg_called = True
+        return SAMPLE_DDG_HTML
+
+    monkeypatch.setattr("evidence.search._execute_serpapi_search", failing_serpapi)
+    monkeypatch.setattr("evidence.search._execute_search", fake_ddg_search)
+
+    items = await search_evidence(sample_claim)
+    assert ddg_called is True
+    assert len(items) == 3
+    assert all(i.provider == "duckduckgo" for i in items)
+
+
+@pytest.mark.asyncio
+async def test_search_evidence_falls_back_to_ddg_on_serpapi_error(monkeypatch, sample_claim):
+    from evidence.search import SerpApiError, search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "test-serp-key")
+
+    async def failing_serpapi(query: str, api_key: str, max_results: int = 4):
+        raise SerpApiError("SerpApi HTTP 500 error")
+
+    ddg_called = False
+
+    async def fake_ddg_search(query: str) -> str:
+        nonlocal ddg_called
+        ddg_called = True
+        return SAMPLE_DDG_HTML
+
+    monkeypatch.setattr("evidence.search._execute_serpapi_search", failing_serpapi)
+    monkeypatch.setattr("evidence.search._execute_search", fake_ddg_search)
+
+    items = await search_evidence(sample_claim)
+    assert ddg_called is True
+    assert len(items) == 3
+    assert all(i.provider == "duckduckgo" for i in items)
+
+
+@pytest.mark.asyncio
+async def test_search_evidence_defaults_to_ddg_when_key_empty(monkeypatch, sample_claim):
+    from evidence.search import search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "")
+
+    def should_not_be_called(*args, **kwargs):
+        raise AssertionError("SerpApi should not be called when API key is empty")
+
+    ddg_called = False
+
+    async def fake_ddg_search(query: str) -> str:
+        nonlocal ddg_called
+        ddg_called = True
+        return SAMPLE_DDG_HTML
+
+    monkeypatch.setattr("evidence.search._execute_serpapi_search", should_not_be_called)
+    monkeypatch.setattr("evidence.search._execute_search", fake_ddg_search)
+
+    items = await search_evidence(sample_claim)
+    assert ddg_called is True
+    assert len(items) == 3
+    assert all(i.provider == "duckduckgo" for i in items)
