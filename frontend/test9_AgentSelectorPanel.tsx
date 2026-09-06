@@ -46,7 +46,7 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
           <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">
             Agent Suite:{" "}
             {agentMode === "auto" ? (
-              <span className="text-primary-container">Auto (Recommended: tailored to claims)</span>
+              <span className="text-primary-container">Auto (Recommended)</span>
             ) : (
               <span className="text-on-surface">
                 Custom ({selectedAgents.length} of {ALL_AGENTS.length} active)
@@ -119,8 +119,8 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                     isDisabled
                       ? "bg-surface-container/50 border-outline-variant/30 opacity-70 cursor-default"
                       : isSelected
-                      ? "bg-surface-container border-primary-container/60 cursor-pointer shadow-xs"
-                      : "bg-surface-container/30 border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container cursor-pointer opacity-80"
+                        ? "bg-surface-container border-primary-container/60 cursor-pointer shadow-xs"
+                        : "bg-surface-container/30 border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container cursor-pointer opacity-80"
                   }`}
                 >
                   <div className="flex items-start gap-2.5">
@@ -162,8 +162,12 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
 
           {isCustom && selectedAgents.length === 0 && (
             <p className="font-code-sm text-code-sm text-error flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[14px]">warning</span>
-              <span>Please select at least 1 agent to run the stress test.</span>
+              <span className="material-symbols-outlined text-[14px]">
+                warning
+              </span>
+              <span>
+                Please select at least 1 agent to run the stress test.
+              </span>
             </p>
           )}
         </div>

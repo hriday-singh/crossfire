@@ -39,6 +39,7 @@ class EvidenceItem(BaseModel):
     retrieved_at: str
     stance: str = "context"                 # supports | contradicts | context — how it bears on the claim
     source_class: str = "unranked"          # primary | institutional | press | community | blog | unranked
+    provider: str = "duckduckgo"            # serpapi | duckduckgo | fixture
 
 
 class Finding(BaseModel):
@@ -52,6 +53,13 @@ class Finding(BaseModel):
     contradiction: str | None = None
 
 
+class NextAction(BaseModel):
+    """An action anchored to the claims that forced it. Empty anchors are valid."""
+
+    action: str
+    claim_ids: list[str] = []               # Claim.id values this action answers
+
+
 class CaseVerdict(BaseModel):
     """One case-level judgement replacing N near-identical per-claim ones."""
 
@@ -60,7 +68,7 @@ class CaseVerdict(BaseModel):
     survived: list[str] = []                # claim ids
     broken: list[str] = []
     unproven: list[str] = []                # weakened + unresolved
-    next_actions: list[str] = []            # 2-3 merged, deduped
+    next_actions: list[NextAction] = []     # 2-3 merged, deduped, claim-anchored
 
 
 class DecisionConsequence(BaseModel):

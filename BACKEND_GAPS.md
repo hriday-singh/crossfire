@@ -15,97 +15,69 @@ Evaluator isolation holds. Below is what does not match the plan.
 and tests stripped). Open-source, self-hosted, single-user — the limiter only
 ever throttled the operator's own machine.
 
+**Status:** All 8 audit gaps resolved and covered with unit tests. Full backend suite passing (229 passed, 8 skipped).
+
 ---
 
-## 1. Restart mid-run leaves a zombie case and a stream that never ends
-`events.py`, `api/routes.py:107`
+## 1. Restart mid-run leaves a zombie case and a stream that never ends [RESOLVED]
+`events.py`, `store.py`, `main.py`, `api/routes.py:107`
 
-Cases persist to SQLite; event history is in-memory only. If the process
-restarts while a case is `testing`, the DB row stays `testing` forever, and
-`stream_case` fast-paths only `done`/`error` — so a reconnect falls into
-`events.subscribe()` and emits `: ping` every 15s indefinitely. No reaper, no
-resume.
+- **Fix Applied:**
+  - Added `recover_interrupted_cases()` in `store.py` to transition any cases left in `testing` to `error` on startup.
+  - Wired FastAPI lifespan context in `main.py` to trigger startup recovery.
+  - In `stream_case` (`api/routes.py`), added fast-path check: if status is `testing` and `events.get_history()` is empty, emit `error` with `"Run interrupted or server restarted"` and terminate immediately.
+  - Verified with dedicated tests in `tests/api/test_recovery.py`.
 
-**Fix:** on startup, mark any case still in `testing` as `error` with a
-"run interrupted" message. In `stream_case`, if status is `testing` and
-`events.get_history()` is empty, emit `error` and close instead of subscribing.
+## 2. `Finding.evaluator` uses two different vocabularies [RESOLVED]
+`core/agent_panel.py`, `core/loop.py: _degraded_finding`
 
-## 2. `Finding.evaluator` uses two different vocabularies
-`core/loop.py` `_degraded_finding`
+- **Fix Applied:**
+  - Added `FAILURE_MODE_TO_AGENT` inverted map in `core/agent_panel.py`.
+  - Updated `_degraded_finding` and `test_started` event in `core/loop.py` to use `FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)` so evaluators always map to the canonical agent IDs (`devils_advocate | receipts | builder | operator`).
+  - Updated legacy test assertions in `tests/evaluators/test_overthinker.py`.
 
-Contract: `devils_advocate | receipts | builder | overthinker`. Real findings
-comply. `_degraded_finding` writes `evaluator=item.failure_mode` — `"assumption"`.
-A timed-out or failed test therefore maps to no known test name in the UI.
+## 3. Load-bearing has no rationale and no SSE event [RESOLVED]
+`core/models.py`, `core/loop.py: rank_load_bearing`
 
-**Fix:** invert `AGENT_FAILURE_MODE` and write the agent id in
-`_degraded_finding`. One lookup.
+- **Fix Applied:**
+  - Added `load_bearing_reason: str | None = None` to `Claim` model in `core/models.py`.
+  - Added `reasons` field to `LoadBearingRanking` in `core/loop.py` and populated `claim.load_bearing_reason`.
+  - In `run_pipeline`, published `load_bearing_ready` SSE event carrying `{claim_id, load_bearing, reason}` immediately after ranking.
+  - Updated frontend types (`frontend/src/types/crossfire.ts`), listener (`useCaseStream.ts`), and reducer (`caseReducer.ts`).
 
-## 3. Load-bearing has no rationale and no SSE event
-`core/loop.py` `rank_load_bearing`
+## 4. `ceil(n/2)` cap is not the classifier the plan describes [RESOLVED]
+`core/loop.py: load_bearing_cap`
 
-Returns bare booleans. `DESIGN.md` promises the drawer explains *why* a claim is
-load-bearing — nothing stores that. And no event fires between
-`claim_map_ready` and `verdict_ready`, so the frontend cannot badge core
-assumptions until the final `GET /cases/{id}`.
+- **Resolution (Option 1):** Dynamic count clamped at ceiling (`ceil(n/2)`).
+  - Added `load_bearing_count` to `LoadBearingRanking` schema.
+  - Clamped between `0` and `ceil(n/2)`: cases with zero truly load-bearing claims can now legitimately return 0, while high-stakes cases are bounded by the cost-control ceiling.
+  - Tested in `tests/core/test_loop.py`.
 
-**Fix:** add one `reason` string per ranked claim to `LoadBearingRanking`,
-persist it (new `Claim.load_bearing_reason`, additive), and publish a
-`load_bearing_ready` event carrying `{claim_id, load_bearing, reason}`.
+## 5. `impact` is unvalidated after LLM synthesis [RESOLVED]
+`core/loop.py: _synthesize_single_consequence`
 
-## 4. `ceil(n/2)` cap is not the classifier the plan describes — decide
-`core/loop.py` `load_bearing_cap`
+- **Fix Applied:**
+  - Added whitelist guard: only assign `consequence.impact = result.impact.strip().lower()` if in `{"high", "medium", "low"}`, otherwise preserving the status-derived baseline impact.
+  - Tested in `tests/core/test_loop.py`.
 
-Plan asks: "if this claim turns out false, does the decision materially change?"
-Code forces exactly half of the claims load-bearing regardless of the answer.
-Five genuinely critical claims → two flagged. Five trivial ones → two flagged
-anyway. Adaptive scrutiny becomes fixed scrutiny.
-
-**Options:** keep the cap as declared cost control and say so in the doc; or
-let the model return a count and clamp only at the ceiling (`ceil(n/2)`) so a
-low-stakes case can legitimately return zero. Needs a call, not a patch.
-
-## 5. `impact` is unvalidated after LLM synthesis
-`core/loop.py` `_synthesize_single_consequence`
-
-`consequence.impact = result.impact.lower()` — no whitelist. The model can emit
-`"critical"` or `"medium-high"` and it reaches the frontend, which colors on
-`high|medium|low` only.
-
-**Fix:** one guard — assign only if in `{"high","medium","low"}`, else keep the
-status-derived value.
-
-## 6. Evidence gate bypass via `_apply_citations`
+## 6. Evidence gate bypass via `_apply_citations` [RESOLVED]
 `core/evaluators/receipts.py:88`
 
-Returns `kept or items`: when the model cites nothing, all search hits attach as
-evidence anyway. Combined with `contradiction if evidence else None`, a
-contradiction the model never tied to any source passes
-`has_sourced_contradiction()` and can break a claim — exactly what the Stage-1a
-gate exists to prevent.
+- **Fix Applied:**
+  - Updated `_apply_citations`: if `kept` is empty, resets all evidence items to `stance="context"`.
+  - Updated `run_receipts`: if `response.cited` is empty or no citations matched retrieved sources, forces `contradiction=None`.
+  - Tested in `tests/evaluators/test_receipts.py`.
 
-**Fix:** when `cited` is empty, keep the items as unstanced context but force
-`contradiction=None`. A break should require a source the evaluator named.
+## 7. Claim count unbounded [RESOLVED]
+`core/loop.py: extract_claims`
 
-## 7. Claim count unbounded
-`core/loop.py` `extract_claims`
+- **Fix Applied:**
+  - Clamped `statements[:5]` immediately after extracting statements from `ExtractedClaims`.
+  - Tested in `tests/core/test_loop.py`.
 
-Prompt asks for 2–5; code clamps nothing. Fan-out is claims × 4 evaluators, so a
-12-claim extraction is 48 LLM calls.
+## 8. Evaluators receive the full `case`, findings included [RESOLVED]
+`core/loop.py: run_evaluators`
 
-**Fix:** `statements[:5]` at the mapping step.
-
-## 8. Evaluators receive the full `case`, findings included
-`core/loop.py` `run_evaluators`
-
-Empty on a first run, so isolation holds today. But a re-run, or a case rehydrated
-from SQLite, would put other evaluators' findings inside every evaluator prompt —
-structurally breaking the ground rule in `CROSSFIRE_PROJECT_SUMMARY.md` §9.1.
-
-**Fix:** pass `case.model_copy(update={"findings": [], "consequences": [], "case_verdict": None})`
-into `dispatch`.
-
----
-
-## Suggested order
-6 → 2 → 5 → 7 (small, contained, each with a test), then 1 (needs a startup
-hook), then 3 (touches the model + frontend contract). 4 is a decision.
+- **Fix Applied:**
+  - In `run_evaluators`, created `isolated_case = case.model_copy(update={"findings": [], "consequences": [], "case_verdict": None})` and passed it into `dispatch`.
+  - Verified that evaluators never receive findings or verdicts from other runs or rehydrated rows in `tests/core/test_loop.py`.

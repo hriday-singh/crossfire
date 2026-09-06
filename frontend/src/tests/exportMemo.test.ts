@@ -91,4 +91,45 @@ describe("exportMemo", () => {
     expect(memo).toContain("**Total Assumptions Audited:** 0");
     expect(memo).toContain("VALIDATED STRATEGY");
   });
+
+  it("leads with the backend verdict and anchors its actions to claim numbers", () => {
+    const casedVerdict: Case = {
+      id: "case-verdict",
+      raw_input: "Replace the support team with an autonomous agent",
+      context: null,
+      status: "done",
+      claims: [
+        {
+          id: "c1",
+          statement: "The agent handles 100% of tier-1 without escalation",
+          load_bearing: true,
+          status: "broken",
+        },
+        { id: "c2", statement: "Ticket volume stays flat", load_bearing: false, status: "survived" },
+      ],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+      case_verdict: {
+        decision_state: "drop",
+        summary: "Real tier-1 containment tops out at 45-65%, not the 100% assumed.",
+        survived: ["c2"],
+        broken: ["c1"],
+        unproven: [],
+        next_actions: [
+          { action: "Run a 30-day shadow test on tier-1 refunds.", claim_ids: ["c1"] },
+          { action: "Price the fallback human rota.", claim_ids: [] },
+        ],
+      },
+    };
+
+    const memo = formatDecisionMemoMarkdown(casedVerdict);
+    expect(memo).toContain("Don't proceed as written.");
+    expect(memo).toContain("Real tier-1 containment tops out at 45-65%");
+    expect(memo).toContain("Before you commit");
+    expect(memo).toContain("Run a 30-day shadow test on tier-1 refunds. _(claim 1)_");
+    expect(memo).toContain("- Price the fallback human rota.");
+    // The count-derived fallback text is not used when a real verdict exists.
+    expect(memo).not.toContain("HIGH STRATEGIC RISK");
+  });
 });

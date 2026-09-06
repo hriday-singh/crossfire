@@ -9,7 +9,15 @@ from __future__ import annotations
 
 import pytest
 
-from core.models import Case, Claim, ClaimStatus, EvidenceItem, Finding, TestPlanItem
+from core.models import (
+    Case,
+    Claim,
+    ClaimStatus,
+    DecisionConsequence,
+    EvidenceItem,
+    Finding,
+    TestPlanItem,
+)
 
 
 def _finding(evaluator: str, *, evidence=False, contradiction=None, confidence=0.6) -> Finding:
@@ -193,7 +201,7 @@ async def test_evaluator_fan_out_is_capped(monkeypatch, sample_case):
 @pytest.mark.asyncio
 async def test_case_verdict_merges_and_dedupes_actions(fake_provider_factory):
     """The college run produced five separate 'pivot to human-in-the-loop'."""
-    from core.loop import CaseVerdictOutput, synthesize_case_verdict
+    from core.loop import CaseVerdictOutput, NextActionOutput, synthesize_case_verdict
 
     case = Case(
         id="case-v",
@@ -210,9 +218,18 @@ async def test_case_verdict_merges_and_dedupes_actions(fake_provider_factory):
                 decision_state="hold",
                 summary="The stairs premise did not survive.",
                 next_actions=[
-                    "Book an occupational-therapy home assessment.",
-                    "book an occupational-therapy home assessment.",
-                    "Get the facility's waitlist position in writing.",
+                    NextActionOutput(
+                        action="Book an occupational-therapy home assessment.",
+                        claim_ids=["a", "ghost-claim"],
+                    ),
+                    NextActionOutput(
+                        action="book an occupational-therapy home assessment.",
+                        claim_ids=["a"],
+                    ),
+                    NextActionOutput(
+                        action="Get the facility's waitlist position in writing.",
+                        claim_ids=[],
+                    ),
                 ],
             )
         ]
@@ -225,6 +242,33 @@ async def test_case_verdict_merges_and_dedupes_actions(fake_provider_factory):
     assert verdict.unproven == ["b"]
     assert verdict.survived == ["c"]
     assert len(verdict.next_actions) == 2  # the near-duplicate is merged away
+    # Anchored to a real claim; the hallucinated id is dropped, not rendered as a dead link.
+    assert verdict.next_actions[0].claim_ids == ["a"]
+    assert verdict.next_actions[1].claim_ids == []
+
+
+@pytest.mark.asyncio
+async def test_case_verdict_fallback_actions_carry_their_claim(sample_case):
+    """When synthesis dies, per-claim next_validation still arrives anchored."""
+    from core.loop import synthesize_case_verdict
+
+    class DeadProvider:
+        async def generate(self, system_prompt, messages, response_schema=None):
+            raise RuntimeError("provider is down")
+
+    sample_case.claims[0].status = ClaimStatus.BROKEN
+    sample_case.consequences = [
+        DecisionConsequence(
+            claim_id=sample_case.claims[0].id,
+            impact="high",
+            recommended_change="Rewrite the premise.",
+            next_validation="Get the containment rate in writing.",
+        )
+    ]
+
+    verdict = await synthesize_case_verdict(sample_case, DeadProvider())
+    assert verdict.next_actions[0].action == "Get the containment rate in writing."
+    assert verdict.next_actions[0].claim_ids == [sample_case.claims[0].id]
 
 
 @pytest.mark.asyncio

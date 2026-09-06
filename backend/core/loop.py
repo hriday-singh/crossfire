@@ -26,6 +26,7 @@ from core.models import (
     ClaimStatus,
     DecisionConsequence,
     Finding,
+    NextAction,
     TestPlanItem,
 )
 from core.textutil import clamp_sentences, one_line
@@ -361,12 +362,20 @@ async def synthesize_consequences(
     return case.consequences
 
 
+class NextActionOutput(BaseModel):
+    action: str = Field(description="One concrete action, at most 2 sentences.")
+    claim_ids: list[str] = Field(
+        default_factory=list,
+        description="Ids of the claims this action answers, copied verbatim from the list given.",
+    )
+
+
 class CaseVerdictOutput(BaseModel):
     decision_state: str = Field(
         description="One of: proceed, proceed_with_changes, hold, drop"
     )
     summary: str = Field(description="At most 3 sentences: where the decision stands and why.")
-    next_actions: list[str] = Field(
+    next_actions: list[NextActionOutput] = Field(
         default_factory=list,
         description="2 to 3 merged actions covering everything that failed. No near-duplicates.",
     )
@@ -394,11 +403,17 @@ CASE_VERDICT_SYSTEM_PROMPT = (
     "- 'decision_state': 'proceed' (nothing load-bearing failed), 'proceed_with_changes' "
     "(it survives with named modifications), 'hold' (a load-bearing claim is unproven and "
     "must be settled first), 'drop' (a load-bearing claim was refuted by a source).\n"
-    "- 'summary': at most 3 sentences. Say what held, what did not, and what that means "
-    "for the decision. Name the specific thing that decided it.\n"
+    "- 'summary': at most 3 sentences, and it is an adjudication, not a recap. "
+    "Sentence 1 names the SINGLE specific thing that decided it — a number, a source, "
+    "a rule, a cost, a contradiction — in the vocabulary of the decision itself. Not a "
+    "count of claims, not a restatement of a claim. Sentence 2 says what the decision "
+    "looks like if it survives at all, or what must be settled first. Never list claims, "
+    "never enumerate, never write 'in summary', 'overall' or 'key takeaways'.\n"
     "- 'next_actions': 2 to 3 actions total, merged across claims. If several claims "
     "failed for the same underlying reason, that is ONE action. Each must be concrete "
-    "enough to start this week. No near-duplicates."
+    "enough to start this week. No near-duplicates. Set 'claim_ids' to the ids of the "
+    "claims that action answers, copied verbatim from the claim list; leave it empty if "
+    "the action answers none of them specifically."
 )
 
 
@@ -422,7 +437,7 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
     )
 
     claim_lines = "\n".join(
-        f"- [{c.status.value if c.status else 'untested'}]"
+        f"- {c.id} [{c.status.value if c.status else 'untested'}]"
         f"{' (load-bearing)' if c.load_bearing else ''} {c.statement}"
         for c in case.claims
     )
@@ -452,13 +467,19 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
             verdict.decision_state = state
         verdict.summary = clamp_sentences(getattr(result, "summary", "") or "")
         # Dedupe defensively — the merge is the entire point of this call.
+        known_ids = {c.id for c in case.claims}
         seen: set[str] = set()
-        for action in getattr(result, "next_actions", []) or []:
-            action = clamp_sentences(action, 2)
+        for raw in getattr(result, "next_actions", []) or []:
+            action = clamp_sentences(getattr(raw, "action", "") or "", 2)
             key = action.lower()
-            if action and key not in seen:
-                seen.add(key)
-                verdict.next_actions.append(action)
+            if not action or key in seen:
+                continue
+            seen.add(key)
+            # Models hallucinate ids; an unanchored action beats a dead link.
+            anchors = [
+                cid for cid in (getattr(raw, "claim_ids", []) or []) if cid in known_ids
+            ]
+            verdict.next_actions.append(NextAction(action=action, claim_ids=anchors))
         verdict.next_actions = verdict.next_actions[:3]
     except Exception as exc:
         logger.warning("Case verdict synthesis failed (%s); using derived state.", exc)
@@ -469,7 +490,9 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         )
     if not verdict.next_actions:
         verdict.next_actions = [
-            cons.next_validation for cons in case.consequences if cons.next_validation
+            NextAction(action=cons.next_validation, claim_ids=[cons.claim_id])
+            for cons in case.consequences
+            if cons.next_validation
         ][:3]
     return verdict
 

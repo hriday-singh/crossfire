@@ -54,6 +54,18 @@ class DecisionConsequence(BaseModel):
     verdict_reasoning: str = ""             # why Judge reconciled to this status — persisted here,
                                              # not just riding along on the SSE event
 
+class NextAction(BaseModel):
+    action: str
+    claim_ids: list[str] = []               # Claim.id values this action answers; may be empty
+
+class CaseVerdict(BaseModel):
+    decision_state: str                     # proceed | proceed_with_changes | hold | drop
+    summary: str
+    survived: list[str] = []                # claim ids
+    broken: list[str] = []
+    unproven: list[str] = []                # weakened + unresolved
+    next_actions: list[NextAction] = []     # 2-3 merged, deduped, claim-anchored
+
 class Case(BaseModel):
     id: str
     raw_input: str
@@ -62,6 +74,7 @@ class Case(BaseModel):
     test_plan: list[TestPlanItem] = []
     findings: list[Finding] = []
     consequences: list[DecisionConsequence] = []
+    case_verdict: CaseVerdict | None = None  # set at the end of the run
     status: str = "extracting"              # extracting | awaiting_confirmation | testing | done | error
 ```
 
@@ -99,9 +112,12 @@ event: test_started          data: {"test_id": "...", "target_claim_id": "...", 
 event: finding_ready         data: {"finding": {...}, "target_claim_id": "..."}
 event: verdict_ready         data: {"claim_id": "...", "status": "...", "verdict_reasoning": "..."}
 event: consequence_ready     data: {"consequence": {...}}
+event: case_verdict          data: {"case_verdict": {...}}
 event: run_complete          data: {"case_id": "..."}
 event: error                 data: {"stage": "...", "message": "..."}
 ```
+
+`case_verdict` is the case-level adjudication, emitted once after the last `consequence_ready` and before `run_complete`. Its `next_actions[].claim_ids` always resolve to real `Claim.id`s (hallucinated ids are stripped server-side); an empty list means the action is unanchored and renders without a link.
 
 `target_claim_id` / `evaluator` are top-level even though they're nested inside `Finding`/`TestPlanItem` too — that's deliberate, so the frontend doesn't have to unpack a nested object to animate the right claim card.
 

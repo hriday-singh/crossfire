@@ -155,7 +155,7 @@ export const DEFAULT_COLLEGE_AI_CASE: Case = {
     {
       claim_id: "C-01",
       test_id: "CLM-4021",
-      evaluator: "overthinker",
+      evaluator: "operator",
       result:
         "User interview and survey data reveals 42% refusal rate when submitting autonomously without explicit manual confirmation gates.",
       evidence: [],

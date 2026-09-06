@@ -3,12 +3,14 @@ import { useCase } from "@/context/CaseContext";
 import { ClaimCard } from "@/components/features/ClaimCard";
 import { LiveActivityFeed } from "@/components/features/LiveActivityFeed";
 import { EvidenceDrawer } from "@/components/features/EvidenceDrawer";
+import { VerdictBlock } from "@/components/features/VerdictBlock";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 
 export const DashboardScreen: React.FC = () => {
   const { state, selectClaim } = useCase();
   const [filterStatus, setFilterStatus] = useState<"all" | "needs_attention" | "passed">("all");
   const [copiedMemo, setCopiedMemo] = useState(false);
+  const [claimsOpen, setClaimsOpen] = useState(false);
 
   const currentCase = state.currentCase;
   if (!currentCase) return null;
@@ -75,7 +77,7 @@ export const DashboardScreen: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-space-2 flex-wrap">
                 <span className="font-headline-lg text-headline-lg text-on-surface font-semibold">
-                  {isTesting ? "Adversarial Stress Test" : "Evaluation Summary"}
+                  {isTesting ? "Testing your decision" : "Result"}
                 </span>
                 <span className="font-code-sm text-code-sm px-space-2 py-0.5 rounded bg-surface-container-high text-outline">
                   Run #{formattedCaseId}
@@ -98,38 +100,23 @@ export const DashboardScreen: React.FC = () => {
                     <span className="material-symbols-outlined text-[16px] animate-spin">
                       progress_activity
                     </span>
-                    <span>Testing claims against live market signals, technical limits, and evidence...</span>
+                    <span>Testing each claim against outside sources...</span>
                   </span>
                 ) : (
                   <span>
-                    {totalClaims} claims evaluated against external market signals, feasibility benchmarks, and customer data.
+                    {totalClaims} claims tested against outside sources.
                   </span>
                 )}
               </p>
             </div>
 
-            <div className="flex items-center gap-space-2 flex-wrap">
-              <div className="flex items-center gap-1.5 px-space-3 py-1.5 rounded-xl bg-surface-container text-error border border-outline-variant">
-                <span className="material-symbols-outlined text-[16px]">cancel</span>
-                <span className="font-code-sm text-code-sm font-semibold">{brokenCount} Broken</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-space-3 py-1.5 rounded-xl bg-surface-container text-tertiary border border-outline-variant">
-                <span className="material-symbols-outlined text-[16px]">warning</span>
-                <span className="font-code-sm text-code-sm font-semibold">{weakenedCount} Weakened</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-space-3 py-1.5 rounded-xl bg-surface-container text-secondary border border-outline-variant">
-                <span className="material-symbols-outlined text-[16px]">help</span>
-                <span className="font-code-sm text-code-sm font-semibold">{unresolvedCount} Unresolved</span>
-              </div>
-
-              <div className="flex items-center gap-1.5 px-space-3 py-1.5 rounded-xl bg-surface-container text-primary-container border border-outline-variant">
-                <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                <span className="font-code-sm text-code-sm font-semibold">{survivedCount} Survived</span>
-              </div>
-            </div>
           </div>
+
+          <VerdictBlock
+            currentCase={currentCase}
+            onSelectClaim={(id) => selectClaim(id)}
+            isTesting={isTesting}
+          />
 
           {/* Live Activity Feed during testing or when activities exist */}
           {(isTesting || state.activities.length > 0) && (
@@ -139,6 +126,26 @@ export const DashboardScreen: React.FC = () => {
             />
           )}
 
+          {/* Every claim, in full — collapsed once the verdict is in. */}
+          {!isTesting && (
+            <button
+              type="button"
+              onClick={() => setClaimsOpen((open) => !open)}
+              className="w-full flex items-center gap-space-2 pt-space-4 border-t border-outline-variant font-code-sm text-code-sm text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {claimsOpen ? "expand_less" : "expand_more"}
+              </span>
+              <span>
+                {claimsOpen
+                  ? "Hide all claims"
+                  : `All ${totalClaims} claims (${survivedCount} held up)`}
+              </span>
+            </button>
+          )}
+
+          {(isTesting || claimsOpen) && (
+            <>
           {/* Filter & Sort Bar */}
           <div className="flex items-center justify-between gap-space-4">
             <div className="flex items-center gap-space-2">
@@ -163,7 +170,7 @@ export const DashboardScreen: React.FC = () => {
                     : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
                 }`}
               >
-                Needs Attention ({needsAttentionCount})
+                Didn&apos;t hold ({needsAttentionCount})
               </button>
 
               <button
@@ -175,7 +182,7 @@ export const DashboardScreen: React.FC = () => {
                     : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
                 }`}
               >
-                Passed ({survivedCount})
+                Held up ({survivedCount})
               </button>
             </div>
 
@@ -208,6 +215,8 @@ export const DashboardScreen: React.FC = () => {
               );
             })}
           </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -222,7 +231,7 @@ export const DashboardScreen: React.FC = () => {
       <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
         <div className="max-w-5xl mx-auto w-full flex items-center justify-between font-code-sm text-code-sm text-outline">
           <div className="flex items-center gap-space-3">
-            <span>CROSSFIRE Verification Suite</span>
+            <span>Crossfire</span>
           </div>
           <div className="text-outline font-mono">
             {isTesting ? (

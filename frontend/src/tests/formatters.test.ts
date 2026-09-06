@@ -16,6 +16,10 @@ describe("formatters", () => {
     expect(formatTestName("edge-case")).toBe("Edge-Case Test");
     expect(formatTestName("assumption")).toBe("Assumption Test");
     expect(formatTestName("behavior")).toBe("Feasibility Test");
+    expect(formatTestName("operational_friction")).toBe("Operational Friction Test");
+    expect(formatTestName("operator")).toBe("Operational Friction Test");
+    expect(formatTestName("adoption")).toBe("Operational Friction Test");
+    expect(formatTestName("bureaucracy")).toBe("Operational Friction Test");
 
     // Fallback should never expose raw strings
     expect(formatTestName("unknown_evaluator")).toBe("Assumption Test");
