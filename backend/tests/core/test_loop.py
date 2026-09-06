@@ -174,14 +174,43 @@ def test_reconcile_never_lets_evaluator_set_its_own_status(sample_finding):
 
 # --- build_consequences() ---
 
-@pytest.mark.asyncio
-async def test_build_consequences_sets_next_validation_for_broken_load_bearing_claims(
-    fake_provider_factory, sample_claim
-):
+def test_build_consequences_sets_next_validation_for_broken_load_bearing_claims(sample_claim):
     """Every broken/unresolved load-bearing claim needs a concrete
     next_validation — not None, not 'do more research' as a literal string.
     """
-    pytest.skip("fill in once core.loop.build_consequences exists")
+    from core.loop import build_consequences
+
+    sample_claim.status = ClaimStatus.BROKEN
+    case = Case(id="case-1", raw_input="input", claims=[sample_claim])
+
+    consequences = build_consequences(case)
+
+    assert len(consequences) == 1
+    dc = consequences[0]
+    assert dc.claim_id == sample_claim.id
+    assert dc.next_validation is not None
+    assert dc.next_validation != "do more research"
+    assert sample_claim.statement in dc.next_validation
+
+
+def test_build_consequences_survived_claim_needs_no_next_validation(sample_claim):
+    from core.loop import build_consequences
+
+    sample_claim.status = ClaimStatus.SURVIVED
+    case = Case(id="case-1", raw_input="input", claims=[sample_claim])
+
+    consequences = build_consequences(case)
+
+    assert consequences[0].next_validation is None
+
+
+def test_build_consequences_skips_untested_claims(sample_claim):
+    from core.loop import build_consequences
+
+    sample_claim.status = None
+    case = Case(id="case-1", raw_input="input", claims=[sample_claim])
+
+    assert build_consequences(case) == []
 
 
 # --- Hour 25-30: race-condition-free orchestration ---

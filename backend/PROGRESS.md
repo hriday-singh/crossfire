@@ -30,14 +30,14 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `classify_load_bearing()` v1 | `[x]` | locked framing in `docs/dev-a/research/01-load-bearing.md` |
 | `build_test_plan()` | `[x]` | keyword-bucket routing (evidence/behavior/constraint/alternative) |
 | `reconcile()` | `[x]` | structured-LLM verdict, decision locked in `docs/dev-a/research/02-reconcile.md` |
-| `build_consequences()` | `[ ]` | |
+| `build_consequences()` | `[x]` | deterministic status/load-bearing routing, no LLM call |
 | `run_pipeline()` full orchestration + SSE queue | `[ ]` | |
 | Second provider | `[x]` | `OpenAICompatibleProvider` implemented for local proxy (http://localhost:8081/v1) |
 | `builder.py` (if time) | `[ ]` | |
 | `tests/eval_set/` harness | `[ ]` | |
 
 **Last updated:** Dev A
-**Note:** `OpenAICompatibleProvider` wired and tested against local `gemini-web2api` proxy (`http://localhost:8081/v1`, model `gemini-3.7-flash`). `GeminiProvider` delegates to the proxy when configured. Both text and Pydantic structured output verified live and with unit tests.
+**Note:** `OpenAICompatibleProvider` wired and tested against local `gemini-web2api` proxy (`http://localhost:8081/v1`, model `gemini-3.7-flash`). `GeminiProvider` delegates to the proxy when configured. Both text and Pydantic structured output verified live and with unit tests. `build_consequences()` done — remaining gap: `Claim` has no `reasoning` field yet, so `verdict_reasoning` is synthesized from status/load_bearing, not the real reconcile output; needs real wiring once `run_pipeline()` threads reconcile → claim → consequence.
 
 ## Dev B — Evidence + Receipts
 

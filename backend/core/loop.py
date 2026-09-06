@@ -130,8 +130,47 @@ async def reconcile(
     return result.status, result.reasoning
 
 
+_IMPACT_BY_STATUS = {
+    ClaimStatus.BROKEN: "high",
+    ClaimStatus.UNRESOLVED: "high",
+    ClaimStatus.WEAKENED: "medium",
+    ClaimStatus.SURVIVED: "low",
+}
+
+_RECOMMENDED_CHANGE_BY_STATUS = {
+    ClaimStatus.BROKEN: "Drop or rework the assumption behind: {statement}",
+    ClaimStatus.UNRESOLVED: "Treat as an open risk until validated: {statement}",
+    ClaimStatus.WEAKENED: "Add a safeguard/caveat for: {statement}",
+    ClaimStatus.SURVIVED: "No change needed.",
+}
+
+
 def build_consequences(case: Case) -> list[DecisionConsequence]:
-    raise NotImplementedError
+    consequences = []
+    for claim in case.claims:
+        if claim.status is None:
+            continue  # not yet tested, nothing to report
+
+        impact = _IMPACT_BY_STATUS[claim.status] if claim.load_bearing else "low"
+        recommended_change = _RECOMMENDED_CHANGE_BY_STATUS[claim.status].format(
+            statement=claim.statement
+        )
+
+        next_validation = None
+        if claim.load_bearing and claim.status in (ClaimStatus.BROKEN, ClaimStatus.UNRESOLVED):
+            next_validation = f"Directly test: {claim.statement}"
+
+        consequences.append(
+            DecisionConsequence(
+                claim_id=claim.id,
+                impact=impact,
+                recommended_change=recommended_change,
+                next_validation=next_validation,
+                verdict_reasoning=f"Reconciled as {claim.status.value} "
+                f"({'load-bearing' if claim.load_bearing else 'not load-bearing'}).",
+            )
+        )
+    return consequences
 
 
 async def run_pipeline(case_id: str) -> None:
