@@ -26,4 +26,44 @@ describe("Header", () => {
     expect(brandBtn).toBeInTheDocument();
     fireEvent.click(brandBtn);
   });
+
+  it("disables subsequent tabs when no case is active and does not inject fake data", () => {
+    render(
+      <CaseProvider>
+        <Header />
+      </CaseProvider>
+    );
+
+    const claimMapBtn = screen.getByRole("button", { name: /02 Claim Map/i });
+    const liveRunnerBtn = screen.getByRole("button", { name: /03 Live Runner/i });
+    const auditSheetBtn = screen.getByRole("button", { name: /04 Audit Sheet/i });
+
+    expect(claimMapBtn).toBeDisabled();
+    expect(liveRunnerBtn).toBeDisabled();
+    expect(auditSheetBtn).toBeDisabled();
+  });
+
+  it("renders separate history and settings buttons", () => {
+    render(
+      <CaseProvider>
+        <Header />
+      </CaseProvider>
+    );
+
+    expect(screen.getByRole("button", { name: /view case history/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view settings/i })).toBeInTheDocument();
+  });
+
+  it("does not render v1.4-engine, runner status pill, or profile avatar", () => {
+    render(
+      <CaseProvider>
+        <Header />
+      </CaseProvider>
+    );
+
+    expect(screen.queryByText("v1.4-engine")).not.toBeInTheDocument();
+    expect(screen.queryByText("RUNNER READY")).not.toBeInTheDocument();
+    expect(screen.queryByText("RUNNER ACTIVE")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/executive operator profile/i)).not.toBeInTheDocument();
+  });
 });

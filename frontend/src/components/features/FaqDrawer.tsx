@@ -40,7 +40,8 @@ export const FaqDrawer: React.FC = () => {
     <Sheet open={isOpen} onOpenChange={(open) => !open && setActiveModal("none")}>
       <SheetContent
         side="right"
-        className="w-full sm:w-[600px] sm:max-w-full p-0 flex flex-col h-full bg-surface-container-low border-l border-outline-variant shadow-2xl text-on-surface select-text overflow-hidden"
+        hideDefaultClose
+        className="w-full sm:w-[680px] sm:max-w-full p-0 flex flex-col h-full bg-surface-container-low border-l border-outline-variant shadow-2xl text-on-surface select-text overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-space-4 pt-space-6 px-space-6 border-b border-outline-variant shrink-0 bg-surface-container-low">

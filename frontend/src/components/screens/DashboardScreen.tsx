@@ -213,8 +213,6 @@ export const DashboardScreen: React.FC = () => {
         <div className="max-w-5xl mx-auto w-full flex items-center justify-between font-code-sm text-code-sm text-outline">
           <div className="flex items-center gap-space-3">
             <span>CROSSFIRE Verification Suite</span>
-            <span className="text-outline-variant">•</span>
-            <span>v1.4</span>
           </div>
           <div className="text-outline font-mono">
             {isTesting ? (

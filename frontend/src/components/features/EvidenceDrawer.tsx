@@ -99,6 +99,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
+        hideDefaultClose
         className="w-full sm:w-[540px] sm:max-w-full p-0 flex flex-col h-full bg-surface-container-low border-l border-outline-variant shadow-2xl text-on-surface select-text overflow-hidden"
       >
         {/* Fixed Header */}

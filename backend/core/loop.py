@@ -6,15 +6,18 @@ and reconcile (docs/dev-a/research/02-reconcile.md) — decide there first, then
 from __future__ import annotations
 
 import asyncio
+import logging
 from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import events
 import store
 from core.models import Case, Claim, ClaimStatus, DecisionConsequence, Finding, TestPlanItem
 from providers import get_provider
 from providers.base import LLMProvider
+
+logger = logging.getLogger(__name__)
 
 try:
     from core.evaluators import dispatch  # Dev C
@@ -36,7 +39,12 @@ async def extract_claims(
     system_prompt = (
         "Extract the discrete, checkable claims or assumptions embedded in the "
         "user's input. Each statement must be a single factual or predictive "
-        "assertion that could independently turn out true or false."
+        "assertion that could independently turn out true or false.\n"
+        "Include both the direct assertions stated by the user AND any critical "
+        "implicit or unstated assumptions required for the proposal to succeed "
+        "(e.g., market demand, cost limits, user behavior, technical feasibility, "
+        "security, or operational containment). "
+        "Return 2 to 5 crisp, falsifiable claims."
     )
     user_content = raw_input
     if context:
@@ -171,7 +179,7 @@ _FAILURE_MODE_WEIGHTS: list[tuple[str, list[tuple[str, float]]]] = [
 ]
 
 
-def build_test_plan(case: Case) -> list[TestPlanItem]:
+def build_test_plan(case: Case, panel: bool = True) -> list[TestPlanItem]:
     items: list[TestPlanItem] = []
     for claim in case.claims:
         statement_lower = claim.statement.lower()
@@ -188,7 +196,7 @@ def build_test_plan(case: Case) -> list[TestPlanItem]:
 
         if mode_scores:
             # Pick highest score; tie-breaker preserves order in _FAILURE_MODE_WEIGHTS
-            failure_mode = max(
+            primary_failure_mode = max(
                 mode_scores.keys(),
                 key=lambda m: (
                     mode_scores[m],
@@ -196,16 +204,74 @@ def build_test_plan(case: Case) -> list[TestPlanItem]:
                 ),
             )
         else:
-            failure_mode = "evidence"  # default: most claims need evidence testing
+            primary_failure_mode = "evidence"  # default: most claims need evidence testing
 
-        items.append(
-            TestPlanItem(
-                id=str(uuid4()),
-                target_claim=claim.id,
-                failure_mode=failure_mode,
-                objective=f"Check whether evidence supports or contradicts: {claim.statement}",
+        if not panel:
+            items.append(
+                TestPlanItem(
+                    id=str(uuid4()),
+                    target_claim=claim.id,
+                    failure_mode=primary_failure_mode,
+                    objective=f"Check whether evidence supports or contradicts: {claim.statement}",
+                )
             )
-        )
+        else:
+            # Full Adversarial Panel mode:
+            # 1. Devil's Advocate (always stress-tests implicit assumptions & premises)
+            items.append(
+                TestPlanItem(
+                    id=str(uuid4()),
+                    target_claim=claim.id,
+                    failure_mode="assumption",
+                    objective=f"Stress-test implicit premises and counter-incentives behind: {claim.statement}",
+                )
+            )
+            # 2. Receipts (always searches external empirical evidence & benchmarks)
+            items.append(
+                TestPlanItem(
+                    id=str(uuid4()),
+                    target_claim=claim.id,
+                    failure_mode="evidence",
+                    objective=f"Check empirical evidence, benchmarks, and real-world data for: {claim.statement}",
+                )
+            )
+
+            # 3. Builder: concrete feasibility, dependencies, latency, operational blockers
+            is_lb = claim.load_bearing is not False
+            feasibility_keywords = [
+                "scale", "performance", "cost", "build", "api", "latency",
+                "compliance", "legal", "gdpr", "soc2", "replace", "system",
+                "infrastructure", "architecture", "migration", "database",
+                "backend", "deploy", "server", "code", "engineer", "throughput",
+                "integration"
+            ]
+            has_feasibility = any(kw in statement_lower for kw in feasibility_keywords)
+            if is_lb or has_feasibility:
+                items.append(
+                    TestPlanItem(
+                        id=str(uuid4()),
+                        target_claim=claim.id,
+                        failure_mode="feasibility",
+                        objective=f"Assess concrete operational/technical feasibility and implementation blockers for: {claim.statement}",
+                    )
+                )
+
+            # 4. Overthinker: tail risks, boundary failures, edge vulnerabilities
+            edge_keywords = [
+                "unique", "risk", "failure", "attack", "edge", "novel",
+                "competitor", "alternative", "zero", "all", "100%", "never",
+                "guarantee", "security", "exploit", "worst", "unprecedented"
+            ]
+            has_edge = any(kw in statement_lower for kw in edge_keywords)
+            if is_lb or has_edge:
+                items.append(
+                    TestPlanItem(
+                        id=str(uuid4()),
+                        target_claim=claim.id,
+                        failure_mode="edge-case",
+                        objective=f"Identify catastrophic tail risks, boundary failures, and degenerate loops for: {claim.statement}",
+                    )
+                )
     return items
 
 
@@ -218,17 +284,21 @@ async def reconcile(
     claim: Claim, findings: list[Finding], provider: LLMProvider
 ) -> tuple[ClaimStatus, str]:
     system_prompt = (
-        "You reconcile evaluator findings into a single verdict for a claim. "
-        "Never vote — judge evidence quality directly. A finding with no evidence "
-        "carries no weight regardless of what it claims. If findings assert opposite "
-        "conclusions with comparable evidence, or evidence overall is thin/absent, "
-        "the status must be 'unresolved' — never a forced winner. Otherwise pick "
-        "'survived' (claim holds), 'weakened' (holds but with caveats), or 'broken' "
-        "(claim is false). Explain which findings drove the verdict."
+        "You are the senior judicial reconciler in the Crossfire adversarial decision engine. "
+        "You reconcile findings from multiple adversarial evaluators (Devil's Advocate, Receipts evidence, "
+        "Builder feasibility, and Overthinker edge-cases) into a single rigorous verdict for a claim. "
+        "Never vote — judge evidence quality and analytical rigor directly. A finding with verified empirical "
+        "citations carries high weight. Logical contradictions or unaddressed tail risks weaken or break "
+        "a claim even if optimistic evidence exists. If findings assert opposite conclusions with comparable "
+        "evidence, or evidence overall is thin/absent, the status must be 'unresolved' — never a forced winner. "
+        "Otherwise pick 'survived' (claim holds with high confidence), 'weakened' (holds with significant caveats or friction), "
+        "or 'broken' (claim is refuted or foundationally flawed). "
+        "In your reasoning, synthesize across the evaluators, citing specific evidence numbers, benchmarks, "
+        "or logical contradictions."
     )
     findings_summary = "\n".join(
         f"- evaluator={f.evaluator}, result={f.result!r}, evidence_count={len(f.evidence)}, "
-        f"reasoning={f.reasoning!r}, contradiction={f.contradiction!r}"
+        f"confidence={f.confidence}, reasoning={f.reasoning!r}, contradiction={f.contradiction!r}"
         for f in findings
     )
     messages = [
@@ -286,6 +356,85 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
             )
         )
     return consequences
+
+
+class StrategicConsequenceOutput(BaseModel):
+    impact: str = Field(description="Impact level: 'high', 'medium', or 'low'")
+    recommended_change: str = Field(
+        description="A commercially or technically actionable, concrete strategic pivot or mitigation tailored to what failed or weakened. Never generic."
+    )
+    next_validation: str | None = Field(
+        default=None,
+        description="The smallest, lowest-cost next real-world validation experiment (e.g. a 30-day shadow test, a canary deploy) to de-risk this assumption. Null if survived.",
+    )
+
+
+async def _synthesize_single_consequence(
+    consequence: DecisionConsequence,
+    claim: Claim,
+    case: Case,
+    findings: list[Finding],
+    provider: LLMProvider,
+) -> DecisionConsequence:
+    if claim.status == ClaimStatus.SURVIVED:
+        return consequence
+
+    try:
+        findings_ctx = "\n".join(
+            f"- [{f.evaluator.upper()}]: result={f.result} | reasoning={f.reasoning} | contradiction={f.contradiction}"
+            for f in findings
+        )
+        system_prompt = (
+            "You are a strategic executive advisor in the Crossfire decision validation engine. "
+            "A foundational claim within a proposal has been stress-tested and found to be broken, weakened, "
+            "or unresolved. Your task is to formulate:\n"
+            "1. 'impact': 'high' if load-bearing and broken/unresolved, 'medium' if weakened, 'low' otherwise.\n"
+            "2. 'recommended_change': An actionable, concrete strategic pivot or mitigation tailored to what failed. "
+            "Do NOT speak in generic platitudes like 'Drop or rework the assumption'. Propose a realistic, specific pivot "
+            "(e.g., 'Adopt a hybrid AI-first containment model with automated sentiment escalation', 'Deploy a shadow test pipeline before replacing legacy servers').\n"
+            "3. 'next_validation': The smallest, cheapest real-world experiment to test this risk before committing capital "
+            "(e.g., 'Run a 30-day shadow containment test on tier-1 refund requests', 'Deploy a canary test on 5% of traffic measuring latency and memory')."
+        )
+        user_content = (
+            f"Overall Proposal: {case.raw_input}\n"
+            f"Claim Statement: {claim.statement}\n"
+            f"Verdict: {claim.status.value if claim.status else 'untested'} (Load-bearing: {claim.load_bearing})\n"
+            f"Evaluator Findings:\n{findings_ctx or 'No detailed findings.'}"
+        )
+        result = await provider.generate(
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": user_content}],
+            response_schema=StrategicConsequenceOutput,
+        )
+        if result and isinstance(result, StrategicConsequenceOutput):
+            if result.impact:
+                consequence.impact = result.impact.lower()
+            if result.recommended_change:
+                consequence.recommended_change = result.recommended_change
+            if result.next_validation is not None:
+                consequence.next_validation = result.next_validation
+    except Exception as exc:
+        logger.debug(f"LLM consequence synthesis bypassed for claim {claim.id}: {exc}")
+    return consequence
+
+
+async def synthesize_consequences(
+    case: Case,
+    provider: LLMProvider,
+    reasonings: dict[str, str] | None = None,
+) -> list[DecisionConsequence]:
+    tasks = []
+    for consequence in case.consequences:
+        claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
+        if claim is None:
+            continue
+        claim_findings = [f for f in case.findings if f.claim_id == claim.id]
+        tasks.append(
+            _synthesize_single_consequence(consequence, claim, case, claim_findings, provider)
+        )
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    return case.consequences
 
 
 async def run_evaluators(
@@ -346,8 +495,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         for claim, load_bearing in zip(case.claims, flags):
             claim.load_bearing = load_bearing if isinstance(load_bearing, bool) else True
 
-
-        case.test_plan = build_test_plan(case)
+        case.test_plan = build_test_plan(case, panel=True)
         case.findings = await run_evaluators(case, case.test_plan, provider)
 
         # Judge: parallel reconcile across claims, seeing all findings for each claim.
@@ -387,7 +535,17 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         for consequence in case.consequences:
             # build_consequences() can only synthesize this from status; the real
             # Judge reasoning only exists here, so it gets threaded in.
-            consequence.verdict_reasoning = reasonings[consequence.claim_id]
+            if consequence.claim_id in reasonings:
+                consequence.verdict_reasoning = reasonings[consequence.claim_id]
+
+        # Synthesize bespoke LLM pivots and smallest experiments if provider is available
+        if provider is not None:
+            try:
+                case.consequences = await synthesize_consequences(case, provider, reasonings=reasonings)
+            except Exception as exc:
+                logger.debug(f"Synthesizing consequences fallback: {exc}")
+
+        for consequence in case.consequences:
             await events.publish(
                 case.id, "consequence_ready", {"consequence": consequence.model_dump()}
             )

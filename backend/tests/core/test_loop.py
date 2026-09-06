@@ -148,7 +148,7 @@ async def test_build_test_plan_routes_different_claims_to_different_failure_mode
     """
     from core.loop import build_test_plan
 
-    plan = build_test_plan(sample_case)
+    plan = build_test_plan(sample_case, panel=False)
     assert len(plan) == len(sample_case.claims)
     failure_modes = {item.failure_mode for item in plan}
     assert len(failure_modes) > 1
@@ -169,7 +169,7 @@ async def test_build_test_plan_routes_assumption_claims_to_assumption_mode():
             Claim(id="c2", statement="People believe AI will replace manual data entry"),
         ],
     )
-    plan = build_test_plan(case)
+    plan = build_test_plan(case, panel=False)
     assert all(item.failure_mode == "assumption" for item in plan)
 
 
@@ -186,8 +186,28 @@ async def test_build_test_plan_routes_mixed_assumption_and_evidence_to_evidence_
             Claim(id="c2", statement="We expect customer demand will drive subscription pricing"),
         ],
     )
-    plan = build_test_plan(case)
+    plan = build_test_plan(case, panel=False)
     assert all(item.failure_mode == "evidence" for item in plan)
+
+
+@pytest.mark.asyncio
+async def test_build_test_plan_full_adversarial_panel_for_load_bearing_claims(sample_case):
+    """When panel=True (default), every load-bearing claim receives the full adversarial
+    suite (assumption + evidence + feasibility + edge-case)."""
+    from core.loop import build_test_plan
+
+    plan = build_test_plan(sample_case, panel=True)
+    # sample_case has claim-1 (load_bearing=True) and claim-2 (load_bearing=False)
+    # claim-1 should have all 4 evaluators, claim-2 should have at least 2 (assumption + evidence)
+    claim1_modes = {item.failure_mode for item in plan if item.target_claim == "claim-1"}
+    assert "assumption" in claim1_modes
+    assert "evidence" in claim1_modes
+    assert "feasibility" in claim1_modes
+    assert "edge-case" in claim1_modes
+
+    claim2_modes = {item.failure_mode for item in plan if item.target_claim == "claim-2"}
+    assert "assumption" in claim2_modes
+    assert "evidence" in claim2_modes
 
 
 
@@ -414,4 +434,38 @@ async def test_run_pipeline_resilient_to_single_claim_reconcile_failure(sample_c
     statuses = [c.status for c in case.claims]
     assert ClaimStatus.UNRESOLVED in statuses
     assert len(case.consequences) == len(case.claims)
+
+
+@pytest.mark.asyncio
+async def test_synthesize_consequences_llm_enriches_pivots_and_experiments(sample_case, fake_provider_factory):
+    from core.loop import (
+        StrategicConsequenceOutput,
+        build_consequences,
+        synthesize_consequences,
+    )
+
+    sample_case.claims[0].status = ClaimStatus.BROKEN
+    sample_case.claims[1].status = ClaimStatus.SURVIVED
+    sample_case.consequences = build_consequences(sample_case)
+
+    provider = fake_provider_factory(
+        [
+            StrategicConsequenceOutput(
+                impact="high",
+                recommended_change="Shift to a hybrid human-in-the-loop escalation model",
+                next_validation="Run a 30-day shadow test measuring containment on tier-1 requests",
+            )
+        ]
+    )
+
+    updated = await synthesize_consequences(sample_case, provider)
+    broken_cons = next(c for c in updated if c.claim_id == sample_case.claims[0].id)
+    assert broken_cons.impact == "high"
+    assert "hybrid human-in-the-loop" in broken_cons.recommended_change
+    assert "30-day shadow test" in broken_cons.next_validation
+
+    survived_cons = next(c for c in updated if c.claim_id == sample_case.claims[1].id)
+    assert survived_cons.recommended_change == "No change needed."
+    assert survived_cons.next_validation is None
+
 

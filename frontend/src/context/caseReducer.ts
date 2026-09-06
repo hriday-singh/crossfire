@@ -21,9 +21,10 @@ export interface AppState {
   selectedClaimId: string | null;
   activeTests: Record<string, ActiveTestRow>;
   caseHistory: Case[];
-  activeModal: "none" | "history" | "logs" | "faq";
+  activeModal: "none" | "history" | "logs" | "faq" | "settings";
   startedAt: number | null;
   completedAt: number | null;
+  engineInfo: { status: string; provider: string; model: string } | null;
 }
 
 export const INITIAL_STATE: AppState = {
@@ -40,10 +41,14 @@ export const INITIAL_STATE: AppState = {
   activeModal: "none",
   startedAt: null,
   completedAt: null,
+  engineInfo: null,
 };
 
 export type AppAction =
   | { type: "SET_ACTIVE_MODAL"; payload: AppState["activeModal"] }
+  | { type: "SET_ENGINE_INFO"; payload: AppState["engineInfo"] }
+  | { type: "CLEAR_HISTORY" }
+  | { type: "DELETE_HISTORY_ITEM"; payload: string }
   | { type: "START_EXTRACTING"; payload: { rawInput: string; context?: string | null } }
   | { type: "EXTRACTING_SUCCESS"; payload: Case }
   | { type: "EXTRACTING_ERROR"; payload: { stage: string; message: string; details?: unknown } }
@@ -71,6 +76,18 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
 
     case "CLEAR_ERROR":
       return { ...state, error: null };
+
+    case "SET_ENGINE_INFO":
+      return { ...state, engineInfo: action.payload };
+
+    case "CLEAR_HISTORY":
+      return { ...state, caseHistory: [] };
+
+    case "DELETE_HISTORY_ITEM":
+      return {
+        ...state,
+        caseHistory: state.caseHistory.filter((c) => c.id !== action.payload),
+      };
 
     case "START_EXTRACTING":
       return {

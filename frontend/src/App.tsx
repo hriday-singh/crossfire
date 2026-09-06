@@ -29,7 +29,7 @@ const AppContent: React.FC = () => {
       />
 
       {/* Main Screen Canvas */}
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pt-14">
         {state.activeScreen === "entry" && <EntryScreen />}
         {state.activeScreen === "confirm" && <ConfirmScreen />}
         {(state.activeScreen === "runner" || state.activeScreen === "dashboard") && (

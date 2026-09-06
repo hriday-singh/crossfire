@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
 import { AppAction, AppState, INITIAL_STATE, caseReducer } from "./caseReducer";
 import { DECISION_PRESETS } from "@/lib/presets";
-import { confirmCase, createCase, getCase } from "@/lib/api";
+import { confirmCase, createCase, getCase, getHealth } from "@/lib/api";
 import { Case } from "@/types/crossfire";
 
 interface CaseContextValue {
@@ -34,6 +34,25 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return initial;
     }
   });
+
+  // Query backend engine health on mount
+  useEffect(() => {
+    let isMounted = true;
+    const checkHealth = async () => {
+      try {
+        const health = await getHealth();
+        if (isMounted) {
+          dispatch({ type: "SET_ENGINE_INFO", payload: health });
+        }
+      } catch (err) {
+        console.warn("Backend health check failed:", err);
+      }
+    };
+    checkHealth();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Sync history to localStorage
   useEffect(() => {

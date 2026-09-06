@@ -44,6 +44,7 @@ export const LiveLogsDrawer: React.FC = () => {
     <Sheet open={isOpen} onOpenChange={(open) => !open && setActiveModal("none")}>
       <SheetContent
         side="right"
+        hideDefaultClose
         className="w-full sm:w-[560px] sm:max-w-full p-0 flex flex-col h-full bg-surface-container-low border-l border-outline-variant shadow-2xl text-on-surface select-text overflow-hidden"
       >
         {/* Header */}

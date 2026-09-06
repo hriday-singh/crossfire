@@ -171,4 +171,53 @@ describe("caseReducer", () => {
     expect(state.isStreaming).toBe(false);
     expect(state.caseHistory).toHaveLength(1);
   });
+
+  it("should handle CLEAR_HISTORY and DELETE_HISTORY_ITEM", () => {
+    const mockCase1: Case = {
+      id: "case-1",
+      raw_input: "Input 1",
+      status: "done",
+      claims: [],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+    const mockCase2: Case = {
+      id: "case-2",
+      raw_input: "Input 2",
+      status: "done",
+      claims: [],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+
+    let state = {
+      ...INITIAL_STATE,
+      caseHistory: [mockCase1, mockCase2],
+    };
+
+    // Delete item
+    state = caseReducer(state, {
+      type: "DELETE_HISTORY_ITEM",
+      payload: "case-1",
+    });
+    expect(state.caseHistory).toHaveLength(1);
+    expect(state.caseHistory[0].id).toBe("case-2");
+
+    // Clear history
+    state = caseReducer(state, {
+      type: "CLEAR_HISTORY",
+    });
+    expect(state.caseHistory).toHaveLength(0);
+  });
+
+  it("should handle SET_ENGINE_INFO", () => {
+    const state = caseReducer(INITIAL_STATE, {
+      type: "SET_ENGINE_INFO",
+      payload: { status: "ok", provider: "openai_compat", model: "gemini-3.7-flash" },
+    });
+    expect(state.engineInfo?.model).toBe("gemini-3.7-flash");
+    expect(state.engineInfo?.provider).toBe("openai_compat");
+  });
 });

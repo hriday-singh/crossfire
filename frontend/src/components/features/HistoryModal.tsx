@@ -29,6 +29,7 @@ export const HistoryModal: React.FC = () => {
     <Sheet open={isOpen} onOpenChange={(open) => !open && setActiveModal("none")}>
       <SheetContent
         side="right"
+        hideDefaultClose
         className="w-full sm:w-[540px] sm:max-w-full p-0 flex flex-col h-full bg-surface-container-low border-l border-outline-variant shadow-2xl text-on-surface select-text overflow-hidden"
       >
         {/* Header */}
@@ -127,11 +128,11 @@ export const HistoryModal: React.FC = () => {
                           </p>
                           <div className="flex items-center gap-2 pt-1 font-code-sm text-code-sm text-outline flex-wrap">
                             <span>{item.claims.length} claims</span>
-                            <span>•</span>
+                            <span>ï¿½</span>
                             <span className="text-verdict-broken">{brokenCount} broken</span>
-                            <span>•</span>
+                            <span>ï¿½</span>
                             <span className="text-tertiary">{weakenedCount} weakened</span>
-                            <span>•</span>
+                            <span>ï¿½</span>
                             <span className="text-verdict-survived">{survivedCount} survived</span>
                           </div>
                         </div>

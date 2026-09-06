@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 describe("UI Primitives", () => {
   describe("Button", () => {
@@ -83,6 +84,28 @@ describe("UI Primitives", () => {
 
       expect(screen.getByText("Card Heading")).toBeInTheDocument();
       expect(screen.getByText("Body of the card")).toBeInTheDocument();
+    });
+  });
+
+  describe("Sheet", () => {
+    it("renders close button by default and omits it when hideDefaultClose is true", () => {
+      const { rerender } = render(
+        <Sheet open>
+          <SheetContent>
+            <div>Drawer content</div>
+          </SheetContent>
+        </Sheet>
+      );
+      expect(screen.getByRole("button", { name: /close/i })).toBeInTheDocument();
+
+      rerender(
+        <Sheet open>
+          <SheetContent hideDefaultClose>
+            <div>Drawer content</div>
+          </SheetContent>
+        </Sheet>
+      );
+      expect(screen.queryByRole("button", { name: /close/i })).not.toBeInTheDocument();
     });
   });
 });
