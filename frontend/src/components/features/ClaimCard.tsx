@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ActiveTestRow, Claim, DecisionConsequence, Finding } from "@/types/crossfire";
-import { formatConfidence, truncateUrl } from "@/lib/formatters";
+import { formatConfidence, formatTestName, truncateUrl } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { TestRow } from "./TestRow";
 import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
@@ -222,7 +222,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           {consequence?.verdict_reasoning && (
             <div className="font-body-sm text-body-sm text-on-surface-variant flex items-start gap-1.5 pt-1">
               <span className="material-symbols-outlined text-[15px] text-primary-container shrink-0">gavel</span>
-              <span><strong>Judge Verdict:</strong> {consequence.verdict_reasoning}</span>
+              <span><strong>Steel Man Verdict:</strong> {consequence.verdict_reasoning}</span>
             </div>
           )}
 
@@ -310,7 +310,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             </div>
           )}
 
-          {/* Judge Verdict & Reconciliation */}
+          {/* Steel Man Verdict & Reconciliation */}
           {consequence?.verdict_reasoning && (
             <div className="space-y-1.5">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-primary-container font-semibold flex items-center gap-1.5">
@@ -328,6 +328,35 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             </div>
           )}
 
+          {/* Steel Man Re-Architecture (Break to Rebuild) */}
+          {(claim.salvaged_claim || consequence?.salvaged_claim) && (
+            <div className="space-y-2 border border-primary-container/30 bg-primary-container/5 p-3.5 rounded-lg">
+              <div className="flex items-center gap-1.5 text-primary-container font-semibold font-label-mono text-xs uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[16px]">build_circle</span>
+                <span>Steel Man Salvage Plan (Break to Rebuild)</span>
+              </div>
+
+              {(claim.fatal_flaw || consequence?.fatal_flaw) && (
+                <div className="text-body-sm text-on-surface">
+                  <span className="text-error font-semibold text-xs font-mono uppercase mr-1.5">[Fatal Flaw]:</span>
+                  <span>{claim.fatal_flaw || consequence?.fatal_flaw}</span>
+                </div>
+              )}
+
+              <div className="text-body-sm text-on-surface">
+                <span className="text-primary font-semibold text-xs font-mono uppercase mr-1.5">[Salvaged Claim]:</span>
+                <span className="font-medium">{claim.salvaged_claim || consequence?.salvaged_claim}</span>
+              </div>
+
+              {(claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged) && (
+                <div className="text-body-sm text-on-surface-variant text-xs">
+                  <span className="text-outline font-semibold font-mono uppercase mr-1.5">[Trade-off]:</span>
+                  <span>{claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* What the tests found */}
           {claimFindings.length > 0 && (
             <div className="space-y-2">
@@ -342,7 +371,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-container-high text-primary-container uppercase">
-                        [{f.evaluator.replace("_", " ")}]
+                        [{formatTestName(f.evaluator).toUpperCase()}]
                       </span>
                       {f.confidence !== undefined && (
                         <span className="font-mono text-xs text-outline">

@@ -273,7 +273,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             <div className="border-l-2 border-error bg-error-container/20 p-space-4 rounded-r">
               <p className="font-body-md text-body-md text-on-surface leading-relaxed font-medium">
                 {consequence?.recommended_change ||
-                  "No immediate plan modification indicated — assumption withstands tested failure modes."}
+                  "No immediate plan modification indicated - assumption withstands tested failure modes."}
               </p>
             </div>
           </div>

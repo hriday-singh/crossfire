@@ -178,12 +178,12 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
           </div>
 
-          {/* Judge Verdict & Reconciliation */}
+          {/* Judge / Steel Man Verdict & Reconciliation */}
           {consequence?.verdict_reasoning && (
             <div>
               <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary-container mb-space-2 font-medium flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">gavel</span>
-                <span>Why this call</span>
+                <span>Why this call (Steel Man Verdict)</span>
               </div>
               <div className="bg-surface-container-lowest border border-outline-variant rounded p-space-4 space-y-space-2">
                 <p className="font-body-md text-body-md text-on-surface font-medium leading-relaxed">
@@ -198,6 +198,32 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Steel Man Re-Architecture (Break to Rebuild) */}
+          {claim && (claim.salvaged_claim || consequence?.salvaged_claim) && (
+            <div className="bg-surface-container-lowest border border-primary-container/30 rounded p-space-4 space-y-3">
+              <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary-container font-medium flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px]">build_circle</span>
+                <span>Steel Man Re-Architecture (Break to Rebuild)</span>
+              </div>
+              {(claim.fatal_flaw || consequence?.fatal_flaw) && (
+                <div className="text-body-sm text-on-surface">
+                  <span className="text-error font-semibold font-mono text-xs uppercase mr-1.5">[Fatal Flaw]:</span>
+                  <span>{claim.fatal_flaw || consequence?.fatal_flaw}</span>
+                </div>
+              )}
+              <div className="text-body-sm text-on-surface">
+                <span className="text-primary font-semibold font-mono text-xs uppercase mr-1.5">[Salvaged Claim]:</span>
+                <span className="font-medium">{claim.salvaged_claim || consequence?.salvaged_claim}</span>
+              </div>
+              {(claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged) && (
+                <div className="text-body-sm text-on-surface-variant text-xs">
+                  <span className="text-outline font-semibold font-mono text-xs uppercase mr-1.5">[Trade-off]:</span>
+                  <span>{claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -306,7 +332,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-container-high text-primary-container uppercase">
-                        [{f.evaluator.replace("_", " ")}]
+                        [{formatTestName(f.evaluator).toUpperCase()}]
                       </span>
                       {f.confidence !== undefined && (
                         <span className="font-code-sm text-code-sm text-outline">

@@ -5,7 +5,7 @@
  * are masked to human test names in all user-facing views.
  */
 
-export type AgentId = "devils_advocate" | "receipts" | "builder" | "operator" | "overthinker";
+export type AgentId = "devils_advocate" | "receipts" | "builder" | "operator" | "researcher" | "overthinker";
 
 export interface AgentDefinition {
   id: AgentId;
@@ -26,8 +26,8 @@ export const ALL_AGENTS: AgentDefinition[] = [
     icon: "psychology",
   },
   {
-    id: "receipts",
-    name: "Receipts",
+    id: "researcher",
+    name: "Researcher",
     testName: "Evidence Test",
     shortRole: "Empirical market reality",
     description: "Retrieves verifiable market signals, web sources, unit economics, and public citations via live search.",
@@ -53,13 +53,13 @@ export const ALL_AGENTS: AgentDefinition[] = [
 
 export const DEFAULT_AGENT_IDS: AgentId[] = [
   "devils_advocate",
-  "receipts",
+  "researcher",
   "builder",
   "operator",
 ];
 
 export function getAgentById(id: string): AgentDefinition | undefined {
-  const normalized = id === "overthinker" ? "operator" : id;
+  const normalized = id === "overthinker" ? "operator" : id === "receipts" ? "researcher" : id;
   return ALL_AGENTS.find((agent) => agent.id === normalized);
 }
 

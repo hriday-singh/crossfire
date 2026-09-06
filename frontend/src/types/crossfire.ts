@@ -26,6 +26,9 @@ export interface Claim {
   load_bearing: boolean | null;
   load_bearing_reason?: string | null;
   status: ClaimStatus | null;
+  fatal_flaw?: string | null;
+  salvaged_claim?: string | null;
+  tradeoff_acknowledged?: string | null;
 }
 
 export interface TestPlanItem {
@@ -47,7 +50,7 @@ export interface EvidenceItem {
 export interface Finding {
   claim_id: string;
   test_id: string;
-  evaluator: string; // "devils_advocate" | "receipts" | "builder" | "operator" | "overthinker"
+  evaluator: string; // "devils_advocate" | "receipts" | "builder" | "operator" | "researcher" | "overthinker"
   result: string;
   evidence: EvidenceItem[];
   reasoning: string;
@@ -61,6 +64,9 @@ export interface DecisionConsequence {
   recommended_change: string;
   next_validation: string | null;
   verdict_reasoning: string;
+  fatal_flaw?: string | null;
+  salvaged_claim?: string | null;
+  tradeoff_acknowledged?: string | null;
 }
 
 export interface NextAction {
@@ -190,6 +196,9 @@ export interface SSEVerdictReadyData {
   claim_id: string;
   status: ClaimStatus;
   verdict_reasoning?: string;
+  fatal_flaw?: string | null;
+  salvaged_claim?: string | null;
+  tradeoff_acknowledged?: string | null;
 }
 
 export interface SSEConsequenceReadyData {

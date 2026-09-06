@@ -98,10 +98,10 @@ describe("EvidenceDrawer", () => {
     render(
       <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
     );
-    expect(screen.getByText("Why this call")).toBeInTheDocument();
+    expect(screen.getByText(/Why this call/i)).toBeInTheDocument();
     expect(
       screen.getByText("Clear price resistance found in benchmark studies.")
     ).toBeInTheDocument();
-    expect(screen.getByText(/\[receipts\]/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/\[evidence test\]/i).length).toBeGreaterThan(0);
   });
 });

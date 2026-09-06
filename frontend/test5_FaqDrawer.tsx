@@ -195,7 +195,7 @@ export const FaqDrawer: React.FC = () => {
 
         {/* Footer */}
         <div className="p-space-4 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-outline font-code-sm text-code-sm shrink-0">
-          <span>Crossfire — Independent Decision Testing</span>
+          <span>Crossfire - Independent Decision Testing</span>
           <a
             href="https://github.com/hriday-singh/crossfire"
             target="_blank"

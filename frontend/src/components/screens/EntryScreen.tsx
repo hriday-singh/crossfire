@@ -4,10 +4,19 @@ import { Button } from "@/components/ui/button";
 import { ingestImage, ingestPdf } from "@/lib/api";
 import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
 import { DEFAULT_AGENT_IDS } from "@/lib/agents";
-import { AttachmentBar, EntryAttachment } from "@/components/features/AttachmentBar";
+import {
+  AttachmentBar,
+  EntryAttachment,
+} from "@/components/features/AttachmentBar";
 import { EntryPresetsBar } from "@/components/features/EntryPresetsBar";
+import { EntryFooter } from "@/components/features/EntryFooter";
 import { CubeSpinner } from "@/components/features/CubeSpinner";
-import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
+import {
+  detectWebUrl,
+  extractAllWebUrls,
+  normalizeWebUrl,
+  DetectedWebUrl,
+} from "@/lib/urlUtils";
 import { PoweredBySerpApiBadge, SerpApiIcon } from "@/components/ui/serpapi";
 
 const MAX_PROPOSAL_CHARS = 500;
@@ -27,19 +36,24 @@ export const EntryScreen: React.FC = () => {
   const [urlInputValue, setUrlInputValue] = useState("");
   const [smartNotice, setSmartNotice] = useState<string | null>(null);
   const [agentMode, setAgentMode] = useState<"auto" | "custom">("auto");
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([...DEFAULT_AGENT_IDS]);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([
+    ...DEFAULT_AGENT_IDS,
+  ]);
   const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const handleToggleAgent = (agentId: string) => {
     setSelectedAgents((prev) =>
-      prev.includes(agentId) ? prev.filter((id) => id !== agentId) : [...prev, agentId]
+      prev.includes(agentId)
+        ? prev.filter((id) => id !== agentId)
+        : [...prev, agentId],
     );
   };
 
   const isMac =
     typeof window !== "undefined" &&
-    (navigator.platform?.includes("Mac") || navigator.userAgent.includes("Mac"));
+    (navigator.platform?.includes("Mac") ||
+      navigator.userAgent.includes("Mac"));
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -72,7 +86,9 @@ export const EntryScreen: React.FC = () => {
   const autoAddDetectedUrl = (detected: DetectedWebUrl) => {
     addUrlAttachment(detected.cleanUrl, detected.hostname);
     setRawInput(detected.remainingText);
-    setSmartNotice(`Web URL ${detected.hostname} detected & added to attachments.`);
+    setSmartNotice(
+      `Web URL ${detected.hostname} detected & added to attachments.`,
+    );
   };
 
   const handleTextChange = (value: string) => {
@@ -122,25 +138,33 @@ export const EntryScreen: React.FC = () => {
     const detectedMulti = extractAllWebUrls(pasted);
     if (detectedMulti.urls.length > 0) {
       e.preventDefault();
-      detectedMulti.urls.forEach((u) => addUrlAttachment(u.cleanUrl, u.hostname));
+      detectedMulti.urls.forEach((u) =>
+        addUrlAttachment(u.cleanUrl, u.hostname),
+      );
 
       const remaining = detectedMulti.remainingText;
       if (remaining) {
-        setRawInput((prev) => (prev ? `${prev} ${remaining}`.trim() : remaining));
+        setRawInput((prev) =>
+          prev ? `${prev} ${remaining}`.trim() : remaining,
+        );
       }
       setSmartNotice(
         detectedMulti.urls.length === 1
           ? `Web URL ${detectedMulti.urls[0].hostname} added to attachments.`
-          : `${detectedMulti.urls.length} Web URLs added to attachments.`
+          : `${detectedMulti.urls.length} Web URLs added to attachments.`,
       );
       return;
     }
 
     // 2. Full-block creation: If the pasted content exceeds character limit,
     // convert the ENTIRE pasted text into a context block attachment instead of chopping it.
-    if (pasted.length > MAX_PROPOSAL_CHARS || (rawInput.length + pasted.length > MAX_PROPOSAL_CHARS)) {
+    if (
+      pasted.length > MAX_PROPOSAL_CHARS ||
+      rawInput.length + pasted.length > MAX_PROPOSAL_CHARS
+    ) {
       e.preventDefault();
-      const blobCount = attachments.filter((a) => a.type === "text_blob").length + 1;
+      const blobCount =
+        attachments.filter((a) => a.type === "text_blob").length + 1;
       const newBlob: EntryAttachment = {
         id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: "text_blob",
@@ -150,7 +174,7 @@ export const EntryScreen: React.FC = () => {
       };
       setAttachments((prev) => [...prev, newBlob]);
       setSmartNotice(
-        `Large text (${pasted.length.toLocaleString()} chars) attached as full context block.`
+        `Large text (${pasted.length.toLocaleString()} chars) attached as full context block.`,
       );
       return;
     }
@@ -158,8 +182,13 @@ export const EntryScreen: React.FC = () => {
 
   const hasContentBlock = attachments.length > 0;
   const hasValidInput = hasContentBlock || rawInput.trim().length > 5;
-  const isCustomAgentsEmpty = agentMode === "custom" && selectedAgents.length === 0;
-  const canRunTest = hasValidInput && !state.isExtracting && !isIngesting && !isCustomAgentsEmpty;
+  const isCustomAgentsEmpty =
+    agentMode === "custom" && selectedAgents.length === 0;
+  const canRunTest =
+    hasValidInput &&
+    !state.isExtracting &&
+    !isIngesting &&
+    !isCustomAgentsEmpty;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -186,7 +215,9 @@ export const EntryScreen: React.FC = () => {
 
     const normalized = normalizeWebUrl(target);
     if (!normalized) {
-      setIngestError("Please enter a valid web URL (e.g. example.com or https://example.com)");
+      setIngestError(
+        "Please enter a valid web URL (e.g. example.com or https://example.com)",
+      );
       return;
     }
 
@@ -221,7 +252,8 @@ export const EntryScreen: React.FC = () => {
       setAttachments((prev) => [...prev, newFileAttachment]);
     } catch (err: unknown) {
       const errorMsg =
-        (err as { message?: string })?.message || "Failed to extract text from file.";
+        (err as { message?: string })?.message ||
+        "Failed to extract text from file.";
       setIngestError(errorMsg);
     } finally {
       setIsIngesting(false);
@@ -260,7 +292,9 @@ export const EntryScreen: React.FC = () => {
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
     const allowed = [".pdf", ".png", ".jpg", ".jpeg", ".webp"];
     if (!allowed.includes(ext)) {
-      setIngestError("Only PDF documents and image screenshots (.png, .jpg, .jpeg, .webp) are supported.");
+      setIngestError(
+        "Only PDF documents and image screenshots (.png, .jpg, .jpeg, .webp) are supported.",
+      );
       return;
     }
 
@@ -289,34 +323,45 @@ export const EntryScreen: React.FC = () => {
     const urlItems = attachments.filter((a) => a.type === "url");
     if (urlItems.length > 0) {
       contextSections.push(
-        `Reference URLs for verification:\n${urlItems.map((u) => `- ${u.url || u.name}`).join("\n")}`
+        `Reference URLs for verification:\n${urlItems.map((u) => `- ${u.url || u.name}`).join("\n")}`,
       );
     }
 
-    const textBlobs = attachments.filter((a) => a.type === "text_blob" && a.context);
+    const textBlobs = attachments.filter(
+      (a) => a.type === "text_blob" && a.context,
+    );
     if (textBlobs.length > 0) {
       contextSections.push(
-        `Supporting Context Blobs:\n${textBlobs.map((b, i) => `[Context #${i + 1}]\n${b.context}`).join("\n\n")}`
+        `Supporting Context Blobs:\n${textBlobs.map((b, i) => `[Context #${i + 1}]\n${b.context}`).join("\n\n")}`,
       );
     }
 
     const fileItems = attachments.filter((a) => a.type === "file" && a.context);
     if (fileItems.length > 0) {
       contextSections.push(
-        `Attached Documents / OCR Transcripts:\n${fileItems.map((f) => `[${f.name}]\n${f.context}`).join("\n\n")}`
+        `Attached Documents / OCR Transcripts:\n${fileItems.map((f) => `[${f.name}]\n${f.context}`).join("\n\n")}`,
       );
     }
 
-    const combinedContext = contextSections.length > 0 ? contextSections.join("\n\n---\n\n") : null;
+    const combinedContext =
+      contextSections.length > 0 ? contextSections.join("\n\n---\n\n") : null;
 
     // Fallback when submitting with a content block but empty textarea
     const fallbackInput =
-      attachments.find((a) => a.context)?.context?.slice(0, 300).trim() ||
+      attachments
+        .find((a) => a.context)
+        ?.context?.slice(0, 300)
+        .trim() ||
       attachments[0]?.name ||
       "Attached proposal document";
     const effectiveRawInput = rawInput.trim() || fallbackInput;
 
-    startExtracting(effectiveRawInput, combinedContext, agentMode, agentsPayload);
+    startExtracting(
+      effectiveRawInput,
+      combinedContext,
+      agentMode,
+      agentsPayload,
+    );
   };
 
   if (state.isExtracting) {
@@ -346,7 +391,9 @@ export const EntryScreen: React.FC = () => {
               What decision are you testing?
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-              Describe your proposal or strategic assumption. Crossfire identifies the core load-bearing claims and tests them against real-world evidence.
+              Describe your proposal or strategic assumption. Crossfire
+              identifies the core load-bearing claims and tests them against
+              real-world evidence.
             </p>
           </div>
 
@@ -423,7 +470,9 @@ export const EntryScreen: React.FC = () => {
                   className="text-outline hover:text-on-surface p-0.5 rounded cursor-pointer shrink-0 transition-colors"
                   aria-label="Dismiss notice"
                 >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    close
+                  </span>
                 </button>
               </div>
             )}
@@ -447,7 +496,9 @@ export const EntryScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-[18px] text-error shrink-0">
                     error
                   </span>
-                  <span className="font-body-sm text-body-sm truncate">{ingestError}</span>
+                  <span className="font-body-sm text-body-sm truncate">
+                    {ingestError}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -455,7 +506,9 @@ export const EntryScreen: React.FC = () => {
                   className="text-error hover:text-on-surface p-1 rounded transition-colors cursor-pointer"
                   aria-label="Dismiss error"
                 >
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    close
+                  </span>
                 </button>
               </div>
             )}
@@ -471,7 +524,9 @@ export const EntryScreen: React.FC = () => {
                     Extracting document context...
                   </span>
                 </div>
-                <span className="font-code-sm text-code-sm text-outline">Processing</span>
+                <span className="font-code-sm text-code-sm text-outline">
+                  Processing
+                </span>
               </div>
             )}
 
@@ -490,7 +545,9 @@ export const EntryScreen: React.FC = () => {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={`group bg-surface-container rounded-lg p-space-3 flex items-center justify-between cursor-pointer transition-colors hover:bg-surface-container-high ${
-                  isDragging ? "ring-2 ring-primary bg-surface-container-high" : ""
+                  isDragging
+                    ? "ring-2 ring-primary bg-surface-container-high"
+                    : ""
                 }`}
               >
                 <button
@@ -505,7 +562,8 @@ export const EntryScreen: React.FC = () => {
                     attach_file
                   </span>
                   <span className="font-body-sm text-body-sm truncate text-outline group-hover:text-on-surface">
-                    + Add reference link or upload document (PDF, Screenshot / Image)
+                    + Add reference link or upload document (PDF, Screenshot /
+                    Image)
                   </span>
                 </button>
                 <div className="flex items-center gap-space-2 shrink-0 pl-space-2">
@@ -519,7 +577,9 @@ export const EntryScreen: React.FC = () => {
                   >
                     {showUrlInput ? "Close" : "+ Web URL"}
                   </button>
-                  <span className="font-code-sm text-code-sm text-outline">Optional</span>
+                  <span className="font-code-sm text-code-sm text-outline">
+                    Optional
+                  </span>
                 </div>
               </div>
 
@@ -593,21 +653,13 @@ export const EntryScreen: React.FC = () => {
               <Button
                 type="submit"
                 id="submit-run-btn"
-<<<<<<< HEAD
                 variant="primary"
-                disabled={
-                  !rawInput.trim() ||
-                  state.isExtracting ||
-                  isIngesting ||
-                  (agentMode === "custom" && selectedAgents.length === 0)
-                }
-                className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:bg-blue-600 text-white font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
-=======
                 disabled={!canRunTest}
-                className="inline-flex items-center justify-center gap-space-2 bg-primary-container text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-transform active:scale-[0.98] hover:brightness-110 shadow-sm cursor-pointer disabled:opacity-50"
->>>>>>> ec7cc7dc93f81138bc048e53dd688df6d5b93768
+                className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:bg-blue-600 text-white font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
               >
-                <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  play_arrow
+                </span>
                 <span>Run stress test</span>
                 <span className="sr-only">Test Decision</span>
               </Button>
@@ -623,56 +675,7 @@ export const EntryScreen: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
-        <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-outline font-code-sm text-code-sm flex-wrap gap-2">
-          <div className="flex items-center gap-space-3 flex-wrap">
-            <span>Crossfire: Open-source decision testing platform.</span>
-            <span className="text-outline-variant hidden sm:inline">·</span>
-            <a
-              href="https://serpapi.com?utm_source=crossfire&utm_medium=footer"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 hover:text-on-surface transition-colors"
-              title="Search results powered by SerpApi"
-            >
-              <span>Search powered by</span>
-              <SerpApiIcon size={13} />
-              <span className="font-semibold text-primary">SerpApi</span>
-            </a>
-          </div>
-          <div className="flex items-center gap-space-4">
-            <a
-              className="hover:text-on-surface transition-colors"
-              href="https://github.com/hriday-singh/crossfire"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub
-            </a>
-            <button
-              type="button"
-              onClick={() => setActiveModal("faq")}
-              className="hover:text-on-surface transition-colors cursor-pointer"
-            >
-              FAQ
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveModal("logs")}
-              className="hover:text-on-surface transition-colors cursor-pointer"
-            >
-              Telemetry
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveModal("history")}
-              className="hover:text-on-surface transition-colors cursor-pointer"
-            >
-              History
-            </button>
-          </div>
-        </div>
-      </footer>
+      <EntryFooter onOpenModal={setActiveModal} />
     </div>
   );
 };

@@ -18,9 +18,11 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
   const isAuto = agentMode === "auto";
 
   // Build the list of active agent names and corresponding tests
-  const activeAgentDescriptions = ALL_AGENTS.filter((a) => selectedAgents.includes(a.id)).map(
-    (a) => `${a.name} (${a.testName})`
-  );
+  const activeAgentDescriptions = ALL_AGENTS.filter((a) =>
+    selectedAgents.some(
+      (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === a.id
+    )
+  ).map((a) => `${a.name} (${a.testName})`);
 
   return (
     <div
@@ -76,8 +78,12 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
       {/* Grid of Interactive Agent Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {ALL_AGENTS.map((agent) => {
-          const isSelected = selectedAgents.includes(agent.id);
-          const rationale = agentRationales[agent.id];
+          const isSelected = selectedAgents.some(
+            (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === agent.id
+          );
+          const rationale =
+            agentRationales[agent.id] ||
+            (agent.id === "researcher" ? agentRationales["receipts"] : undefined);
 
           return (
             <div

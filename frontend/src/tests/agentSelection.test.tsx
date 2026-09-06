@@ -63,7 +63,7 @@ describe("AgentSelectorPanel Component", () => {
 
     // Verify all 4 agent names are displayed as primary selectable items
     expect(screen.getByText("Devil's Advocate")).toBeInTheDocument();
-    expect(screen.getByText("Receipts")).toBeInTheDocument();
+    expect(screen.getByText("Researcher")).toBeInTheDocument();
     expect(screen.getByText("Builder")).toBeInTheDocument();
     expect(screen.getByText("Operator")).toBeInTheDocument();
 

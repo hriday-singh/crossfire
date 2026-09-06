@@ -34,10 +34,10 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
     if (t.includes("assumption")) {
       return "text-secondary bg-secondary/10 border-secondary/25";
     }
-    if (t.includes("edge")) {
+    if (t.includes("friction") || t.includes("operator") || t.includes("edge")) {
       return "text-on-surface-variant bg-surface-container-highest border-outline-variant";
     }
-    if (t.includes("judge")) {
+    if (t.includes("steelman") || t.includes("judge") || t.includes("reconcil")) {
       return "text-primary-container bg-surface-container-highest border-primary-container/40";
     }
     return "text-outline bg-surface-container-high border-outline-variant/60";

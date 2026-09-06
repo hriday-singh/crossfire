@@ -10,6 +10,7 @@ export function formatTestName(failureMode: FailureMode | string): string {
   switch (normalized) {
     case "evidence":
     case "receipts":
+    case "researcher":
       return "Evidence Test";
     case "feasibility":
     case "constraint":

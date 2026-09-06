@@ -97,14 +97,16 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
           {/* Mode Description */}
           <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
             {agentMode === "auto"
-              ? "Crossfire will analyze your extracted assumptions and automatically select the most rigorous test agents (e.g., Empirical Evidence, Feasibility, Tail Risks) with transparent rationales."
+              ? "Crossfire will analyze your extracted assumptions and automatically select the most rigorous test agents (e.g., Researcher for Empirical Evidence, Builder for Feasibility, Operator for Operational Friction) with transparent rationales."
               : "Choose which specialized adversarial agents will stress-test your proposal. Each agent corresponds to a specific test."}
           </p>
 
           {/* Agent Selection Grid (Active in Custom mode, or preview in Auto mode) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-2.5">
             {ALL_AGENTS.map((agent) => {
-              const isSelected = selectedAgents.includes(agent.id);
+              const isSelected = selectedAgents.some(
+                (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === agent.id
+              );
               const isDisabled = agentMode === "auto";
 
               return (

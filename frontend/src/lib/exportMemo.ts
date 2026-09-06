@@ -137,6 +137,30 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
       md += `> ${consequence.recommended_change}\n`;
     }
 
+    // Steel Man Re-Architecture (Break to Rebuild)
+    const fatalFlaw = claim.fatal_flaw || consequence?.fatal_flaw;
+    const salvagedClaim = claim.salvaged_claim || consequence?.salvaged_claim;
+    const tradeoff = claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged;
+
+    if (fatalFlaw || salvagedClaim || tradeoff) {
+      md += `\n**Steel Man Re-Architecture (Break to Rebuild):**  \n`;
+      if (fatalFlaw) {
+        md += `> **Fatal Flaw:** ${fatalFlaw}  \n`;
+      }
+      if (salvagedClaim) {
+        md += `> **Salvaged Claim:** ${salvagedClaim}  \n`;
+      }
+      if (tradeoff) {
+        md += `> **Trade-off Acknowledged:** ${tradeoff}  \n`;
+      }
+    }
+
+    // Steel Man Adjudication
+    if (consequence?.verdict_reasoning) {
+      md += `\n**Steel Man Verdict Reasoning:**  \n`;
+      md += `> ${consequence.verdict_reasoning}\n`;
+    }
+
     // Next validation experiment
     if (consequence?.next_validation) {
       md += `\n**Next Validation Experiment (Smallest Real-World Test):**  \n`;

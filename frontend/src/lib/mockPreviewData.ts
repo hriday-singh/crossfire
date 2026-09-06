@@ -20,6 +20,12 @@ export const MOCK_PREVIEW_CASE: Case = {
         "Enterprise general counsel and risk officers will accept automated AI contract redlining without mandatory human legal review.",
       load_bearing: true,
       status: "broken",
+      fatal_flaw:
+        "Corporate legal liabilities cannot be delegated to autonomous AI under state bar ethics and insurance requirements.",
+      salvaged_claim:
+        "Copilot drafts redlines with automated rationale notes for 1-click attorney ratification.",
+      tradeoff_acknowledged:
+        "Sacrifices 100% autonomous throughput in exchange for legal compliance and enterprise insurability.",
     },
     {
       id: "c-preview-2",
@@ -27,6 +33,12 @@ export const MOCK_PREVIEW_CASE: Case = {
         "Procurement cycles will accelerate by over 60% compared to traditional internal legal review queues.",
       load_bearing: true,
       status: "weakened",
+      fatal_flaw:
+        "Turnaround bottleneck shifts from first-pass redline drafting to attorney clause verification.",
+      salvaged_claim:
+        "Achieves a verified 30% turnaround reduction focused on clause discrepancy detection.",
+      tradeoff_acknowledged:
+        "Caps aggressive marketing speed claims while establishing verifiable audit trails.",
     },
     {
       id: "c-preview-3",
@@ -45,7 +57,7 @@ export const MOCK_PREVIEW_CASE: Case = {
   ],
   test_plan: [
     {
-      id: "test-c1-receipts",
+      id: "test-c1-researcher",
       target_claim: "c-preview-1",
       failure_mode: "evidence",
       objective: "Verify whether enterprise legal departments allow autonomous non-human signoff on liability agreements.",
@@ -57,13 +69,13 @@ export const MOCK_PREVIEW_CASE: Case = {
       objective: "Assess liability insurance and regulatory exposure when autonomous AI redlines vendor agreements.",
     },
     {
-      id: "test-c2-receipts",
+      id: "test-c2-researcher",
       target_claim: "c-preview-2",
       failure_mode: "evidence",
       objective: "Gather benchmarks on time savings in legal AI redlining pilot studies.",
     },
     {
-      id: "test-c3-receipts",
+      id: "test-c3-researcher",
       target_claim: "c-preview-3",
       failure_mode: "evidence",
       objective: "Evaluate empirical MSA structural variation and clause categorization accuracy.",
@@ -78,8 +90,8 @@ export const MOCK_PREVIEW_CASE: Case = {
   findings: [
     {
       claim_id: "c-preview-1",
-      test_id: "test-c1-receipts",
-      evaluator: "receipts",
+      test_id: "test-c1-researcher",
+      evaluator: "researcher",
       result: "Broken",
       confidence: 0.94,
       contradiction:
@@ -105,8 +117,8 @@ export const MOCK_PREVIEW_CASE: Case = {
     },
     {
       claim_id: "c-preview-2",
-      test_id: "test-c2-receipts",
-      evaluator: "receipts",
+      test_id: "test-c2-researcher",
+      evaluator: "researcher",
       result: "Weakened",
       confidence: 0.82,
       contradiction:
@@ -125,8 +137,8 @@ export const MOCK_PREVIEW_CASE: Case = {
     },
     {
       claim_id: "c-preview-3",
-      test_id: "test-c3-receipts",
-      evaluator: "receipts",
+      test_id: "test-c3-researcher",
+      evaluator: "researcher",
       result: "Survived",
       confidence: 0.91,
       contradiction: null,
@@ -159,6 +171,12 @@ export const MOCK_PREVIEW_CASE: Case = {
     {
       claim_id: "c-preview-1",
       impact: "high",
+      fatal_flaw:
+        "Corporate legal liabilities cannot be delegated to autonomous AI under state bar ethics and insurance requirements.",
+      salvaged_claim:
+        "Copilot drafts redlines with automated rationale notes for 1-click attorney ratification.",
+      tradeoff_acknowledged:
+        "Sacrifices 100% autonomous throughput in exchange for legal compliance and enterprise insurability.",
       verdict_reasoning:
         "Enterprise legal teams cannot legally or contractually deploy a 'zero human review' solution without violating insurance and bar guidelines.",
       recommended_change:
@@ -169,6 +187,12 @@ export const MOCK_PREVIEW_CASE: Case = {
     {
       claim_id: "c-preview-2",
       impact: "medium",
+      fatal_flaw:
+        "Turnaround bottleneck shifts from first-pass redline drafting to attorney clause verification.",
+      salvaged_claim:
+        "Achieves a verified 30% turnaround reduction focused on clause discrepancy detection.",
+      tradeoff_acknowledged:
+        "Caps aggressive marketing speed claims while establishing verifiable audit trails.",
       verdict_reasoning:
         "The 60% turnaround acceleration claim is overly optimistic based on real-world verification bottlenecks.",
       recommended_change:
@@ -226,8 +250,8 @@ export const MOCK_PREVIEW_CASE: Case = {
  * Mock active tests for previewing the Live Runner screen.
  */
 export const MOCK_PREVIEW_TESTS: Record<string, ActiveTestRow> = {
-  "test-c1-receipts": {
-    test_id: "test-c1-receipts",
+  "test-c1-researcher": {
+    test_id: "test-c1-researcher",
     target_claim: "c-preview-1",
     failure_mode: "evidence",
     objective: "Verify enterprise legal acceptance of autonomous contract redlines",
@@ -241,16 +265,16 @@ export const MOCK_PREVIEW_TESTS: Record<string, ActiveTestRow> = {
     objective: "Simulate liability insurance and regulatory exposure under autonomous execution",
     state: "running",
   },
-  "test-c2-receipts": {
-    test_id: "test-c2-receipts",
+  "test-c2-researcher": {
+    test_id: "test-c2-researcher",
     target_claim: "c-preview-2",
     failure_mode: "evidence",
     objective: "Gather benchmarks on turnaround time savings in legal AI deployments",
     state: "completed",
     finding: MOCK_PREVIEW_CASE.findings[1],
   },
-  "test-c3-receipts": {
-    test_id: "test-c3-receipts",
+  "test-c3-researcher": {
+    test_id: "test-c3-researcher",
     target_claim: "c-preview-3",
     failure_mode: "evidence",
     objective: "Evaluate empirical MSA structural consistency across vendors",
@@ -283,6 +307,12 @@ export const MOCK_PREVIEW_LOGS: SSEEventLogItem[] = [
     data: {
       claim_id: "c-preview-1",
       status: "broken",
+      fatal_flaw:
+        "Corporate legal liabilities cannot be delegated to autonomous AI under state bar ethics and insurance requirements.",
+      salvaged_claim:
+        "Copilot drafts redlines with automated rationale notes for 1-click attorney ratification.",
+      tradeoff_acknowledged:
+        "Sacrifices 100% autonomous throughput in exchange for legal compliance and enterprise insurability.",
       verdict_reasoning:
         "American Bar Association Opinion 512 and corporate risk insurers require licensed human supervision.",
     },
@@ -293,7 +323,7 @@ export const MOCK_PREVIEW_LOGS: SSEEventLogItem[] = [
     event: "finding_ready",
     data: {
       claim_id: "c-preview-1",
-      test_id: "test-c1-receipts",
+      test_id: "test-c1-researcher",
       finding: MOCK_PREVIEW_CASE.findings[0],
     },
   },
@@ -302,9 +332,9 @@ export const MOCK_PREVIEW_LOGS: SSEEventLogItem[] = [
     timestamp: "2026-09-06T18:13:10Z",
     event: "test_started",
     data: {
-      test_id: "test-c1-receipts",
+      test_id: "test-c1-researcher",
       target_claim_id: "c-preview-1",
-      evaluator: "receipts",
+      evaluator: "researcher",
     },
   },
   {

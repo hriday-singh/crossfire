@@ -440,7 +440,7 @@ export const EntryScreen: React.FC = () => {
       {/* Footer */}
       <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
         <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-outline font-code-sm text-code-sm">
-          <span>Crossfire — Open-source decision testing platform.</span>
+          <span>Crossfire - Open-source decision testing platform.</span>
           <div className="flex items-center gap-space-4">
             <a
               className="hover:text-on-surface transition-colors"

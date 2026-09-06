@@ -3,7 +3,7 @@ import { Case, Claim } from "@/types/crossfire";
 
 /**
  * Layer 0-1 of the dashboard: the call, the single thing that forced it, and
- * what to do before committing. Everything here is anchored — every row and
+ * what to do before committing. Everything here is anchored - every row and
  * every action clicks through to the claim whose test produced it.
  */
 
@@ -103,7 +103,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
       aria-label="Verdict"
       className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-5 space-y-space-5"
     >
-      {/* Layer 0 — the call */}
+      {/* Layer 0 - the call */}
       <div className="space-y-space-2">
         <h2
           className={`font-headline-lg text-headline-lg font-semibold leading-tight ${headlineColor}`}
@@ -118,7 +118,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
         )}
       </div>
 
-      {/* Layer 1 — what broke it */}
+      {/* Layer 1 - what broke it */}
       {failedClaims.length > 0 && (
         <div className="space-y-space-2">
           <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">
@@ -163,7 +163,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
         </div>
       )}
 
-      {/* Layer 1 — what to do about it */}
+      {/* Layer 1 - what to do about it */}
       {verdict.next_actions.length > 0 && (
         <div className="space-y-space-2">
           <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">

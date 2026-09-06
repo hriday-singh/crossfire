@@ -126,7 +126,7 @@ export const DashboardScreen: React.FC = () => {
             />
           )}
 
-          {/* Every claim, in full — collapsed once the verdict is in. */}
+          {/* Every claim, in full - collapsed once the verdict is in. */}
           {!isTesting && (
             <button
               type="button"

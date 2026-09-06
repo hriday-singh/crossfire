@@ -191,7 +191,7 @@ describe("CaseContext", () => {
       context: null,
       status: "awaiting_confirmation",
       agent_mode: "auto",
-      selected_agents: ["devils_advocate", "receipts", "builder", "overthinker"],
+      selected_agents: ["devils_advocate", "receipts", "builder", "operator"],
       claims: [
         { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
       ],
@@ -212,7 +212,7 @@ describe("CaseContext", () => {
 
     expect(screen.getByTestId("agent-mode")).toHaveTextContent("auto");
     expect(screen.getByTestId("selected-agents")).toHaveTextContent(
-      "devils_advocate,receipts,builder,overthinker"
+      "devils_advocate,receipts,builder,operator"
     );
 
     // Toggle builder
@@ -220,7 +220,7 @@ describe("CaseContext", () => {
       fireEvent.click(screen.getByText("Toggle Builder"));
     });
     expect(screen.getByTestId("selected-agents")).toHaveTextContent(
-      "devils_advocate,receipts,overthinker"
+      "devils_advocate,receipts,operator"
     );
 
     // Set custom mode
