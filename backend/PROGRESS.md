@@ -33,7 +33,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `build_consequences()` | `[x]` | deterministic status/load-bearing routing, no LLM call |
 | `run_pipeline()` full orchestration + SSE queue | `[x]` | `events.py` (queue per case_id) + `run_pipeline`/`run_evaluators`/`handle_confirm` in `core/loop.py` |
 | Second provider | `[x]` | `OpenAICompatibleProvider` implemented for local proxy (http://localhost:8081/v1) |
-| `builder.py` (if time) | `[ ]` | |
+| `builder.py` (if time) | `[x]` | Feasibility Test; structured `BuilderVerdict`, no search — `evidence=[]` by design |
 | `tests/eval_set/` harness | `[ ]` | |
 
 **Last updated:** Dev A
@@ -86,6 +86,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 
 Anything that needs another dev's attention goes here, tagged with their name. Clear it once resolved instead of deleting the line — leave a one-word "resolved" so there's a record.
 
+- **@Dev C** — `core/evaluators/builder.py` is live: `run_builder(item, case, provider) -> Finding`, `evaluator="builder"`, maps to the UI's **Feasibility Test**. Route the `constraint`/feasibility failure mode to it in `dispatch()`.
 - **@Dev C** — `dispatch()` does not exist anywhere in the repo. `core/loop.py` imports it optionally and runs without it, so nothing is blocked, but every claim comes back `unresolved` until it lands. Expected: `async def dispatch(item: TestPlanItem, case: Case, provider: LLMProvider) -> Finding` importable as `from core.evaluators import dispatch`.
 - **@Dev C** — SSE transport is done and waiting for you: `events.subscribe(case_id)`, `core.loop.handle_confirm(case_id)`. See the Dev A note above.
 - **@Dev B / @Dev C** — nothing committed on either track yet. Checkpoint 1 cannot be met on Dev A's work alone: it needs real evidence (B) and the API surface + confirmation gate (C).
