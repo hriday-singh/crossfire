@@ -48,6 +48,11 @@ export const ConfirmScreen: React.FC = () => {
     setIsAdding(false);
   };
 
+  const handleConfirmAndRun = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    confirmAndRun();
+  };
+
   const getClaimCategory = (statement: string, index: number) => {
     const s = statement.toLowerCase();
     if (s.includes("trust") || s.includes("student") || s.includes("user") || s.includes("customer")) {
@@ -349,7 +354,7 @@ export const ConfirmScreen: React.FC = () => {
                 type="button"
                 id="confirm-run-btn"
                 variant="primary"
-                onClick={confirmAndRun}
+                onClick={handleConfirmAndRun}
                 disabled={
                   currentCase.claims.length === 0 ||
                   state.isConfirming ||

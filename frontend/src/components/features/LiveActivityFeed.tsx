@@ -15,14 +15,29 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   className = "",
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const feedEndRef = useRef<HTMLDivElement | null>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-scroll to latest activity when streaming
+  // Auto-scroll to bottom of container when streaming and autoScroll is active
   useEffect(() => {
-    if (isExpanded && isStreaming && feedEndRef.current) {
-      feedEndRef.current.scrollIntoView?.({ behavior: "smooth" });
+    if (isExpanded && autoScroll && containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [activities.length, isExpanded, isStreaming]);
+  }, [activities.length, isExpanded, autoScroll, isStreaming]);
+
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight <= 30;
+    setAutoScroll(isAtBottom);
+  };
+
+  const scrollToBottom = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      setAutoScroll(true);
+    }
+  };
 
   const getTagBadgeStyle = (tag: string) => {
     const t = tag.toLowerCase();
@@ -105,42 +120,63 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
 
       {/* Collapsible Activity Body */}
       {isExpanded && (
-        <div className="p-space-3 max-h-56 overflow-y-auto space-y-1.5 font-mono text-xs select-text">
-          {activities.length === 0 ? (
-            <div className="py-6 flex flex-col items-center justify-center text-center text-outline gap-1">
-              <span className="material-symbols-outlined text-[20px] animate-spin">
-                progress_activity
-              </span>
-              <p className="font-body-sm text-xs text-on-surface-variant">
-                Initializing adversarial test runners and web search pipelines...
-              </p>
-            </div>
-          ) : (
-            activities.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-start gap-2.5 py-1 px-2 rounded hover:bg-surface-container transition-colors group"
-              >
-                <span className="text-outline text-[11px] shrink-0 pt-0.5 select-none">
-                  {formatActivityTime(item.timestamp)}
+        <div className="relative">
+          <div
+            ref={containerRef}
+            onScroll={handleScroll}
+            data-testid="activity-feed-container"
+            className="p-space-3 max-h-56 overflow-y-auto space-y-1.5 font-mono text-xs select-text"
+          >
+            {activities.length === 0 ? (
+              <div className="py-6 flex flex-col items-center justify-center text-center text-outline gap-1">
+                <span className="material-symbols-outlined text-[20px] animate-spin">
+                  progress_activity
                 </span>
-
-                <span
-                  className={cn(
-                    "font-semibold text-[10px] tracking-wider uppercase px-1.5 py-0.5 rounded border shrink-0 select-none",
-                    getTagBadgeStyle(item.tag)
-                  )}
-                >
-                  {item.tag}
-                </span>
-
-                <span className="text-on-surface-variant leading-relaxed text-xs break-words font-sans group-hover:text-on-surface">
-                  <SerpApiText text={item.text} />
-                </span>
+                <p className="font-body-sm text-xs text-on-surface-variant">
+                  Initializing adversarial test runners and web search pipelines...
+                </p>
               </div>
-            ))
+            ) : (
+              activities.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-start gap-2.5 py-1 px-2 rounded hover:bg-surface-container transition-colors group"
+                >
+                  <span className="text-outline text-[11px] shrink-0 pt-0.5 select-none">
+                    {formatActivityTime(item.timestamp)}
+                  </span>
+
+                  <span
+                    className={cn(
+                      "font-semibold text-[10px] tracking-wider uppercase px-1.5 py-0.5 rounded border shrink-0 select-none",
+                      getTagBadgeStyle(item.tag)
+                    )}
+                  >
+                    {item.tag}
+                  </span>
+
+                  <span className="text-on-surface-variant leading-relaxed text-xs break-words font-sans group-hover:text-on-surface">
+                    <SerpApiText text={item.text} />
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Floating Resume Auto-Scroll Button when user has scrolled up */}
+          {!autoScroll && activities.length > 0 && (
+            <div className="absolute bottom-2.5 right-3 z-10">
+              <button
+                type="button"
+                onClick={scrollToBottom}
+                aria-label="Resume auto-scroll"
+                className="px-2.5 py-1 text-[11px] font-code-sm rounded-full bg-primary-container text-white shadow-md hover:bg-blue-600 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span>Resume auto-scroll</span>
+                <span className="material-symbols-outlined text-[13px]">arrow_downward</span>
+              </button>
+            </div>
           )}
-          <div ref={feedEndRef} />
         </div>
       )}
     </div>

@@ -90,4 +90,41 @@ describe("LiveActivityFeed", () => {
       screen.getByText('Querying DuckDuckGo: "uscis bot submission terms"')
     ).toBeInTheDocument();
   });
+
+  it("auto-scrolls feed container to bottom as new activities arrive while streaming", () => {
+    const { rerender } = render(
+      <LiveActivityFeed activities={sampleActivities.slice(0, 1)} isStreaming={true} />
+    );
+
+    const container = screen.getByTestId("activity-feed-container");
+    expect(container).toBeInTheDocument();
+
+    // Mock scrollHeight
+    Object.defineProperty(container, "scrollHeight", { value: 600, configurable: true });
+    Object.defineProperty(container, "clientHeight", { value: 200, configurable: true });
+
+    rerender(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
+
+    expect(container.scrollTop).toBe(container.scrollHeight);
+  });
+
+  it("pauses auto-scroll when user scrolls up and shows resume button", () => {
+    render(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
+
+    const container = screen.getByTestId("activity-feed-container");
+    Object.defineProperty(container, "scrollHeight", { value: 600, configurable: true });
+    Object.defineProperty(container, "clientHeight", { value: 200, configurable: true });
+
+    // User scrolls up (scrollTop = 100, which is far from 600 - 200 = 400)
+    container.scrollTop = 100;
+    fireEvent.scroll(container);
+
+    const resumeBtn = screen.getByRole("button", { name: /resume auto-scroll/i });
+    expect(resumeBtn).toBeInTheDocument();
+
+    // Clicking resume button re-scrolls to bottom
+    fireEvent.click(resumeBtn);
+    expect(container.scrollTop).toBe(container.scrollHeight);
+    expect(screen.queryByRole("button", { name: /resume auto-scroll/i })).not.toBeInTheDocument();
+  });
 });

@@ -111,4 +111,50 @@ describe("UI Primitives", () => {
       expect(screen.queryByRole("button", { name: /close/i })).not.toBeInTheDocument();
     });
   });
+
+  describe("DropdownMenu", () => {
+    it("renders trigger, opens menu on click, selects item, and closes on Escape", async () => {
+      const { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } = await import(
+        "@/components/ui/dropdown-menu"
+      );
+      const handleSelect = vi.fn();
+
+      render(
+        <DropdownMenu>
+          <DropdownMenuTrigger>
+            <span>Open Menu</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onSelect={() => handleSelect("opt-1")}>
+              Option 1
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleSelect("opt-2")}>
+              Option 2
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+
+      const trigger = screen.getByRole("button", { name: /open menu/i });
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+      // Click to open
+      fireEvent.click(trigger);
+      expect(trigger).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: /option 1/i })).toBeInTheDocument();
+
+      // Select option 1
+      fireEvent.click(screen.getByRole("menuitem", { name: /option 1/i }));
+      expect(handleSelect).toHaveBeenCalledWith("opt-1");
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+      // Open again and close on Escape
+      fireEvent.click(trigger);
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+  });
 });

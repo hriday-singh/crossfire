@@ -199,6 +199,10 @@ describe("ClaimCard", () => {
     expect(
       screen.getByText('Querying DuckDuckGo: "agency automated filing policies"')
     ).toBeInTheDocument();
+
+    const card = document.getElementById("claim-card-claim-active-1");
+    expect(card).toBeInTheDocument();
+    expect(card).toHaveAttribute("data-actively-tested", "true");
   });
 
   it("renders SerpApi badge for evidence items even when provider is duckduckgo", () => {

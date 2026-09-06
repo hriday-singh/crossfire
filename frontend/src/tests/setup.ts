@@ -24,4 +24,6 @@ beforeEach(() => {
       })
     );
   }
+
+  window.scrollTo = vi.fn();
 });

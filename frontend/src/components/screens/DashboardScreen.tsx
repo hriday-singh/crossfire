@@ -1,14 +1,31 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useCase } from "@/context/CaseContext";
 import { ClaimCard } from "@/components/features/ClaimCard";
 import { LiveActivityFeed } from "@/components/features/LiveActivityFeed";
 import { EvidenceDrawer } from "@/components/features/EvidenceDrawer";
 import { VerdictBlock } from "@/components/features/VerdictBlock";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
+import { SelectDropdown, DropdownOption } from "@/components/ui/dropdown-menu";
+
+export type ClaimSortOption =
+  | "criticality"
+  | "severity"
+  | "passed_first"
+  | "original"
+  | "load_bearing";
+
+const SORT_OPTIONS: DropdownOption<ClaimSortOption>[] = [
+  { id: "criticality", label: "Criticality", icon: "priority_high" },
+  { id: "severity", label: "Outcome Severity", icon: "warning" },
+  { id: "passed_first", label: "Held Up First", icon: "check_circle" },
+  { id: "original", label: "Original Order", icon: "format_list_numbered" },
+  { id: "load_bearing", label: "Load-Bearing First", icon: "star" },
+];
 
 export const DashboardScreen: React.FC = () => {
   const { state, selectClaim } = useCase();
   const [filterStatus, setFilterStatus] = useState<"all" | "needs_attention" | "passed">("all");
+  const [sortBy, setSortBy] = useState<ClaimSortOption>("criticality");
   const [copiedMemo, setCopiedMemo] = useState(false);
   const [claimsOpen, setClaimsOpen] = useState(false);
 
@@ -16,6 +33,11 @@ export const DashboardScreen: React.FC = () => {
   if (!currentCase) return null;
 
   const isTesting = state.isStreaming || currentCase.status === "testing";
+
+  // Scroll to top on mount or when testing begins so live intelligence and verdict block are visible
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, [isTesting]);
 
   // Dynamic Case ID
   const formattedCaseId = currentCase.id.startsWith("CRX-")
@@ -39,14 +61,50 @@ export const DashboardScreen: React.FC = () => {
   };
 
   const sortedClaims = useMemo(() => {
-    return [...currentCase.claims].sort((a, b) => {
-      if (a.load_bearing && !b.load_bearing) return -1;
-      if (!a.load_bearing && b.load_bearing) return 1;
-      const rankA = a.status ? severityRank[a.status] || 99 : 99;
-      const rankB = b.status ? severityRank[b.status] || 99 : 99;
-      return rankA - rankB;
-    });
-  }, [currentCase.claims]);
+    const claims = [...currentCase.claims];
+    switch (sortBy) {
+      case "criticality":
+        return claims.sort((a, b) => {
+          if (a.load_bearing && !b.load_bearing) return -1;
+          if (!a.load_bearing && b.load_bearing) return 1;
+          const rankA = a.status ? severityRank[a.status] || 99 : 99;
+          const rankB = b.status ? severityRank[b.status] || 99 : 99;
+          return rankA - rankB;
+        });
+
+      case "severity":
+        return claims.sort((a, b) => {
+          const rankA = a.status ? severityRank[a.status] || 99 : 99;
+          const rankB = b.status ? severityRank[b.status] || 99 : 99;
+          return rankA - rankB;
+        });
+
+      case "passed_first": {
+        const passedRank: Record<string, number> = {
+          survived: 1,
+          weakened: 2,
+          unresolved: 3,
+          broken: 4,
+        };
+        return claims.sort((a, b) => {
+          const rankA = a.status ? passedRank[a.status] || 99 : 99;
+          const rankB = b.status ? passedRank[b.status] || 99 : 99;
+          return rankA - rankB;
+        });
+      }
+
+      case "load_bearing":
+        return claims.sort((a, b) => {
+          if (a.load_bearing && !b.load_bearing) return -1;
+          if (!a.load_bearing && b.load_bearing) return 1;
+          return 0;
+        });
+
+      case "original":
+      default:
+        return claims;
+    }
+  }, [currentCase.claims, sortBy]);
 
   const filteredClaims = useMemo(() => {
     return sortedClaims.filter((c) => {
@@ -186,10 +244,13 @@ export const DashboardScreen: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex items-center gap-space-2 font-code-sm text-code-sm text-outline">
-              <span>Sorted by: Criticality</span>
-              <span className="material-symbols-outlined text-[16px]">sort</span>
-            </div>
+            <SelectDropdown
+              value={sortBy}
+              options={SORT_OPTIONS}
+              onChange={(newSort) => setSortBy(newSort)}
+              labelPrefix="Sorted by:"
+              ariaLabel="Sort claims"
+            />
           </div>
 
           {/* Claims Dossier Stack */}

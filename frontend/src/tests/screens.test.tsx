@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { EntryScreen } from "@/components/screens/EntryScreen";
 import { ConfirmScreen } from "@/components/screens/ConfirmScreen";
+import { DashboardScreen } from "@/components/screens/DashboardScreen";
 import { CaseProvider } from "@/context/CaseContext";
 import * as CaseContextModule from "@/context/CaseContext";
 import * as api from "@/lib/api";
@@ -490,6 +491,170 @@ describe("Screen Components", () => {
       const runBtn = screen.getByRole("button", { name: /Confirm & Run Tests/i });
       fireEvent.click(runBtn);
       expect(mockConfirm).toHaveBeenCalledTimes(1);
+
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe("DashboardScreen", () => {
+    it("renders null if state.currentCase is null", () => {
+      const { container } = render(
+        <CaseProvider>
+          <DashboardScreen />
+        </CaseProvider>
+      );
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it("automatically scrolls window to top when mounted in testing mode so live intelligence is visible", () => {
+      const scrollToSpy = vi.spyOn(window, "scrollTo");
+
+      vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+        state: {
+          ...INITIAL_STATE,
+          activeScreen: "runner",
+          isStreaming: true,
+          currentCase: {
+            id: "case-dashboard-scroll",
+            raw_input: "Launch B2B invoice matching",
+            context: "EU enterprise market",
+            status: "testing",
+            claims: [
+              {
+                id: "c-1",
+                statement: "Accountants will accept automated reconciliation",
+                load_bearing: true,
+                status: null,
+              },
+            ],
+            test_plan: [],
+            findings: [],
+            consequences: [],
+          },
+        },
+        dispatch: vi.fn(),
+        confirmAndRun: vi.fn(),
+        startExtracting: vi.fn(),
+        selectClaim: vi.fn(),
+        resetCase: vi.fn(),
+        loadPreset: vi.fn(),
+        navigateScreen: vi.fn(),
+        setActiveModal: vi.fn(),
+        refreshCurrentCase: vi.fn(),
+        setDebugMode: vi.fn(),
+        enterPreview: vi.fn(),
+        setPreviewView: vi.fn(),
+        exitPreview: vi.fn(),
+        toggleAgentSelection: vi.fn(),
+        setAgentMode: vi.fn(),
+        setSelectedAgents: vi.fn(),
+        selectModel: vi.fn(),
+      });
+
+      render(<DashboardScreen />);
+
+      expect(scrollToSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ top: 0 })
+      );
+
+      vi.restoreAllMocks();
+    });
+
+    it("renders interactive Sorted by dropdown menu and reorders claims on selection", async () => {
+      const mockCase = {
+        id: "case-sort-test",
+        raw_input: "Launch automated invoice verification",
+        context: null,
+        status: "done" as const,
+        claims: [
+          {
+            id: "c-survived",
+            statement: "Passed claim that held up",
+            load_bearing: false,
+            status: "survived" as const,
+          },
+          {
+            id: "c-broken",
+            statement: "Refuted claim that failed",
+            load_bearing: false,
+            status: "broken" as const,
+          },
+          {
+            id: "c-critical",
+            statement: "Load bearing claim that is critical",
+            load_bearing: true,
+            status: "survived" as const,
+          },
+        ],
+        test_plan: [],
+        findings: [],
+        consequences: [],
+      };
+
+      vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+        state: {
+          ...INITIAL_STATE,
+          activeScreen: "dashboard",
+          currentCase: mockCase,
+        },
+        dispatch: vi.fn(),
+        confirmAndRun: vi.fn(),
+        startExtracting: vi.fn(),
+        selectClaim: vi.fn(),
+        resetCase: vi.fn(),
+        loadPreset: vi.fn(),
+        navigateScreen: vi.fn(),
+        setActiveModal: vi.fn(),
+        refreshCurrentCase: vi.fn(),
+        setDebugMode: vi.fn(),
+        enterPreview: vi.fn(),
+        setPreviewView: vi.fn(),
+        exitPreview: vi.fn(),
+        toggleAgentSelection: vi.fn(),
+        setAgentMode: vi.fn(),
+        setSelectedAgents: vi.fn(),
+        selectModel: vi.fn(),
+      });
+
+      render(<DashboardScreen />);
+
+      // Expand all claims if collapsed
+      const expandClaimsBtn = screen.queryByRole("button", { name: /all 3 claims/i });
+      if (expandClaimsBtn) {
+        fireEvent.click(expandClaimsBtn);
+      }
+
+      // Sort dropdown trigger exists and is interactive (not static text)
+      const sortTrigger = screen.getByRole("button", { name: /sort claims/i });
+      expect(sortTrigger).toBeInTheDocument();
+      expect(sortTrigger).toHaveAttribute("aria-expanded", "false");
+      expect(screen.getByText("Criticality")).toBeInTheDocument();
+
+      // Open sort menu
+      fireEvent.click(sortTrigger);
+      expect(sortTrigger).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+
+      // Select "Outcome Severity"
+      const severityOption = screen.getByRole("menuitem", { name: /outcome severity/i });
+      fireEvent.click(severityOption);
+
+      // Verify dropdown closed and value updated
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(sortTrigger).toHaveTextContent("Outcome Severity");
+
+      // Verify reordering: In Outcome Severity, broken (c-broken) comes before survived (c-survived & c-critical)
+      const claimCards = screen.getAllByText(/claim that/i);
+      expect(claimCards[0]).toHaveTextContent("Refuted claim that failed");
+
+      // Now switch to "Held Up First"
+      fireEvent.click(sortTrigger);
+      const passedFirstOption = screen.getByRole("menuitem", { name: /held up first/i });
+      fireEvent.click(passedFirstOption);
+
+      expect(sortTrigger).toHaveTextContent("Held Up First");
+      const reorderedCards = screen.getAllByText(/claim that/i);
+      expect(reorderedCards[0]).toHaveTextContent("Passed claim that held up");
 
       vi.restoreAllMocks();
     });

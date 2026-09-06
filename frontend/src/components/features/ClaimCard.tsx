@@ -104,8 +104,16 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const findingHeadline =
     FINDING_HEADLINES[claim.status || "survived"] || FINDING_HEADLINES.survived;
 
+  const isActivelyTested =
+    Boolean(isTestingMode) &&
+    (tests.some((t) => t.state === "running" || (t as unknown as { status?: string }).status === "running") ||
+      Boolean(activeActivities?.[claim.id]));
+
   return (
     <div
+      id={`claim-card-${claim.id}`}
+      data-claim-id={claim.id}
+      data-actively-tested={isActivelyTested ? "true" : undefined}
       onClick={handleCardClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -117,6 +125,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
       }}
       className={cn(
         "bg-surface-container rounded-xl border border-outline-variant p-space-6 space-y-space-4 hover:border-outline transition-colors text-left outline-none block w-full",
+        isActivelyTested && "ring-1 ring-primary-container/40 border-primary-container/50",
         onClick && "cursor-pointer focus-visible:ring-1 focus-visible:ring-primary-container",
         className
       )}

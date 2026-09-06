@@ -19,6 +19,11 @@ export const AppContent: React.FC = () => {
   // Attach live SSE stream when pipeline is active
   useCaseStream();
 
+  // Scroll to top whenever the active screen changes
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  }, [state.activeScreen]);
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-indigo-500/20 selection:text-indigo-300">
       {/* Top Header */}
