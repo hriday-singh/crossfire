@@ -112,6 +112,7 @@ export interface IngestResponse {
 
 export interface ActivityItem {
   id: string;
+  case_id?: string;
   timestamp: string;
   tag: string;
   text: string;

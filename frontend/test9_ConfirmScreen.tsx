@@ -106,17 +106,6 @@ export const ConfirmScreen: React.FC = () => {
             <p className="font-headline-sm text-headline-sm text-on-surface font-medium leading-relaxed">
               {currentCase.raw_input}
             </p>
-            {currentCase.context && (
-              <div className="mt-3 pt-3 border-t border-outline-variant/30 text-left">
-                <div className="flex items-center gap-1 text-[11px] font-code-sm text-outline mb-1 uppercase tracking-wider">
-                  <span className="material-symbols-outlined text-[13px] text-primary">attach_file</span>
-                  <span>Attached Context & References</span>
-                </div>
-                <div className="font-code-sm text-xs text-on-surface-variant bg-surface-container rounded-lg p-2 max-h-24 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                  {currentCase.context}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Section Header */}

@@ -29,6 +29,21 @@ describe("TestRow", () => {
     expect(screen.getByText("Running...")).toBeInTheDocument();
   });
 
+  it("renders activeActivity badge when running", () => {
+    render(
+      <TestRow
+        testId="t-2"
+        failureMode="feasibility"
+        state="running"
+        activeActivity="Evaluating API rate limits and docker container sandbox..."
+      />
+    );
+
+    expect(
+      screen.getByText("Evaluating API rate limits and docker container sandbox...")
+    ).toBeInTheDocument();
+  });
+
   it("renders completed state with finding details and confidence", () => {
     render(
       <TestRow

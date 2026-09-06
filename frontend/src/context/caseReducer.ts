@@ -1,5 +1,6 @@
 import {
   ActiveTestRow,
+  ActivityItem,
   Case,
   Claim,
   DecisionConsequence,
@@ -42,6 +43,8 @@ export interface AppState {
   isStreaming: boolean;
   error: { stage: string; message: string; details?: unknown } | null;
   eventLog: SSEEventLogItem[];
+  activities: ActivityItem[];
+  activeTestActivities: Record<string, string>;
   selectedClaimId: string | null;
   activeTests: Record<string, ActiveTestRow>;
   caseHistory: Case[];
@@ -62,6 +65,8 @@ export const INITIAL_STATE: AppState = {
   isStreaming: false,
   error: null,
   eventLog: [],
+  activities: [],
+  activeTestActivities: {},
   selectedClaimId: null,
   activeTests: {},
   caseHistory: [],
@@ -225,6 +230,8 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         isExtracting: true,
         error: null,
         eventLog: [],
+        activities: [],
+        activeTestActivities: {},
         activeTests: {},
         selectedClaimId: null,
         currentCase: {
@@ -405,6 +412,8 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         error: null,
         selectedClaimId: null,
         activeTests: {},
+        activities: [],
+        activeTestActivities: {},
         startedAt: null,
         completedAt: null,
       };
@@ -462,6 +471,50 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           updatedCase.status = "awaiting_confirmation";
           newActiveScreen = "confirm";
           break;
+        }
+
+        case "activity": {
+          const actItem: ActivityItem = {
+            id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            timestamp: (data.timestamp as string) || new Date().toISOString(),
+            tag: (data.tag as string) || "Investigation",
+            text: (data.text as string) || "",
+            claim_id: (data.claim_id as string) || null,
+            action: (data.action as string) || null,
+          };
+          const newActivities = [...state.activities, actItem];
+          // Cap at 100 to keep memory bounded
+          const updatedActivities = newActivities.length > 100
+            ? newActivities.slice(newActivities.length - 100)
+            : newActivities;
+          const updatedActiveTestActivities = { ...state.activeTestActivities };
+          if (data.claim_id) {
+            updatedActiveTestActivities[data.claim_id as string] = actItem.text;
+          }
+          if (data.action) {
+            updatedActiveTestActivities[data.action as string] = actItem.text;
+          }
+          // Map tag to failure_mode key so ClaimCard TestRow lookups match
+          const tagToFailureMode: Record<string, string> = {
+            "Evidence Test": "evidence",
+            "Feasibility Test": "feasibility",
+            "Assumption Test": "assumption",
+            "Edge-Case Test": "edge_case",
+          };
+          const tag = (data.tag as string) || "";
+          const failureKey = tagToFailureMode[tag];
+          if (failureKey) {
+            updatedActiveTestActivities[failureKey] = actItem.text;
+          }
+          if (tag) {
+            updatedActiveTestActivities[tag] = actItem.text;
+          }
+          return {
+            ...state,
+            eventLog: updatedLog,
+            activities: updatedActivities,
+            activeTestActivities: updatedActiveTestActivities,
+          };
         }
 
         case "test_started": {

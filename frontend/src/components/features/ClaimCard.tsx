@@ -13,6 +13,7 @@ interface ClaimCardProps {
   isTestingMode?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  activeActivities?: Record<string, string>;
   className?: string;
 }
 
@@ -25,6 +26,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   isTestingMode = false,
   isExpanded: controlledExpanded,
   onToggleExpand,
+  activeActivities,
   className = "",
 }) => {
   const [localExpanded, setLocalExpanded] = useState(false);
@@ -280,6 +282,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 objective={t.objective}
                 state={t.state}
                 finding={t.finding}
+                activeActivity={
+                  activeActivities?.[t.failure_mode] ||
+                  activeActivities?.[t.test_id] ||
+                  activeActivities?.[claim.id]
+                }
               />
             ))}
           </div>
@@ -380,6 +387,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                     objective={t.objective}
                     state={t.state}
                     finding={t.finding}
+                    activeActivity={
+                      activeActivities?.[t.failure_mode] ||
+                      activeActivities?.[t.test_id] ||
+                      activeActivities?.[claim.id]
+                    }
                   />
                 ))}
               </div>
