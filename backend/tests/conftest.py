@@ -55,6 +55,21 @@ class FakeLLMProvider:
         return self._responses.pop(0)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_process_state():
+    """`store` and `events` are module-global dicts by design (in-memory, no DB).
+    Without this, a case_id reused across tests inherits the previous test's
+    queued events and Case."""
+    import events
+    import store
+
+    store._cases.clear()
+    events._queues.clear()
+    yield
+    store._cases.clear()
+    events._queues.clear()
+
+
 @pytest.fixture
 def fake_provider():
     """Empty by default — pass `responses=[...]` per-test via

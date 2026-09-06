@@ -220,28 +220,98 @@ async def test_confirm_does_not_await_the_full_pipeline():
     """This is the specific bug the spec calls out by name (backend spec §4):
     if /confirm awaited run_pipeline() before responding, every SSE event
     fired during the run would already be gone by the time the frontend's
-    stream connection existed. Simulate a slow run_pipeline (asyncio.sleep)
-    and assert whatever handles confirmation returns well before it completes.
+    stream connection existed.
+    """
+    import asyncio
 
-    SKELETON:
+    from core.loop import handle_confirm
+
+    started = asyncio.Event()
+
     async def slow_pipeline(case_id):
+        started.set()
         await asyncio.sleep(5)
 
-    start = asyncio.get_event_loop().time()
-    await handle_confirm(case_id, run_pipeline=slow_pipeline)  # should create_task, not await
-    elapsed = asyncio.get_event_loop().time() - start
+    loop = asyncio.get_running_loop()
+    start = loop.time()
+    await handle_confirm("case-1", run_pipeline=slow_pipeline)
+    elapsed = loop.time() - start
+
     assert elapsed < 1.0
-    """
-    pytest.skip("fill in once the confirm handler exists (coordinate with Dev C — this may live in api/routes.py calling into core.loop)")
+    await started.wait()  # scheduled, not skipped
 
 
 @pytest.mark.asyncio
-async def test_queue_emits_events_in_documented_order():
+async def test_queue_emits_events_in_documented_order(sample_case, fake_provider_factory):
     """claim_map_ready -> awaiting_confirmation -> test_started(*) ->
     finding_ready(*) -> verdict_ready(*) -> consequence_ready(*) ->
-    run_complete. Feed run_pipeline a trivial fixed case and assert the
-    queue's event *types* come out in an order consistent with this — exact
-    interleaving of the repeated events doesn't matter, but run_complete
-    must always be last.
+    run_complete. The first two belong to POST /cases (Dev C); this asserts the
+    subsequence run_pipeline itself owns, and that run_complete is always last.
     """
-    pytest.skip("fill in once run_pipeline() and its queue wiring exist")
+    import events
+    import store
+    from core.loop import LoadBearingAnswer, run_pipeline
+
+    store.set(sample_case)
+    queue = events.get_queue(sample_case.id)
+    provider = fake_provider_factory(
+        [LoadBearingAnswer(answer=True), LoadBearingAnswer(answer=False)]
+    )
+
+    await run_pipeline(sample_case.id, provider=provider)
+
+    seen = [item["event"] async for item in events.subscribe(sample_case.id)]
+
+    assert seen[-1] == "run_complete"
+    assert seen.index("verdict_ready") < seen.index("consequence_ready")
+    assert seen.count("verdict_ready") == len(sample_case.claims)
+    assert queue.empty()  # sentinel consumed, nothing stranded
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_threads_judge_reasoning_into_consequences(
+    sample_case, fake_provider_factory
+):
+    """build_consequences() can only synthesize verdict_reasoning from status —
+    the real reconcile() reasoning has to be threaded in by the pipeline.
+    """
+    import store
+    from core.loop import LoadBearingAnswer, run_pipeline
+
+    store.set(sample_case)
+    provider = fake_provider_factory(
+        [LoadBearingAnswer(answer=True), LoadBearingAnswer(answer=False)]
+    )
+
+    await run_pipeline(sample_case.id, provider=provider)
+
+    case = store.get(sample_case.id)
+    assert case.status == "done"
+    assert all(c.status == ClaimStatus.UNRESOLVED for c in case.claims)  # no evaluators yet
+    assert all(
+        c.verdict_reasoning == "No evaluator produced a finding for this claim."
+        for c in case.consequences
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_closes_the_queue_on_provider_failure(sample_case):
+    """A dead provider must emit `error` and close the stream, not hang the
+    frontend's open SSE connection forever.
+    """
+    import events
+    import store
+    from core.loop import run_pipeline
+
+    class DeadProvider:
+        async def generate(self, system_prompt, messages, response_schema=None):
+            raise RuntimeError("provider is down")
+
+    store.set(sample_case)
+
+    await run_pipeline(sample_case.id, provider=DeadProvider())
+
+    seen = [item async for item in events.subscribe(sample_case.id)]
+    assert seen[-1]["event"] == "error"
+    assert seen[-1]["data"]["stage"] == "run_pipeline"
+    assert store.get(sample_case.id).status == "error"

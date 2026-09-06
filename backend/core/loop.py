@@ -5,12 +5,21 @@ and reconcile (docs/dev-a/research/02-reconcile.md) — decide there first, then
 """
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
 from pydantic import BaseModel
 
+import events
+import store
 from core.models import Case, Claim, ClaimStatus, DecisionConsequence, Finding, TestPlanItem
+from providers import get_provider
 from providers.base import LLMProvider
+
+try:
+    from core.evaluators import dispatch  # Dev C
+except ImportError:  # not landed yet — the pipeline runs without findings until it is
+    dispatch = None
 
 
 class ExtractedClaims(BaseModel):
@@ -173,5 +182,113 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
     return consequences
 
 
-async def run_pipeline(case_id: str) -> None:
-    raise NotImplementedError
+async def run_evaluators(
+    case: Case, plan: list[TestPlanItem], provider: LLMProvider
+) -> list[Finding]:
+    """Every evaluator sees only its own TestPlanItem + the case — never another
+    evaluator's output (docs/00-CONTRACTS.md §4). One failing evaluator must not
+    take the run down, so exceptions come back as values and get dropped; the
+    claim then reconciles on whatever findings survived.
+    """
+    if dispatch is None:
+        return []
+    for item in plan:
+        await events.publish(
+            case.id,
+            "test_started",
+            {
+                "test_id": item.id,
+                "target_claim_id": item.target_claim,
+                "evaluator": item.failure_mode,
+            },
+        )
+    results = await asyncio.gather(
+        *(dispatch(item, case, provider) for item in plan), return_exceptions=True
+    )
+    findings = [r for r in results if isinstance(r, Finding)]
+    for finding in findings:
+        await events.publish(
+            case.id,
+            "finding_ready",
+            {"finding": finding.model_dump(), "target_claim_id": finding.claim_id},
+        )
+    return findings
+
+
+async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> None:
+    """Background task started by `handle_confirm` — never awaited by a request
+    handler. Emits the stage events in docs/00-CONTRACTS.md §3 as they happen
+    and always closes the queue on the way out.
+    """
+    provider = provider or get_provider()
+    case = store.get(case_id)
+    if case is None:
+        await events.publish(case_id, "error", {"stage": "start", "message": "unknown case"})
+        await events.close(case_id)
+        return
+
+    try:
+        case.status = "testing"
+
+        flags = await asyncio.gather(
+            *(classify_load_bearing(claim, case, provider) for claim in case.claims)
+        )
+        for claim, load_bearing in zip(case.claims, flags):
+            claim.load_bearing = load_bearing
+
+        case.test_plan = build_test_plan(case)
+        case.findings = await run_evaluators(case, case.test_plan, provider)
+
+        # Judge: one reconcile per claim, seeing every finding for it at once.
+        reasonings: dict[str, str] = {}
+        for claim in case.claims:
+            claim_findings = [f for f in case.findings if f.claim_id == claim.id]
+            if claim_findings:
+                claim.status, reasoning = await reconcile(claim, claim_findings, provider)
+            else:
+                # No finding means no evidence, and no evidence is never a verdict.
+                claim.status = ClaimStatus.UNRESOLVED
+                reasoning = "No evaluator produced a finding for this claim."
+            reasonings[claim.id] = reasoning
+            await events.publish(
+                case.id,
+                "verdict_ready",
+                {
+                    "claim_id": claim.id,
+                    "status": claim.status.value,
+                    "verdict_reasoning": reasoning,
+                },
+            )
+
+        case.consequences = build_consequences(case)
+        for consequence in case.consequences:
+            # build_consequences() can only synthesize this from status; the real
+            # Judge reasoning only exists here, so it gets threaded in.
+            consequence.verdict_reasoning = reasonings[consequence.claim_id]
+            await events.publish(
+                case.id, "consequence_ready", {"consequence": consequence.model_dump()}
+            )
+
+        case.status = "done"
+        await events.publish(case.id, "run_complete", {"case_id": case.id})
+    except Exception as exc:  # a dead provider shouldn't hang the stream open
+        case.status = "error"
+        await events.publish(case.id, "error", {"stage": "run_pipeline", "message": str(exc)})
+    finally:
+        store.set(case)
+        await events.close(case.id)
+
+
+# create_task returns a task the event loop only weakly references; without a
+# strong ref it can be garbage-collected mid-run.
+_background_tasks: set[asyncio.Task] = set()
+
+
+async def handle_confirm(case_id: str, run_pipeline=run_pipeline) -> None:
+    """What Dev C's `POST /cases/{id}/confirm` calls before returning 202.
+    Schedules the run and returns immediately — awaiting it here would mean
+    every SSE event fires before the frontend's stream connection exists.
+    """
+    task = asyncio.create_task(run_pipeline(case_id))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)

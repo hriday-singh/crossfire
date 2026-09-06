@@ -31,13 +31,21 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `build_test_plan()` | `[x]` | keyword-bucket routing (evidence/behavior/constraint/alternative) |
 | `reconcile()` | `[x]` | structured-LLM verdict, decision locked in `docs/dev-a/research/02-reconcile.md` |
 | `build_consequences()` | `[x]` | deterministic status/load-bearing routing, no LLM call |
-| `run_pipeline()` full orchestration + SSE queue | `[ ]` | |
+| `run_pipeline()` full orchestration + SSE queue | `[x]` | `events.py` (queue per case_id) + `run_pipeline`/`run_evaluators`/`handle_confirm` in `core/loop.py` |
 | Second provider | `[x]` | `OpenAICompatibleProvider` implemented for local proxy (http://localhost:8081/v1) |
 | `builder.py` (if time) | `[ ]` | |
 | `tests/eval_set/` harness | `[ ]` | |
 
 **Last updated:** Dev A
-**Note:** `OpenAICompatibleProvider` wired and tested against local `gemini-web2api` proxy (`http://localhost:8081/v1`, model `gemini-3.7-flash`). `GeminiProvider` delegates to the proxy when configured. Both text and Pydantic structured output verified live and with unit tests. `build_consequences()` done — remaining gap: `Claim` has no `reasoning` field yet, so `verdict_reasoning` is synthesized from status/load_bearing, not the real reconcile output; needs real wiring once `run_pipeline()` threads reconcile → claim → consequence.
+**Note:** `OpenAICompatibleProvider` wired and tested against local `gemini-web2api` proxy (`http://localhost:8081/v1`, model `gemini-3.7-flash`). `GeminiProvider` delegates to the proxy when configured. Both text and Pydantic structured output verified live and with unit tests.
+
+`run_pipeline()` landed. All required Dev A rows are now done; only the two "if time" rows remain. Details Dev B and Dev C need:
+
+- **`events.py` is the SSE transport.** `subscribe(case_id)` is an async generator — Dev C's `GET /cases/{id}/stream` iterates it and formats each `{"event", "data"}` as an SSE frame. Nothing else to wire; the pipeline writes with `publish()` and always `close()`s in a `finally`, including on error.
+- **`core.loop.handle_confirm(case_id)` is what `POST /cases/{id}/confirm` calls**, then returns 202. It `create_task`s and returns — do not await it.
+- **`dispatch()` is imported optionally.** `core/loop.py` does `try: from core.evaluators import dispatch / except ImportError: dispatch = None`. Until Dev C lands it the pipeline runs end-to-end with zero findings and every claim reconciles to `unresolved` — which is correct behaviour, not a stub. Signature expected: `async def dispatch(item: TestPlanItem, case: Case, provider: LLMProvider) -> Finding`. Landing it needs no edit to `core/loop.py`.
+- **verdict_reasoning gap closed.** `run_pipeline` threads the real `reconcile()` reasoning onto each `DecisionConsequence` after `build_consequences()`. No `Claim` model change, so contracts stay frozen.
+- **Test isolation:** `tests/conftest.py` now has an autouse fixture clearing `store._cases` and `events._queues` between tests. Both are module-global by design; reusing a `case_id` across tests without this inherits the previous run's events.
 
 ## Dev B — Evidence + Receipts
 
@@ -78,4 +86,6 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 
 Anything that needs another dev's attention goes here, tagged with their name. Clear it once resolved instead of deleting the line — leave a one-word "resolved" so there's a record.
 
-- (none yet)
+- **@Dev C** — `dispatch()` does not exist anywhere in the repo. `core/loop.py` imports it optionally and runs without it, so nothing is blocked, but every claim comes back `unresolved` until it lands. Expected: `async def dispatch(item: TestPlanItem, case: Case, provider: LLMProvider) -> Finding` importable as `from core.evaluators import dispatch`.
+- **@Dev C** — SSE transport is done and waiting for you: `events.subscribe(case_id)`, `core.loop.handle_confirm(case_id)`. See the Dev A note above.
+- **@Dev B / @Dev C** — nothing committed on either track yet. Checkpoint 1 cannot be met on Dev A's work alone: it needs real evidence (B) and the API surface + confirmation gate (C).
