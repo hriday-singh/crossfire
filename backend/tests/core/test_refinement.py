@@ -91,7 +91,7 @@ def test_gate_leaves_every_other_verdict_alone(status):
 def test_rank_findings_leads_with_the_sourced_contradiction():
     from core.loop import rank_findings
 
-    unsourced = _finding("overthinker", contradiction="Tail risk", confidence=0.9)
+    unsourced = _finding("operator", contradiction="Procurement freeze", confidence=0.9)
     plain = _finding("builder", confidence=0.95)
     decisive = _finding("receipts", evidence=True, contradiction="The rule forbids it", confidence=0.4)
 

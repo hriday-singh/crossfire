@@ -13,11 +13,11 @@ Crossfire is an **authoritative decision testing memo**, not an AI chatbot, a si
 ### Core UI Principles:
 1. **The Executive Decision Memo in Dark Mode:** A sleek, high-contrast dark theme designed for deep focus. Deep zinc canvas (`#09090b`), elevated card surfaces (`#18181b`), crisp readable typography (`#f4f4f5`), and generous whitespace.
 2. **Zero Fake Telemetry:** No glowing blue "LIVE STREAM" dots, no radar beacons, no simulated counters, and no unbuilt widgets (e.g. model dropdowns, fake dropzones, 3-segment impact meters).
-3. **Internal Evaluator Name Masking (Mandatory Rule):** Internal backend agent names (`devils_advocate`, `receipts`, `builder`, `overthinker`) **must never appear anywhere in the UI**. They are strictly mapped to test names derived from failure modes:
+3. **Internal Evaluator Name Masking (Mandatory Rule):** Internal backend agent names (`devils_advocate`, `receipts`, `builder`, `operator`) **must never appear anywhere in the UI**. They are strictly mapped to test names derived from failure modes:
    - `assumption` $\rightarrow$ **Assumption Test**
    - `evidence` $\rightarrow$ **Evidence Test**
    - `feasibility` $\rightarrow$ **Feasibility Test**
-   - `edge-case` $\rightarrow$ **Edge-Case Test**
+   - `operational_friction` (or `adoption`, `bureaucracy`) $\rightarrow$ **Operational Friction Test**
 4. **Color Carries Verdict, Nothing Else:** The four verdict colors are reserved exclusively for claim and test results. Never use red or amber for regular form validation or general badges.
 5. **Unresolved is a Measured Outcome:** The status `unresolved` means the system actively investigated and found conflicting or thin evidence. It is styled in **Indigo / Violet (`#818cf8`)**—never gray or disabled.
 6. **One Input, Zero Mode Menus:** The entry view has exactly one primary question: *"What are you considering?"*. No tabs, no mode selectors.

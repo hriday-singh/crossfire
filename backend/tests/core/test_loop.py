@@ -196,7 +196,7 @@ async def test_build_test_plan_differentiates_by_load_bearing_not_keywords(sampl
     lb_modes = [i.failure_mode for i in plan if i.target_claim == "claim-1"]
     secondary_modes = [i.failure_mode for i in plan if i.target_claim == "claim-2"]
 
-    assert set(lb_modes) == {"assumption", "evidence", "feasibility", "edge-case"}
+    assert set(lb_modes) == {"assumption", "evidence", "feasibility", "operational_friction"}
     assert secondary_modes == ["evidence"]
 
 
@@ -237,7 +237,7 @@ async def test_build_test_plan_single_pass_mode(sample_case):
 async def test_build_test_plan_single_pass_falls_back_when_receipts_is_off(sample_case):
     from core.loop import build_test_plan
 
-    plan = build_test_plan(sample_case, panel=False, active_agents=["overthinker", "builder"])
+    plan = build_test_plan(sample_case, panel=False, active_agents=["operator", "builder"])
     assert all(item.failure_mode == "feasibility" for item in plan)
 
 
@@ -576,12 +576,12 @@ def test_normalize_agents_orders_consistently_and_dedupes():
 
     agents, _ = normalize_agents(
         [
-            AgentPick(agent="overthinker", rationale="Tail risk is the whole question here."),
+            AgentPick(agent="operator", rationale="Adoption inertia is the main hurdle."),
             AgentPick(agent="receipts", rationale="Prices are public."),
             AgentPick(agent="receipts", rationale="Duplicate."),
         ]
     )
-    assert agents == ["devils_advocate", "receipts", "overthinker"]
+    assert agents == ["devils_advocate", "receipts", "operator"]
 
 
 def test_normalize_agents_falls_back_to_the_full_panel():
@@ -606,10 +606,10 @@ def test_build_test_plan_filters_strictly_by_active_agents(sample_case):
     assert all(item.failure_mode == "evidence" for item in plan_receipts)
     assert len(plan_receipts) == len(sample_case.claims)
 
-    # Run Devil's Advocate and Receipts, but exclude Builder and Overthinker
+    # Run Devil's Advocate and Receipts, but exclude Builder and Operator
     plan_combo = build_test_plan(sample_case, panel=True, active_agents=["devils_advocate", "receipts"])
     assert set(item.failure_mode for item in plan_combo) == {"assumption", "evidence"}
-    assert not any(item.failure_mode in ("feasibility", "edge-case") for item in plan_combo)
+    assert not any(item.failure_mode in ("feasibility", "operational_friction") for item in plan_combo)
 
 
 @pytest.mark.asyncio
@@ -638,14 +638,14 @@ async def test_extract_claims_auto_mode_generates_rationales(fake_provider_facto
             statements=["The move saves 40 minutes a day", "The lease allows subletting"],
             agents=[
                 AgentPick(agent="receipts", rationale="The lease terms are a matter of record."),
-                AgentPick(agent="overthinker", rationale="A broken lease is the expensive outcome."),
+                AgentPick(agent="operator", rationale="Procurement approval takes 9 months."),
             ],
         )
     ])
 
     case = await extract_claims(raw_input="Test proposal", provider=provider, agent_mode="auto")
     assert case.agent_mode == "auto"
-    assert case.selected_agents == ["devils_advocate", "receipts", "overthinker"]
+    assert case.selected_agents == ["devils_advocate", "receipts", "operator"]
     assert "matter of record" in case.agent_rationales["receipts"]
 
 

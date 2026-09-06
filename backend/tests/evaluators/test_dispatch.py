@@ -112,9 +112,40 @@ async def test_dispatch_routes_feasibility_modes_to_builder(mode, fake_provider_
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["operational_friction", "adoption", "bureaucracy"])
+async def test_dispatch_routes_operational_modes_to_operator(mode, fake_provider_factory, sample_case):
+    from core.evaluators.operator import OperatorVerdict
+
+    item = TestPlanItem(
+        id=f"t-{mode}",
+        target_claim=sample_case.claims[0].id,
+        failure_mode=mode,
+        objective="Test operational friction and bureaucracy",
+    )
+    provider = fake_provider_factory(
+        responses=[
+            OperatorVerdict(
+                result="Procurement gatekeeper rejection",
+                reasoning="Legal and procurement require 12-month compliance vetting.",
+                confidence=0.85,
+                friction_type="enterprise_gatekeeping",
+                operational_blocker="Enterprise procurement freeze",
+            )
+        ]
+    )
+
+    finding = await dispatch(item, sample_case, provider)
+    assert finding.evaluator == "operator"
+    assert finding.test_id == f"t-{mode}"
+    assert finding.claim_id == sample_case.claims[0].id
+    assert finding.result == "Procurement gatekeeper rejection"
+    assert finding.contradiction == "Enterprise procurement freeze"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["edge-case", "edge_case", "alternative"])
-async def test_dispatch_routes_edge_case_and_alternative_to_overthinker(mode, fake_provider_factory, sample_case):
-    from core.evaluators.overthinker import OverthinkerOutput
+async def test_dispatch_routes_edge_case_and_alternative_to_operator(mode, fake_provider_factory, sample_case):
+    from core.evaluators.operator import OperatorVerdict
 
     item = TestPlanItem(
         id=f"t-{mode}",
@@ -124,17 +155,18 @@ async def test_dispatch_routes_edge_case_and_alternative_to_overthinker(mode, fa
     )
     provider = fake_provider_factory(
         responses=[
-            OverthinkerOutput(
+            OperatorVerdict(
                 result="Extreme edge failure potential",
                 reasoning="Cascading submission failures under quota throttling",
                 confidence=0.8,
-                contradiction="System deadlock risk",
+                friction_type="process_drag",
+                operational_blocker="System deadlock risk",
             )
         ]
     )
 
     finding = await dispatch(item, sample_case, provider)
-    assert finding.evaluator == "overthinker"
+    assert finding.evaluator == "operator"
     assert finding.test_id == f"t-{mode}"
     assert finding.claim_id == sample_case.claims[0].id
     assert finding.result == "Extreme edge failure potential"

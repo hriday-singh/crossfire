@@ -43,7 +43,7 @@ class EvidenceItem(BaseModel):
 class Finding(BaseModel):
     claim_id: str
     test_id: str
-    evaluator: str                          # "devils_advocate" | "receipts" | "builder" | "overthinker"
+    evaluator: str                          # "devils_advocate" | "receipts" | "builder" | "operator"
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str
@@ -83,10 +83,10 @@ class Case(BaseModel):
     status: str = "extracting"              # extracting | needs_input | awaiting_confirmation | testing | done | error
     gate_message: str | None = None         # set when the input was too open-ended to test
     agent_mode: str = "auto"                # "auto" | "custom"
-    selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, overthinker
+    selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, operator
         "devils_advocate",
         "receipts",
         "builder",
-        "overthinker",
+        "operator",
     ]
     agent_rationales: dict[str, str] = {}   # rationales explaining why agents were auto-selected

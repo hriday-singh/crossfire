@@ -661,12 +661,12 @@ def test_confirm_updates_selected_agents(client, monkeypatch, sample_case):
         f"/cases/{sample_case.id}/confirm",
         json={
             "claims": [c.model_dump() for c in sample_case.claims],
-            "selected_agents": ["devils_advocate", "overthinker"],
+            "selected_agents": ["devils_advocate", "operator"],
         },
     )
     assert response.status_code == 202
     updated = store.get(sample_case.id)
-    assert updated.selected_agents == ["devils_advocate", "overthinker"]
+    assert updated.selected_agents == ["devils_advocate", "operator"]
 
 
 def test_confirm_empty_selected_agents_rejected(client, sample_case):

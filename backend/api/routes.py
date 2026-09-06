@@ -178,10 +178,12 @@ async def confirm_case(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot confirm case with empty selected_agents list. At least one agent must be selected.",
             )
-        valid_agents = [
-            a for a in payload.selected_agents
-            if a in ("devils_advocate", "receipts", "builder", "overthinker")
-        ]
+        valid_agents = []
+        for a in payload.selected_agents:
+            normalized = "operator" if a == "overthinker" else a
+            if normalized in ("devils_advocate", "receipts", "builder", "operator"):
+                if normalized not in valid_agents:
+                    valid_agents.append(normalized)
         if not valid_agents:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

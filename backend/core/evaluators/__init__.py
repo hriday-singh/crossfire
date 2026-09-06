@@ -14,17 +14,23 @@ from __future__ import annotations
 
 from core.evaluators.builder import run_builder
 from core.evaluators.devils_advocate import run_devils_advocate
-from core.evaluators.overthinker import run_overthinker
+from core.evaluators.operator import run_operator
 from core.evaluators.receipts import run_receipts
 from core.models import Case, Finding, TestPlanItem
 from providers.base import LLMProvider
 
+# Backward compatibility alias
+run_overthinker = run_operator
+
 # failure_mode (assigned by core.loop.build_test_plan) -> evaluator:
 #
-#   evidence    the claim rests on something checkable against the world (Receipts)
-#   feasibility whether it can actually be done as stated (Builder)
-#   assumption  unstated premises and counter-incentives (Devil's Advocate)
-#   edge-case   boundary conditions and tail failures (Overthinker)
+#   evidence             the claim rests on something checkable against the world (Receipts)
+#   feasibility          whether it can actually be done as stated (Builder)
+#   assumption           unstated premises and counter-incentives (Devil's Advocate)
+#   operational_friction human inertia, red tape, liability, process drag (Operator)
+#   adoption             adoption inertia and workflow resistance (Operator)
+#   bureaucracy          enterprise gatekeeping and procurement (Operator)
+#   edge-case            legacy alias for boundary conditions and tail risks (Operator)
 #
 # behavior/constraint/alternative are older aliases; kept so a stored plan from
 # a previous run still routes.
@@ -34,9 +40,12 @@ _ROUTES = {
     "behavior": run_builder,
     "constraint": run_builder,
     "assumption": run_devils_advocate,
-    "edge-case": run_overthinker,
-    "edge_case": run_overthinker,
-    "alternative": run_overthinker,
+    "operational_friction": run_operator,
+    "adoption": run_operator,
+    "bureaucracy": run_operator,
+    "edge-case": run_operator,
+    "edge_case": run_operator,
+    "alternative": run_operator,
 }
 
 # Devil's Advocate is the fallback because it needs no evidence and always
@@ -63,6 +72,7 @@ __all__ = [
     "dispatch",
     "run_builder",
     "run_devils_advocate",
+    "run_operator",
     "run_overthinker",
     "run_receipts",
 ]
