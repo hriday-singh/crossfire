@@ -1,8 +1,9 @@
+// Backup of Header.tsx prior to debug views preview edits
 import React from "react";
 import { useCase } from "@/context/CaseContext";
 
 export const Header: React.FC = () => {
-  const { state, resetCase, navigateScreen, selectClaim, setActiveModal, enterPreview, exitPreview } = useCase();
+  const { state, resetCase, navigateScreen, selectClaim, setActiveModal } = useCase();
 
   const handleNav = (path: "ingestion" | "claim-map" | "live-runner-verdicts" | "audit-sheet") => {
     if (path === "ingestion") {
@@ -156,31 +157,6 @@ export const Header: React.FC = () => {
 
         {/* Right Tools */}
         <div className="flex items-center gap-space-3">
-          {/* Debug Views Preview Button (Only visible when debug is ON) */}
-          {state.isDebugMode && (
-            <button
-              type="button"
-              onClick={() => {
-                if (state.previewView) {
-                  exitPreview();
-                } else {
-                  enterPreview("dashboard");
-                }
-              }}
-              data-testid="debug-views-btn"
-              aria-label={state.previewView ? "Close debug views preview" : "Open debug views preview"}
-              title="Debug: Preview All Views (Hardcoded / 0 Backend Calls)"
-              className={`font-code-sm text-code-sm px-2.5 py-1 rounded border transition-colors flex items-center gap-1.5 cursor-pointer min-h-[36px] ${
-                state.previewView
-                  ? "bg-primary-container text-on-primary-container border-primary font-semibold shadow-xs"
-                  : "bg-surface-container text-primary-container border-outline-variant hover:bg-surface-container-high hover:border-primary-container"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[16px]">visibility</span>
-              <span className="hidden sm:inline font-medium">Views Preview</span>
-            </button>
-          )}
-
           {/* Live Pipeline Telemetry Toggle */}
           <button
             type="button"

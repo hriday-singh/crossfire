@@ -1,3 +1,4 @@
+// Backup of useCaseStream.ts prior to debug preview guards
 import { useEffect, useRef } from "react";
 import { useCase } from "@/context/CaseContext";
 import { getStreamUrl } from "@/lib/api";
@@ -8,15 +9,6 @@ export function useCaseStream() {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    // Never connect to live backend SSE stream when in preview mode
-    if (state.previewView !== null) {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-      return;
-    }
-
     // Only connect when actively streaming and a case exists
     if (!state.isStreaming || !state.currentCase) {
       if (eventSourceRef.current) {
@@ -80,7 +72,7 @@ export function useCaseStream() {
       }
       eventSourceRef.current = null;
     };
-  }, [state.isStreaming, state.currentCase?.id, state.previewView, dispatch, refreshCurrentCase]);
+  }, [state.isStreaming, state.currentCase?.id, dispatch, refreshCurrentCase]);
 
   return {
     isStreaming: state.isStreaming,

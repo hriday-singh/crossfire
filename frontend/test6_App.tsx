@@ -1,3 +1,4 @@
+// Backup of App.tsx prior to DebugViewsToolbar mounting
 import React from "react";
 import { CaseProvider, useCase } from "@/context/CaseContext";
 import { useCaseStream } from "@/hooks/useCaseStream";
@@ -11,9 +12,8 @@ import { LiveLogsDrawer } from "@/components/features/LiveLogsDrawer";
 import { HistoryModal } from "@/components/features/HistoryModal";
 import { FaqDrawer } from "@/components/features/FaqDrawer";
 import { SettingsModal } from "@/components/features/SettingsModal";
-import { DebugViewsToolbar } from "@/components/features/DebugViewsToolbar";
 
-export const AppContent: React.FC = () => {
+const AppContent: React.FC = () => {
   const { state, dispatch } = useCase();
 
   // Attach live SSE stream when pipeline is active
@@ -23,9 +23,6 @@ export const AppContent: React.FC = () => {
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-indigo-500/20 selection:text-indigo-300">
       {/* Top Header */}
       <Header />
-
-      {/* Debug Views Preview Toolbar (Shown only when preview is active) */}
-      <DebugViewsToolbar />
 
       {/* Pipeline Error Alert Banner */}
       <ErrorBanner

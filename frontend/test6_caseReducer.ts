@@ -1,3 +1,4 @@
+// Backup of caseReducer.ts prior to adding debug views preview support
 import {
   ActiveTestRow,
   Case,
@@ -7,37 +8,8 @@ import {
   SSEEventLogItem,
   SSEEventName,
 } from "@/types/crossfire";
-import {
-  MOCK_PREVIEW_CASE,
-  MOCK_PREVIEW_HISTORY,
-  MOCK_PREVIEW_LOGS,
-  MOCK_PREVIEW_TESTS,
-} from "@/lib/mockPreviewData";
 
 export type ScreenView = "entry" | "confirm" | "runner" | "dashboard";
-
-export type PreviewView =
-  | null
-  | "entry"
-  | "extracting"
-  | "confirm"
-  | "runner"
-  | "dashboard"
-  | "evidence"
-  | "logs"
-  | "history"
-  | "faq"
-  | "settings";
-
-export interface SavedRealState {
-  currentCase: Case | null;
-  activeScreen: ScreenView;
-  activeModal: AppState["activeModal"];
-  selectedClaimId: string | null;
-  isStreaming: boolean;
-  isExtracting: boolean;
-  isConfirming: boolean;
-}
 
 export interface AppState {
   currentCase: Case | null;
@@ -54,9 +26,6 @@ export interface AppState {
   startedAt: number | null;
   completedAt: number | null;
   engineInfo: { status: string; provider: string; model: string } | null;
-  isDebugMode: boolean;
-  previewView: PreviewView;
-  savedRealState: SavedRealState | null;
 }
 
 export const INITIAL_STATE: AppState = {
@@ -74,9 +43,6 @@ export const INITIAL_STATE: AppState = {
   startedAt: null,
   completedAt: null,
   engineInfo: null,
-  isDebugMode: false,
-  previewView: null,
-  savedRealState: null,
 };
 
 export type AppAction =
@@ -100,204 +66,10 @@ export type AppAction =
   | { type: "LOAD_CASE"; payload: Case }
   | { type: "UPDATE_CASE"; payload: Case }
   | { type: "NAVIGATE_SCREEN"; payload: ScreenView }
-  | { type: "CLEAR_ERROR" }
-  | { type: "SET_DEBUG_MODE"; payload: boolean }
-  | { type: "ENTER_PREVIEW_MODE"; payload?: PreviewView }
-  | { type: "SET_PREVIEW_VIEW"; payload: PreviewView }
-  | { type: "EXIT_PREVIEW_MODE" };
-
-export function applyPreviewViewToState(state: AppState, targetView: PreviewView): AppState {
-  if (!targetView) return state;
-
-  const base: AppState = {
-    ...state,
-    previewView: targetView,
-  };
-
-  switch (targetView) {
-    case "entry":
-      return {
-        ...base,
-        activeScreen: "entry",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-      };
-    case "extracting":
-      return {
-        ...base,
-        activeScreen: "entry",
-        isExtracting: true,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-      };
-    case "confirm":
-      return {
-        ...base,
-        activeScreen: "confirm",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-        currentCase: MOCK_PREVIEW_CASE,
-      };
-    case "runner":
-      return {
-        ...base,
-        activeScreen: "runner",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: true,
-        activeModal: "none",
-        selectedClaimId: null,
-        currentCase: { ...MOCK_PREVIEW_CASE, status: "testing" },
-        activeTests: MOCK_PREVIEW_TESTS,
-      };
-    case "dashboard":
-      return {
-        ...base,
-        activeScreen: "dashboard",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: null,
-        currentCase: MOCK_PREVIEW_CASE,
-      };
-    case "evidence":
-      return {
-        ...base,
-        activeScreen: "dashboard",
-        isExtracting: false,
-        isConfirming: false,
-        isStreaming: false,
-        activeModal: "none",
-        selectedClaimId: "c-preview-1",
-        currentCase: MOCK_PREVIEW_CASE,
-      };
-    case "logs":
-      return {
-        ...base,
-        activeModal: "logs",
-        selectedClaimId: null,
-        eventLog: MOCK_PREVIEW_LOGS,
-      };
-    case "history":
-      return {
-        ...base,
-        activeModal: "history",
-        selectedClaimId: null,
-        caseHistory: MOCK_PREVIEW_HISTORY,
-      };
-    case "faq":
-      return {
-        ...base,
-        activeModal: "faq",
-        selectedClaimId: null,
-      };
-    case "settings":
-      return {
-        ...base,
-        activeModal: "settings",
-        selectedClaimId: null,
-      };
-    default:
-      return base;
-  }
-}
+  | { type: "CLEAR_ERROR" };
 
 export function caseReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case "SET_DEBUG_MODE":
-      return {
-        ...state,
-        isDebugMode: action.payload,
-        ...(action.payload
-          ? {}
-          : state.previewView
-          ? {
-              currentCase: state.savedRealState ? state.savedRealState.currentCase : state.currentCase,
-              activeScreen: state.savedRealState ? state.savedRealState.activeScreen : state.activeScreen,
-              activeModal: state.savedRealState ? state.savedRealState.activeModal : "none",
-              selectedClaimId: state.savedRealState ? state.savedRealState.selectedClaimId : null,
-              isStreaming: state.savedRealState ? state.savedRealState.isStreaming : false,
-              isExtracting: state.savedRealState ? state.savedRealState.isExtracting : false,
-              isConfirming: state.savedRealState ? state.savedRealState.isConfirming : false,
-              previewView: null,
-              savedRealState: null,
-            }
-          : {}),
-      };
-
-    case "ENTER_PREVIEW_MODE": {
-      const targetView = action.payload || "dashboard";
-      const savedRealState: SavedRealState = state.savedRealState || {
-        currentCase: state.currentCase,
-        activeScreen: state.activeScreen,
-        activeModal: state.activeModal,
-        selectedClaimId: state.selectedClaimId,
-        isStreaming: state.isStreaming,
-        isExtracting: state.isExtracting,
-        isConfirming: state.isConfirming,
-      };
-
-      const stateWithSaved = {
-        ...state,
-        savedRealState,
-        error: null,
-      };
-
-      return applyPreviewViewToState(stateWithSaved, targetView);
-    }
-
-    case "SET_PREVIEW_VIEW": {
-      if (!action.payload) {
-        return {
-          ...state,
-          ...(state.savedRealState
-            ? {
-                currentCase: state.savedRealState.currentCase,
-                activeScreen: state.savedRealState.activeScreen,
-                activeModal: state.savedRealState.activeModal,
-                selectedClaimId: state.savedRealState.selectedClaimId,
-                isStreaming: state.savedRealState.isStreaming,
-                isExtracting: state.savedRealState.isExtracting,
-                isConfirming: state.savedRealState.isConfirming,
-              }
-            : {}),
-          previewView: null,
-          savedRealState: null,
-        };
-      }
-      return applyPreviewViewToState(state, action.payload);
-    }
-
-    case "EXIT_PREVIEW_MODE": {
-      if (!state.savedRealState) {
-        return {
-          ...state,
-          previewView: null,
-        };
-      }
-      return {
-        ...state,
-        currentCase: state.savedRealState.currentCase,
-        activeScreen: state.savedRealState.activeScreen,
-        activeModal: state.savedRealState.activeModal,
-        selectedClaimId: state.savedRealState.selectedClaimId,
-        isStreaming: state.savedRealState.isStreaming,
-        isExtracting: state.savedRealState.isExtracting,
-        isConfirming: state.savedRealState.isConfirming,
-        previewView: null,
-        savedRealState: null,
-      };
-    }
-
     case "NAVIGATE_SCREEN":
       return { ...state, activeScreen: action.payload };
     case "SET_ACTIVE_MODAL":

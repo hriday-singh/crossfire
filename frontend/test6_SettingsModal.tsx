@@ -1,9 +1,10 @@
+// Backup of SettingsModal.tsx prior to debug mode toggle additions
 import React, { useState } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export const SettingsModal: React.FC = () => {
-  const { state, dispatch, setActiveModal, resetCase, setDebugMode, enterPreview } = useCase();
+  const { state, dispatch, setActiveModal, resetCase } = useCase();
   const isOpen = state.activeModal === "settings";
   const [clearedNotice, setClearedNotice] = useState<string | null>(null);
 
@@ -210,65 +211,6 @@ export const SettingsModal: React.FC = () => {
                   Reset Canvas
                 </button>
               </div>
-            </div>
-          </div>
-
-          {/* Developer & Debug Mode Section */}
-          <div className="space-y-space-3">
-            <h3 className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold">
-              Developer &amp; Debug
-            </h3>
-
-            <div className="bg-surface-container border border-outline-variant/60 rounded-xl p-space-4 space-y-space-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-body-sm text-body-sm text-on-surface font-medium">
-                    Debug Mode &amp; Views Preview
-                  </p>
-                  <p className="font-code-sm text-code-sm text-outline">
-                    Enables the UI views preview toolbar to inspect all screens offline with mock fixtures
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={state.isDebugMode}
-                  onClick={() => setDebugMode(!state.isDebugMode)}
-                  data-testid="debug-mode-toggle"
-                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer focus:outline-none shrink-0 ${
-                    state.isDebugMode ? "bg-primary-container" : "bg-surface-container-highest"
-                  }`}
-                >
-                  <span
-                    className={`block w-4 h-4 rounded-full bg-on-primary-container transition-transform absolute top-1 left-1 ${
-                      state.isDebugMode ? "translate-x-5" : ""
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {state.isDebugMode && (
-                <div className="border-t border-outline-variant/40 pt-space-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-body-sm text-body-sm text-on-surface font-medium">
-                      Launch Views Preview
-                    </p>
-                    <p className="font-code-sm text-code-sm text-outline">
-                      Inspect all 10 view variations with hardcoded mock data
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveModal("none");
-                      enterPreview("dashboard");
-                    }}
-                    className="font-code-sm text-code-sm px-space-3 py-1.5 rounded bg-primary-container text-on-primary-container hover:brightness-110 font-medium transition-colors cursor-pointer"
-                  >
-                    Open Preview
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>

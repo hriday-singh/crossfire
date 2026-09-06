@@ -1,5 +1,6 @@
+// Backup of CaseContext.tsx prior to debug views preview additions
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
-import { AppAction, AppState, INITIAL_STATE, PreviewView, caseReducer } from "./caseReducer";
+import { AppAction, AppState, INITIAL_STATE, caseReducer } from "./caseReducer";
 import { DECISION_PRESETS } from "@/lib/presets";
 import { confirmCase, createCase, getCase, getHealth } from "@/lib/api";
 import { Case } from "@/types/crossfire";
@@ -15,32 +16,20 @@ interface CaseContextValue {
   navigateScreen: (screen: AppState["activeScreen"]) => void;
   setActiveModal: (modal: AppState["activeModal"]) => void;
   refreshCurrentCase: () => Promise<void>;
-  setDebugMode: (enabled: boolean) => void;
-  enterPreview: (view?: PreviewView) => void;
-  setPreviewView: (view: PreviewView) => void;
-  exitPreview: () => void;
 }
 
 const CaseContext = createContext<CaseContextValue | null>(null);
 
 const STORAGE_KEY_HISTORY = "crossfire_case_history";
-const STORAGE_KEY_DEBUG = "crossfire_debug";
 
 export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(caseReducer, INITIAL_STATE, (initial) => {
     try {
       const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
       const parsedHistory: Case[] = savedHistory ? JSON.parse(savedHistory) : [];
-      const savedDebug = localStorage.getItem(STORAGE_KEY_DEBUG);
-      let isDebug = savedDebug === "true";
-      if (!isDebug && typeof window !== "undefined") {
-        const urlParams = new URLSearchParams(window.location.search);
-        isDebug = urlParams.get("debug") === "true" || urlParams.get("debug") === "1";
-      }
       return {
         ...initial,
         caseHistory: parsedHistory,
-        isDebugMode: isDebug,
       };
     } catch {
       return initial;
@@ -66,36 +55,14 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Sync history to localStorage (only when not in preview mode)
+  // Sync history to localStorage
   useEffect(() => {
-    if (state.previewView !== null) return;
     try {
       localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(state.caseHistory));
     } catch {
       // Ignore storage errors
     }
-  }, [state.caseHistory, state.previewView]);
-
-  const setDebugMode = (enabled: boolean) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_DEBUG, String(enabled));
-    } catch {
-      // Ignore storage errors
-    }
-    dispatch({ type: "SET_DEBUG_MODE", payload: enabled });
-  };
-
-  const enterPreview = (view?: PreviewView) => {
-    dispatch({ type: "ENTER_PREVIEW_MODE", payload: view });
-  };
-
-  const setPreviewView = (view: PreviewView) => {
-    dispatch({ type: "SET_PREVIEW_VIEW", payload: view });
-  };
-
-  const exitPreview = () => {
-    dispatch({ type: "EXIT_PREVIEW_MODE" });
-  };
+  }, [state.caseHistory]);
 
   const startExtracting = async (rawInput: string, context?: string | null) => {
     dispatch({ type: "START_EXTRACTING", payload: { rawInput, context } });
@@ -184,10 +151,6 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         navigateScreen,
         setActiveModal,
         refreshCurrentCase,
-        setDebugMode,
-        enterPreview,
-        setPreviewView,
-        exitPreview,
       }}
     >
       {children}

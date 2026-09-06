@@ -242,6 +242,10 @@ describe("Screen Components", () => {
         navigateScreen: vi.fn(),
         setActiveModal: vi.fn(),
         refreshCurrentCase: vi.fn(),
+        setDebugMode: vi.fn(),
+        enterPreview: vi.fn(),
+        setPreviewView: vi.fn(),
+        exitPreview: vi.fn(),
       });
 
       render(<ConfirmScreen />);

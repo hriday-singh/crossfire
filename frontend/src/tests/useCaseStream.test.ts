@@ -29,6 +29,10 @@ describe("useCaseStream hook", () => {
       navigateScreen: vi.fn(),
       setActiveModal: vi.fn(),
       refreshCurrentCase: mockRefreshCurrentCase,
+      setDebugMode: vi.fn(),
+      enterPreview: vi.fn(),
+      setPreviewView: vi.fn(),
+      exitPreview: vi.fn(),
     }));
   });
 
