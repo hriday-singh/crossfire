@@ -59,9 +59,10 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | Failure handling (dead sources → unresolved, not crash) | `[x]` | network/API failures degrade to empty list rather than raising |
 | Curation v2 (LLM, if time) | `[x]` | `curate_snippet_llm` with CuratedSnippet schema, strict 1-3 sentences / <= 600 chars, fallback to heuristic |
 | `ingestion/pdf.py` (stretch) | `[x]` | `extract_pdf_text` + `ingest_pdf` via `pypdf`, feeds `Case.context`, rejects scanned/image-only PDFs (no OCR) |
+| Eval set stress-testing & URL ingestion (Hour 35-48) | `[x]` | dead-link and thin-evidence cases added to `tests/eval_set/cases.py`; `ingest_url` added to `ingestion/`; zero-evidence negative invariant verified |
 
 **Last updated:** Dev B
-**Note:** All core and stretch Dev B modules (`evidence/search.py`, `evidence/curate.py`, `evidence/fetch.py`, `core/evaluators/receipts.py`, `ingestion/pdf.py`) and all tests across `tests/evidence/`, `tests/evaluators/test_receipts.py`, and `tests/ingestion/test_pdf.py` implemented and passing cleanly (97 passed, 0 failed).
+**Note:** All Checkpoint 1, Checkpoint 2, and Hour 35–48 deliverables complete. `evidence/search.py`, `evidence/curate.py`, `evidence/fetch.py`, `core/evaluators/receipts.py`, `ingestion/pdf.py`, and `ingestion/url.py` fully implemented and passing all tests across `tests/evidence/`, `tests/evaluators/test_receipts.py`, `tests/ingestion/`, and `tests/eval_set/cases.py` (117 passed, 0 failed).
 
 ## Dev C — API + SSE + Evaluators
 
