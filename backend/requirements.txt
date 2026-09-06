@@ -9,3 +9,4 @@ tenacity
 pypdf
 rapidocr_onnxruntime
 pymupdf
+serpapi

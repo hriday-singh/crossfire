@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import html
 import inspect
+import json
 import logging
 import re
 import urllib.parse
@@ -26,8 +27,18 @@ from core.models import Claim, EvidenceItem
 logger = logging.getLogger(__name__)
 
 
+class SerpApiError(Exception):
+    """Base exception for SerpApi errors."""
+    pass
+
+
+class SerpApiQuotaExceededError(SerpApiError):
+    """Raised when SerpApi credits are exhausted (HTTP 429 or quota limit error)."""
+    pass
+
+
 class SettingsProxy:
-    """Delegates to base settings while allowing dynamic overrides (e.g. DEMO_MODE)
+    """Delegates to base settings while allowing dynamic overrides (e.g. DEMO_MODE, SERPAPI_API_KEY)
     for testing and runtime switches."""
 
     def __init__(self, base: Any) -> None:
@@ -36,11 +47,13 @@ class SettingsProxy:
     def __getattr__(self, name: str) -> Any:
         if name == "DEMO_MODE":
             return getattr(self._base, "demo_mode", False)
+        if name == "SERPAPI_API_KEY":
+            return getattr(self._base, "serpapi_api_key", "")
         return getattr(self._base, name)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "DEMO_MODE":
-            object.__setattr__(self, "DEMO_MODE", value)
+        if name in ("DEMO_MODE", "SERPAPI_API_KEY"):
+            object.__setattr__(self, name, value)
         else:
             object.__setattr__(self, name, value)
 
@@ -54,12 +67,14 @@ DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {
             title="USCIS Website Terms of Use and Automated Submissions",
             snippet="Automated or scripted submissions of visa applications and forms are strictly prohibited. Any application submitted using automated bots or unauthorized third-party proxy tools is subject to immediate rejection and voiding.",
             retrieved_at="2026-09-06T00:00:00Z",
+            provider="fixture",
         ),
         EvidenceItem(
             source_url="https://www.gov.uk/visas-immigration-service/terms",
             title="UK Visas and Immigration Terms of Service",
             snippet="Applicants must complete and verify their submission directly. Third-party automation software and unauthorized browser extensions interacting directly with official visa portals violate terms of service and invalidate application integrity.",
             retrieved_at="2026-09-06T00:00:00Z",
+            provider="fixture",
         ),
     ],
     "claim-visa-auto-submit": [
@@ -68,12 +83,14 @@ DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {
             title="USCIS Website Terms of Use and Automated Submissions",
             snippet="Automated or scripted submissions of visa applications and forms are strictly prohibited. Any application submitted using automated bots or unauthorized third-party proxy tools is subject to immediate rejection and voiding.",
             retrieved_at="2026-09-06T00:00:00Z",
+            provider="fixture",
         ),
         EvidenceItem(
             source_url="https://www.gov.uk/visas-immigration-service/terms",
             title="UK Visas and Immigration Terms of Service",
             snippet="Applicants must complete and verify their submission directly. Third-party automation software and unauthorized browser extensions interacting directly with official visa portals violate terms of service and invalidate application integrity.",
             retrieved_at="2026-09-06T00:00:00Z",
+            provider="fixture",
         ),
     ],
 }
@@ -240,10 +257,96 @@ def parse_duckduckgo_lite_html(html_content: str, max_results: int = 4) -> list[
                 title=title,
                 snippet=snippet_text,
                 retrieved_at=now,
+                provider="duckduckgo",
             )
         )
 
     return items
+
+
+def parse_serpapi_response(data: dict[str, Any], max_results: int = 4) -> list[EvidenceItem]:
+    """Parses SerpApi Google search JSON response into well-formed EvidenceItem models.
+
+    Extracts organic results with clean URLs, titles, snippets, and sets provider='serpapi'.
+    Raises SerpApiQuotaExceededError if the response indicates quota or account credit exhaustion.
+    """
+    if not isinstance(data, dict):
+        return []
+
+    if "error" in data:
+        err_msg = str(data["error"])
+        lowered = err_msg.lower()
+        if any(term in lowered for term in ("run out of searches", "quota", "limit", "rate limit")):
+            raise SerpApiQuotaExceededError(err_msg)
+        raise SerpApiError(err_msg)
+
+    now = datetime.now(timezone.utc).isoformat()
+    organic_results = data.get("organic_results", [])
+    if not isinstance(organic_results, list):
+        return []
+
+    items: list[EvidenceItem] = []
+    for res in organic_results:
+        if len(items) >= max_results:
+            break
+        if not isinstance(res, dict):
+            continue
+
+        raw_url = res.get("link") or res.get("url")
+        if not raw_url or not isinstance(raw_url, str) or not raw_url.startswith("http"):
+            continue
+
+        title_raw = res.get("title")
+        title = title_raw.strip() if isinstance(title_raw, str) and title_raw.strip() else None
+
+        snippet_raw = res.get("snippet") or ""
+        snippet = snippet_raw.strip() if isinstance(snippet_raw, str) else ""
+
+        items.append(
+            EvidenceItem(
+                source_url=raw_url.strip(),
+                title=title,
+                snippet=snippet,
+                retrieved_at=now,
+                provider="serpapi",
+            )
+        )
+
+    return items
+
+
+async def _execute_serpapi_search(query: str, api_key: str, max_results: int = 4) -> list[EvidenceItem]:
+    """Executes a Google search via SerpApi using Scrapling's AsyncFetcher.
+
+    Detects HTTP 429 (out of searches / rate limit) and HTTP 401 (unauthorized) and raises
+    specific exceptions so caller can fall back gracefully.
+    """
+    from scrapling import AsyncFetcher
+
+    params = {
+        "engine": "google",
+        "q": query,
+        "api_key": api_key,
+        "num": str(max_results),
+    }
+    url = f"https://serpapi.com/search.json?{urllib.parse.urlencode(params)}"
+
+    res = await AsyncFetcher.get(url, timeout=15)
+    status = getattr(res, "status", getattr(res, "status_code", 200))
+
+    if status == 429:
+        raise SerpApiQuotaExceededError("SerpApi account has run out of searches or is rate limited (HTTP 429)")
+    if status == 401:
+        raise SerpApiError("SerpApi unauthorized: invalid or inactive API key (HTTP 401)")
+    if status >= 400:
+        raise SerpApiError(f"SerpApi request failed with HTTP {status}")
+
+    try:
+        data = res.json() if hasattr(res, "json") else json.loads(res.text or res.body.decode("utf-8"))
+    except Exception as exc:
+        raise SerpApiError(f"Failed to parse SerpApi response as JSON: {exc}") from exc
+
+    return parse_serpapi_response(data, max_results=max_results)
 
 
 @retry(
@@ -271,18 +374,40 @@ async def _execute_search(query: str) -> str:
 
 
 async def search_evidence(claim: Claim) -> list[EvidenceItem]:
-    """Searches external evidence for a given claim via DuckDuckGo Lite.
+    """Searches external evidence for a given claim.
 
-    - Single query per claim
-    - Explicit DEMO_FIXTURES switch when DEMO_MODE is True
-    - Gracefully degrades to an empty list on failure (never raises)
+    Prioritizes SerpApi when SERPAPI_API_KEY is configured. If out of credits (HTTP 429),
+    key is invalid (HTTP 401), or any error occurs, it transparently falls back to
+    DuckDuckGo Lite via Scrapling.
     """
     is_demo = getattr(settings, "DEMO_MODE", False) or getattr(settings, "demo_mode", False)
     if is_demo and claim.id in DEMO_FIXTURES:
         return DEMO_FIXTURES[claim.id]
 
+    query = build_query(claim.statement)
+    api_key = (getattr(settings, "SERPAPI_API_KEY", "") or getattr(settings, "serpapi_api_key", "") or "").strip()
+
+    if api_key:
+        try:
+            serp_items = await _execute_serpapi_search(query, api_key, max_results=4)
+            if inspect.isawaitable(serp_items):
+                serp_items = await serp_items
+            if serp_items:
+                return rank_by_source_class(serp_items)
+            logger.info(f"SerpApi returned 0 results for '{query}'. Falling back to DuckDuckGo Lite.")
+        except SerpApiQuotaExceededError as exc:
+            logger.warning(
+                f"SerpApi credits exhausted or quota reached for claim {claim.id}: {exc}. "
+                "Smoothly falling back to DuckDuckGo Lite via Scrapling."
+            )
+        except Exception as exc:
+            logger.warning(
+                f"SerpApi search failed for claim {claim.id}: {exc}. "
+                "Falling back to DuckDuckGo Lite via Scrapling."
+            )
+
     try:
-        html_resp = await _execute_search(build_query(claim.statement))
+        html_resp = await _execute_search(query)
         if inspect.isawaitable(html_resp):
             html_resp = await html_resp
         return rank_by_source_class(parse_duckduckgo_lite_html(html_resp, max_results=4))

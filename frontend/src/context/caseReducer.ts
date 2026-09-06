@@ -2,12 +2,14 @@ import {
   ActiveTestRow,
   ActivityItem,
   Case,
+  CaseVerdict,
   Claim,
   DecisionConsequence,
   Finding,
   SSEEventLogItem,
   SSEEventName,
 } from "@/types/crossfire";
+import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 import { applyPreviewViewToState } from "./previewHelper";
 
 export type ScreenView = "entry" | "confirm" | "runner" | "dashboard";
@@ -244,12 +246,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           consequences: [],
           status: "extracting",
           agent_mode: action.payload.agentMode || "auto",
-          selected_agents: action.payload.selectedAgents || [
-            "devils_advocate",
-            "receipts",
-            "builder",
-            "overthinker",
-          ],
+          selected_agents: action.payload.selectedAgents || [...DEFAULT_AGENT_IDS],
           agent_rationales: {},
         },
       };
@@ -283,12 +280,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
     case "TOGGLE_AGENT_SELECTION": {
       if (!state.currentCase) return state;
       const agentId = action.payload;
-      const currentSelected = state.currentCase.selected_agents || [
-        "devils_advocate",
-        "receipts",
-        "builder",
-        "overthinker",
-      ];
+      const currentSelected = state.currentCase.selected_agents || [...DEFAULT_AGENT_IDS];
       const isSelected = currentSelected.includes(agentId);
       const updated = isSelected
         ? currentSelected.filter((id) => id !== agentId)
@@ -646,6 +638,14 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
             } else {
               updatedCase.consequences.push(consequence);
             }
+          }
+          break;
+        }
+
+        case "case_verdict": {
+          const verdict = data.case_verdict as CaseVerdict | undefined;
+          if (verdict) {
+            updatedCase.case_verdict = verdict;
           }
           break;
         }

@@ -11,6 +11,7 @@
 Crossfire tests strategic decisions and technical proposals through an adversarial panel of specialized evaluators (agents). Until now, all active evaluators ran against all claims unconditionally or under fixed keywords without user customization.
 
 This specification introduces **Dynamic Agent Selection**:
+
 1. **Ingestion Step (Screen 1 / `EntryScreen`)**:
    - A compact, expandable agent panel allows users to leave selection on **Auto (Default)** or choose **Custom** to pre-select specific agents before extraction begins.
 2. **Claim Decision & Auto-Recommendation**:
@@ -19,7 +20,7 @@ This specification introduces **Dynamic Agent Selection**:
    - Users review extracted assumptions alongside the assigned agent panel.
    - Users can freely **select or deselect any agents** right here, with instant validation enforcing at least one active agent.
 4. **Execution & Backend Pipeline (`POST /cases/{id}/confirm`, `core/loop.py`)**:
-   - The test plan schedules tests *only* for the confirmed selected agents.
+   - The test plan schedules tests _only_ for the confirmed selected agents.
    - Judgments and consequences reconcile cleanly based on active findings.
 5. **Data Persistence & SQL Migration**:
    - Migration `migrations/002_add_agent_selection_to_cases.sql` provides explicit database columns (`agent_mode`, `selected_agents`) alongside full SQLite JSON serialization in `cases`.
@@ -30,18 +31,19 @@ This specification introduces **Dynamic Agent Selection**:
 
 Adhering to Crossfire's product rules (evaluator internal IDs masked to failure-mode test names):
 
-| Agent ID | Masked UI Test Name | Semantic Role & Heuristic Trigger | Default in Auto |
-|---|---|---|---|
-| `devils_advocate` | **Assumption Test** | Stress-tests implicit premises, logical contradictions, and unstated assumptions. Always foundational. | Yes |
-| `receipts` | **Evidence Test** | Verifies empirical claims, market sizing, pricing, conversion, and costs against web evidence. Triggered by empirical & market claims. | Yes |
-| `builder` | **Feasibility Test** | Assesses engineering bottlenecks, API limits, performance, compliance, and architectural blockers. Triggered by tech/ops claims or load-bearing status. | Conditional / Recommended when tech/ops keywords or load-bearing |
-| `overthinker` | **Edge-Case Test** | Identifies catastrophic tail risks, boundary failures, edge vulnerabilities, and worst-case user exploits. Triggered by extreme claims, uniqueness, or load-bearing status. | Conditional / Recommended when edge keywords or load-bearing |
+| Agent ID          | Masked UI Test Name  | Semantic Role & Heuristic Trigger                                                                                                                                           | Default in Auto                                                  |
+| ----------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `devils_advocate` | **Assumption Test**  | Stress-tests implicit premises, logical contradictions, and unstated assumptions. Always foundational.                                                                      | Yes                                                              |
+| `receipts`        | **Evidence Test**    | Verifies empirical claims, market sizing, pricing, conversion, and costs against web evidence. Triggered by empirical & market claims.                                      | Yes                                                              |
+| `builder`         | **Feasibility Test** | Assesses engineering bottlenecks, API limits, performance, compliance, and architectural blockers. Triggered by tech/ops claims or load-bearing status.                     | Conditional / Recommended when tech/ops keywords or load-bearing |
+| `overthinker`     | **Edge-Case Test**   | Identifies catastrophic tail risks, boundary failures, edge vulnerabilities, and worst-case user exploits. Triggered by extreme claims, uniqueness, or load-bearing status. | Conditional / Recommended when edge keywords or load-bearing     |
 
 ---
 
 ## 3. Backend Architecture & Contracts
 
 ### 3.1 Data Model Extensions (`core/models.py`)
+
 ```python
 class Case(BaseModel):
     id: str
@@ -60,6 +62,7 @@ class Case(BaseModel):
 ```
 
 ### 3.2 API Schemas (`api/schemas.py`)
+
 - `CreateCaseRequest`:
   ```python
   class CreateCaseRequest(BaseModel):
@@ -76,15 +79,19 @@ class Case(BaseModel):
   ```
 
 ### 3.3 Dynamic Auto-Selection Heuristic (`core/loop.py`)
+
 Function: `determine_auto_agents(claims: list[Claim]) -> tuple[list[str], dict[str, str]]`
-- `devils_advocate` is always included: *"Stress-tests implicit premises and counter-incentives across all extracted claims."*
-- `receipts` is included if empirical, cost, pricing, or market signals are present, or by default: *"Searches external empirical evidence and market benchmarks for factual assertions."*
-- `builder` is included if technical, infrastructure, latency, performance, or operational constraints appear: *"Evaluates engineering feasibility, latency bottlenecks, and operational blockers."*
-- `overthinker` is included if risk, competitor, boundary, or uniqueness claims appear: *"Identifies worst-case tail risks, boundary failures, and second-order vulnerabilities."*
+
+- `devils_advocate` is always included: _"Stress-tests implicit premises and counter-incentives across all extracted claims."_
+- `receipts` is included if empirical, cost, pricing, or market signals are present, or by default: _"Searches external empirical evidence and market benchmarks for factual assertions."_
+- `builder` is included if technical, infrastructure, latency, performance, or operational constraints appear: _"Evaluates engineering feasibility, latency bottlenecks, and operational blockers."_
+- `overthinker` is included if risk, competitor, boundary, or uniqueness claims appear: _"Identifies worst-case tail risks, boundary failures, and second-order vulnerabilities."_
 
 ### 3.4 Test Plan Execution (`build_test_plan`)
+
 `build_test_plan(case: Case, panel: bool = True, active_agents: list[str] | None = None)`:
 Filters test items to only include failure modes corresponding to `active_agents`:
+
 - `devils_advocate` $\rightarrow$ `failure_mode == "assumption"`
 - `receipts` $\rightarrow$ `failure_mode == "evidence"`
 - `builder` $\rightarrow$ `failure_mode in ("feasibility", "behavior", "constraint")`
@@ -95,18 +102,20 @@ Filters test items to only include failure modes corresponding to `active_agents
 ## 4. Frontend UI & State Architecture
 
 ### 4.1 Ingestion Screen (`EntryScreen.tsx`)
+
 - Located below the textarea and above the action row.
 - Rendered as a compact expandable card styled with design tokens:
-  - Collapsed: Clean row with an icon, *"Agent Suite: Auto (Recommended — tailored to claims)"*, and an "Expand / Customize" trigger.
+  - Collapsed: Clean row with an icon, _"Agent Suite: Auto (Recommended)"_, and an "Expand / Customize" trigger.
   - Expanded: Segmented toggle between **Auto** and **Custom**.
     - When **Custom** is selected: Checkbox cards for all 4 agents with display name, masked test label, and brief description.
 - State persists into `CaseContext` so if a user starts extracting, `agent_mode` and `selected_agents` are transmitted via `createCase`.
 
 ### 4.2 Alignment Screen (`ConfirmScreen.tsx`)
+
 - Placed directly between the Extracted Assumptions stack and the Bottom Actions row.
-- **Header**: *"Assigned Adversarial Agents (N active)"*.
+- **Header**: _"Assigned Adversarial Agents (N active)"_.
 - In **Auto Mode**:
-  - Displays a clean guidance banner: *"Based on your extracted claims, Crossfire selected the following agents:"*
+  - Displays a clean guidance banner: _"Based on your extracted claims, Crossfire selected the following agents:"_
   - Shows each agent with its auto-generated rationale tag.
 - **Interactive Toggles**:
   - All 4 agents rendered as interactive toggle cards/chips.
@@ -115,6 +124,7 @@ Filters test items to only include failure modes corresponding to `active_agents
   - Validation: If 0 agents are selected, an error message appears and "Run Tests" is disabled.
 
 ### 4.3 Reducer & API Client
+
 - `caseReducer.ts`:
   - Add actions: `SET_AGENT_MODE`, `TOGGLE_AGENT`, `SET_SELECTED_AGENTS`.
   - In `EXTRACTING_SUCCESS`: hydrates `agent_mode`, `selected_agents`, and `agent_rationales` from the backend response.
@@ -133,7 +143,8 @@ Filters test items to only include failure modes corresponding to `active_agents
 ALTER TABLE cases ADD COLUMN agent_mode TEXT DEFAULT 'auto';
 ALTER TABLE cases ADD COLUMN selected_agents TEXT DEFAULT '["devils_advocate","receipts","builder","overthinker"]';
 ```
-*(Per user global rule: File generated only, never auto-applied by agent).*
+
+_(Per user global rule: File generated only, never auto-applied by agent)._
 
 ---
 

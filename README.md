@@ -37,7 +37,7 @@ When you submit a proposal or decision dilemma, Crossfire runs through a five-st
 ```
 
 ### 1. Claim extraction and confirmation
-Crossfire parses your input into two to five discrete, checkable claims. Before running any expensive tests or searches, the system displays these claims so you can edit, remove, or add assumptions. This prevents the engine from spending compute investigating misread intent.
+Crossfire parses your input into two to five discrete, checkable claims. Before running any tests or searches, the system displays these claims so you can edit, remove, or add assumptions. This prevents the engine from spending compute investigating misread intent.
 
 ### 2. Load-bearing classification
 A claim is load-bearing if its failure would materially change the decision. For example, in an automated compliance product, "Regulators accept automated audit trails" is load-bearing; "Users prefer weekly email digests" is not. Crossfire concentrates its deepest scrutiny and web evidence retrieval on load-bearing claims.
@@ -76,16 +76,16 @@ Every claim receives one of four reconciled states:
 
 ---
 
-## Why this architecture?
+## Core doubts
 
-### Why not ask a standard chat model?
-A standard prompt produces a single response in one continuous thread. Chat models have a natural tendency toward agreement and will build upon whatever direction was implied in the user's phrasing. Crossfire forces a structured process: claims are isolated, tested independently so they cannot influence each other, grounded in web retrieval, and reconciled into an auditable record.
+### Isn't this just a wrapper around an AI model?
+No. A wrapper is one prompt in, one answer out. Crossfire never lets a single model call answer the question directly. It runs a fixed process: pull out the claims, test the important ones independently (some pulling real evidence off the web), then a separate step weighs it all and decides. That's a process, not a prompt with a personality on it.
 
-### Why not an AI council?
-Tools that send a prompt to multiple models and let them debate each other or average their confidence scores often suffer from consensus bias. Multi-agent debate research (such as *Free-MAD*) demonstrates that when models observe each other's outputs, early errors propagate and models converge on majority agreement. Crossfire prevents this by running all evaluators blind and reconciling strictly on evidence quality and structural severity rather than majority voting.
+### How is this better than just using one AI model directly?
+One model, one voice, one pass. What it checks depends entirely on how you phrased the question. Crossfire forces the same investigation every time: find the claims that matter, test them independently so they can't just agree with each other, back it with real evidence, and hand you a claim-by-claim verdict you can point to. A raw answer gives you none of that structure.
 
-### What about well-written prompts?
-A prompt is only as thorough as the person drafting it. If you forget to ask about a regulatory dependency or unit economic boundary, a general chat model will not raise it. Crossfire runs the same inspection protocol on every run regardless of how rough the initial input was.
+### What stops the different tests from just agreeing with each other?
+Every test runs blind. Each one forms its own finding without seeing what the others found. Only after all of them are done does a separate step look at everything together and decide. That's what stops it turning into an echo chamber, and it's backed by real research on why AI agents debating each other tend to just agree with each other or dig into their own view.
 
 ---
 
@@ -174,32 +174,43 @@ npm run dev
 
 The frontend will be available at `http://localhost:5173`. Vite is configured to proxy API requests (`/cases`, `/ingest`, `/health`) directly to the backend on port 8000.
 
----
+### 4. Running tests
 
-## Testing
-
-### Backend tests
+#### Backend tests
 Run unit and integration tests with pytest:
 ```bash
 cd backend
 pytest
 ```
 
-To run a specific test suite:
-```bash
-pytest tests/test_evaluators.py
-pytest tests/test_loop.py
-```
-
-### Frontend tests
-The frontend uses Vitest and React Testing Library:
+#### Frontend tests
+Run unit tests and TypeScript type checks:
 ```bash
 cd frontend
-npm test
-
-# Run tests and TypeScript type checking together:
 npm run test:all
 ```
+
+---
+
+## Additional questions
+
+### What is Crossfire, in one line?
+It takes a decision you're about to commit to, breaks it into the claims it depends on, tests the important ones independently, and gives you a verdict per claim: survived, weakened, broken, or unresolved, plus what to do next. Not a chat, not an opinion, a test report.
+
+### How is this not just an AI assistant or chatbot?
+An assistant chats with you and answers whatever you ask. Crossfire doesn't converse. You give it one decision, it gives you back claims, tests, evidence, and verdicts. No persona, no back and forth. Closer to a test report than a conversation.
+
+### How is this better than someone writing a really good prompt themselves?
+A good prompt is only as good as the person who wrote it, that one time. Ask it differently, or forget to ask about the thing that matters, and you get nothing. Crossfire runs the same process every time regardless: find what actually matters, test it independently, back it with evidence, give a verdict. It doesn't rely on you knowing what to ask.
+
+### How is this different from just using Claude or ChatGPT with search turned on?
+Search-enabled chat still reasons in one continuous thread. Once it finds something that fits the answer it's already building, it tends to keep building on it. Crossfire runs separate, independent checks that can't see each other's results until a final step weighs the evidence, actively looks for what argues against a claim and not just what supports it, and is honest when it genuinely can't tell, unresolved is a real answer, not a cop-out. You get a structured verdict, not a paragraph.
+
+### How is this different from a research platform, like Perplexity?
+A research platform tells you what's out there on a topic. Crossfire tells you whether your specific decision survives. It doesn't just gather information, it decides which claims in your plan actually matter, tests those, and ends with a verdict and a next step, not a report you still have to interpret yourself.
+
+### How is this different from an AI council, like The AI Council app?
+Those tools send your question to several models, let them see and react to each other's answers, then merge everything into one final answer with a single confidence score. That's still one opinion at the end, just an averaged one, and letting the models see each other's answers before merging is exactly what makes them converge and agree instead of catching what the other missed. Crossfire never merges into one answer or one score. It decides which claims your decision actually depends on, tests each one independently with zero visibility into what the others found, and gives you a verdict per claim, survived, weakened, broken, or unresolved, plus what that means for your decision and what to check next. A confidence score tells you how much agreement there was. A verdict tells you what to actually do.
 
 ---
 

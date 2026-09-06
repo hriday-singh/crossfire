@@ -14,25 +14,58 @@ from core.models import Case, Finding, TestPlanItem
 from core.textutil import SPECIFICITY_RULE, clamp_sentences, one_line
 from providers.base import LLMProvider
 
-_SYSTEM_PROMPT = (
+BUILDER_SYSTEM_PROMPT = (
     "You judge whether a claim is actually achievable as stated — not whether it is a "
     "good idea. The decision may be of any kind: a purchase, a move, a treatment, a "
     "hire, a lawsuit, a build. Never assume a domain, and never answer with engineering "
-    "concerns for a decision that has none.\n"
+    "concerns for a decision that has none.\n\n"
     "Work through what doing this actually takes: the time, the money, the skill, the "
     "permission or access required, who else has to agree, and what must happen first. "
-    "Name the single hardest blocker if there is one. If it is achievable with ordinary "
-    "effort, say so plainly and set no blocker.\n"
-    "Confidence is how sure you are of your own judgement, 0.0-1.0."
+    "If it is achievable with ordinary effort, say so plainly and set blocker to null.\n\n"
+    "You must adhere to three technical constraints:\n"
+    "1. MVP vs. Scale Bifurcation (CRITICAL PRIORITY):\n"
+    "   Do not conflate long-term scaling challenges with immediate launch blockers. "
+    "   If a blocker exists, you must explicitly categorize and prefix it as either:\n"
+    "   - '[Day-1 Blocker]': A fundamental technical impossibility, dependency absence, or compliance wall preventing the initial MVP launch.\n"
+    "   - '[Day-1000 Blocker]': An architectural bottleneck, state synchronization limit, or data volume constraint that only breaks under massive scale.\n"
+    "   If the MVP can realistically launch today, it is NOT a Day-1 blocker.\n\n"
+    "2. Lightweight Threat Modeling:\n"
+    "   Conduct a baseline security vulnerability assessment before code is written. "
+    "   Explicitly identify the most likely data exposure vector, privilege escalation, "
+    "   or spoofing risk inherent in the proposed architecture or implementation.\n\n"
+    "3. Calibrated Confidence Scoring (Technical Rubric):\n"
+    "   Strictly calibrate the confidence float to technical severity rather than generic defaults:\n"
+    "   - 0.9 to 1.0: Hard limits (violating physics, speed of light in network requests, hard API limits, statutory compliance walls).\n"
+    "   - 0.7 to 0.8: Severe operational burden or known architectural anti-patterns.\n"
+    "   - 0.4 to 0.6: High maintenance or integration friction solvable with capital or engineering time.\n"
+    "   - 0.1 to 0.3: Minor implementation friction or standard engineering overhead.\n"
+    "   Do not utilize quantitative token or latency estimations."
 )
+_SYSTEM_PROMPT = BUILDER_SYSTEM_PROMPT
 
 
 class BuilderVerdict(BaseModel):
     result: str = Field(description="One line, under 140 characters: the feasibility verdict")
-    reasoning: str = Field(description="At most 3 sentences: what doing this concretely requires")
-    confidence: float = Field(ge=0.0, le=1.0)
+    reasoning: str = Field(
+        description=(
+            "At most 3 sentences: what doing this concretely requires, noting baseline threat model risks "
+            "(data exposure, privilege escalation, spoofing) or operational friction"
+        )
+    )
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Calibrated confidence score based on technical severity: 0.9-1.0 (hard limits/statutory walls), "
+            "0.7-0.8 (severe operational burden/anti-patterns), 0.4-0.6 (capital-solvable friction), 0.1-0.3 (minor friction)"
+        ),
+    )
     blocker: str | None = Field(
-        default=None, description="The single hardest thing blocking the build, or null"
+        default=None,
+        description=(
+            "The single hardest blocker prefixed with '[Day-1 Blocker]' or '[Day-1000 Blocker]', "
+            "or null if achievable with ordinary effort"
+        ),
     )
 
 
@@ -47,7 +80,13 @@ async def run_builder(item: TestPlanItem, case: Case, provider: LLMProvider) -> 
                 f"Decision under test: {case.raw_input}\n"
                 f"Claim: {statement}\n"
                 f"Failure mode to probe: {item.failure_mode}\n"
-                f"Objective: {item.objective}"
+                f"Objective: {item.objective}\n\n"
+                "Constraints for this evaluation:\n"
+                "1. MVP vs. Scale Bifurcation: If a blocker exists, prefix it with '[Day-1 Blocker]' (launch blocker) "
+                "or '[Day-1000 Blocker]' (scale limit). Do not call scaling issues Day-1 blockers.\n"
+                "2. Lightweight Threat Modeling: Explicitly account for data exposure, privilege escalation, or spoofing risks.\n"
+                "3. Calibrated Confidence Scoring: Follow the technical rubric (0.9-1.0 hard limits, 0.7-0.8 severe burden/anti-patterns, "
+                "0.4-0.6 solvable friction, 0.1-0.3 minor). Do not use speculative quantitative token or latency estimations."
             ),
         }
     ]

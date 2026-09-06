@@ -5,6 +5,13 @@ import { formatTestName } from "./formatters";
  * Generates an authoritative Markdown Decision Memorandum from a completed or in-progress Case.
  * Follows executive memo format (Stripe Press / Notion style).
  */
+const VERDICT_HEADLINES: Record<string, string> = {
+  drop: "Don't proceed as written.",
+  hold: "Not decidable yet.",
+  proceed_with_changes: "Survives, but only with changes.",
+  proceed: "Holds up.",
+};
+
 export function formatDecisionMemoMarkdown(currentCase: Case): string {
   const dateStr = new Date().toLocaleDateString("en-US", {
     year: "numeric",
@@ -45,8 +52,26 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
   md += `\n---\n\n`;
 
   md += `## 1. Executive Summary & Verdict\n\n`;
-  md += `> **Strategic Verdict:** \`${strategicVerdict}\`  \n`;
-  md += `> ${executiveSummary}\n\n`;
+  // The backend's own adjudication when it exists; the count-derived text is only a fallback.
+  const verdict = currentCase.case_verdict;
+  if (verdict) {
+    md += `> **${VERDICT_HEADLINES[verdict.decision_state] || "Result"}**  \n`;
+    md += `> ${verdict.summary}\n\n`;
+    if (verdict.next_actions.length > 0) {
+      md += `### Before you commit\n`;
+      verdict.next_actions.forEach((next) => {
+        const anchors = next.claim_ids
+          .map((id) => currentCase.claims.findIndex((c) => c.id === id) + 1)
+          .filter((n) => n > 0);
+        const suffix = anchors.length > 0 ? ` _(claim ${anchors.join(", ")})_` : "";
+        md += `- ${next.action}${suffix}\n`;
+      });
+      md += `\n`;
+    }
+  } else {
+    md += `> **Strategic Verdict:** \`${strategicVerdict}\`  \n`;
+    md += `> ${executiveSummary}\n\n`;
+  }
 
   md += `### Scoreboard\n`;
   md += `- **Total Assumptions Audited:** ${totalClaims}\n`;
@@ -81,7 +106,7 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
 
     // Tests executed
     if (tests.length > 0) {
-      md += `\n**Tests Executed:**  \n`;
+      md += `\n**Tests run:**  \n`;
       tests.forEach((t) => {
         md += `- \`[${formatTestName(t.failure_mode).toUpperCase()}]\` ${t.objective}\n`;
       });
@@ -90,7 +115,7 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
     // Evidence & Citations
     const evidenceList = findings.flatMap((f) => f.evidence || []);
     if (evidenceList.length > 0) {
-      md += `\n**Primary Source Citations:**  \n`;
+      md += `\n**Sources:**  \n`;
       evidenceList.forEach((ev) => {
         const title = ev.title ? `"${ev.title}"` : ev.source_url;
         md += `- [${title}](${ev.source_url}): "${ev.snippet}"\n`;
@@ -108,7 +133,7 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
 
     // Recommended plan adjustment
     if (consequence?.recommended_change) {
-      md += `\n**Recommended Strategic Adjustment:**  \n`;
+      md += `\n**What to change:**  \n`;
       md += `> ${consequence.recommended_change}\n`;
     }
 

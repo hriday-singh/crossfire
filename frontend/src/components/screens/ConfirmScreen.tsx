@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
 import { AssignedAgentsCard } from "@/components/features/AssignedAgentsCard";
+import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 
 export const ConfirmScreen: React.FC = () => {
   const { state, dispatch, confirmAndRun, navigateScreen, toggleAgentSelection } = useCase();
@@ -288,7 +289,7 @@ export const ConfirmScreen: React.FC = () => {
           {/* Assigned Adversarial Agents Suite & Decision Callout */}
           <AssignedAgentsCard
             agentMode={currentCase.agent_mode || "auto"}
-            selectedAgents={currentCase.selected_agents || ["devils_advocate", "receipts", "builder", "overthinker"]}
+            selectedAgents={currentCase.selected_agents || [...DEFAULT_AGENT_IDS]}
             agentRationales={currentCase.agent_rationales}
             onToggleAgent={toggleAgentSelection}
           />
