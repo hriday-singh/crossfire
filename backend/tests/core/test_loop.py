@@ -18,32 +18,45 @@ from core.models import Case, ClaimStatus
 # --- Hour 2-11 ---
 
 @pytest.mark.asyncio
-async def test_extract_claims_produces_awaiting_confirmation_case(fake_provider_factory, sample_case):
-    """SKELETON — wire this to your real extract_claims() once it exists.
-    from core.loop import extract_claims
-    provider = fake_provider_factory(responses=[sample_case])
+async def test_extract_claims_produces_awaiting_confirmation_case(fake_provider_factory):
+    from core.loop import ExtractedClaims, extract_claims
+
+    provider = fake_provider_factory(
+        responses=[
+            ExtractedClaims(
+                statements=["Students will trust an AI submitting applications on their behalf"]
+            )
+        ]
+    )
     case = await extract_claims("I want to build an AI for college applications", provider)
     assert case.status == "awaiting_confirmation"
     assert len(case.claims) > 0
-    """
-    pytest.skip("fill in once core.loop.extract_claims exists")
 
 
 @pytest.mark.asyncio
-async def test_classify_load_bearing_obvious_yes(fake_provider_factory, sample_claim):
+async def test_classify_load_bearing_obvious_yes(fake_provider_factory, sample_claim, sample_case):
     """A claim like 'students will trust autonomous submission' — if false, the
     decision changes materially. Assert the function returns True, and that
     the underlying LLM call asked the explicit yes/no question from the spec
     ('if this claim turns out false, would the recommended decision
     materially change?'), not a raw confidence score.
     """
-    pytest.skip("fill in once core.loop.classify_load_bearing exists")
+    from core.loop import LOAD_BEARING_QUESTION, LoadBearingAnswer, classify_load_bearing
+
+    provider = fake_provider_factory(responses=[LoadBearingAnswer(answer=True)])
+    result = await classify_load_bearing(sample_claim, sample_case, provider)
+    assert result is True
+    assert LOAD_BEARING_QUESTION in provider.calls[0]["system_prompt"]
 
 
 @pytest.mark.asyncio
-async def test_classify_load_bearing_obvious_no(fake_provider_factory, sample_low_stakes_claim):
+async def test_classify_load_bearing_obvious_no(fake_provider_factory, sample_low_stakes_claim, sample_case):
     """'The onboarding screen should use a dark theme' — should classify False."""
-    pytest.skip("fill in once core.loop.classify_load_bearing exists")
+    from core.loop import LoadBearingAnswer, classify_load_bearing
+
+    provider = fake_provider_factory(responses=[LoadBearingAnswer(answer=False)])
+    result = await classify_load_bearing(sample_low_stakes_claim, sample_case, provider)
+    assert result is False
 
 
 # --- Hour 11-18 ---

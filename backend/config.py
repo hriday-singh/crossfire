@@ -21,8 +21,10 @@ class Settings(BaseSettings):
 
     # which provider backs the pipeline, and an optional override key for it —
     # lets a dev swap provider/key without touching code. See providers/__init__.py:get_provider.
-    llm_provider: str = Field(default="gemini", alias="LLM_PROVIDER")
+    llm_provider: str = Field(default="openai_compat", alias="LLM_PROVIDER")
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_base_url: str = Field(default="http://localhost:8081/v1", alias="LLM_BASE_URL")
+    llm_model: str = Field(default="gemini-3.7-flash", alias="LLM_MODEL")
 
     model_config = ConfigDict(populate_by_name=True)
 

@@ -43,3 +43,11 @@ Runs once per claim, after `extract_claims()`, before `build_test_plan()`. `load
 ## Rule for this file
 
 Land the final phrasing + input shape here, in writing, before Antigravity implements the Hour 11-18 hardening pass. A vague "improve it" handoff produces a guess, not a decision.
+
+## Decision (locked, Hour 2-11 first pass)
+
+- **Feature 1 (framing):** verbatim yes/no question, no rewording, no confidence scale: *"If this claim turns out false, would the recommended decision materially change?"* (`core.loop.LOAD_BEARING_QUESTION`).
+- **Feature 2 (inputs):** `claim.statement` + `case.raw_input` only. `case.context` deliberately excluded for this pass — ingestion doesn't exist yet, and per-claim calls must stay standalone/parallelizable.
+- **Feature 3 (output):** internal `LoadBearingAnswer(answer: bool)` via `response_schema`, never string-matched. Returned as `.answer` directly onto `Claim.load_bearing`.
+
+Not yet done: the 8-10 varied claims / 2-3 phrasing bake-off this file calls for above. This lock is the shippable first pass, not the hardened Hour 11-18 version — re-open before that pass if the obvious-yes/obvious-no pair ever flips.

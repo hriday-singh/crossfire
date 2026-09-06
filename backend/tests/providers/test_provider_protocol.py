@@ -38,19 +38,61 @@ async def test_fake_provider_records_calls_for_assertion(fake_provider_factory):
     assert [c["system_prompt"] for c in provider.calls] == ["sys1", "sys2"]
 
 
-# --- Fill in once providers/gemini.py exists ---
-#
-# @pytest.mark.asyncio
-# async def test_gemini_provider_satisfies_protocol(monkeypatch):
-#     """Mock google-genai's client so this never makes a real network call.
-#     Assert GeminiProvider.generate() returns the same shape (str | BaseModel)
-#     as FakeLLMProvider does above, for both the plain-text and
-#     response_schema-set cases."""
-#     ...
-#
-# def test_anthropic_and_openai_compat_stubs_implement_the_protocol():
-#     """They don't need real behavior yet — just prove the classes exist and
-#     satisfy LLMProvider, so `isinstance`-style structural checks (or a
-#     runtime_checkable Protocol) don't break when someone wires a second
-#     provider in later."""
-#     ...
+@pytest.mark.asyncio
+async def test_openai_compat_provider_generate(monkeypatch):
+    import httpx
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "choices": [
+                    {"message": {"content": "mocked assistant response"}}
+                ]
+            }
+
+    async def mock_post(*args, **kwargs):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    result = await provider.generate(
+        system_prompt="sys",
+        messages=[{"role": "user", "content": "hello"}],
+    )
+    assert result == "mocked assistant response"
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_provider_structured_output(monkeypatch, sample_claim):
+    import httpx
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "choices": [
+                    {"message": {"content": f"```json\n{sample_claim.model_dump_json()}\n```"}}
+                ]
+            }
+
+    async def mock_post(*args, **kwargs):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    result = await provider.generate(
+        system_prompt="sys",
+        messages=[{"role": "user", "content": "extract"}],
+        response_schema=type(sample_claim),
+    )
+    assert result == sample_claim
+
