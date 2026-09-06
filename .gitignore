@@ -1,0 +1,157 @@
+# ==============================================================================
+# Crossfire — Root .gitignore
+# Stack: Python (FastAPI, Scrapling, Pytest) + Node.js/TypeScript (React, Tailwind)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Environment & Secrets
+# ------------------------------------------------------------------------------
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+
+# ------------------------------------------------------------------------------
+# 2. Python
+# ------------------------------------------------------------------------------
+# Bytecode and compiled artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution, packaging, and build outputs
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing & Coverage
+.cache
+.pytest_cache/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+htmlcov/
+
+# Type checking and linting
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ------------------------------------------------------------------------------
+# 3. Node.js & Frontend (React / Vite / Next.js)
+# ------------------------------------------------------------------------------
+# Dependencies
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# Build outputs
+frontend/dist/
+frontend/build/
+dist/
+build/
+out/
+.next/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Tool caches
+.eslintcache
+.stylelintcache
+.turbo/
+.parcel-cache/
+
+# ------------------------------------------------------------------------------
+# 4. Scraping, Browser Automation & Data Artifacts
+# ------------------------------------------------------------------------------
+.scrapling/
+.playwright/
+playwright-report/
+test-results/
+downloads/
+
+# ------------------------------------------------------------------------------
+# 5. IDEs, Editors & Developer Tools
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.history/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# ------------------------------------------------------------------------------
+# 6. Operating System Files
+# ------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ------------------------------------------------------------------------------
+# 7. General Logs & Temporary Files
+# ------------------------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.pytest_cache/
+
+
