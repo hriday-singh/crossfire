@@ -57,11 +57,11 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | Scrapling deep-fetch + adaptive-scrutiny wiring | `[x]` | deep-fetch only for load_bearing is True and thin snippet, SERP guard enforced |
 | Demo fallback switch (`DEMO_FIXTURES`) | `[x]` | DEMO_MODE flag + explicit claim.id match bypasses network calls |
 | Failure handling (dead sources → unresolved, not crash) | `[x]` | network/API failures degrade to empty list rather than raising |
-| Curation v2 (LLM, if time) | `[ ]` | |
-| `ingestion/pdf.py` (stretch) | `[ ]` | |
+| Curation v2 (LLM, if time) | `[x]` | `curate_snippet_llm` with CuratedSnippet schema, strict 1-3 sentences / <= 600 chars, fallback to heuristic |
+| `ingestion/pdf.py` (stretch) | `[x]` | `extract_pdf_text` + `ingest_pdf` via `pypdf`, feeds `Case.context`, rejects scanned/image-only PDFs (no OCR) |
 
 **Last updated:** Dev B
-**Note:** All core Dev B modules (`evidence/search.py`, `evidence/curate.py`, `evidence/fetch.py`, `core/evaluators/receipts.py`) and all tests in `tests/evidence/` and `tests/evaluators/test_receipts.py` implemented and passing cleanly.
+**Note:** All core and stretch Dev B modules (`evidence/search.py`, `evidence/curate.py`, `evidence/fetch.py`, `core/evaluators/receipts.py`, `ingestion/pdf.py`) and all tests across `tests/evidence/`, `tests/evaluators/test_receipts.py`, and `tests/ingestion/test_pdf.py` implemented and passing cleanly (97 passed, 0 failed).
 
 ## Dev C — API + SSE + Evaluators
 

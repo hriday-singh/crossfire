@@ -96,3 +96,23 @@ async def test_search_evidence_degrades_gracefully_on_tavily_failure(monkeypatch
     monkeypatch.setattr("evidence.search._tavily_client.search", failing_search)
     items = await search_evidence(sample_claim)
     assert items == []
+
+
+@pytest.mark.asyncio
+async def test_search_evidence_uses_preloaded_demo_fixtures(monkeypatch):
+    """Verifies that built-in DEMO_FIXTURES entries for demo anchor claims work in DEMO_MODE."""
+    from core.models import Claim
+    from evidence.search import DEMO_FIXTURES, search_evidence
+
+    monkeypatch.setattr("evidence.search.settings.DEMO_MODE", True)
+
+    def should_not_be_called(**kwargs):
+        raise AssertionError("Network Tavily call triggered while matching DEMO_FIXTURE exists")
+
+    monkeypatch.setattr("evidence.search._tavily_client.search", should_not_be_called)
+
+    demo_claim = Claim(id="claim-abc123", statement="Some statement")
+    items = await search_evidence(demo_claim)
+    assert len(items) == len(DEMO_FIXTURES["claim-abc123"])
+    assert "USCIS" in items[0].title
+    assert "strictly prohibited" in items[0].snippet

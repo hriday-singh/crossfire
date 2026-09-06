@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from core.models import Case, Claim, EvidenceItem, Finding, TestPlanItem
-from evidence.curate import curate_snippet
+from evidence.curate import curate_snippet, curate_snippet_llm
 from evidence.fetch import fetch_page
 from evidence.search import search_evidence
 from providers.base import LLMProvider
@@ -35,6 +35,8 @@ async def run_receipts(
     first: TestPlanItem | Claim,
     second: Case | TestPlanItem,
     provider: LLMProvider,
+    *,
+    use_llm_curation: bool = False,
 ) -> Finding:
     """Executes the Receipts evaluation for a given claim and test plan item.
 
@@ -42,7 +44,7 @@ async def run_receipts(
     - Retrieves candidate evidence via search_evidence()
     - Adaptive Scrutiny: triggers Scrapling deep-fetch (fetch_page) only when
       claim.load_bearing is True and the snippet is thin (< 150 chars / < 2 sentences)
-    - Curates snippets using curate_snippet() (1-3 sentences max)
+    - Curates snippets using curate_snippet() (or curate_snippet_llm() if use_llm_curation=True)
     - Evaluates evidence strictly via LLMProvider (never touches google-genai directly)
     - Degrades gracefully on zero evidence (produces a low-confidence Finding)
     """
@@ -79,7 +81,10 @@ async def run_receipts(
     # 4. Curate all snippets (enforcing 1-3 sentences max)
     curated_items: list[EvidenceItem] = []
     for ev in evidence_items:
-        curated = curate_snippet(ev.snippet, claim.statement)
+        if use_llm_curation:
+            curated = await curate_snippet_llm(ev.snippet, claim.statement, provider=provider)
+        else:
+            curated = curate_snippet(ev.snippet, claim.statement)
         if curated:
             curated_items.append(
                 EvidenceItem(

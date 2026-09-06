@@ -118,3 +118,54 @@ def test_curate_never_passes_full_page_through_untouched(sample_claim):
     assert len(result) < len(long_page)
     # Never passes entire page, bounded in length
     assert len(result) <= 600
+
+
+@pytest.mark.asyncio
+async def test_curate_snippet_llm_success(fake_provider_factory, sample_claim):
+    """curate_snippet_llm calls through provider and extracts relevant sentences."""
+    from evidence.curate import CuratedSnippet, curate_snippet_llm
+
+    fake_response = CuratedSnippet(
+        selected_sentences="Official regulations require applicants to apply directly in person."
+    )
+    provider = fake_provider_factory(responses=[fake_response])
+    raw_text = (
+        "Introductory text. Official regulations require applicants to apply directly in person. Additional background."
+    )
+    result = await curate_snippet_llm(raw_text, sample_claim, provider=provider)
+    assert result == "Official regulations require applicants to apply directly in person."
+    assert len(provider.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_curate_snippet_llm_falls_back_on_exception(sample_claim):
+    """If provider raises, curate_snippet_llm degrades cleanly to heuristic."""
+    from evidence.curate import curate_snippet_llm
+
+    class FailingProvider:
+        async def generate(self, **kwargs):
+            raise RuntimeError("API timeout or outage")
+
+    raw_text = (
+        "Irrelevant filler. " * 20
+        + f"Crucial evidence regarding {sample_claim.statement}."
+        + " More irrelevant filler." * 20
+    )
+    result = await curate_snippet_llm(raw_text, sample_claim, provider=FailingProvider())
+    assert "Crucial evidence" in result
+    assert len(result) <= 600
+
+
+@pytest.mark.asyncio
+async def test_curate_snippet_llm_enforces_sentence_and_char_limits(fake_provider_factory, sample_claim):
+    """Even if LLM returns a verbose response, output is strictly clamped to 1-3 sentences and <= 600 chars."""
+    from evidence.curate import CuratedSnippet, curate_snippet_llm
+
+    verbose_response = CuratedSnippet(
+        selected_sentences=". ".join([f"Sentence {i} with some detailed words" for i in range(10)]) + "."
+    )
+    provider = fake_provider_factory(responses=[verbose_response])
+    result = await curate_snippet_llm("Some raw text", sample_claim, provider=provider)
+    sentences = [s for s in result.split(". ") if s.strip()]
+    assert len(sentences) <= 3
+    assert len(result) <= 600

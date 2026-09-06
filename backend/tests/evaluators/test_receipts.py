@@ -79,3 +79,41 @@ def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_negative(
     eval_set (tests/eval_set/) specifically checks for.
     """
     pytest.skip("covered properly by tests/eval_set/ once the full loop exists — see docs/01-TIMELINE.md hour 38-42")
+
+
+@pytest.mark.asyncio
+async def test_run_receipts_with_llm_curation_enabled(
+    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+):
+    """When use_llm_curation=True, receipts uses curate_snippet_llm for snippets."""
+    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.models import EvidenceItem
+    from evidence.curate import CuratedSnippet
+
+    raw_item = EvidenceItem(
+        source_url="https://example.com/raw",
+        title="Raw Title",
+        snippet="Background filler. Crucial sentence confirming the claim. More filler.",
+        retrieved_at="2026-09-06T00:00:00Z",
+    )
+
+    async def fake_search(c):
+        return [raw_item]
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+
+    curated_response = CuratedSnippet(selected_sentences="Crucial sentence confirming the claim.")
+    assessment_response = ReceiptsAssessment(
+        result="Direct evidence found",
+        reasoning="Curated evidence supports the statement directly.",
+        confidence=0.85,
+        contradiction=None,
+    )
+
+    provider = fake_provider_factory(responses=[curated_response, assessment_response])
+
+    finding = await run_receipts(sample_claim, sample_test_plan_item, provider, use_llm_curation=True)
+    assert len(provider.calls) == 2
+    assert len(finding.evidence) == 1
+    assert finding.evidence[0].snippet == "Crucial sentence confirming the claim."
+    assert finding.confidence == 0.85

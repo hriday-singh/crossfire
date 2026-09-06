@@ -7,3 +7,4 @@ google-genai
 tavily-python
 scrapling
 tenacity
+pypdf

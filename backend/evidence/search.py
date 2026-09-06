@@ -43,7 +43,36 @@ class SettingsProxy:
 
 settings = SettingsProxy(get_settings())
 
-DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {}
+DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {
+    "claim-abc123": [
+        EvidenceItem(
+            source_url="https://www.uscis.gov/terms-of-use",
+            title="USCIS Website Terms of Use and Automated Submissions",
+            snippet="Automated or scripted submissions of visa applications and forms are strictly prohibited. Any application submitted using automated bots or unauthorized third-party proxy tools is subject to immediate rejection and voiding.",
+            retrieved_at="2026-09-06T00:00:00Z",
+        ),
+        EvidenceItem(
+            source_url="https://www.gov.uk/visas-immigration-service/terms",
+            title="UK Visas and Immigration Terms of Service",
+            snippet="Applicants must complete and verify their submission directly. Third-party automation software and unauthorized browser extensions interacting directly with official visa portals violate terms of service and invalidate application integrity.",
+            retrieved_at="2026-09-06T00:00:00Z",
+        ),
+    ],
+    "claim-visa-auto-submit": [
+        EvidenceItem(
+            source_url="https://www.uscis.gov/terms-of-use",
+            title="USCIS Website Terms of Use and Automated Submissions",
+            snippet="Automated or scripted submissions of visa applications and forms are strictly prohibited. Any application submitted using automated bots or unauthorized third-party proxy tools is subject to immediate rejection and voiding.",
+            retrieved_at="2026-09-06T00:00:00Z",
+        ),
+        EvidenceItem(
+            source_url="https://www.gov.uk/visas-immigration-service/terms",
+            title="UK Visas and Immigration Terms of Service",
+            snippet="Applicants must complete and verify their submission directly. Third-party automation software and unauthorized browser extensions interacting directly with official visa portals violate terms of service and invalidate application integrity.",
+            retrieved_at="2026-09-06T00:00:00Z",
+        ),
+    ],
+}
 
 
 class _DefaultTavilyClient:
