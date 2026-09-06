@@ -5,43 +5,103 @@ from __future__ import annotations
 
 import pytest
 
-from core.models import Finding
+from core.models import Finding, TestPlanItem
 
 
 @pytest.mark.asyncio
 async def test_run_devils_advocate_produces_finding_with_reasoning(
     fake_provider_factory, sample_claim, sample_test_plan_item
 ):
-    """SKELETON:
     from core.evaluators.devils_advocate import run_devils_advocate
     fake_finding = Finding(
-        claim_id=sample_claim.id, test_id=sample_test_plan_item.id,
-        evaluator="devils_advocate", result="Assumption doesn't hold",
-        reasoning="No comparable precedent found", confidence=0.6,
+        claim_id=sample_claim.id,
+        test_id=sample_test_plan_item.id,
+        evaluator="devils_advocate",
+        result="Assumption doesn't hold",
+        reasoning="No comparable precedent found",
+        confidence=0.6,
     )
     provider = fake_provider_factory(responses=[fake_finding])
     finding = await run_devils_advocate(sample_claim, sample_test_plan_item, provider)
     assert finding.evaluator == "devils_advocate"
-    assert finding.reasoning
-    """
-    pytest.skip("fill in once core.evaluators.devils_advocate.run_devils_advocate exists")
+    assert finding.reasoning == "No comparable precedent found"
+    assert finding.confidence == 0.6
+    assert finding.evidence == []
 
 
 @pytest.mark.asyncio
-async def test_run_devils_advocate_never_calls_the_evidence_pipeline(monkeypatch):
-    """Structural boundary: Devil's Advocate is prompt-only, no tool chain.
-    Monkeypatch evidence.search.search_evidence to raise if called, and
-    assert running Devil's Advocate never touches it — that's Receipts' job.
-    """
-    pytest.skip("fill in once core.evaluators.devils_advocate exists")
+async def test_run_devils_advocate_never_calls_the_evidence_pipeline(
+    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+):
+    from core.evaluators.devils_advocate import run_devils_advocate
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("Devil's Advocate must never call the evidence pipeline")
+
+    monkeypatch.setattr("evidence.search.search_evidence", _fail_if_called)
+
+    fake_finding = Finding(
+        claim_id=sample_claim.id,
+        test_id=sample_test_plan_item.id,
+        evaluator="devils_advocate",
+        result="Assumption challenged",
+        reasoning="Logical critique without external evidence",
+        confidence=0.7,
+    )
+    provider = fake_provider_factory(responses=[fake_finding])
+    finding = await run_devils_advocate(sample_claim, sample_test_plan_item, provider)
+    assert finding.evaluator == "devils_advocate"
+    assert finding.evidence == []
 
 
 @pytest.mark.asyncio
 async def test_run_devils_advocate_sees_only_its_own_claim(fake_provider_factory, sample_case):
-    """Independence-by-construction check: assert the prompt/messages sent to
-    the provider only reference the one claim + case context being evaluated,
-    never another claim's findings — this is what 'each evaluator forms its
-    own first finding before seeing anyone else's' actually means in code,
-    per direction doc §6.
-    """
-    pytest.skip("fill in once core.evaluators.devils_advocate exists")
+    from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
+
+    target_claim = sample_case.claims[0]
+    other_claim = sample_case.claims[1]
+
+    item = TestPlanItem(
+        id="test-item-1",
+        target_claim=target_claim.id,
+        failure_mode="assumption",
+        objective=f"Challenge assumption: {target_claim.statement}",
+    )
+
+    fake_output = DevilsAdvocateOutput(
+        result="Flawed assumption",
+        reasoning="Relies on unproven user adoption",
+        confidence=0.65,
+    )
+    provider = fake_provider_factory(responses=[fake_output])
+
+    finding = await run_devils_advocate(item, sample_case, provider)
+    assert finding.evaluator == "devils_advocate"
+    assert finding.claim_id == target_claim.id
+    assert finding.reasoning == "Relies on unproven user adoption"
+
+    # Verify provider call isolation: sees only its own claim, never other claims
+    assert len(provider.calls) == 1
+    call_content = provider.calls[0]["messages"][0]["content"]
+    assert target_claim.statement in call_content
+    assert other_claim.statement not in call_content
+
+
+@pytest.mark.asyncio
+async def test_run_overthinker_produces_finding_with_reasoning(
+    fake_provider_factory, sample_claim, sample_test_plan_item
+):
+    from core.evaluators.overthinker import OverthinkerOutput, run_overthinker
+
+    fake_output = OverthinkerOutput(
+        result="Catastrophic edge-case risk",
+        reasoning="Cascade failure under extreme load",
+        confidence=0.8,
+    )
+    provider = fake_provider_factory(responses=[fake_output])
+    finding = await run_overthinker(sample_claim, sample_test_plan_item, provider)
+    assert finding.evaluator == "overthinker"
+    assert finding.reasoning == "Cascade failure under extreme load"
+    assert finding.confidence == 0.8
+    assert finding.evidence == []
+
