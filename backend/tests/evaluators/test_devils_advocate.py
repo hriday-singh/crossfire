@@ -83,3 +83,56 @@ async def test_run_devils_advocate_sees_only_its_own_claim(fake_provider_factory
     assert other_claim.statement not in call_content
 
 
+def test_devils_advocate_system_prompt_contains_analytical_constraints():
+    from core.evaluators.devils_advocate import DEVILS_ADVOCATE_SYSTEM_PROMPT
+
+    # 1. Temporal Inversion (Pre-Mortem Framework)
+    assert "Temporal Inversion" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "12 months post-launch" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "unstated premise" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+
+    # 2. Stakeholder Incentive Mapping (Cui Bono)
+    assert "Stakeholder Incentive Mapping" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "third parties" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "lose capital, status, or time" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "incentivized to fight back" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+
+    # 3. Calibrated Confidence Scoring
+    assert "Calibrated Confidence Scoring" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "0.9 to 1.0" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "0.7 to 0.8" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+    assert "0.4 to 0.6" in DEVILS_ADVOCATE_SYSTEM_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_run_devils_advocate_passes_enhanced_prompt_and_instruction(
+    fake_provider_factory, sample_case, sample_test_plan_item
+):
+    from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
+
+    fake_output = DevilsAdvocateOutput(
+        result="Premise fails post-launch",
+        reasoning="Competitors directly counteract the strategy within 12 months.",
+        confidence=0.75,
+        contradiction="Economic incentives force counter-action",
+    )
+    provider = fake_provider_factory(responses=[fake_output])
+
+    finding = await run_devils_advocate(sample_test_plan_item, sample_case, provider)
+    assert finding.evaluator == "devils_advocate"
+    assert finding.confidence == 0.75
+
+    assert len(provider.calls) == 1
+    system_prompt = provider.calls[0]["system_prompt"]
+    user_content = provider.calls[0]["messages"][0]["content"]
+
+    # Verify analytical constraints are present in system prompt delivered to model
+    assert "Temporal Inversion" in system_prompt
+    assert "Stakeholder Incentive Mapping" in system_prompt
+    assert "Calibrated Confidence Scoring" in system_prompt
+
+    # Verify instruction reflects pre-mortem and stakeholder incentive mapping
+    assert "Temporal Inversion" in user_content
+    assert "Stakeholder Incentive Mapping" in user_content
+
+
