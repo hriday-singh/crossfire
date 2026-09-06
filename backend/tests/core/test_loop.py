@@ -66,6 +66,20 @@ async def test_extract_claims_multiple_statements_and_uniqueness(fake_provider_f
 
 
 @pytest.mark.asyncio
+async def test_extract_claims_clamps_to_five(fake_provider_factory):
+    """Claims must be bounded to at most 5 to prevent unbounded fan-out."""
+    from core.loop import ExtractedClaims, extract_claims
+
+    statements = [f"Claim number {i}" for i in range(1, 11)]
+    provider = fake_provider_factory(responses=[ExtractedClaims(statements=statements)])
+    case = await extract_claims("Large scope proposition with ten assertions", provider)
+
+    assert len(case.claims) == 5
+    assert [c.statement for c in case.claims] == statements[:5]
+
+
+@pytest.mark.asyncio
+
 async def test_extract_claims_gates_untestable_input(fake_provider_factory):
     """Direction doc 3: pure ideation gets redirected, never turned into
     invented claims."""
@@ -183,7 +197,48 @@ async def test_rank_load_bearing_with_context(fake_provider_factory, sample_case
     assert "Context Document: Strict state regulatory requirement" in provider.calls[0]["messages"][0]["content"]
 
 
+@pytest.mark.asyncio
+async def test_rank_load_bearing_dynamic_count_and_reasons(fake_provider_factory):
+    """Option 1: Dynamic count clamped to ceil(n/2) with reasons persisted to Claim."""
+    from core.loop import LoadBearingRanking, rank_load_bearing
+    from core.models import Case, Claim
+
+    case = Case(
+        id="case-dyn",
+        raw_input="Deciding whether to open a satellite office",
+        claims=[
+            Claim(id="c1", statement="Local market has 10k prospective clients"),
+            Claim(id="c2", statement="Rent is $3,000/mo"),
+            Claim(id="c3", statement="Key hire will relocate"),
+            Claim(id="c4", statement="Internet speeds exceed 1 Gbps"),
+        ],
+    )
+    # cap is ceil(4/2) = 2. Model decides only 1 claim is truly load-bearing and provides reasons.
+    provider = fake_provider_factory(
+        responses=[
+            LoadBearingRanking(
+                ranked_indices=[1, 3, 2, 4],
+                load_bearing_count=1,
+                reasons=[
+                    "Without market size the entire office is unviable.",
+                    "Key hire relocation is critical but mitigable.",
+                    "Rent is within standard operational budget.",
+                    "Internet speed is a secondary commodity requirement.",
+                ],
+            )
+        ]
+    )
+
+    flags = await rank_load_bearing(case, provider)
+    assert flags == [True, False, False, False]
+    assert case.claims[0].load_bearing is True
+    assert case.claims[0].load_bearing_reason == "Without market size the entire office is unviable."
+    assert case.claims[1].load_bearing is False
+    assert "Rent is within" in case.claims[1].load_bearing_reason
+
+
 # --- Hour 11-18 ---
+
 
 @pytest.mark.asyncio
 async def test_build_test_plan_differentiates_by_load_bearing_not_keywords(sample_case):
@@ -448,11 +503,15 @@ async def test_queue_emits_events_in_documented_order(sample_case, fake_provider
     seen = [item["event"] async for item in events.subscribe(sample_case.id)]
 
     assert seen[-1] == "run_complete"
+    assert "load_bearing_ready" in seen
+    assert seen.index("load_bearing_ready") < seen.index("test_started")
+    assert seen.count("load_bearing_ready") == len(sample_case.claims)
     assert seen.index("test_started") < seen.index("finding_ready")
     assert seen.index("verdict_ready") < seen.index("consequence_ready")
     assert seen.index("consequence_ready") < seen.index("case_verdict")
     assert seen.count("verdict_ready") == len(sample_case.claims)
     assert queue.empty()  # sentinel consumed, nothing stranded
+
 
 
 @pytest.mark.asyncio
@@ -555,6 +614,38 @@ async def test_synthesize_consequences_llm_enriches_pivots_and_experiments(sampl
     assert survived_cons.next_validation is None
 
 
+@pytest.mark.asyncio
+async def test_synthesize_consequence_invalid_impact_fallback(sample_case, fake_provider_factory):
+    from core.loop import (
+        StrategicConsequenceOutput,
+        build_consequences,
+        synthesize_consequences,
+    )
+
+    sample_case.claims[0].status = ClaimStatus.BROKEN
+    sample_case.claims[0].load_bearing = True
+    sample_case.consequences = build_consequences(sample_case)
+    baseline_impact = sample_case.consequences[0].impact  # "high"
+
+    # Model emits unwhitelisted impact string like "critical"
+    provider = fake_provider_factory(
+        [
+            StrategicConsequenceOutput(
+                impact="critical",
+                recommended_change="Major architecture revision",
+                next_validation="Prototype",
+            )
+        ]
+    )
+
+    updated = await synthesize_consequences(sample_case, provider)
+    cons = next(c for c in updated if c.claim_id == sample_case.claims[0].id)
+    # Must preserve baseline impact ("high"), not overwrite with "critical"
+    assert cons.impact == baseline_impact
+    assert cons.impact in {"high", "medium", "low"}
+
+
+
 # --- Dynamic Agent Selection & Recommendation Tests ---
 
 def test_normalize_agents_keeps_only_known_agents():
@@ -647,6 +738,47 @@ async def test_extract_claims_auto_mode_generates_rationales(fake_provider_facto
     assert case.agent_mode == "auto"
     assert case.selected_agents == ["devils_advocate", "receipts", "operator"]
     assert "matter of record" in case.agent_rationales["receipts"]
+
+
+@pytest.mark.asyncio
+async def test_run_evaluators_isolates_case(monkeypatch, sample_case, sample_finding):
+    """Evaluators must receive an isolated case stripped of other findings/consequences."""
+    import core.loop as loop
+    from core.models import CaseVerdict, DecisionConsequence
+
+    # Rehydrated or re-run case with existing findings and verdicts
+    sample_case.findings = [sample_finding]
+    sample_case.consequences = [
+        DecisionConsequence(
+            claim_id=sample_case.claims[0].id,
+            impact="high",
+            recommended_change="Change",
+            verdict_reasoning="Reason",
+        )
+    ]
+    sample_case.case_verdict = CaseVerdict(
+        decision_state="hold",
+        summary="Hold execution",
+        survived=[],
+        broken=[sample_case.claims[0].id],
+    )
+
+    inspected_cases = []
+
+    async def spy_dispatch(item, case, provider):
+        inspected_cases.append(case)
+        return sample_finding
+
+    monkeypatch.setattr(loop, "dispatch", spy_dispatch)
+    plan = loop.build_test_plan(sample_case)
+    await loop.run_evaluators(sample_case, plan, provider=None)
+
+    assert len(inspected_cases) > 0
+    for seen_case in inspected_cases:
+        assert seen_case.findings == [], "Evaluator must not see other findings"
+        assert seen_case.consequences == [], "Evaluator must not see consequences"
+        assert seen_case.case_verdict is None, "Evaluator must not see case_verdict"
+
 
 
 

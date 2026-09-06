@@ -483,58 +483,6 @@ def test_health_and_ready_endpoints(client):
     assert data_ready["model"] == settings.llm_model
 
 
-def test_rate_limiter_disabled_by_default(client, fake_provider_factory):
-    from api.routes import get_llm_provider
-    from core.loop import ExtractedClaims
-    from main import app
-
-    provider = fake_provider_factory(
-        responses=[ExtractedClaims(statements=["Assertion"])] * 15
-    )
-    app.dependency_overrides[get_llm_provider] = lambda: provider
-
-    try:
-        # Rate limiter is disabled by default: 11 requests should all succeed
-        for i in range(12):
-            res = client.post("/cases", json={"raw_input": f"Proposal attempt {i}"})
-            assert res.status_code == 200
-    finally:
-        app.dependency_overrides.pop(get_llm_provider, None)
-
-
-def test_rate_limiter_blocks_after_10_requests_per_minute_when_enabled(client, fake_provider_factory):
-    from api.rate_limiter import rate_limiter
-    from api.routes import get_llm_provider
-    from core.loop import ExtractedClaims
-    from main import app
-
-    rate_limiter.enabled = True
-    provider = fake_provider_factory(
-        responses=[ExtractedClaims(statements=["Assertion"])] * 15
-    )
-    app.dependency_overrides[get_llm_provider] = lambda: provider
-
-    try:
-        # First 10 requests should succeed
-        for i in range(10):
-            res = client.post("/cases", json={"raw_input": f"Proposal attempt {i}"})
-            assert res.status_code == 200, f"Request {i+1} failed unexpectedly"
-
-        # 11th request from same IP should receive 429 Too Many Requests
-        res_blocked = client.post("/cases", json={"raw_input": "Proposal attempt 11"})
-        assert res_blocked.status_code == 429
-        assert "Rate limit exceeded" in res_blocked.json()["detail"]
-        assert "Retry-After" in res_blocked.headers
-
-        # Non-rate-limited endpoints like /health should still be accessible
-        res_health = client.get("/health")
-        assert res_health.status_code == 200
-    finally:
-        rate_limiter.enabled = False
-        rate_limiter.reset()
-        app.dependency_overrides.pop(get_llm_provider, None)
-
-
 def test_post_ingest_image_success(client, monkeypatch):
     import base64
 

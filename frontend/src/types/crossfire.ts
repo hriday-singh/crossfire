@@ -19,6 +19,7 @@ export interface Claim {
   id: string;
   statement: string;
   load_bearing: boolean | null;
+  load_bearing_reason?: string | null;
   status: ClaimStatus | null;
 }
 
@@ -124,6 +125,7 @@ export interface ActivityItem {
 export type SSEEventName =
   | "claim_map_ready"
   | "awaiting_confirmation"
+  | "load_bearing_ready"
   | "test_started"
   | "finding_ready"
   | "verdict_ready"
@@ -138,6 +140,12 @@ export interface SSEActivityData {
   claim_id?: string | null;
   action?: string | null;
   timestamp: string;
+}
+
+export interface SSELoadBearingReadyData {
+  claim_id: string;
+  load_bearing: boolean;
+  reason: string;
 }
 
 export interface SSEClaimMapReadyData {

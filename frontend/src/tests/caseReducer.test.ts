@@ -113,8 +113,23 @@ describe("caseReducer", () => {
       isStreaming: true,
     };
 
-    // test_started
+    // load_bearing_ready
     let state = caseReducer(stateWithCase, {
+      type: "SSE_EVENT",
+      payload: {
+        event: "load_bearing_ready",
+        data: {
+          claim_id: "c1",
+          load_bearing: true,
+          reason: "Critical operational dependency",
+        },
+      },
+    });
+    expect(state.currentCase?.claims[0].load_bearing).toBe(true);
+    expect(state.currentCase?.claims[0].load_bearing_reason).toBe("Critical operational dependency");
+
+    // test_started
+    state = caseReducer(state, {
       type: "SSE_EVENT",
       payload: {
         event: "test_started",

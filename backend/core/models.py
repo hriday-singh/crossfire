@@ -21,6 +21,7 @@ class Claim(BaseModel):
     id: str
     statement: str
     load_bearing: bool | None = None       # set after the load-bearing question runs
+    load_bearing_reason: str | None = None # why this claim is load-bearing or secondary
     status: ClaimStatus | None = None
 
 

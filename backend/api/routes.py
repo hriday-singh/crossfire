@@ -30,7 +30,6 @@ from core.models import Case
 from ingestion import ingest_image, ingest_pdf, ingest_url
 from providers import get_provider
 from providers.base import LLMProvider
-from api.rate_limiter import rate_limit_public_endpoint
 
 
 router = APIRouter()
@@ -46,7 +45,6 @@ def get_llm_provider() -> LLMProvider:
     "/cases",
     response_model=Case,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(rate_limit_public_endpoint)],
 )
 async def create_case(
     payload: CreateCaseRequest,
@@ -108,6 +106,10 @@ async def stream_case(case_id: str) -> StreamingResponse:
         if case.status == "error" and not events.get_history(case_id):
             yield f"event: error\ndata: {json.dumps({'stage': 'run_pipeline', 'message': 'Case previously failed'})}\n\n"
             return
+        if case.status == "testing" and not events.get_history(case_id):
+            yield f"event: error\ndata: {json.dumps({'stage': 'run_pipeline', 'message': 'Run interrupted or server restarted'})}\n\n"
+            return
+
 
         async for item in events.subscribe(case_id, timeout=SSE_PING_INTERVAL_SECONDS):
             if item is None:
@@ -221,7 +223,6 @@ async def get_case(case_id: str) -> Case:
     "/baseline",
     response_model=BaselineResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(rate_limit_public_endpoint)],
 )
 async def create_baseline(
     payload: BaselineRequest,
@@ -241,7 +242,6 @@ async def create_baseline(
     "/ingest/url",
     response_model=IngestResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(rate_limit_public_endpoint)],
 )
 async def handle_ingest_url(
     payload: IngestUrlRequest,
@@ -273,7 +273,6 @@ async def handle_ingest_url(
     "/ingest/pdf",
     response_model=IngestResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(rate_limit_public_endpoint)],
 )
 async def handle_ingest_pdf(
     payload: IngestPdfRequest,
@@ -313,7 +312,6 @@ async def handle_ingest_pdf(
     "/ingest/image",
     response_model=IngestResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(rate_limit_public_endpoint)],
 )
 async def handle_ingest_image(
     payload: IngestImageRequest,

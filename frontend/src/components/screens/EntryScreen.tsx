@@ -158,10 +158,17 @@ export const EntryScreen: React.FC = () => {
     }
   };
 
+  const hasContentBlock = attachments.length > 0;
+  const hasValidInput = hasContentBlock || rawInput.trim().length > 5;
+  const isCustomAgentsEmpty = agentMode === "custom" && selectedAgents.length === 0;
+  const canRunTest = hasValidInput && !state.isExtracting && !isIngesting && !isCustomAgentsEmpty;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
-      handleSubmit();
+      if (canRunTest) {
+        handleSubmit();
+      }
       return;
     }
 
@@ -272,12 +279,7 @@ export const EntryScreen: React.FC = () => {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (
-      !rawInput.trim() ||
-      state.isExtracting ||
-      isIngesting ||
-      (agentMode === "custom" && selectedAgents.length === 0)
-    ) {
+    if (!canRunTest) {
       return;
     }
 
@@ -309,7 +311,14 @@ export const EntryScreen: React.FC = () => {
 
     const combinedContext = contextSections.length > 0 ? contextSections.join("\n\n---\n\n") : null;
 
-    startExtracting(rawInput.trim(), combinedContext, agentMode, agentsPayload);
+    // Fallback when submitting with a content block but empty textarea
+    const fallbackInput =
+      attachments.find((a) => a.context)?.context?.slice(0, 300).trim() ||
+      attachments[0]?.name ||
+      "Attached proposal document";
+    const effectiveRawInput = rawInput.trim() || fallbackInput;
+
+    startExtracting(effectiveRawInput, combinedContext, agentMode, agentsPayload);
   };
 
   if (state.isExtracting) {
@@ -590,12 +599,7 @@ export const EntryScreen: React.FC = () => {
               <Button
                 type="submit"
                 id="submit-run-btn"
-                disabled={
-                  !rawInput.trim() ||
-                  state.isExtracting ||
-                  isIngesting ||
-                  (agentMode === "custom" && selectedAgents.length === 0)
-                }
+                disabled={!canRunTest}
                 className="inline-flex items-center justify-center gap-space-2 bg-primary-container text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-transform active:scale-[0.98] hover:brightness-110 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[18px]">play_arrow</span>

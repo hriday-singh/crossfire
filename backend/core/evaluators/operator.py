@@ -1,4 +1,4 @@
-﻿"""
+"""
 Owner: Dev C / Antigravity. Operational Friction Test.
 Evaluates claims against the 4 institutional friction pillars:
 1. Incentive Alignment & Human Inertia
@@ -51,6 +51,11 @@ class OperatorVerdict(BaseModel):
         default=None,
         description="The single critical operational bottleneck or blocker identified, or null if friction_type is 'none'",
     )
+    contradiction: str | None = Field(
+        default=None,
+        description="Backward-compatible alias for operational_blocker",
+    )
+
 
 
 # Alias for backward compatibility
@@ -103,7 +108,7 @@ async def run_operator(item: TestPlanItem, case: Case, provider: LLMProvider) ->
     result_text = getattr(response, "result", "") or "Operational friction examined"
     reasoning_text = getattr(response, "reasoning", "") or str(response)
     confidence_val = float(getattr(response, "confidence", 0.7) or 0.0)
-    blocker = getattr(response, "operational_blocker", None)
+    blocker = getattr(response, "operational_blocker", None) or getattr(response, "contradiction", None)
 
     return Finding(
         claim_id=item.target_claim,

@@ -46,6 +46,7 @@ except ImportError:  # not landed yet — the pipeline runs without findings unt
 from core.agent_panel import (  # noqa: F401
     KNOWN_AGENTS,
     AGENT_FAILURE_MODE,
+    FAILURE_MODE_TO_AGENT,
     AGENT_OBJECTIVE,
     DEFAULT_RATIONALES,
     SINGLE_PASS_PRIORITY,
@@ -74,7 +75,7 @@ async def extract_claims(
         response_schema=ExtractedClaims,
     )
 
-    statements = list(getattr(result, "statements", []) or [])
+    statements = list(getattr(result, "statements", []) or [])[:5]
     claims_list = [Claim(id=str(uuid4()), statement=s) for s in statements]
     final_mode = (agent_mode or "auto").lower().strip()
 
@@ -131,7 +132,15 @@ class LoadBearingRanking(BaseModel):
 
     ranked_indices: list[int] = Field(
         default_factory=list,
-        description="Claim numbers, most load-bearing first. Every claim appears exactly once.",
+        description="Claim numbers (1-indexed), most load-bearing first. Every claim appears exactly once.",
+    )
+    load_bearing_count: int | None = Field(
+        default=None,
+        description="How many claims materially change the decision if false. Clamped to [0, ceil(n/2)]. If omitted, defaults to ceil(n/2).",
+    )
+    reasons: list[str] = Field(
+        default_factory=list,
+        description="One explanation per claim in the same order as ranked_indices, explaining why it is or is not load-bearing.",
     )
 
 
@@ -142,7 +151,8 @@ def load_bearing_cap(n_claims: int) -> int:
 async def rank_load_bearing(case: Case, provider: LLMProvider) -> list[bool]:
     """Returns one flag per claim, in `case.claims` order.
 
-    At most ceil(n/2) claims come back load-bearing. On any failure the top half
+    At most ceil(n/2) claims come back load-bearing. Dynamic classification allows
+    between 0 and ceil(n/2) claims to be load-bearing. On any failure the top half
     by original order is used, so the run still differentiates.
     """
     claims = case.claims
@@ -161,7 +171,9 @@ async def rank_load_bearing(case: Case, provider: LLMProvider) -> list[bool]:
         "You rank the claims a decision rests on by how much weight they carry. "
         "The decision may be of any kind — never assume a domain.\n"
         f"Order them by this question, most load-bearing first: {LOAD_BEARING_QUESTION}\n"
-        "Return every claim number exactly once. Do not add or drop claims."
+        "Return every claim number exactly once. Do not add or drop claims.\n"
+        f"State how many claims genuinely meet this standard in load_bearing_count (between 0 and at most {cap}).\n"
+        "Provide a concise rationale in reasons for each ranked claim explaining its weight."
     )
     try:
         result = await provider.generate(
@@ -170,20 +182,43 @@ async def rank_load_bearing(case: Case, provider: LLMProvider) -> list[bool]:
             response_schema=LoadBearingRanking,
         )
         order = [i - 1 for i in (result.ranked_indices or []) if 1 <= i <= len(claims)]
-        # Dedupe, then append anything the model dropped so no claim goes untested.
         seen: list[int] = []
         for i in order:
             if i not in seen:
                 seen.append(i)
         seen += [i for i in range(len(claims)) if i not in seen]
+
+        count = cap
+        if getattr(result, "load_bearing_count", None) is not None:
+            count = max(0, min(cap, result.load_bearing_count))
+
+        flags = [False] * len(claims)
+        for i in seen[:count]:
+            flags[i] = True
+
+        reasons = getattr(result, "reasons", None) or []
+        for rank_pos, claim_idx in enumerate(seen):
+            claim = claims[claim_idx]
+            claim.load_bearing = flags[claim_idx]
+            if rank_pos < len(reasons) and reasons[rank_pos]:
+                claim.load_bearing_reason = reasons[rank_pos]
+            else:
+                claim.load_bearing_reason = (
+                    "Core load-bearing assumption for this decision."
+                    if flags[claim_idx]
+                    else "Secondary assumption; failure does not fundamentally alter the decision."
+                )
+        return flags
     except Exception as exc:
         logger.warning("Load-bearing ranking failed (%s); falling back to claim order.", exc)
+        for i, claim in enumerate(claims):
+            claim.load_bearing = fallback[i]
+            claim.load_bearing_reason = (
+                "Core load-bearing assumption (default ranking)."
+                if fallback[i]
+                else "Secondary assumption (default ranking)."
+            )
         return fallback
-
-    flags = [False] * len(claims)
-    for i in seen[:cap]:
-        flags[i] = True
-    return flags
 
 
 from core.reconcile import (  # noqa: F401
@@ -296,8 +331,8 @@ async def _synthesize_single_consequence(
             response_schema=StrategicConsequenceOutput,
         )
         if isinstance(result, StrategicConsequenceOutput):
-            if result.impact:
-                consequence.impact = result.impact.lower()
+            if result.impact and result.impact.strip().lower() in {"high", "medium", "low"}:
+                consequence.impact = result.impact.strip().lower()
             if result.recommended_change:
                 consequence.recommended_change = clamp_sentences(result.recommended_change, 2)
             if result.next_validation is not None:
@@ -445,10 +480,11 @@ def _degraded_finding(item: TestPlanItem, exc: BaseException) -> Finding:
     Not an `error` SSE event: routes.py terminates the stream on `error`, which
     would kill the whole run because one test failed.
     """
+    evaluator_name = FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)
     return Finding(
         claim_id=item.target_claim,
         test_id=item.id,
-        evaluator=item.failure_mode,
+        evaluator=evaluator_name,
         result=f"Test did not complete ({type(exc).__name__}).",
         evidence=[],
         reasoning=f"This evaluator failed to return a finding: {exc}",
@@ -475,20 +511,27 @@ async def run_evaluators(
     timeout = getattr(settings, "evaluator_timeout_seconds", 60.0)
 
     for item in plan:
+        evaluator_name = FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)
         await events.publish(
             case.id,
             "test_started",
             {
                 "test_id": item.id,
                 "target_claim_id": item.target_claim,
-                "evaluator": item.failure_mode,
+                "failure_mode": item.failure_mode,
+                "evaluator": evaluator_name,
             },
         )
+
+
+    isolated_case = case.model_copy(
+        update={"findings": [], "consequences": [], "case_verdict": None}
+    )
 
     async def _run_one(item: TestPlanItem) -> Finding:
         async with limit:
             try:
-                return await asyncio.wait_for(dispatch(item, case, provider), timeout=timeout)
+                return await asyncio.wait_for(dispatch(item, isolated_case, provider), timeout=timeout)
             except Exception as exc:
                 logger.warning(
                     "Evaluator %s failed for claim %s: %s", item.failure_mode, item.target_claim, exc
@@ -524,6 +567,16 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         flags = await rank_load_bearing(case, provider)
         for claim, load_bearing in zip(case.claims, flags):
             claim.load_bearing = load_bearing
+            await events.publish(
+                case.id,
+                "load_bearing_ready",
+                {
+                    "claim_id": claim.id,
+                    "load_bearing": claim.load_bearing,
+                    "reason": claim.load_bearing_reason or "",
+                },
+            )
+
 
         case.test_plan = build_test_plan(case, panel=True, active_agents=case.selected_agents)
         lb_count = sum(1 for c in case.claims if c.load_bearing)

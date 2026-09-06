@@ -281,3 +281,40 @@ async def test_receipts_drops_a_contradiction_it_cannot_source(
     finding = await run_receipts(sample_test_plan_item, sample_case, provider)
     assert finding.contradiction is None
     assert finding.confidence <= 0.35
+
+
+@pytest.mark.asyncio
+async def test_receipts_drops_contradiction_when_nothing_cited(
+    monkeypatch, fake_provider_factory, sample_case, sample_test_plan_item
+):
+    """When sources exist but model cited none of them, keep evidence as context but clear contradiction."""
+    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.models import EvidenceItem
+
+    async def fake_search(claim):
+        return [
+            EvidenceItem(
+                source_url="https://example.com/unrelated",
+                snippet="Some general background text about the industry.",
+                retrieved_at="2026-09-06T00:00:00Z",
+            )
+        ]
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    provider = fake_provider_factory(
+        responses=[
+            ReceiptsAssessment(
+                result="Contradiction claim",
+                reasoning="I believe this is false but did not cite any link.",
+                confidence=0.8,
+                contradiction="Uncited claim contradiction",
+                cited=[],
+            )
+        ]
+    )
+
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    assert len(finding.evidence) == 1
+    assert finding.evidence[0].stance == "context"
+    assert finding.contradiction is None
+

@@ -517,6 +517,25 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           };
         }
 
+        case "load_bearing_ready": {
+          const claimId = (data.claim_id as string) || "";
+          const isLoadBearing = Boolean(data.load_bearing);
+          const reason = (data.reason as string) || "";
+
+          if (claimId) {
+            updatedCase.claims = updatedCase.claims.map((c) =>
+              c.id === claimId
+                ? { ...c, load_bearing: isLoadBearing, load_bearing_reason: reason }
+                : c
+            );
+          }
+          return {
+            ...state,
+            currentCase: updatedCase,
+            eventLog: updatedLog,
+          };
+        }
+
         case "test_started": {
           const testId = (data.test_id as string) || "";
           const targetClaim = (data.target_claim_id as string) || "";

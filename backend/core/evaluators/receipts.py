@@ -82,7 +82,12 @@ def _apply_citations(items: list[EvidenceItem], cited: list[CitedSource]) -> lis
         stance = (citation.stance or "").strip().lower()
         item.stance = stance if stance in _STANCES else "context"
         kept.append(item)
-    return kept or items
+    if kept:
+        return kept
+    for item in items:
+        item.stance = "context"
+    return items
+
 
 
 async def run_receipts(
@@ -235,6 +240,9 @@ async def run_receipts(
 
     if isinstance(response, ReceiptsAssessment):
         evidence = _apply_citations(curated_items, response.cited)
+        has_valid_citations = bool(
+            response.cited and any(c.source_url in {e.source_url for e in evidence} for c in response.cited)
+        )
         # Without a source, a negative is an absence of evidence, not a refutation.
         return Finding(
             claim_id=claim.id,
@@ -244,7 +252,7 @@ async def run_receipts(
             evidence=evidence,
             reasoning=clamp_sentences(response.reasoning),
             confidence=response.confidence if evidence else min(response.confidence, 0.35),
-            contradiction=response.contradiction if evidence else None,
+            contradiction=response.contradiction if (evidence and has_valid_citations) else None,
         )
 
     return Finding(

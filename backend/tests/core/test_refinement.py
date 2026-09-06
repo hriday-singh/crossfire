@@ -128,8 +128,10 @@ async def test_failed_evaluator_becomes_a_degraded_finding(monkeypatch, sample_c
     assert len(findings) == len(plan)  # nothing dropped
     degraded = [f for f in findings if f.confidence == 0.0]
     assert degraded, "a failed evaluator must still produce a finding"
+    assert degraded[0].evaluator == "receipts"
     assert "RuntimeError" in degraded[0].result
     assert degraded[0].evidence == []  # and so it can never break a claim
+
 
 
 @pytest.mark.asyncio

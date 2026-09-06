@@ -20,6 +20,12 @@ AGENT_FAILURE_MODE: dict[str, str] = {
     "operator": "operational_friction",
 }
 
+FAILURE_MODE_TO_AGENT: dict[str, str] = {
+    v: k for k, v in AGENT_FAILURE_MODE.items()
+}
+FAILURE_MODE_TO_AGENT["edge-case"] = "operator"
+
+
 AGENT_OBJECTIVE: dict[str, str] = {
     "devils_advocate": "Stress-test the implicit premises and counter-incentives behind: {statement}",
     "receipts": "Check real-world evidence and sources that support or contradict: {statement}",
