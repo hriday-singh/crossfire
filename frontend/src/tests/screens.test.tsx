@@ -363,7 +363,7 @@ describe("Screen Components", () => {
       expect(runBtn).not.toBeDisabled();
     });
 
-    it("displays '0 characters' without '/ 500' when proposal textarea is empty, and displays 'X / 500 characters' when populated", () => {
+    it("displays character count without '/ 500' both when empty and when populated", () => {
       render(
         <CaseProvider>
           <EntryScreen />
@@ -374,11 +374,12 @@ describe("Screen Components", () => {
 
       // Initially empty: should say "0 characters", NOT "0 / 500 characters"
       expect(screen.getByText("0 characters")).toBeInTheDocument();
-      expect(screen.queryByText(/0 \/ 500/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/500/)).not.toBeInTheDocument();
 
-      // When text is typed: shows length with limit
+      // When text is typed: shows length without / 500
       fireEvent.change(textarea, { target: { value: "Pivot to B2B SaaS" } });
-      expect(screen.getByText("17 / 500 characters")).toBeInTheDocument();
+      expect(screen.getByText("17 characters")).toBeInTheDocument();
+      expect(screen.queryByText(/500/)).not.toBeInTheDocument();
     });
 
     it("enables run test button when a content block is attached even if textarea is empty", async () => {

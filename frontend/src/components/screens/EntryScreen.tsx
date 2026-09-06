@@ -506,23 +506,15 @@ export const EntryScreen: React.FC = () => {
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder="e.g. We should offer an unlimited free tier for our AI coding assistant or pivot from custom enterprise deployments to a self-serve PLG tier with zero sales assistance..."
+                placeholder="e.g. We should offer an unlimited free tier to acquire users..."
                 rows={4}
                 autoFocus
                 className="w-full bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-md text-body-md rounded-lg p-space-4 resize-none transition-all outline-none focus:bg-surface-container-low min-h-[130px] leading-relaxed border border-transparent focus:border-outline-variant"
               />
               {/* Character Limit Counter */}
               <div className="absolute bottom-3 right-3 flex items-center gap-space-2 pointer-events-none">
-                <span
-                  className={`font-code-sm text-code-sm px-space-1.5 py-0.5 rounded transition-colors ${
-                    rawInput.length >= 480
-                      ? "text-primary-container font-semibold"
-                      : "text-outline"
-                  }`}
-                >
-                  {rawInput.length === 0
-                    ? "0 characters"
-                    : `${rawInput.length} / ${MAX_PROPOSAL_CHARS} characters`}
+                <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5">
+                  {rawInput.length} characters
                 </span>
               </div>
             </div>
