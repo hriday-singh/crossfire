@@ -450,6 +450,7 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
     """One call producing the case-level state and deduped actions (Stage 4)."""
     survived = [c.id for c in case.claims if c.status is ClaimStatus.SURVIVED]
     broken = [c.id for c in case.claims if c.status is ClaimStatus.BROKEN]
+    weakened = [c.id for c in case.claims if c.status is ClaimStatus.WEAKENED]
     unproven = [
         c.id
         for c in case.claims
@@ -461,6 +462,7 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         summary="",
         survived=survived,
         broken=broken,
+        weakened=weakened,
         unproven=unproven,
         next_actions=[],
     )

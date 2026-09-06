@@ -116,7 +116,7 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // Should display Decision Memo view by default, led by the verdict
     expect(screen.getByText("Don't proceed as written.")).toBeInTheDocument();
-    expect(screen.getByText("1 refuted · 2 unproven · 1 held")).toBeInTheDocument();
+    expect(screen.getByText("1 refuted · 1 weakened · 1 unproven · 1 held")).toBeInTheDocument();
 
     // Verify ZERO backend API calls were made
     expect(createCaseSpy).not.toHaveBeenCalled();
@@ -201,7 +201,7 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // Now in preview: shows preview fixture instead of real case
     expect(screen.getByRole("region", { name: /Debug Views Preview Switcher/i })).toBeInTheDocument();
-    expect(screen.getByText("1 refuted · 2 unproven · 1 held")).toBeInTheDocument();
+    expect(screen.getByText("1 refuted · 1 weakened · 1 unproven · 1 held")).toBeInTheDocument();
 
     // Click Exit Preview
     const exitBtn = screen.getByRole("button", { name: /Exit Debug Views Preview/i });

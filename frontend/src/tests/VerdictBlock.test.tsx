@@ -151,4 +151,32 @@ describe("VerdictBlock", () => {
     );
     expect(screen.getByText("No verdict for this run.")).toBeInTheDocument();
   });
+
+  it("accurately reports weakened claims in counts and avoids mislabeling them as unproven", () => {
+    const weakenedCase: Case = {
+      ...baseCase({
+        decision_state: "proceed_with_changes",
+        summary: "Three claims showed adoption friction and moderate risk.",
+        survived: [],
+        broken: [],
+        weakened: ["w1", "w2", "w3"],
+        unproven: ["w1", "w2", "w3"],
+        next_actions: [],
+      }),
+      claims: [
+        { id: "w1", statement: "Claim 1", status: "weakened", load_bearing: true },
+        { id: "w2", statement: "Claim 2", status: "weakened", load_bearing: true },
+        { id: "w3", statement: "Claim 3", status: "weakened", load_bearing: false },
+      ],
+    };
+
+    render(
+      <VerdictBlock currentCase={weakenedCase} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    // Header count must accurately say "3 weakened", NOT "3 unproven"
+    expect(screen.getByText("3 weakened")).toBeInTheDocument();
+    expect(screen.queryByText(/unproven/i)).not.toBeInTheDocument();
+  });
 });
+

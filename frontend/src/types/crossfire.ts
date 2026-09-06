@@ -80,6 +80,7 @@ export interface CaseVerdict {
   summary: string;
   survived: string[];
   broken: string[];
+  weakened?: string[];
   unproven: string[];
   next_actions: NextAction[];
 }

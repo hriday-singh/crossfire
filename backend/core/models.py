@@ -70,6 +70,7 @@ class CaseVerdict(BaseModel):
     summary: str
     survived: list[str] = []                # claim ids
     broken: list[str] = []
+    weakened: list[str] = []                # weakened claim ids
     unproven: list[str] = []                # weakened + unresolved
     next_actions: list[NextAction] = []     # 2-3 merged, deduped, claim-anchored
 

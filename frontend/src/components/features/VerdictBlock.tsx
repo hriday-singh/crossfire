@@ -94,10 +94,30 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
     currentCase.findings.find((f) => f.claim_id === claimId && f.evidence.length > 0)
       ?.evidence[0]?.title || "";
 
+  const claimsWithStatus = currentCase.claims.filter((c) => c.status);
+  const hasClaimStatuses = claimsWithStatus.length > 0;
+
+  const brokenCount = hasClaimStatuses
+    ? currentCase.claims.filter((c) => c.status === "broken").length
+    : verdict.broken.length;
+
+  const weakenedCount = hasClaimStatuses
+    ? currentCase.claims.filter((c) => c.status === "weakened").length
+    : (verdict.weakened?.length ?? 0);
+
+  const unresolvedCount = hasClaimStatuses
+    ? currentCase.claims.filter((c) => c.status === "unresolved").length
+    : Math.max(0, verdict.unproven.length - (verdict.weakened?.length ?? 0));
+
+  const survivedCount = hasClaimStatuses
+    ? currentCase.claims.filter((c) => c.status === "survived").length
+    : verdict.survived.length;
+
   const counts = [
-    verdict.broken.length ? `${verdict.broken.length} refuted` : "",
-    verdict.unproven.length ? `${verdict.unproven.length} unproven` : "",
-    verdict.survived.length ? `${verdict.survived.length} held` : "",
+    brokenCount ? `${brokenCount} refuted` : "",
+    weakenedCount ? `${weakenedCount} weakened` : "",
+    unresolvedCount ? `${unresolvedCount} unproven` : "",
+    survivedCount ? `${survivedCount} held` : "",
   ].filter(Boolean);
 
   return (

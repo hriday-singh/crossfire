@@ -226,7 +226,8 @@ export const MOCK_PREVIEW_CASE: Case = {
       "Bar guidance and professional-indemnity cover both require an attorney to sign the redline, so \"replacing external legal review\" cannot ship as written. It survives only as a copilot that drafts redlines an attorney ratifies.",
     survived: ["c-preview-3"],
     broken: ["c-preview-1"],
-    unproven: ["c-preview-2", "c-preview-4"],
+    weakened: ["c-preview-2"],
+    unproven: ["c-preview-4"],
     next_actions: [
       {
         action:
