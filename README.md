@@ -148,6 +148,42 @@ Crossfire is configured to run **straight out of the box** with zero required pa
 
 ---
 
+### One-Click Launch (All Three Services in Order)
+
+To install dependencies and start the entire stack together in the correct sequence with a single command:
+
+```powershell
+# Run all three services in correct order (auto-detects missing dependencies and runs setup on first launch):
+.\run_all.ps1
+```
+
+Or run the full setup explicitly beforehand:
+```powershell
+# Installs Python venv, backend packages, frontend npm dependencies, and initializes .env
+.\setup.ps1
+
+# Launch Gemini Proxy (:8081) -> Backend (:8000) -> Frontend (:5173)
+.\run_all.ps1
+```
+
+**What `.\run_all.ps1` handles automatically:**
+1. **Gemini-Web2API Proxy (:8081):** Starts the local proxy and polls until ready.
+2. **Crossfire Backend API (:8000):** Starts FastAPI uvicorn server in its venv and verifies `http://localhost:8000/health`.
+3. **Crossfire Frontend UI (:5173):** Starts Vite dev server and verifies frontend port readiness.
+4. **Browser Launch:** Automatically opens `http://localhost:5173` in your default browser.
+5. **Clean Teardown:** Press **`Q`** or **`Ctrl+C`** in the launcher window to stop all 3 services at once with zero orphaned processes or locked ports.
+6. **Custom Flags:**
+   * `-NoBrowser` : Starts services without opening the browser.
+   * `-SkipProxy` : Starts only backend & frontend (if using direct Gemini or Anthropic API keys).
+   * `-Setup`     : Forces a full reinstall of Python & Node dependencies before launching.
+   * `-LeaveOpen` : Leaves all service windows running and exits launcher.
+
+---
+
+### Manual Step-by-Step Setup
+
+If you prefer starting each service individually in separate terminals:
+
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/hriday-singh/crossfire.git

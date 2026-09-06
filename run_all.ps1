@@ -1,0 +1,339 @@
+<#
+.SYNOPSIS
+    Unified launcher for Crossfire. Runs all three services in the correct sequence.
+.DESCRIPTION
+    1. Validates and auto-installs dependencies if needed (calls setup.ps1).
+    2. Starts Gemini-Web2API Proxy on port 8081 and waits for readiness.
+    3. Starts Crossfire Backend API on port 8000 and waits for /health response.
+    4. Starts Crossfire Frontend UI on port 5173 and waits for dev server.
+    5. Opens the browser at http://localhost:5173.
+    6. Keeps a control panel active; pressing 'Q' or Ctrl+C terminates all services cleanly.
+#>
+
+[CmdletBinding()]
+param (
+    [switch]$Setup = $false,
+    [switch]$NoBrowser = $false,
+    [switch]$SkipProxy = $false,
+    [switch]$LeaveOpen = $false,
+    [int]$BackendPort = 8000,
+    [int]$ProxyPort = 8081,
+    [int]$FrontendPort = 5173
+)
+
+$ErrorActionPreference = "Stop"
+
+$WorkspaceRoot = $PSScriptRoot
+$BackendDir = Join-Path $WorkspaceRoot "backend"
+$FrontendDir = Join-Path $WorkspaceRoot "frontend"
+
+# Track processes spawned by this launcher for clean teardown
+$SpawnedProcesses = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
+$ReportedExitedPids = [System.Collections.Generic.HashSet[int]]::new()
+
+function Test-PortOpen {
+    param (
+        [string]$HostName = "127.0.0.1",
+        [int]$Port,
+        [int]$TimeoutMs = 400
+    )
+    $tcp = New-Object System.Net.Sockets.TcpClient
+    try {
+        $asyncResult = $tcp.BeginConnect($HostName, $Port, $null, $null)
+        $wait = $asyncResult.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
+        if (-not $wait) {
+            $tcp.Close()
+            return $false
+        }
+        $tcp.EndConnect($asyncResult)
+        $tcp.Close()
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $tcp.Dispose()
+    }
+}
+
+function Test-HttpEndpoint {
+    param (
+        [string]$Url,
+        [int]$TimeoutSec = 2
+    )
+    try {
+        $response = Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec $TimeoutSec -ErrorAction Stop
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Wait-UntilReady {
+    param (
+        [string]$ServiceName,
+        [scriptblock]$CheckBlock,
+        [int]$TimeoutSeconds = 25
+    )
+    Write-Host "    Waiting for $ServiceName to respond" -NoNewline -ForegroundColor DarkGray
+    $startTime = Get-Date
+    while ((Get-Date) - $startTime -lt [TimeSpan]::FromSeconds($TimeoutSeconds)) {
+        if (& $CheckBlock) {
+            Write-Host " [READY]" -ForegroundColor Green
+            return $true
+        }
+        Write-Host "." -NoNewline -ForegroundColor DarkGray
+        Start-Sleep -Milliseconds 600
+    }
+    Write-Host " [TIMEOUT]" -ForegroundColor Red
+    return $false
+}
+
+function Stop-AllSpawnedServices {
+    if ($SpawnedProcesses.Count -eq 0) { return }
+    Write-Host ""
+    Write-Host "======================================================================" -ForegroundColor Yellow
+    Write-Host " Stopping all spawned Crossfire services..." -ForegroundColor Yellow
+    Write-Host "======================================================================" -ForegroundColor Yellow
+    
+    foreach ($proc in $SpawnedProcesses) {
+        if ($proc -and -not $proc.HasExited) {
+            try {
+                Write-Host "  Stopping PID $($proc.Id) ($($proc.ProcessName))..." -ForegroundColor DarkGray
+                & taskkill.exe /PID $proc.Id /T /F 2>$null | Out-Null
+            } catch {
+                try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
+            }
+        }
+    }
+    Write-Host "  [OK] All spawned services terminated." -ForegroundColor Green
+}
+
+# Determine PowerShell executable to use for child windows
+$ShellExe = if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
+
+try {
+    Write-Host ""
+    Write-Host "======================================================================" -ForegroundColor Cyan
+    Write-Host "              CROSSFIRE - Decision-Testing Engine Launcher            " -ForegroundColor Cyan
+    Write-Host "======================================================================" -ForegroundColor Cyan
+    Write-Host ""
+
+    # -------------------------------------------------------------------------
+    # Auto-Setup Verification
+    # -------------------------------------------------------------------------
+    $NeedsSetup = $Setup -or `
+        (-not (Test-Path (Join-Path $BackendDir ".venv\Scripts\python.exe"))) -or `
+        (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) -or `
+        (-not (Test-Path (Join-Path $BackendDir ".env")))
+
+    if ($NeedsSetup) {
+        Write-Host "[*] First run or missing dependencies detected. Running setup..." -ForegroundColor Yellow
+        $SetupScript = Join-Path $WorkspaceRoot "setup.ps1"
+        if (Test-Path $SetupScript) {
+            & $SetupScript
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "[ERROR] Setup failed. Please check errors above."
+                exit 1
+            }
+        } else {
+            Write-Error "[ERROR] setup.ps1 not found in $WorkspaceRoot."
+            exit 1
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # 1. Start Gemini-Web2API Proxy (:8081)
+    # -------------------------------------------------------------------------
+    if (-not $SkipProxy) {
+        Write-Host ""
+        Write-Host "[1/3] Gemini-Web2API Proxy (:8081)..." -ForegroundColor Yellow
+
+        if (Test-PortOpen -Port $ProxyPort) {
+            Write-Host "    [OK] Port $ProxyPort is already active. Proxy is running." -ForegroundColor Green
+        } else {
+            $ProxyDirs = @(
+                (Join-Path $WorkspaceRoot "tools\gemini-web2api"),
+                (Join-Path $WorkspaceRoot "..\..\Tools\gemini-web2api"),
+                (Join-Path $WorkspaceRoot "..\Tools\gemini-web2api")
+            )
+            $ResolvedProxyDir = $null
+            foreach ($dir in $ProxyDirs) {
+                if (Test-Path $dir) {
+                    $ResolvedProxyDir = (Resolve-Path $dir).Path
+                    break
+                }
+            }
+
+            if (-not $ResolvedProxyDir) {
+                Write-Warning "    [WARN] gemini-web2api directory not found. Skipping local proxy launch."
+                Write-Warning "           If using direct GEMINI_API_KEY in backend/.env, this is fine."
+            } else {
+                $ProxyPython = Join-Path $ResolvedProxyDir ".venv\Scripts\python.exe"
+                if (-not (Test-Path $ProxyPython)) {
+                    $BackendVenvPy = Join-Path $BackendDir ".venv\Scripts\python.exe"
+                    if (Test-Path $BackendVenvPy) {
+                        $ProxyPython = $BackendVenvPy
+                    } else {
+                        $SysPy = Get-Command python.exe -ErrorAction SilentlyContinue
+                        $ProxyPython = if ($SysPy) { $SysPy.Source } else { "python" }
+                    }
+                }
+
+                $proxyCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [1/3] Gemini Proxy (:$ProxyPort)'; Set-Location '$ResolvedProxyDir'; Write-Host 'Starting Gemini Proxy on :$ProxyPort...' -ForegroundColor Cyan; & '$ProxyPython' gemini_web2api.py --port $ProxyPort"
+                
+                $proxyProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $proxyCmd) -PassThru
+                $SpawnedProcesses.Add($proxyProc)
+                Write-Host "    [+] Spawned Gemini Proxy window (PID $($proxyProc.Id))" -ForegroundColor DarkCyan
+
+                $ready = Wait-UntilReady -ServiceName "Gemini Proxy" -CheckBlock {
+                    Test-PortOpen -Port $ProxyPort
+                } -TimeoutSeconds 15
+
+                if (-not $ready) {
+                    Write-Warning "    [WARN] Gemini Proxy did not report ready within 15 seconds. Proceeding anyway..."
+                }
+            }
+        }
+    } else {
+        Write-Host ""
+        Write-Host "[1/3] Gemini Proxy: Skipped (-SkipProxy specified)" -ForegroundColor DarkGray
+    }
+
+    # -------------------------------------------------------------------------
+    # 2. Start Crossfire Backend API (:8000)
+    # -------------------------------------------------------------------------
+    Write-Host ""
+    Write-Host "[2/3] Crossfire Backend API (:$BackendPort)..." -ForegroundColor Yellow
+
+    if (Test-PortOpen -Port $BackendPort) {
+        Write-Host "    [OK] Port $BackendPort is already active. Backend API is running." -ForegroundColor Green
+    } else {
+        $BackendPython = Join-Path $BackendDir ".venv\Scripts\python.exe"
+        if (-not (Test-Path $BackendPython)) {
+            $SysPy = Get-Command python.exe -ErrorAction SilentlyContinue
+            $BackendPython = if ($SysPy) { $SysPy.Source } else { "python" }
+        }
+
+        $backendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [2/3] Backend API (:$BackendPort)'; Set-Location '$BackendDir'; Write-Host 'Starting Crossfire Backend API on :$BackendPort...' -ForegroundColor Cyan; & '$BackendPython' -m uvicorn main:app --reload --port $BackendPort"
+        
+        $backendProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $backendCmd) -PassThru
+        $SpawnedProcesses.Add($backendProc)
+        Write-Host "    [+] Spawned Backend API window (PID $($backendProc.Id))" -ForegroundColor DarkCyan
+
+        $backendReady = Wait-UntilReady -ServiceName "Backend API (/health)" -CheckBlock {
+            Test-HttpEndpoint -Url "http://localhost:$BackendPort/health"
+        } -TimeoutSeconds 25
+
+        if (-not $backendReady) {
+            Write-Warning "    [WARN] Backend /health endpoint did not respond within 25 seconds. Please inspect backend console window."
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # 3. Start Crossfire Frontend UI (:5173)
+    # -------------------------------------------------------------------------
+    Write-Host ""
+    Write-Host "[3/3] Crossfire Frontend UI (:$FrontendPort)..." -ForegroundColor Yellow
+
+    if (Test-PortOpen -Port $FrontendPort) {
+        Write-Host "    [OK] Port $FrontendPort is already active. Frontend UI is running." -ForegroundColor Green
+    } else {
+        $frontendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [3/3] Frontend UI (:$FrontendPort)'; Set-Location '$FrontendDir'; Write-Host 'Starting Vite Frontend dev server on :$FrontendPort...' -ForegroundColor Cyan; npm run dev -- --port $FrontendPort"
+        
+        $frontendProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $frontendCmd) -PassThru
+        $SpawnedProcesses.Add($frontendProc)
+        Write-Host "    [+] Spawned Frontend UI window (PID $($frontendProc.Id))" -ForegroundColor DarkCyan
+
+        $frontendReady = Wait-UntilReady -ServiceName "Frontend UI" -CheckBlock {
+            Test-PortOpen -Port $FrontendPort
+        } -TimeoutSeconds 25
+
+        if (-not $frontendReady) {
+            Write-Warning "    [WARN] Frontend did not report ready within 25 seconds. Please inspect frontend console window."
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # 4. Open Browser
+    # -------------------------------------------------------------------------
+    $UiUrl = "http://localhost:$FrontendPort"
+    if (-not $NoBrowser) {
+        Start-Sleep -Seconds 1
+        Write-Host ""
+        Write-Host "[*] Opening $UiUrl in your default browser..." -ForegroundColor Green
+        Start-Process $UiUrl
+    }
+
+    # -------------------------------------------------------------------------
+    # 5. Interactive Control Panel
+    # -------------------------------------------------------------------------
+    Write-Host ""
+    Write-Host "======================================================================" -ForegroundColor Green
+    Write-Host "                  ALL CROSSFIRE SERVICES ARE LIVE!                    " -ForegroundColor Green
+    Write-Host "======================================================================" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  Frontend UI    : $UiUrl" -ForegroundColor Cyan
+    Write-Host "  Backend API    : http://localhost:$BackendPort  (Docs: http://localhost:$BackendPort/docs)" -ForegroundColor Cyan
+    if (-not $SkipProxy) {
+        Write-Host "  Gemini Proxy   : http://localhost:$ProxyPort/v1" -ForegroundColor Cyan
+    }
+    Write-Host ""
+    Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "  Controls:" -ForegroundColor Yellow
+    Write-Host "    Press [Q]       : Stop all three services cleanly and exit." -ForegroundColor White
+    Write-Host "    Press [O]       : Re-open http://localhost:$FrontendPort in browser." -ForegroundColor White
+    Write-Host "    Press [Ctrl+C]  : Terminate all services." -ForegroundColor White
+    Write-Host "======================================================================" -ForegroundColor Green
+    Write-Host ""
+
+    if ($LeaveOpen) {
+        Write-Host "[INFO] -LeaveOpen specified. Leaving all service windows open and exiting launcher." -ForegroundColor Yellow
+        return
+    }
+
+    # Check if console supports reading keys (interactive mode)
+    $isInteractive = $true
+    try {
+        [void][Console]::KeyAvailable
+    } catch {
+        $isInteractive = $false
+    }
+
+    # Monitor loop
+    while ($true) {
+        if ($isInteractive) {
+            try {
+                if ([Console]::KeyAvailable) {
+                    $key = [Console]::ReadKey($true)
+                    if ($key.Key -eq [ConsoleKey]::Q) {
+                        Write-Host "`nQuit command received." -ForegroundColor Yellow
+                        break
+                    }
+                    if ($key.Key -eq [ConsoleKey]::O) {
+                        Write-Host "`nOpening $UiUrl..." -ForegroundColor Green
+                        Start-Process $UiUrl
+                    }
+                }
+            } catch {
+                $isInteractive = $false
+            }
+        }
+
+        # Check if any spawned child unexpectedly died
+        foreach ($proc in $SpawnedProcesses) {
+            if ($proc.HasExited) {
+                if (-not $ReportedExitedPids.Contains($proc.Id)) {
+                    Write-Warning "`n[ALERT] Process PID $($proc.Id) ($($proc.ProcessName)) has stopped."
+                    [void]$ReportedExitedPids.Add($proc.Id)
+                }
+            }
+        }
+
+        Start-Sleep -Milliseconds 500
+    }
+
+} finally {
+    if (-not $LeaveOpen) {
+        Stop-AllSpawnedServices
+    }
+}
