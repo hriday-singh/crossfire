@@ -199,7 +199,9 @@ export const EntryScreen: React.FC = () => {
 
       const remaining = detectedMulti.remainingText;
       if (remaining) {
-        setRawInput((prev) => (prev ? `${prev} ${remaining}`.trim() : remaining));
+        setRawInput((prev) =>
+          prev ? `${prev} ${remaining}`.trim() : remaining,
+        );
       }
       setSmartNotice(
         detectedMulti.urls.length === 1
@@ -209,7 +211,6 @@ export const EntryScreen: React.FC = () => {
       return;
     }
   };
-
 
   const hasContentBlock = attachments.length > 0;
   const hasValidInput = hasContentBlock || rawInput.trim().length > 5;
@@ -646,10 +647,7 @@ export const EntryScreen: React.FC = () => {
                   <span>to analyze</span>
                 </div>
                 <span className="text-outline-variant hidden md:inline">·</span>
-                <span className="hidden md:inline-flex items-center gap-1.5 text-outline font-code-sm text-xs">
-                  <SerpApiIcon size={12} />
-                  <span>Grounding via SerpApi</span>
-                </span>
+                <span className="hidden md:inline-flex items-center gap-1.5 text-outline font-code-sm text-xs"></span>
               </div>
 
               {/* Primary CTA Trigger */}
