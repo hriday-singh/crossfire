@@ -3,7 +3,17 @@ import { Case, Claim } from "@/types/crossfire";
 import { formatImpact, formatTestName, getVerdictConfig, truncateUrl } from "@/lib/formatters";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { CircleCheck, CircleHelp, CircleX, ExternalLink, ShieldAlert, Sparkles, TriangleAlert, X } from "lucide-react";
+import {
+  Anchor,
+  CircleCheck,
+  CircleHelp,
+  CircleX,
+  ExternalLink,
+  ShieldAlert,
+  Sparkles,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 
 interface EvidenceDrawerProps {
   claimId: string | null;
@@ -71,7 +81,8 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                 Claim & Verdict
               </span>
               {claim.load_bearing && (
-                <span className="inline-flex items-center rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 px-2 py-0.5 text-[11px] font-mono">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 px-2.5 py-0.5 text-[11px] font-mono">
+                  <Anchor size={12} className="text-zinc-400 shrink-0" />
                   Core foundation
                 </span>
               )}
@@ -91,7 +102,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                     verdictConfig.badgeBorder
                   )}
                 >
-                  {renderVerdictIcon(claim.status)}
+                  {renderVerdictIcon(claim.status, 15)}
                   <span>{verdictConfig.label}</span>
                 </span>
                 {consequence?.impact && (

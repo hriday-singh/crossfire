@@ -29,11 +29,36 @@ class OpenAICompatibleProvider:
         api_key: str | None = None,
         base_url: str | None = None,
         model: str | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> None:
         settings = get_settings()
         self._api_key = api_key or settings.llm_api_key or settings.openai_api_key or "none"
         self._base_url = (base_url or settings.llm_base_url or "http://localhost:8081/v1").rstrip("/")
         self._model = model or settings.llm_model or "gemini-3.7-flash"
+        self._client = client
+        self._owns_client = client is None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Returns a persistent pooled httpx.AsyncClient, lazily initializing if needed."""
+        if self._client is None or self._client.is_closed:
+            limits = httpx.Limits(max_keepalive_connections=20, max_connections=50)
+            self._client = httpx.AsyncClient(
+                timeout=120.0,
+                limits=limits,
+            )
+            self._owns_client = True
+        return self._client
+
+    async def aclose(self) -> None:
+        """Closes the underlying pooled client if owned by this provider."""
+        if self._owns_client and self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+
+    async def __aenter__(self) -> OpenAICompatibleProvider:
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        await self.aclose()
 
     async def generate(
         self,
@@ -66,14 +91,14 @@ class OpenAICompatibleProvider:
             "messages": formatted_messages,
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                f"{self._base_url}/chat/completions",
-                json=payload,
-                headers=headers,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        client = await self._get_client()
+        resp = await client.post(
+            f"{self._base_url}/chat/completions",
+            json=payload,
+            headers=headers,
+        )
+        resp.raise_for_status()
+        data = resp.json()
 
         content = data["choices"][0]["message"]["content"] or ""
 
@@ -82,3 +107,4 @@ class OpenAICompatibleProvider:
             return response_schema.model_validate_json(cleaned)
 
         return content
+

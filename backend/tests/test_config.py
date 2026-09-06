@@ -57,3 +57,12 @@ def test_get_settings_lru_cache():
     s2 = get_settings()
     assert s1 is s2
     get_settings.cache_clear()
+
+
+def test_cors_allowed_origins_and_curation_settings(monkeypatch):
+    monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000, http://example.com")
+    monkeypatch.setenv("USE_LLM_CURATION", "true")
+    settings = Settings(_env_file=None)
+    assert settings.cors_allowed_origins == ["http://localhost:3000", "http://example.com"]
+    assert settings.use_llm_curation is True
+

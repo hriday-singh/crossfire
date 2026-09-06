@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
 import { AppAction, AppState, INITIAL_STATE, caseReducer } from "./caseReducer";
-import { DECISION_PRESETS } from "@/lib/mockData";
+import { DECISION_PRESETS } from "@/lib/presets";
 import { confirmCase, createCase, getCase } from "@/lib/api";
 import { Case } from "@/types/crossfire";
 
@@ -69,6 +69,8 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Connect to SSE stream first by setting streaming mode to avoid race condition
       dispatch({ type: "CONFIRMING_SUCCESS" });
+      // Allow the React commit phase to mount and open the EventSource stream connection first
+      await new Promise<void>((resolve) => setTimeout(resolve, 50));
       await confirmCase(state.currentCase.id, state.currentCase.claims);
     } catch (err: unknown) {
       const errorObj = err as { stage?: string; message?: string };

@@ -75,6 +75,15 @@ def test_parse_duckduckgo_lite_html():
     assert items[1].retrieved_at is not None
 
 
+def test_clean_ddg_url_preserves_query_parameters_and_html_entities():
+    from evidence.search import _clean_ddg_url
+
+    raw_url = "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpath%3Fparam1%3Dval1%26param2%3Dval2&amp;rut=1"
+    cleaned = _clean_ddg_url(raw_url)
+    assert cleaned == "https://example.com/path?param1=val1&param2=val2"
+
+
+
 @pytest.mark.asyncio
 async def test_search_evidence_returns_well_formed_evidence_items(monkeypatch, sample_claim):
     """Mock raw search response to verify search_evidence parses and returns EvidenceItems correctly."""

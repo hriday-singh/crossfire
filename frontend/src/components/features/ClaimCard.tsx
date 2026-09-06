@@ -3,7 +3,7 @@ import { ActiveTestRow, Claim, DecisionConsequence, Finding } from "@/types/cros
 import { formatConfidence, formatImpact, getVerdictConfig } from "@/lib/formatters";
 import { TestRow } from "./TestRow";
 import { cn } from "@/lib/utils";
-import { CircleCheck, CircleHelp, CircleX, TriangleAlert } from "lucide-react";
+import { Anchor, ChevronRight, CircleCheck, CircleHelp, CircleX, TriangleAlert } from "lucide-react";
 
 interface ClaimCardProps {
   claim: Claim;
@@ -66,8 +66,9 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           {claim.load_bearing ? (
             <span
               title="Load-bearing assumption — if false, the entire plan fails"
-              className="inline-flex items-center rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 px-2.5 py-0.5 text-xs font-mono"
+              className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 px-2.5 py-0.5 text-xs font-mono"
             >
+              <Anchor size={12} className="text-zinc-400 shrink-0" />
               Core foundation
             </span>
           ) : (
@@ -88,7 +89,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 verdictConfig.badgeBorder
               )}
             >
-              {renderVerdictIcon(claim.status)}
+              {renderVerdictIcon(claim.status, 14)}
               <span>{verdictConfig.label}</span>
             </span>
 
@@ -146,7 +147,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           </span>
 
           <span className="flex items-center gap-1 font-mono text-xs text-zinc-400 group-hover:text-zinc-200 transition-colors">
-            <span>View Evidence & Sources →</span>
+            <span>View Evidence & Sources</span>
+            <ChevronRight size={13} className="shrink-0 transition-transform group-hover:translate-x-0.5" />
           </span>
         </div>
       )}

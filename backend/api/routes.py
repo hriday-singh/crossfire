@@ -5,6 +5,7 @@ docs/04-dev-C-api-sse-evaluators.md for the task breakdown.
 """
 from __future__ import annotations
 
+import base64
 import json
 from typing import Annotated
 
@@ -13,18 +14,28 @@ from fastapi.responses import StreamingResponse
 
 import events
 import store
-from api.schemas import ConfirmCaseRequest, ConfirmCaseResponse, CreateCaseRequest
+from api.schemas import (
+    ConfirmCaseRequest,
+    ConfirmCaseResponse,
+    CreateCaseRequest,
+    IngestPdfRequest,
+    IngestResponse,
+    IngestUrlRequest,
+)
 from core.loop import extract_claims, handle_confirm
 from core.models import Case
+from ingestion import ingest_pdf, ingest_url
+from providers import get_provider
 from providers.base import LLMProvider
-from providers.gemini import GeminiProvider
+
 
 router = APIRouter()
 
 
 def get_llm_provider() -> LLMProvider:
     """Dependency provider for LLM calls (can be overridden in tests)."""
-    return GeminiProvider()
+    return get_provider()
+
 
 
 @router.post("/cases", response_model=Case, status_code=status.HTTP_200_OK)
@@ -52,6 +63,9 @@ async def create_case(
     return case
 
 
+SSE_PING_INTERVAL_SECONDS: float = 15.0
+
+
 @router.get("/cases/{case_id}/stream")
 async def stream_case(case_id: str) -> StreamingResponse:
     """
@@ -68,17 +82,18 @@ async def stream_case(case_id: str) -> StreamingResponse:
         raise HTTPException(status_code=404, detail="Case not found")
 
     async def event_generator():
-        # If the case already completed and its queue has been drained/closed,
-        # emit the terminal event immediately so the client does not hang indefinitely.
-        queue = events.get_queue(case_id)
-        if case.status in ("done", "error") and queue.empty():
-            if case.status == "done":
-                yield f"event: run_complete\ndata: {json.dumps({'case_id': case_id})}\n\n"
-            else:
-                yield f"event: error\ndata: {json.dumps({'stage': 'execution', 'message': 'Case finished with error'})}\n\n"
+        # Fast path if case has already finished and event queue is closed/empty
+        if case.status == "done" and (events.is_closed(case_id) or events.get_queue(case_id).empty()):
+            yield f"event: run_complete\ndata: {json.dumps({'case_id': case_id})}\n\n"
+            return
+        if case.status == "error" and (events.is_closed(case_id) or events.get_queue(case_id).empty()):
+            yield f"event: error\ndata: {json.dumps({'stage': 'run_pipeline', 'message': 'Case previously failed'})}\n\n"
             return
 
-        async for item in events.subscribe(case_id):
+        async for item in events.subscribe(case_id, timeout=SSE_PING_INTERVAL_SECONDS):
+            if item is None:
+                yield ": ping\n\n"
+                continue
             event_name = item["event"]
             data = item.get("data", {})
             yield f"event: {event_name}\ndata: {json.dumps(data, default=str)}\n\n"
@@ -98,6 +113,7 @@ async def stream_case(case_id: str) -> StreamingResponse:
             "X-Accel-Buffering": "no",
         },
     )
+
 
 
 @router.post(
@@ -161,3 +177,74 @@ async def get_case(case_id: str) -> Case:
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return case
+
+
+@router.post(
+    "/ingest/url",
+    response_model=IngestResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def handle_ingest_url(
+    payload: IngestUrlRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> IngestResponse:
+    """
+    POST /ingest/url: Ingests content from a URL, curates it, and returns context.
+    """
+    try:
+        context = await ingest_url(
+            url=payload.url,
+            claim_statement=payload.claim_statement,
+            provider=provider,
+        )
+        return IngestResponse(context=context, character_count=len(context))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to ingest URL: {exc}",
+        )
+
+
+@router.post(
+    "/ingest/pdf",
+    response_model=IngestResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def handle_ingest_pdf(
+    payload: IngestPdfRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> IngestResponse:
+    """
+    POST /ingest/pdf: Ingests base64-encoded PDF content, curates it, and returns context.
+    """
+    try:
+        pdf_bytes = base64.b64decode(payload.pdf_base64, validate=True)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid base64 PDF data: {exc}",
+        )
+
+    try:
+        context = await ingest_pdf(
+            source=pdf_bytes,
+            claim_statement=payload.claim_statement,
+            provider=provider,
+        )
+        return IngestResponse(context=context, character_count=len(context))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to ingest PDF: {exc}",
+        )
+

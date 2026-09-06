@@ -124,6 +124,24 @@ async def test_build_test_plan_routes_different_claims_to_different_failure_mode
     assert target_claim_ids == {c.id for c in sample_case.claims}
 
 
+@pytest.mark.asyncio
+async def test_build_test_plan_routes_assumption_claims_to_assumption_mode():
+    from core.loop import build_test_plan
+    from core.models import Case, Claim
+
+    case = Case(
+        id="case-assumption",
+        raw_input="Startup idea",
+        claims=[
+            Claim(id="c1", statement="We assume users expect immediate responses"),
+            Claim(id="c2", statement="People believe AI will replace manual data entry"),
+        ],
+    )
+    plan = build_test_plan(case)
+    assert all(item.failure_mode == "assumption" for item in plan)
+
+
+
 # --- Hour 18-25: reconcile() ---
 
 @pytest.mark.asyncio
@@ -315,3 +333,36 @@ async def test_run_pipeline_closes_the_queue_on_provider_failure(sample_case):
     assert seen[-1]["event"] == "error"
     assert seen[-1]["data"]["stage"] == "run_pipeline"
     assert store.get(sample_case.id).status == "error"
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_resilient_to_single_claim_reconcile_failure(sample_case):
+    """If one claim's reconcile fails, it degrades to UNRESOLVED without taking down the pipeline."""
+    import store
+    from core.loop import LoadBearingAnswer, ReconcileVerdict, run_pipeline
+
+    class PartialFailingProvider:
+        def __init__(self):
+            self.load_bearing_count = 0
+            self.reconcile_count = 0
+
+        async def generate(self, system_prompt, messages, response_schema=None):
+            if response_schema == LoadBearingAnswer:
+                return LoadBearingAnswer(answer=True)
+            if response_schema == ReconcileVerdict:
+                self.reconcile_count += 1
+                if self.reconcile_count == 1:
+                    raise RuntimeError("LLM timeout on claim 1")
+                return ReconcileVerdict(status=ClaimStatus.SURVIVED, reasoning="Claim 2 holds")
+            return "ok"
+
+    store.set(sample_case)
+    await run_pipeline(sample_case.id, provider=PartialFailingProvider())
+
+    case = store.get(sample_case.id)
+    assert case.status == "done"
+    # Even though one reconcile failed, the case completed
+    statuses = [c.status for c in case.claims]
+    assert ClaimStatus.UNRESOLVED in statuses
+    assert len(case.consequences) == len(case.claims)
+

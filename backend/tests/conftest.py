@@ -65,9 +65,12 @@ def _isolate_process_state():
 
     store._cases.clear()
     events._queues.clear()
+    events._closed_cases.clear()
     yield
     store._cases.clear()
     events._queues.clear()
+    events._closed_cases.clear()
+
 
 
 @pytest.fixture

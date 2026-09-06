@@ -184,3 +184,78 @@ def test_get_provider_factory():
         get_provider("unsupported_provider")
     assert "unknown LLM provider 'unsupported_provider'" in str(exc_info.value)
 
+
+@pytest.mark.asyncio
+async def test_openai_compat_provider_reuses_pooled_client(monkeypatch):
+    import httpx
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "choices": [{"message": {"content": "ok"}}]
+            }
+
+    async def mock_post(self, *args, **kwargs):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    assert provider._client is None
+
+    # First call initializes client
+    res1 = await provider.generate(system_prompt="", messages=[])
+    assert res1 == "ok"
+    first_client = provider._client
+    assert isinstance(first_client, httpx.AsyncClient)
+    assert not first_client.is_closed
+
+    # Second call reuses exact same client instance
+    res2 = await provider.generate(system_prompt="", messages=[])
+    assert res2 == "ok"
+    assert provider._client is first_client
+
+    # aclose closes the pooled client
+    await provider.aclose()
+    assert first_client.is_closed
+
+    # Next call after close lazily provisions a new active client
+    res3 = await provider.generate(system_prompt="", messages=[])
+    assert res3 == "ok"
+    assert provider._client is not first_client
+    assert not provider._client.is_closed
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_provider_context_manager(monkeypatch):
+    import httpx
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "choices": [{"message": {"content": "context-ok"}}]
+            }
+
+    async def mock_post(self, *args, **kwargs):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    async with OpenAICompatibleProvider() as provider:
+        res = await provider.generate(system_prompt="", messages=[])
+        assert res == "context-ok"
+        client = provider._client
+        assert not client.is_closed
+
+    assert client.is_closed
+
+

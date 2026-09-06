@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { CaseProvider, useCase } from "@/context/CaseContext";
 import * as api from "@/lib/api";
 
@@ -119,5 +119,49 @@ describe("CaseContext", () => {
     expect(api.createCase).toHaveBeenCalled();
     expect(screen.getByTestId("active-screen")).toHaveTextContent("confirm");
     expect(screen.getByTestId("claims-count")).toHaveTextContent("1");
+  });
+
+  it("launches confirmation pipeline via api.confirmCase and enters streaming mode", async () => {
+    vi.spyOn(api, "createCase").mockResolvedValueOnce({
+      id: "case-confirm-test",
+      raw_input: "Testing proposition",
+      context: null,
+      status: "awaiting_confirmation",
+      claims: [
+        { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
+      ],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    });
+    vi.spyOn(api, "confirmCase").mockResolvedValueOnce({
+      case_id: "case-confirm-test",
+      status: "testing",
+      message: "Case confirmed and pipeline launched",
+    });
+
+    render(
+      <CaseProvider>
+        <TestConsumer />
+      </CaseProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Extract"));
+    });
+
+    expect(screen.getByTestId("active-screen")).toHaveTextContent("confirm");
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("Confirm and Run"));
+    });
+
+    expect(screen.getByTestId("active-screen")).toHaveTextContent("runner");
+    expect(screen.getByTestId("is-streaming")).toHaveTextContent("true");
+    await waitFor(() => {
+      expect(api.confirmCase).toHaveBeenCalledWith("case-confirm-test", [
+        { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
+      ]);
+    });
   });
 });

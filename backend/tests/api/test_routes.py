@@ -308,6 +308,28 @@ def test_post_cases_emits_initial_sse_events(client, fake_provider_factory):
         app.dependency_overrides.pop(get_llm_provider, None)
 
 
+def test_cors_preflight_allows_configured_origin(client):
+    response = client.options(
+        "/cases",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    assert response.headers.get("access-control-allow-credentials") == "true"
+
+
+def test_get_llm_provider_resolves_from_settings():
+    from api.routes import get_llm_provider
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    provider = get_llm_provider()
+    assert isinstance(provider, OpenAICompatibleProvider)
+
+
 def test_stream_completed_case_terminates_immediately(client, sample_case):
     import store
 
@@ -331,6 +353,110 @@ def test_confirm_rejects_empty_claims_list(client, sample_case):
     )
     assert response.status_code == 400
     assert "empty claims" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_stream_emits_ping_heartbeat_during_idle(sample_case, monkeypatch):
+    import events
+    import store
+    from main import app
+    import httpx
+
+    sample_case.status = "testing"
+    store.set(sample_case)
+
+    # Patch timeout in routes to 0.05s so the test runs in milliseconds
+    monkeypatch.setattr("api.routes.SSE_PING_INTERVAL_SECONDS", 0.05)
+
+    async def auto_closer():
+        await asyncio.sleep(0.12)
+        await events.publish(sample_case.id, "run_complete", {"case_id": sample_case.id})
+        await events.close(sample_case.id)
+
+    asyncio.create_task(auto_closer())
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get(f"/cases/{sample_case.id}/stream")
+        assert response.status_code == 200
+        assert ": ping\n\n" in response.text
+        assert "event: run_complete" in response.text
+
+
+def test_post_ingest_url_success(client, monkeypatch):
+    async def mock_ingest_url(url, claim_statement=None, provider=None):
+        return f"Curated content from {url}"
+
+    monkeypatch.setattr("api.routes.ingest_url", mock_ingest_url)
+
+    response = client.post(
+        "/ingest/url",
+        json={"url": "https://example.com/article", "claim_statement": "Market size is $10B"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["context"] == "Curated content from https://example.com/article"
+    assert data["character_count"] == len("Curated content from https://example.com/article")
+
+
+def test_post_ingest_url_serp_rejected(client, monkeypatch):
+    async def mock_ingest_url(url, claim_statement=None, provider=None):
+        raise ValueError(f"Direct search engine results page ingestion is disallowed: {url}")
+
+    monkeypatch.setattr("api.routes.ingest_url", mock_ingest_url)
+
+    response = client.post(
+        "/ingest/url",
+        json={"url": "https://google.com/search?q=test"},
+    )
+    assert response.status_code == 400
+    assert "Direct search engine results page ingestion is disallowed" in response.json()["detail"]
+
+
+def test_post_ingest_pdf_success(client, monkeypatch):
+    import base64
+
+    async def mock_ingest_pdf(source, claim_statement=None, provider=None):
+        assert isinstance(source, bytes)
+        return "Extracted PDF content here"
+
+    monkeypatch.setattr("api.routes.ingest_pdf", mock_ingest_pdf)
+
+    encoded = base64.b64encode(b"%PDF-1.4 dummy pdf content").decode("ascii")
+    response = client.post(
+        "/ingest/pdf",
+        json={"pdf_base64": encoded, "claim_statement": "Target market"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["context"] == "Extracted PDF content here"
+    assert data["character_count"] == len("Extracted PDF content here")
+
+
+def test_post_ingest_pdf_invalid_base64(client):
+    response = client.post(
+        "/ingest/pdf",
+        json={"pdf_base64": "not-valid-base64-content!!*#%"},
+    )
+    assert response.status_code == 400
+    assert "Invalid base64 PDF data" in response.json()["detail"]
+
+
+def test_post_ingest_pdf_scanned_rejected(client, monkeypatch):
+    import base64
+
+    async def mock_ingest_pdf(source, claim_statement=None, provider=None):
+        raise ValueError("Scanned or image-only PDF detected: no extractable text found.")
+
+    monkeypatch.setattr("api.routes.ingest_pdf", mock_ingest_pdf)
+
+    encoded = base64.b64encode(b"dummy pdf bytes").decode("ascii")
+    response = client.post(
+        "/ingest/pdf",
+        json={"pdf_base64": encoded},
+    )
+    assert response.status_code == 400
+    assert "Scanned or image-only PDF detected" in response.json()["detail"]
+
 
 
 

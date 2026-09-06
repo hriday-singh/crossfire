@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
-import { Plus, X, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Plus, X } from "lucide-react";
 
 export const ConfirmScreen: React.FC = () => {
   const { state, dispatch, confirmAndRun } = useCase();
@@ -120,7 +120,7 @@ export const ConfirmScreen: React.FC = () => {
                   title="Remove assumption"
                   className="mt-0.5 rounded p-1 text-muted-foreground opacity-60 hover:text-rose-400 hover:opacity-100 transition-colors shrink-0"
                 >
-                  <X size={16} />
+                  <X size={15} />
                 </button>
               )}
             </div>

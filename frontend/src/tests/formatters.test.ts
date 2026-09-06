@@ -36,9 +36,9 @@ describe("formatters", () => {
 
     const unresolved = getVerdictConfig("unresolved");
     expect(unresolved.label).toBe("Unresolved");
-    // Mandatory Rule: Unresolved is violet, NEVER gray
-    expect(unresolved.hex).toBe("#a78bfa");
-    expect(unresolved.badgeText).toContain("purple");
+    // Mandatory Rule: Unresolved is indigo (#818cf8), NEVER gray
+    expect(unresolved.hex).toBe("#818cf8");
+    expect(unresolved.badgeText).toContain("indigo");
   });
 
   it("should map impact scores accurately", () => {

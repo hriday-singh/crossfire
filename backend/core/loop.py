@@ -76,11 +76,13 @@ async def classify_load_bearing(claim: Claim, case: Case, provider: LLMProvider)
 # Keyword buckets, checked in order — first match wins. Routes claims by what
 # they actually need tested, not round-robin across evaluators.
 _FAILURE_MODE_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
+    ("assumption", ("assume", "premise", "expect", "suppose", "believe", "willing", "natural", "obvious", "users prefer", "people want")),
     ("evidence", ("pay", "trust", "adopt", "will use", "demand")),
     ("behavior", ("will scale", "performance", "latency", "load", "concurrent")),
     ("constraint", ("compliance", "certif", "legal", "regulat", "theme", "screen")),
     ("alternative", ("only option", "no competitor", "unique", "first")),
 ]
+
 
 
 def build_test_plan(case: Case) -> list[TestPlanItem]:
@@ -231,31 +233,48 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         case.status = "testing"
 
         flags = await asyncio.gather(
-            *(classify_load_bearing(claim, case, provider) for claim in case.claims)
+            *(classify_load_bearing(claim, case, provider) for claim in case.claims),
+            return_exceptions=True,
         )
+        if case.claims and all(isinstance(f, Exception) for f in flags):
+            raise flags[0]
+
         for claim, load_bearing in zip(case.claims, flags):
-            claim.load_bearing = load_bearing
+            claim.load_bearing = load_bearing if isinstance(load_bearing, bool) else True
+
 
         case.test_plan = build_test_plan(case)
         case.findings = await run_evaluators(case, case.test_plan, provider)
 
-        # Judge: one reconcile per claim, seeing every finding for it at once.
+        # Judge: parallel reconcile across claims, seeing all findings for each claim.
+        async def _reconcile_single(clm: Claim) -> tuple[Claim, ClaimStatus, str]:
+            claim_findings = [f for f in case.findings if f.claim_id == clm.id]
+            if not claim_findings:
+                return clm, ClaimStatus.UNRESOLVED, "No evaluator produced a finding for this claim."
+            try:
+                st, rsn = await reconcile(clm, claim_findings, provider)
+                return clm, st, rsn
+            except Exception as exc:
+                return (
+                    clm,
+                    ClaimStatus.UNRESOLVED,
+                    f"Reconciliation error ({exc}); marked unresolved.",
+                )
+
+        reconcile_results = await asyncio.gather(
+            *(_reconcile_single(clm) for clm in case.claims)
+        )
+
         reasonings: dict[str, str] = {}
-        for claim in case.claims:
-            claim_findings = [f for f in case.findings if f.claim_id == claim.id]
-            if claim_findings:
-                claim.status, reasoning = await reconcile(claim, claim_findings, provider)
-            else:
-                # No finding means no evidence, and no evidence is never a verdict.
-                claim.status = ClaimStatus.UNRESOLVED
-                reasoning = "No evaluator produced a finding for this claim."
-            reasonings[claim.id] = reasoning
+        for clm, st, reasoning in reconcile_results:
+            clm.status = st
+            reasonings[clm.id] = reasoning
             await events.publish(
                 case.id,
                 "verdict_ready",
                 {
-                    "claim_id": claim.id,
-                    "status": claim.status.value,
+                    "claim_id": clm.id,
+                    "status": clm.status.value,
                     "verdict_reasoning": reasoning,
                 },
             )
@@ -271,6 +290,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
 
         case.status = "done"
         await events.publish(case.id, "run_complete", {"case_id": case.id})
+
     except Exception as exc:  # a dead provider shouldn't hang the stream open
         case.status = "error"
         await events.publish(case.id, "error", {"stage": "run_pipeline", "message": str(exc)})

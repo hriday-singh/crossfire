@@ -71,6 +71,24 @@ async def test_deep_fetch_never_targets_a_search_engine_results_page():
     with pytest.raises(ValueError, match="search engine"):
         await fetch_page("https://bing.com/search?q=test")
 
+    with pytest.raises(ValueError, match="search engine"):
+        await fetch_page("https://www.google.co.uk/search?q=test")
+
+
+@pytest.mark.asyncio
+async def test_fetch_page_rejects_ssrf_private_ips():
+    from evidence.fetch import fetch_page
+
+    with pytest.raises(ValueError, match="private or unsafe"):
+        await fetch_page("http://127.0.0.1:8000/internal")
+
+    with pytest.raises(ValueError, match="private or unsafe"):
+        await fetch_page("http://169.254.169.254/latest/meta-data/")
+
+    with pytest.raises(ValueError, match="private or unsafe"):
+        await fetch_page("http://localhost:8080/secrets")
+
+
 
 @pytest.mark.asyncio
 async def test_fetch_failure_drops_the_source_without_crashing(

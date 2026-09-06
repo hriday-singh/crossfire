@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useCase } from "@/context/CaseContext";
-import { DECISION_PRESETS } from "@/lib/mockData";
+import { DECISION_PRESETS } from "@/lib/presets";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

@@ -34,10 +34,10 @@ export default {
           foreground: "var(--destructive-foreground)",
         },
         verdict: {
-          survived: "#34d399",
-          weakened: "#fbbf24",
-          broken: "#f87171",
-          unresolved: "#a78bfa",
+          survived: "var(--verdict-survived)",
+          weakened: "var(--verdict-weakened)",
+          broken: "var(--verdict-broken)",
+          unresolved: "var(--verdict-unresolved)",
         },
       },
       fontFamily: {

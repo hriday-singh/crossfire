@@ -81,11 +81,13 @@ DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {
 
 def _clean_ddg_url(raw_url: str) -> str:
     """Decodes DuckDuckGo redirect URLs if present, otherwise returns cleaned URL."""
-    if "uddg=" in raw_url:
-        match = re.search(r"uddg=([^&]+)", raw_url)
-        if match:
-            return urllib.parse.unquote(match.group(1))
-    return raw_url
+    clean = html.unescape(raw_url)
+    parsed = urllib.parse.urlparse(clean)
+    qs = urllib.parse.parse_qs(parsed.query)
+    if "uddg" in qs and qs["uddg"]:
+        return qs["uddg"][0]
+    return clean
+
 
 
 def parse_duckduckgo_lite_html(html_content: str, max_results: int = 4) -> list[EvidenceItem]:

@@ -17,26 +17,65 @@ from tenacity import (
 
 logger = logging.getLogger(__name__)
 
-BLOCKED_SERP_DOMAINS = {
-    "google.com",
-    "bing.com",
-    "duckduckgo.com",
-    "yahoo.com",
-    "yandex.com",
-    "baidu.com",
-    "ecosia.org",
-    "ask.com",
-}
+import ipaddress
+import re
+import socket
+
+_SERP_PATTERN = re.compile(
+    r"(^|\.)(google|bing|duckduckgo|yahoo|yandex|baidu|ecosia|ask)\.",
+    re.IGNORECASE,
+)
 
 
 def is_serp_url(url: str) -> bool:
     """Checks if a URL belongs to a search engine results page domain."""
     try:
         parsed = urllib.parse.urlparse(url)
-        netloc = parsed.netloc.lower()
-        return any(domain in netloc for domain in BLOCKED_SERP_DOMAINS)
+        netloc = (parsed.netloc or "").split(":")[0].lower()
+        if not netloc:
+            return False
+        return bool(_SERP_PATTERN.search(netloc))
     except Exception:
         return False
+
+
+def is_safe_url(url: str) -> bool:
+    """Validates that a URL does not target private, loopback, or internal metadata addresses."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = (parsed.hostname or "").strip().lower()
+        if not hostname:
+            return False
+
+        if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0", "169.254.169.254"):
+            return False
+        if hostname.endswith(".local") or hostname.endswith(".internal"):
+            return False
+
+        try:
+            # Check if hostname itself is an IP literal
+            ip = ipaddress.ip_address(hostname)
+            return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved)
+        except ValueError:
+            pass
+
+        # Resolve hostname and check resolved IPs
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+            for _, _, _, _, sockaddr in addr_info:
+                ip = ipaddress.ip_address(sockaddr[0])
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                    return False
+        except (socket.gaierror, socket.error):
+            # If DNS resolution fails, allow requests or let fetch fail naturally
+            pass
+
+        return True
+    except Exception:
+        return False
+
 
 
 @retry(
@@ -68,8 +107,12 @@ async def fetch_page(url: str) -> str:
     if is_serp_url(url):
         raise ValueError(
             f"Fetching search engine results pages directly is disallowed: {url}. "
-            "URLs must come from discovery (Tavily), not direct search engine queries."
+            "URLs must come from discovery (Tavily/DDG), not direct search engine queries."
         )
+
+    if not is_safe_url(url):
+        raise ValueError(f"Fetching private or unsafe URL is disallowed: {url}")
+
 
     try:
         return await _do_fetch(url)
