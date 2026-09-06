@@ -615,9 +615,14 @@ def test_post_cases_auto_agents_returns_rationales(client, fake_provider_factory
     from core.loop import ExtractedClaims
     from main import app
 
+    from core.loop import AgentPick
+
     provider = fake_provider_factory(
         responses=[
-            ExtractedClaims(statements=["Users will pay $50/mo for this platform."])
+            ExtractedClaims(
+                statements=["Users will pay $50/mo for this platform."],
+                agents=[AgentPick(agent="receipts", rationale="Competitor pricing is public.")],
+            )
         ]
     )
     app.dependency_overrides[get_llm_provider] = lambda: provider
@@ -682,3 +687,57 @@ def test_confirm_empty_selected_agents_rejected(client, sample_case):
 
 
 
+
+
+# --- Stage 5/6: input gate and the plain-prompt baseline ---
+
+
+def test_post_cases_gates_untestable_input(client, fake_provider_factory):
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    provider = fake_provider_factory(
+        responses=[
+            ExtractedClaims(
+                testable=False,
+                redirect="Name the option you are choosing between.",
+                statements=[],
+            )
+        ]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+    try:
+        response = client.post("/cases", json={"raw_input": "build something cool"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "needs_input"
+        assert body["claims"] == []
+        assert "Name the option" in body["gate_message"]
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_confirm_rejects_a_gated_case(client, fake_provider_factory):
+    import store
+    from core.models import Case
+
+    store.set(Case(id="gated", raw_input="x", status="needs_input", gate_message="Be specific."))
+    response = client.post("/cases/gated/confirm")
+    assert response.status_code == 400
+
+
+def test_baseline_returns_a_plain_answer(client, fake_provider_factory):
+    from api.routes import get_llm_provider
+    from main import app
+
+    provider = fake_provider_factory(responses=["Here is the straightforward answer."])
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+    try:
+        response = client.post("/baseline", json={"raw_input": "Should I take the job offer?"})
+        assert response.status_code == 200
+        assert response.json()["answer"] == "Here is the straightforward answer."
+        # Un-engineered on purpose: no schema, no adversarial framing.
+        assert provider.calls[0]["response_schema"] is None
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)

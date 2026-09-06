@@ -176,3 +176,78 @@ async def test_search_evidence_uses_preloaded_demo_fixtures(monkeypatch):
     assert len(items) == len(DEMO_FIXTURES["claim-abc123"])
     assert "USCIS" in items[0].title
     assert "strictly prohibited" in items[0].snippet
+
+
+# --- Stage 2: keyword queries and source ranking ---
+
+
+def test_build_query_strips_predictive_framing():
+    """search_evidence used to post the full sentence, which is why Receipts kept
+    landing on 'inconclusive'."""
+    from evidence.search import build_query
+
+    q = build_query("We assume that students will be willing to pay $20 per month for this")
+    assert "assume" not in q
+    assert "will" not in q.split()
+    assert "$20" in q
+    assert "students" in q
+
+
+def test_build_query_is_domain_neutral():
+    """Same shape of claim, three unrelated subjects — all keep their specifics."""
+    from evidence.search import build_query
+
+    assert "stairs" in build_query("I expect that my mother can still manage the stairs alone")
+    assert "Novolog" in build_query("We believe the Novolog copay will stay under $35 a month")
+    assert "Kubernetes" in build_query("The API will scale on Kubernetes to 10k concurrent users")
+
+
+def test_build_query_caps_length_and_never_returns_empty():
+    from evidence.search import build_query
+
+    long_claim = " ".join(f"word{i}" for i in range(40))
+    assert len(build_query(long_claim).split()) <= 8
+    assert build_query("we will do it").strip()  # all-stopword input still searches something
+
+
+def test_classify_source_ranks_by_authority_not_by_a_domain_list():
+    from evidence.search import classify_source
+
+    assert classify_source("https://www.uscis.gov/terms") == "primary"
+    assert classify_source("https://docs.stripe.com/checkout") == "primary"
+    assert classify_source("https://www.gov.uk/visas") == "primary"
+    assert classify_source("https://mit.edu/study") == "institutional"
+    assert classify_source("https://who.org/guidance") == "institutional"
+    assert classify_source("https://www.reddit.com/r/x") == "community"
+    assert classify_source("https://someone.medium.com/post") == "blog"
+    assert classify_source("https://ryter.pro/article") == "web"
+    assert classify_source("not a url") == "web"
+
+
+def test_rank_by_source_class_puts_authority_first():
+    from core.models import EvidenceItem
+    from evidence.search import rank_by_source_class
+
+    def item(url):
+        return EvidenceItem(source_url=url, snippet="s", retrieved_at="2026-09-06T00:00:00Z")
+
+    ranked = rank_by_source_class(
+        [item("https://blog.example.com/a"), item("https://example.gov/b"), item("https://x.edu/c")]
+    )
+    assert [i.source_class for i in ranked] == ["primary", "institutional", "blog"]
+
+
+@pytest.mark.asyncio
+async def test_search_evidence_sends_keywords_not_the_sentence(monkeypatch, sample_claim):
+    from evidence.search import search_evidence
+
+    sent: list[str] = []
+
+    async def fake_search(query: str) -> str:
+        sent.append(query)
+        return SAMPLE_DDG_HTML
+
+    monkeypatch.setattr("evidence.search._execute_search", fake_search)
+    await search_evidence(sample_claim)
+    assert sent and sent[0] != sample_claim.statement
+    assert len(sent[0].split()) <= 8

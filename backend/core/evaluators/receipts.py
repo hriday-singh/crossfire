@@ -16,7 +16,7 @@ from core.models import Case, Claim, EvidenceItem, Finding, TestPlanItem
 from core.textutil import SPECIFICITY_RULE, clamp_sentences, one_line
 from evidence.curate import curate_snippet, curate_snippet_llm
 from evidence.fetch import fetch_page
-from evidence.search import search_evidence
+from evidence.search import classify_source, search_evidence
 from providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
@@ -105,12 +105,55 @@ async def run_receipts(
     if claim is None:
         claim = Claim(id=item.target_claim, statement=item.objective)
 
+    case_id = getattr(case, "id", None)
+    if case_id:
+        try:
+            from core.activity import emit_activity
+            from evidence.search import build_query
+            await emit_activity(
+                case_id,
+                tag="Evidence Test",
+                text=f'Querying DuckDuckGo: "{build_query(claim.statement)}"',
+                claim_id=claim.id,
+                action="search",
+            )
+        except Exception:
+            pass
+
     evidence_items = await search_evidence(claim)
+
+    if case_id and evidence_items:
+        try:
+            import urllib.parse
+            top_host = urllib.parse.urlparse(evidence_items[0].source_url).hostname or "external site"
+            from core.activity import emit_activity
+            await emit_activity(
+                case_id,
+                tag="Evidence Test",
+                text=f"Found {len(evidence_items)} candidate sources (top: {top_host})",
+                claim_id=claim.id,
+                action="results",
+            )
+        except Exception:
+            pass
 
     # Adaptive Scrutiny: deep-fetch top 1-2 URLs only if load_bearing and snippet is thin
     if claim.load_bearing is True and evidence_items:
         for ev in evidence_items[:2]:
             if _is_thin_snippet(ev.snippet):
+                try:
+                    import urllib.parse
+                    domain = urllib.parse.urlparse(ev.source_url).hostname or ev.source_url
+                    from core.activity import emit_activity
+                    await emit_activity(
+                        case_id,
+                        tag="Evidence Test",
+                        text=f"Deep-fetching {domain} to inspect policy text...",
+                        claim_id=claim.id,
+                        action="fetch",
+                    )
+                except Exception:
+                    pass
                 full_text = await fetch_page(ev.source_url)
                 if full_text:
                     ev.snippet = full_text
@@ -127,11 +170,30 @@ async def run_receipts(
             title=ev.title,
             snippet=curated,
             retrieved_at=ev.retrieved_at,
-            source_class=ev.source_class,
+            # Demo fixtures and any non-search source arrive unclassed; the judge
+            # weighs by class, so classify here rather than trusting the caller.
+            source_class=(
+                ev.source_class
+                if ev.source_class != "unranked"
+                else classify_source(ev.source_url)
+            ),
         )
 
     curated_results = await asyncio.gather(*(_curate_single(ev) for ev in evidence_items))
     curated_items: list[EvidenceItem] = [ev for ev in curated_results if ev is not None]
+
+    if case_id and curated_items:
+        try:
+            from core.activity import emit_activity
+            await emit_activity(
+                case_id,
+                tag="Evidence Test",
+                text=f"Analyzing {len(curated_items)} source{'s' if len(curated_items) != 1 else ''} against claim...",
+                claim_id=claim.id,
+                action="evaluating",
+            )
+        except Exception:
+            pass
 
     if curated_items:
         evidence_str = "\n\n".join(

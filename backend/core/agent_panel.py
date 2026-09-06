@@ -140,4 +140,3 @@ def build_test_plan(
                 )
             )
     return items
-

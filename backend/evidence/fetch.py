@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 import urllib.parse
-from typing import Any
 
 from tenacity import (
     retry,

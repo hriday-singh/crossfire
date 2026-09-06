@@ -110,6 +110,15 @@ export interface IngestResponse {
   character_count: number;
 }
 
+export interface ActivityItem {
+  id: string;
+  timestamp: string;
+  tag: string;
+  text: string;
+  claim_id?: string | null;
+  action?: string | null;
+}
+
 // SSE Event frames
 export type SSEEventName =
   | "claim_map_ready"
@@ -119,7 +128,16 @@ export type SSEEventName =
   | "verdict_ready"
   | "consequence_ready"
   | "run_complete"
-  | "error";
+  | "error"
+  | "activity";
+
+export interface SSEActivityData {
+  tag: string;
+  text: string;
+  claim_id?: string | null;
+  action?: string | null;
+  timestamp: string;
+}
 
 export interface SSEClaimMapReadyData {
   claims: Claim[];

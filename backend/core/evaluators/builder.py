@@ -51,6 +51,20 @@ async def run_builder(item: TestPlanItem, case: Case, provider: LLMProvider) -> 
             ),
         }
     ]
+    case_id = getattr(case, "id", None)
+    if case_id:
+        try:
+            from core.activity import emit_activity
+            await emit_activity(
+                case_id,
+                tag="Feasibility Test",
+                text="Evaluating execution feasibility and operational blockers...",
+                claim_id=item.target_claim,
+                action="feasibility",
+            )
+        except Exception:
+            pass
+
     verdict = await provider.generate(
         system_prompt=f"{_SYSTEM_PROMPT}\n\n{SPECIFICITY_RULE}",
         messages=messages,

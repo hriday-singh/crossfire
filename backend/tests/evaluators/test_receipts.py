@@ -183,3 +183,101 @@ async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
         assert ev.snippet == f"Key fact {i} directly supporting claim."
     assert finding.confidence == 0.92
 
+
+
+# --- Stage 2/3: only cited sources survive, each carrying a stance ---
+
+
+@pytest.mark.asyncio
+async def test_receipts_keeps_only_the_sources_it_cited(
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
+):
+    """All four hits used to be attached whether the evaluator referenced them
+    or not, which is what made the drawer four undifferentiated links."""
+    from core.evaluators.receipts import CitedSource, ReceiptsAssessment, run_receipts
+    from core.models import EvidenceItem
+
+    async def fake_search(claim):
+        return [
+            EvidenceItem(
+                source_url=f"https://example.gov/{n}",
+                title=f"Doc {n}",
+                snippet="The published rule states the limit is four per household.",
+                retrieved_at="2026-09-06T00:00:00Z",
+            )
+            for n in ("used", "ignored")
+        ]
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    provider = fake_provider_factory(
+        responses=[
+            ReceiptsAssessment(
+                result="The published limit contradicts the claim",
+                reasoning="The rule caps it at four.",
+                confidence=0.8,
+                contradiction="The rule caps it at four per household",
+                cited=[CitedSource(source_url="https://example.gov/used", stance="contradicts")],
+            )
+        ]
+    )
+
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+
+    assert [e.source_url for e in finding.evidence] == ["https://example.gov/used"]
+    assert finding.evidence[0].stance == "contradicts"
+    assert finding.evidence[0].source_class == "primary"
+
+
+@pytest.mark.asyncio
+async def test_receipts_keeps_everything_when_nothing_was_cited(
+    monkeypatch, fake_provider_factory, sample_case, sample_test_plan_item
+):
+    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.models import EvidenceItem
+
+    async def fake_search(claim):
+        return [
+            EvidenceItem(
+                source_url="https://example.com/a",
+                snippet="Some relevant sentence about the claim. And a second one.",
+                retrieved_at="2026-09-06T00:00:00Z",
+            )
+        ]
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    provider = fake_provider_factory(
+        responses=[
+            ReceiptsAssessment(result="Mixed", reasoning="Unclear.", confidence=0.5, cited=[])
+        ]
+    )
+
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    assert len(finding.evidence) == 1
+    assert finding.evidence[0].stance == "context"
+
+
+@pytest.mark.asyncio
+async def test_receipts_drops_a_contradiction_it_cannot_source(
+    monkeypatch, fake_provider_factory, sample_case, sample_test_plan_item
+):
+    """Stage 1a upstream guard: no evidence means no contradiction to hand the judge."""
+    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+
+    async def empty_search(claim):
+        return []
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
+    provider = fake_provider_factory(
+        responses=[
+            ReceiptsAssessment(
+                result="Nothing supports this",
+                reasoning="No sources found.",
+                confidence=0.9,
+                contradiction="Nobody does this",
+            )
+        ]
+    )
+
+    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    assert finding.contradiction is None
+    assert finding.confidence <= 0.35

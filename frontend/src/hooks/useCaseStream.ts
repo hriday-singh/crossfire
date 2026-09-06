@@ -39,6 +39,7 @@ export function useCaseStream() {
       "consequence_ready",
       "run_complete",
       "error",
+      "activity",
     ];
 
     eventTypes.forEach((eventName) => {

@@ -66,13 +66,36 @@ async def test_extract_claims_multiple_statements_and_uniqueness(fake_provider_f
 
 
 @pytest.mark.asyncio
-async def test_extract_claims_empty_statements(fake_provider_factory):
+async def test_extract_claims_gates_untestable_input(fake_provider_factory):
+    """Direction doc 3: pure ideation gets redirected, never turned into
+    invented claims."""
+    from core.loop import ExtractedClaims, extract_claims
+
+    provider = fake_provider_factory(
+        responses=[
+            ExtractedClaims(
+                testable=False,
+                redirect="Which specific option are you choosing between, and by when?",
+                statements=[],
+            )
+        ]
+    )
+    case = await extract_claims("build something cool for students", provider)
+    assert case.status == "needs_input"
+    assert case.claims == []
+    assert "specific option" in case.gate_message
+
+
+@pytest.mark.asyncio
+async def test_extract_claims_empty_statements_also_gates(fake_provider_factory):
+    """A 'testable' verdict with no claims behind it is still nothing to test."""
     from core.loop import ExtractedClaims, extract_claims
 
     provider = fake_provider_factory(responses=[ExtractedClaims(statements=[])])
     case = await extract_claims("gibberish without claims", provider)
-    assert case.status == "awaiting_confirmation"
+    assert case.status == "needs_input"
     assert case.claims == []
+    assert case.gate_message
 
 
 @pytest.mark.asyncio
@@ -97,118 +120,137 @@ async def test_extract_claims_with_context_includes_context_in_prompt_and_case(f
 
 
 @pytest.mark.asyncio
-async def test_classify_load_bearing_obvious_yes(fake_provider_factory, sample_claim, sample_case):
-    """A claim like 'students will trust autonomous submission' — if false, the
-    decision changes materially. Assert the function returns True, and that
-    the underlying LLM call asked the explicit yes/no question from the spec
-    ('if this claim turns out false, would the recommended decision
-    materially change?'), not a raw confidence score.
-    """
-    from core.loop import LOAD_BEARING_QUESTION, LoadBearingAnswer, classify_load_bearing
+async def test_rank_load_bearing_caps_at_half_the_claims(fake_provider_factory):
+    """Measured before this change: 9 of 9 claims came back load-bearing, so
+    adaptive scrutiny did not exist. Ranking with a ceil(n/2) cap is what makes
+    the panel differentiate at all."""
+    from core.loop import LOAD_BEARING_QUESTION, LoadBearingRanking, rank_load_bearing
+    from core.models import Case, Claim
 
-    provider = fake_provider_factory(responses=[LoadBearingAnswer(answer=True)])
-    result = await classify_load_bearing(sample_claim, sample_case, provider)
-    assert result is True
+    case = Case(
+        id="case-rank",
+        raw_input="Whether to sign the lease on the Oak Street unit",
+        claims=[Claim(id=f"c{i}", statement=f"Claim {i}") for i in range(5)],
+    )
+    provider = fake_provider_factory(responses=[LoadBearingRanking(ranked_indices=[3, 1, 5, 2, 4])])
+
+    flags = await rank_load_bearing(case, provider)
+    assert len(flags) == 5
+    assert sum(flags) == 3  # ceil(5/2)
+    # Top 3 of the returned order: claims 3, 1 and 5 (1-based).
+    assert [i for i, f in enumerate(flags) if f] == [0, 2, 4]
     assert LOAD_BEARING_QUESTION in provider.calls[0]["system_prompt"]
-    assert sample_case.raw_input in provider.calls[0]["messages"][0]["content"]
-    assert sample_claim.statement in provider.calls[0]["messages"][0]["content"]
+    assert case.raw_input in provider.calls[0]["messages"][0]["content"]
 
 
 @pytest.mark.asyncio
-async def test_classify_load_bearing_obvious_no(fake_provider_factory, sample_low_stakes_claim, sample_case):
-    """'The onboarding screen should use a dark theme' — should classify False."""
-    from core.loop import LoadBearingAnswer, classify_load_bearing
+async def test_rank_load_bearing_includes_claims_the_model_dropped(fake_provider_factory):
+    from core.loop import LoadBearingRanking, rank_load_bearing
+    from core.models import Case, Claim
 
-    provider = fake_provider_factory(responses=[LoadBearingAnswer(answer=False)])
-    result = await classify_load_bearing(sample_low_stakes_claim, sample_case, provider)
-    assert result is False
+    case = Case(
+        id="case-partial",
+        raw_input="Whether to start the medication now or wait",
+        claims=[Claim(id=f"c{i}", statement=f"Claim {i}") for i in range(4)],
+    )
+    provider = fake_provider_factory(responses=[LoadBearingRanking(ranked_indices=[2, 2, 99])])
+
+    flags = await rank_load_bearing(case, provider)
+    assert len(flags) == 4
+    assert sum(flags) == 2  # ceil(4/2), nothing lost to duplicates or junk indices
 
 
 @pytest.mark.asyncio
-async def test_classify_load_bearing_with_context(fake_provider_factory, sample_claim, sample_case):
-    from core.loop import LoadBearingAnswer, classify_load_bearing
+async def test_rank_load_bearing_falls_back_when_the_call_fails(sample_case):
+    """A failed ranking must not make every claim load-bearing again."""
+    from core.loop import rank_load_bearing
+
+    class DeadProvider:
+        async def generate(self, system_prompt, messages, response_schema=None):
+            raise RuntimeError("provider is down")
+
+    flags = await rank_load_bearing(sample_case, DeadProvider())
+    assert flags == [True, False]
+
+
+@pytest.mark.asyncio
+async def test_rank_load_bearing_with_context(fake_provider_factory, sample_case):
+    from core.loop import LoadBearingRanking, rank_load_bearing
 
     sample_case.context = "Strict state regulatory requirement on medical data."
-    provider = fake_provider_factory(responses=[LoadBearingAnswer(answer=True)])
-    result = await classify_load_bearing(sample_claim, sample_case, provider)
-    assert result is True
+    provider = fake_provider_factory(responses=[LoadBearingRanking(ranked_indices=[1, 2])])
+    await rank_load_bearing(sample_case, provider)
     assert "Context Document: Strict state regulatory requirement" in provider.calls[0]["messages"][0]["content"]
 
 
 # --- Hour 11-18 ---
 
 @pytest.mark.asyncio
-async def test_build_test_plan_routes_different_claims_to_different_failure_modes(sample_case):
-    """The whole point of build_test_plan: claims route by what they actually
-    need (evidence / alternative / behavior / constraint / failure-mode), not
-    round-robin across whichever evaluator is free. Assert that two
-    dissimilar claims (e.g. 'users will pay for this' vs 'this architecture
-    will scale') produce TestPlanItems with different failure_mode values —
-    a plan where every item has the same failure_mode is a failing test.
-    """
+async def test_build_test_plan_differentiates_by_load_bearing_not_keywords(sample_case):
+    """Adaptive scrutiny: a load-bearing claim gets the full panel, a secondary
+    claim gets one evidence pass. Nothing here depends on the words in the
+    claim, so it holds for any decision in any domain."""
+    from core.loop import build_test_plan
+
+    plan = build_test_plan(sample_case)  # claim-1 load_bearing=True, claim-2 False
+    lb_modes = [i.failure_mode for i in plan if i.target_claim == "claim-1"]
+    secondary_modes = [i.failure_mode for i in plan if i.target_claim == "claim-2"]
+
+    assert set(lb_modes) == {"assumption", "evidence", "feasibility", "edge-case"}
+    assert secondary_modes == ["evidence"]
+
+
+def test_build_test_plan_routing_ignores_wording():
+    """Same load-bearing flags, wildly different subject matter, identical plan
+    shape. A keyword table could not do this."""
+    from core.loop import build_test_plan
+    from core.models import Case, Claim
+
+    def plan_shape(statements: list[str]) -> list[str]:
+        case = Case(
+            id="c",
+            raw_input="x",
+            claims=[
+                Claim(id=f"c{i}", statement=st, load_bearing=(i == 0))
+                for i, st in enumerate(statements)
+            ],
+        )
+        return [i.failure_mode for i in build_test_plan(case)]
+
+    technical = plan_shape(["The API will scale to 10k QPS", "The dashboard should be dark"])
+    personal = plan_shape(["My mother can manage the stairs alone", "The kitchen needs repainting"])
+    assert technical == personal
+
+
+@pytest.mark.asyncio
+async def test_build_test_plan_single_pass_mode(sample_case):
+    """panel=False forces the cheap path for every claim."""
     from core.loop import build_test_plan
 
     plan = build_test_plan(sample_case, panel=False)
     assert len(plan) == len(sample_case.claims)
-    failure_modes = {item.failure_mode for item in plan}
-    assert len(failure_modes) > 1
-    target_claim_ids = {item.target_claim for item in plan}
-    assert target_claim_ids == {c.id for c in sample_case.claims}
-
-
-@pytest.mark.asyncio
-async def test_build_test_plan_routes_assumption_claims_to_assumption_mode():
-    from core.loop import build_test_plan
-    from core.models import Case, Claim
-
-    case = Case(
-        id="case-assumption",
-        raw_input="Startup idea",
-        claims=[
-            Claim(id="c1", statement="We assume users expect immediate responses"),
-            Claim(id="c2", statement="People believe AI will replace manual data entry"),
-        ],
-    )
-    plan = build_test_plan(case, panel=False)
-    assert all(item.failure_mode == "assumption" for item in plan)
-
-
-@pytest.mark.asyncio
-async def test_build_test_plan_routes_mixed_assumption_and_evidence_to_evidence_mode():
-    from core.loop import build_test_plan
-    from core.models import Case, Claim
-
-    case = Case(
-        id="case-mixed",
-        raw_input="Enterprise SaaS",
-        claims=[
-            Claim(id="c1", statement="We assume enterprise clients will pay $50k/year"),
-            Claim(id="c2", statement="We expect customer demand will drive subscription pricing"),
-        ],
-    )
-    plan = build_test_plan(case, panel=False)
     assert all(item.failure_mode == "evidence" for item in plan)
+    assert {i.target_claim for i in plan} == {c.id for c in sample_case.claims}
 
 
 @pytest.mark.asyncio
-async def test_build_test_plan_full_adversarial_panel_for_load_bearing_claims(sample_case):
-    """When panel=True (default), every load-bearing claim receives the full adversarial
-    suite (assumption + evidence + feasibility + edge-case)."""
+async def test_build_test_plan_single_pass_falls_back_when_receipts_is_off(sample_case):
     from core.loop import build_test_plan
 
-    plan = build_test_plan(sample_case, panel=True)
-    # sample_case has claim-1 (load_bearing=True) and claim-2 (load_bearing=False)
-    # claim-1 should have all 4 evaluators, claim-2 should have at least 2 (assumption + evidence)
-    claim1_modes = {item.failure_mode for item in plan if item.target_claim == "claim-1"}
-    assert "assumption" in claim1_modes
-    assert "evidence" in claim1_modes
-    assert "feasibility" in claim1_modes
-    assert "edge-case" in claim1_modes
+    plan = build_test_plan(sample_case, panel=False, active_agents=["overthinker", "builder"])
+    assert all(item.failure_mode == "feasibility" for item in plan)
 
-    claim2_modes = {item.failure_mode for item in plan if item.target_claim == "claim-2"}
-    assert "assumption" in claim2_modes
-    assert "evidence" in claim2_modes
 
+@pytest.mark.asyncio
+async def test_build_test_plan_treats_unranked_claims_as_load_bearing(sample_case):
+    """load_bearing is None until the ranking runs, and an unranked claim must
+    not silently drop to a single test."""
+    from core.loop import build_test_plan
+
+    for claim in sample_case.claims:
+        claim.load_bearing = None
+    plan = build_test_plan(sample_case)
+    assert len(plan) == len(sample_case.claims) * 4
 
 
 # --- Hour 18-25: reconcile() ---
@@ -328,6 +370,65 @@ async def test_confirm_does_not_await_the_full_pipeline():
     await started.wait()  # scheduled, not skipped
 
 
+
+class SchemaProvider:
+    """Answers whatever schema it is handed. Pipeline tests need every stage to
+    succeed, not a fixed-length response queue."""
+
+    def __init__(self, **overrides):
+        self.overrides = overrides
+        self.calls: list[dict] = []
+
+    async def generate(self, system_prompt, messages, response_schema=None):
+        self.calls.append(
+            {"system_prompt": system_prompt, "messages": messages, "response_schema": response_schema}
+        )
+        name = getattr(response_schema, "__name__", None)
+        if name in self.overrides:
+            value = self.overrides[name]
+            return value(messages) if callable(value) else value
+        if response_schema is None:
+            return "plain answer"
+        from core.evaluators._reasoning import ReasoningOutput
+        from core.evaluators.builder import BuilderVerdict
+        from core.evaluators.receipts import ReceiptsAssessment
+        from core.loop import (
+            CaseVerdictOutput,
+            LoadBearingRanking,
+            ReconcileVerdict,
+            StrategicConsequenceOutput,
+        )
+        from core.models import ClaimStatus
+
+        defaults = {
+            "LoadBearingRanking": lambda: LoadBearingRanking(ranked_indices=[1, 2]),
+            "ReasoningOutput": lambda: ReasoningOutput(
+                result="Assumption examined", reasoning="One specific gap.", confidence=0.6
+            ),
+            "BuilderVerdict": lambda: BuilderVerdict(
+                result="Achievable", reasoning="Ordinary effort.", confidence=0.6
+            ),
+            "ReceiptsAssessment": lambda: ReceiptsAssessment(
+                result="No source found", reasoning="Nothing relevant returned.", confidence=0.2
+            ),
+            "ReconcileVerdict": lambda: ReconcileVerdict(
+                status=ClaimStatus.WEAKENED, reasoning="Holds with caveats."
+            ),
+            "StrategicConsequenceOutput": lambda: StrategicConsequenceOutput(
+                impact="medium",
+                recommended_change="Confirm the figure with the counterparty first.",
+                next_validation="Ask for it in writing this week.",
+            ),
+            "CaseVerdictOutput": lambda: CaseVerdictOutput(
+                decision_state="proceed_with_changes",
+                summary="Holds with named changes.",
+                next_actions=["Confirm the figure in writing."],
+            ),
+        }
+        if name in defaults:
+            return defaults[name]()
+        raise AssertionError(f"SchemaProvider has no answer for {name}")
+
 @pytest.mark.asyncio
 async def test_queue_emits_events_in_documented_order(sample_case, fake_provider_factory):
     """claim_map_ready -> awaiting_confirmation -> test_started(*) ->
@@ -337,20 +438,19 @@ async def test_queue_emits_events_in_documented_order(sample_case, fake_provider
     """
     import events
     import store
-    from core.loop import LoadBearingAnswer, run_pipeline
+    from core.loop import run_pipeline
 
     store.set(sample_case)
     queue = events.get_queue(sample_case.id)
-    provider = fake_provider_factory(
-        [LoadBearingAnswer(answer=True), LoadBearingAnswer(answer=False)]
-    )
 
-    await run_pipeline(sample_case.id, provider=provider)
+    await run_pipeline(sample_case.id, provider=SchemaProvider())
 
     seen = [item["event"] async for item in events.subscribe(sample_case.id)]
 
     assert seen[-1] == "run_complete"
+    assert seen.index("test_started") < seen.index("finding_ready")
     assert seen.index("verdict_ready") < seen.index("consequence_ready")
+    assert seen.index("consequence_ready") < seen.index("case_verdict")
     assert seen.count("verdict_ready") == len(sample_case.claims)
     assert queue.empty()  # sentinel consumed, nothing stranded
 
@@ -363,22 +463,15 @@ async def test_run_pipeline_threads_judge_reasoning_into_consequences(
     the real reconcile() reasoning has to be threaded in by the pipeline.
     """
     import store
-    from core.loop import LoadBearingAnswer, run_pipeline
+    from core.loop import run_pipeline
 
     store.set(sample_case)
-    provider = fake_provider_factory(
-        [LoadBearingAnswer(answer=True), LoadBearingAnswer(answer=False)]
-    )
 
-    await run_pipeline(sample_case.id, provider=provider)
+    await run_pipeline(sample_case.id, provider=SchemaProvider())
 
     case = store.get(sample_case.id)
     assert case.status == "done"
-    assert all(c.status == ClaimStatus.UNRESOLVED for c in case.claims)  # no evaluators yet
-    assert all(
-        c.verdict_reasoning == "No evaluator produced a finding for this claim."
-        for c in case.consequences
-    )
+    assert all(c.verdict_reasoning == "Holds with caveats." for c in case.consequences)
 
 
 @pytest.mark.asyncio
@@ -408,25 +501,18 @@ async def test_run_pipeline_closes_the_queue_on_provider_failure(sample_case):
 async def test_run_pipeline_resilient_to_single_claim_reconcile_failure(sample_case):
     """If one claim's reconcile fails, it degrades to UNRESOLVED without taking down the pipeline."""
     import store
-    from core.loop import LoadBearingAnswer, ReconcileVerdict, run_pipeline
+    from core.loop import ReconcileVerdict, run_pipeline
 
-    class PartialFailingProvider:
-        def __init__(self):
-            self.load_bearing_count = 0
-            self.reconcile_count = 0
+    reconcile_calls = {"n": 0}
 
-        async def generate(self, system_prompt, messages, response_schema=None):
-            if response_schema == LoadBearingAnswer:
-                return LoadBearingAnswer(answer=True)
-            if response_schema == ReconcileVerdict:
-                self.reconcile_count += 1
-                if self.reconcile_count == 1:
-                    raise RuntimeError("LLM timeout on claim 1")
-                return ReconcileVerdict(status=ClaimStatus.SURVIVED, reasoning="Claim 2 holds")
-            return "ok"
+    def flaky_reconcile(_messages):
+        reconcile_calls["n"] += 1
+        if reconcile_calls["n"] == 1:
+            raise RuntimeError("LLM timeout on claim 1")
+        return ReconcileVerdict(status=ClaimStatus.SURVIVED, reasoning="Claim 2 holds")
 
     store.set(sample_case)
-    await run_pipeline(sample_case.id, provider=PartialFailingProvider())
+    await run_pipeline(sample_case.id, provider=SchemaProvider(ReconcileVerdict=flaky_reconcile))
 
     case = store.get(sample_case.id)
     assert case.status == "done"
@@ -471,38 +557,40 @@ async def test_synthesize_consequences_llm_enriches_pivots_and_experiments(sampl
 
 # --- Dynamic Agent Selection & Recommendation Tests ---
 
-def test_determine_auto_agents_recommends_devils_advocate_and_receipts():
-    from core.loop import determine_auto_agents
-    claims = [
-        Claim(id="c1", statement="Users are willing to pay $20 per month for automated resume reviews."),
-    ]
-    agents, rationales = determine_auto_agents(claims)
-    assert "devils_advocate" in agents
-    assert "receipts" in agents
-    assert "Stress-tests" in rationales["devils_advocate"]
-    assert "empirical" in rationales["receipts"]
+def test_normalize_agents_keeps_only_known_agents():
+    from core.loop import AgentPick, normalize_agents
+
+    agents, rationales = normalize_agents(
+        [
+            AgentPick(agent="receipts", rationale="The rent figure is checkable against listings."),
+            AgentPick(agent="astrologer", rationale="Not a real evaluator."),
+        ]
+    )
+    assert agents == ["devils_advocate", "receipts"]  # advocate always present
+    assert "listings" in rationales["receipts"]
+    assert set(rationales) == set(agents)
 
 
-def test_determine_auto_agents_selects_builder_on_tech_keywords():
-    from core.loop import determine_auto_agents
-    claims = [
-        Claim(id="c1", statement="Our backend API latency will remain under 50ms while scaling to 10k concurrent users on Kubernetes."),
-    ]
-    agents, rationales = determine_auto_agents(claims)
-    assert "builder" in agents
-    assert "builder" in rationales
-    assert "engineering" in rationales["builder"].lower() or "feasibility" in rationales["builder"].lower()
+def test_normalize_agents_orders_consistently_and_dedupes():
+    from core.loop import AgentPick, normalize_agents
+
+    agents, _ = normalize_agents(
+        [
+            AgentPick(agent="overthinker", rationale="Tail risk is the whole question here."),
+            AgentPick(agent="receipts", rationale="Prices are public."),
+            AgentPick(agent="receipts", rationale="Duplicate."),
+        ]
+    )
+    assert agents == ["devils_advocate", "receipts", "overthinker"]
 
 
-def test_determine_auto_agents_selects_overthinker_on_risk_keywords():
-    from core.loop import determine_auto_agents
-    claims = [
-        Claim(id="c1", statement="There are zero competitors and no risk of security exploit or catastrophic failure in our novel system."),
-    ]
-    agents, rationales = determine_auto_agents(claims)
-    assert "overthinker" in agents
-    assert "overthinker" in rationales
-    assert "tail risks" in rationales["overthinker"].lower() or "vulnerabilities" in rationales["overthinker"].lower()
+def test_normalize_agents_falls_back_to_the_full_panel():
+    """A model that returns nothing usable must not leave the run untested."""
+    from core.loop import normalize_agents
+
+    agents, rationales = normalize_agents([])
+    assert agents == ["devils_advocate"]
+    assert rationales["devils_advocate"]
 
 
 def test_build_test_plan_filters_strictly_by_active_agents(sample_case):
@@ -543,20 +631,22 @@ async def test_extract_claims_custom_agents(fake_provider_factory):
 @pytest.mark.asyncio
 async def test_extract_claims_auto_mode_generates_rationales(fake_provider_factory):
     from core.loop import extract_claims, ExtractedClaims
+    from core.loop import AgentPick
+
     provider = fake_provider_factory([
-        ExtractedClaims(statements=[
-            "Our database migration and API latency will scale to 10k QPS.",
-            "Customers will pay $50/mo with zero competitors in the market."
-        ])
+        ExtractedClaims(
+            statements=["The move saves 40 minutes a day", "The lease allows subletting"],
+            agents=[
+                AgentPick(agent="receipts", rationale="The lease terms are a matter of record."),
+                AgentPick(agent="overthinker", rationale="A broken lease is the expensive outcome."),
+            ],
+        )
     ])
 
     case = await extract_claims(raw_input="Test proposal", provider=provider, agent_mode="auto")
     assert case.agent_mode == "auto"
-    assert "devils_advocate" in case.selected_agents
-    assert "receipts" in case.selected_agents
-    assert "builder" in case.selected_agents
-    assert "overthinker" in case.selected_agents
-    assert len(case.agent_rationales) >= 3
+    assert case.selected_agents == ["devils_advocate", "receipts", "overthinker"]
+    assert "matter of record" in case.agent_rationales["receipts"]
 
 
 

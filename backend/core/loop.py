@@ -29,6 +29,7 @@ from core.models import (
     TestPlanItem,
 )
 from core.textutil import clamp_sentences, one_line
+from core.activity import emit_activity
 from providers import get_provider
 from providers.base import LLMProvider
 
@@ -40,7 +41,9 @@ except ImportError:  # not landed yet — the pipeline runs without findings unt
     dispatch = None
 
 
-from core.agent_panel import (
+# Re-exported: agent_panel and baseline were split out of this module, and
+# `from core.loop import ...` stays the import path for everything downstream.
+from core.agent_panel import (  # noqa: F401
     KNOWN_AGENTS,
     AGENT_FAILURE_MODE,
     AGENT_OBJECTIVE,
@@ -71,18 +74,23 @@ async def extract_claims(
         response_schema=ExtractedClaims,
     )
 
+    statements = list(getattr(result, "statements", []) or [])
+    claims_list = [Claim(id=str(uuid4()), statement=s) for s in statements]
     final_mode = (agent_mode or "auto").lower().strip()
+
     if final_mode == "custom" and selected_agents:
         valid = [a for a in selected_agents if a in KNOWN_AGENTS]
         active_agents = valid or list(KNOWN_AGENTS)
         rationales: dict[str, str] = {}
     else:
+        # Auto mode is decided by the model that just read the decision, not by a
+        # keyword table: which tests a claim needs depends on what it asserts, and
+        # the same words mean different things in different domains.
         final_mode = "auto"
         active_agents, rationales = normalize_agents(getattr(result, "agents", []))
 
     # Input gate (Stage 5 / direction doc §3): an untestable input is redirected,
     # not silently turned into invented claims.
-    statements = list(getattr(result, "statements", []) or [])
     if not getattr(result, "testable", True) or not statements:
         return Case(
             id=str(uuid4()),
@@ -104,7 +112,7 @@ async def extract_claims(
         id=str(uuid4()),
         raw_input=raw_input,
         context=context,
-        claims=[Claim(id=str(uuid4()), statement=s) for s in statements],
+        claims=claims_list,
         status="awaiting_confirmation",
         agent_mode=final_mode,
         selected_agents=active_agents,
@@ -178,79 +186,14 @@ async def rank_load_bearing(case: Case, provider: LLMProvider) -> list[bool]:
     return flags
 
 
-class ReconcileVerdict(BaseModel):
-    status: ClaimStatus
-    reasoning: str
-
-
-RECONCILE_SYSTEM_PROMPT = (
-    "You are the judge in an adversarial decision review. Several evaluators tested one "
-    "claim independently; reconcile their findings into a single verdict. The decision "
-    "may be of any kind — never assume a domain.\n\n"
-    "Do not count votes. Judge the quality of what each finding rests on. A finding "
-    "carrying a real source outweighs one that only reasons. Absence of evidence is not "
-    "refutation: a finding that merely failed to find support cannot break a claim, it "
-    "can only leave it unproven.\n\n"
-    "Pick: 'survived' (holds, and something backs it), 'weakened' (holds with real "
-    "friction or caveats), 'broken' (a source or a hard contradiction refutes it), "
-    "'unresolved' (findings conflict at comparable strength, or nothing substantive was "
-    "found either way).\n\n"
-    "Reasoning: at most 3 sentences, naming the specific number, source, rule or "
-    "contradiction that decided it. No generic advice."
+from core.reconcile import (  # noqa: F401
+    ReconcileVerdict,
+    RECONCILE_SYSTEM_PROMPT,
+    reconcile,
+    has_sourced_contradiction,
+    apply_evidence_gate,
+    rank_findings,
 )
-
-
-async def reconcile(
-    claim: Claim, findings: list[Finding], provider: LLMProvider
-) -> tuple[ClaimStatus, str]:
-    findings_summary = "\n".join(
-        f"- evaluator={f.evaluator}, result={f.result!r}, evidence_count={len(f.evidence)}, "
-        f"sources={[e.source_url for e in f.evidence] or 'none'}, "
-        f"confidence={f.confidence}, reasoning={f.reasoning!r}, contradiction={f.contradiction!r}"
-        for f in findings
-    )
-    result = await provider.generate(
-        system_prompt=RECONCILE_SYSTEM_PROMPT,
-        messages=[
-            {"role": "user", "content": f"Claim: {claim.statement}\nFindings:\n{findings_summary}"}
-        ],
-        response_schema=ReconcileVerdict,
-    )
-    return result.status, clamp_sentences(result.reasoning)
-
-
-def has_sourced_contradiction(findings: list[Finding]) -> bool:
-    """A claim only breaks on a contradiction traceable to an actual source."""
-    return any(f.evidence and (f.contradiction or "").strip() for f in findings)
-
-
-def apply_evidence_gate(
-    status: ClaimStatus, reasoning: str, findings: list[Finding]
-) -> tuple[ClaimStatus, str]:
-    """Stage 1a. `broken` requires one finding carrying both evidence and a
-    contradiction. Reasoning-only evaluators can weaken; they cannot break."""
-    if status is ClaimStatus.BROKEN and not has_sourced_contradiction(findings):
-        note = (
-            "Downgraded from broken to weakened: no finding carried a contradiction "
-            "traceable to a source, and absence of evidence is not refutation."
-        )
-        return ClaimStatus.WEAKENED, f"{reasoning} {note}".strip()
-    return status, reasoning
-
-
-def rank_findings(findings: list[Finding]) -> list[Finding]:
-    """Lead with the finding that actually moved the verdict, not whichever
-    evaluator returned first (Stage 3)."""
-    return sorted(
-        findings,
-        key=lambda f: (
-            bool(f.evidence and (f.contradiction or "").strip()),
-            bool((f.contradiction or "").strip()),
-            len(f.evidence),
-            f.confidence,
-        ),
-        reverse=True,
-    )
 
 
 _IMPACT_BY_STATUS = {
@@ -576,22 +519,43 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
 
     try:
         case.status = "testing"
+        await emit_activity(case.id, "Pipeline", "Classifying load-bearing assumptions...", action="load_bearing")
 
         flags = await rank_load_bearing(case, provider)
         for claim, load_bearing in zip(case.claims, flags):
             claim.load_bearing = load_bearing
 
         case.test_plan = build_test_plan(case, panel=True, active_agents=case.selected_agents)
+        lb_count = sum(1 for c in case.claims if c.load_bearing)
+        await emit_activity(
+            case.id,
+            "Pipeline",
+            f"Identified {lb_count} core assumption(s). Launching adversarial tests in parallel...",
+            action="test_plan",
+        )
         case.findings = await run_evaluators(case, case.test_plan, provider)
 
         # Judge: parallel reconcile across claims, seeing all findings for each claim.
+        # One claim failing degrades that claim; every claim failing means the
+        # provider is down, and a run of nothing but UNRESOLVED is worse to serve
+        # than an `error` the frontend can actually show.
+        judge_errors: list[BaseException] = []
+
         async def _reconcile_single(clm: Claim) -> tuple[Claim, ClaimStatus, str]:
             claim_findings = [f for f in case.findings if f.claim_id == clm.id]
             if not claim_findings:
                 return clm, ClaimStatus.UNRESOLVED, "No evaluator produced a finding for this claim."
+            await emit_activity(
+                case.id,
+                "Judge",
+                f"Reconciling evidence for: {clm.statement[:55]}...",
+                claim_id=clm.id,
+                action="reconciling",
+            )
             try:
                 st, rsn = await reconcile(clm, claim_findings, provider)
             except Exception as exc:
+                judge_errors.append(exc)
                 return (
                     clm,
                     ClaimStatus.UNRESOLVED,
@@ -602,6 +566,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         reconcile_results = await asyncio.gather(
             *(_reconcile_single(clm) for clm in case.claims)
         )
+        if case.claims and len(judge_errors) == len(case.claims):
+            raise judge_errors[0]
 
         reasonings: dict[str, str] = {}
         for clm, st, reasoning in reconcile_results:
@@ -632,6 +598,12 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 consequence.verdict_reasoning = reasonings[consequence.claim_id]
 
         try:
+            await emit_activity(
+                case.id,
+                "Synthesis",
+                "Formulating strategic adaptations and next validation steps...",
+                action="consequences",
+            )
             case.consequences = await synthesize_consequences(case, provider, reasonings=reasonings)
         except Exception as exc:
             logger.debug("Synthesizing consequences fallback: %s", exc)
@@ -646,6 +618,12 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             case.id, "case_verdict", {"case_verdict": case.case_verdict.model_dump()}
         )
 
+        await emit_activity(
+            case.id,
+            "Pipeline",
+            "Verification complete: Decision memo assembled.",
+            action="complete",
+        )
         case.status = "done"
         await events.publish(case.id, "run_complete", {"case_id": case.id})
 
@@ -657,25 +635,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         await events.close(case.id)
 
 
-BASELINE_SYSTEM_PROMPT = (
-    "Answer the user's question directly and helpfully, as a capable assistant would."
-)
-
-
-async def run_baseline(raw_input: str, provider: LLMProvider, context: str | None = None) -> str:
-    """One plain, un-engineered model call on the same input (Stage 6).
-
-    Deliberately not sandbagged: the comparison is only worth anything if this is
-    a genuinely good single-prompt answer.
-    """
-    content = raw_input
-    if context:
-        content = f"{raw_input}\n\nSupporting document:\n{context}"
-    response = await provider.generate(
-        system_prompt=BASELINE_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": content}],
-    )
-    return response if isinstance(response, str) else str(response)
+from core.baseline import BASELINE_SYSTEM_PROMPT, run_baseline  # noqa: F401
 
 
 # create_task returns a task the event loop only weakly references; without a

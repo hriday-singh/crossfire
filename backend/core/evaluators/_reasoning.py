@@ -45,6 +45,26 @@ async def run_reasoning_evaluator(
     if case.context:
         context += f"\nAdditional context: {case.context}"
 
+    case_id = getattr(case, "id", None)
+    if case_id:
+        try:
+            from core.activity import emit_activity
+            tag = "Assumption Test" if name == "devils_advocate" else "Edge-Case Test"
+            text = (
+                "Stress-testing implicit premises and unstated assumptions..."
+                if name == "devils_advocate"
+                else "Probing boundary conditions and tail risk failure modes..."
+            )
+            await emit_activity(
+                case_id,
+                tag=tag,
+                text=text,
+                claim_id=item.target_claim,
+                action=name,
+            )
+        except Exception:
+            pass
+
     response = await provider.generate(
         system_prompt=f"{system_prompt}\n\n{SPECIFICITY_RULE}",
         messages=[

@@ -68,8 +68,9 @@ async def publish(case_id: str, event: str, data: dict) -> None:
     for q in list(_subscribers.get(case_id, [])):
         q.put_nowait(item)
 
-    # Maintain queue for direct get_queue consumers
-    get_queue(case_id)._put_direct(item)
+    # Maintain queue for direct get_queue consumers (skipping telemetry activity items)
+    if event != "activity":
+        get_queue(case_id)._put_direct(item)
 
 
 async def close(case_id: str) -> None:
