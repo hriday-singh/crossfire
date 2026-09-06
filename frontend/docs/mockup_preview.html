@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crossfire — 4-Step Decision Testing Rig</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="app-viewport">
+        <!-- Top Application Header & Step Indicators -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-logo">CF</div>
+                <div class="brand-title">Crossfire</div>
+                <span class="brand-badge">Adversarial Decision Rig</span>
+            </div>
+
+            <nav class="stepper-nav" aria-label="Wizard Steps">
+                <div class="step-node active" id="node-1">
+                    <div class="step-node-number">1</div>
+                    <span class="step-node-label">Input</span>
+                </div>
+                <div class="step-divider"></div>
+
+                <div class="step-node" id="node-2">
+                    <div class="step-node-number">2</div>
+                    <span class="step-node-label">Claims Review</span>
+                </div>
+                <div class="step-divider"></div>
+
+                <div class="step-node" id="node-3">
+                    <div class="step-node-number">3</div>
+                    <span class="step-node-label">Red Team Panel</span>
+                </div>
+                <div class="step-divider"></div>
+
+                <div class="step-node" id="node-4">
+                    <div class="step-node-number">4</div>
+                    <span class="step-node-label">Judge Verdict</span>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Main Wizard Window (Locked Viewport with Horizontal Slider Track) -->
+        <main class="wizard-window">
+            <div class="wizard-track" id="wizardTrack">
+
+                <!-- STEP 1: Input Screen -->
+                <section class="step-slide" id="step-1" aria-label="Step 1: Input Screen">
+                    <div class="step-content">
+                        <div class="step-inner-wrap">
+                            <div class="step-heading-group">
+                                <div class="step-pretitle">Phase 01 &bull; Premise & Context</div>
+                                <h1 class="step-title">What strategic decision are you testing?</h1>
+                                <p class="step-subtitle">Enter your proposal, business model, pricing pivot, or architecture change. Crossfire will isolate the foundational claims and submit them to aggressive red-teaming.</p>
+                            </div>
+
+                            <div class="input-card">
+                                <textarea 
+                                    id="rawInput" 
+                                    class="textarea-field" 
+                                    placeholder="Describe your initiative, key customer assumptions, pricing structure, or competitive moat..."
+                                >We are launching an in-memory vector indexing layer priced at $99/mo targeting enterprise security teams. We assume customers will switch easily from pgvector because query speed is 3x faster, and enterprise buyers will willingly self-host via Docker without requiring SOC2 Type II certification in Year 1.</textarea>
+
+                                <div class="sample-prompts-label">Or load a preset scenario:</div>
+                                <div class="sample-pills">
+                                    <button type="button" class="sample-pill" onclick="loadSample('vector')">Vector DB Proxy ($99/mo)</button>
+                                    <button type="button" class="sample-pill" onclick="loadSample('ai-editor')">AI Code Editor Seat Expansion</button>
+                                    <button type="button" class="sample-pill" onclick="loadSample('marketplace')">Vertical B2B Marketplace</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-actions">
+                        <div><!-- Empty for alignment --></div>
+                        <button type="button" class="btn btn-primary" onclick="proceedToStep2()">
+                            Analyze &amp; Extract Claims &rarr;
+                        </button>
+                    </div>
+                </section>
+
+                <!-- STEP 2: Claims Review & Editor -->
+                <section class="step-slide" id="step-2" aria-label="Step 2: Claims Review & Editor">
+                    <div class="step-content">
+                        <div class="step-inner-wrap">
+                            <div class="step-heading-group">
+                                <div class="step-pretitle">Phase 02 &bull; Assumption Alignment</div>
+                                <h2 class="step-title">Review &amp; Refine Extracted Claims</h2>
+                                <p class="step-subtitle">These are the foundational assumptions your decision rests on. Edit text inline, prune irrelevant items, or append missing premises before launching the offensive gauntlet.</p>
+                            </div>
+
+                            <div class="claims-meta-bar">
+                                <span class="claims-count-chip" id="claimsCount">3 Claims Extracted</span>
+                                <span style="font-size: 0.85rem; color: #64748b;">Click any claim text to edit inline</span>
+                            </div>
+
+                            <!-- Add Claim Input Bar -->
+                            <div class="add-claim-form">
+                                <input type="text" id="newClaimInput" class="add-claim-input" placeholder="Type a new assumption or hypothesis to test..." onkeydown="if(event.key==='Enter') addClaim();" />
+                                <button type="button" class="btn btn-secondary" onclick="addClaim()">+ Add Claim</button>
+                            </div>
+
+                            <!-- Claims List Stack -->
+                            <div class="claims-list" id="claimsContainer">
+                                <!-- Dynamically rendered -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-actions">
+                        <button type="button" class="btn btn-secondary" onclick="goToStep(1)">&larr; Back to Input</button>
+                        <button type="button" class="btn btn-primary" id="deployAgentsBtn" onclick="proceedToStep3()">
+                            Deploy Red Team Agents &rarr;
+                        </button>
+                    </div>
+                </section>
+
+                <!-- STEP 3: 4-Agent Offensive Panel -->
+                <section class="step-slide" id="step-3" aria-label="Step 3: 4-Agent Offensive Panel">
+                    <div class="step-content">
+                        <div class="step-inner-wrap" style="max-width: 1100px;">
+                            <div class="step-heading-group">
+                                <div class="step-pretitle">Phase 03 &bull; Adversarial Gauntlet</div>
+                                <h2 class="step-title">4-Agent Offensive Panel</h2>
+                                <p class="step-subtitle">Four specialized red-team agents are rigorously attacking your claims from contrasting adversarial perspectives.</p>
+                            </div>
+
+                            <!-- 4-Panel Grid -->
+                            <div class="agents-grid" id="agentsGrid">
+                                <!-- Agent 1: Skeptic -->
+                                <div class="agent-panel" id="agent-1">
+                                    <div class="agent-header">
+                                        <div class="agent-avatar avatar-1">&#9876;</div>
+                                        <div class="agent-info">
+                                            <div class="agent-name">Agent 1: Assumption Breaker</div>
+                                            <div class="agent-role">Skeptic &bull; Core Logic &amp; Premise</div>
+                                        </div>
+                                    </div>
+                                    <div class="agent-reviews-list" id="reviews-agent-1"></div>
+                                </div>
+
+                                <!-- Agent 2: Receipts -->
+                                <div class="agent-panel" id="agent-2">
+                                    <div class="agent-header">
+                                        <div class="agent-avatar avatar-2">&#128202;</div>
+                                        <div class="agent-info">
+                                            <div class="agent-name">Agent 2: Market &amp; Data Auditor</div>
+                                            <div class="agent-role">Receipts &bull; Unit Economics &amp; Moat</div>
+                                        </div>
+                                    </div>
+                                    <div class="agent-reviews-list" id="reviews-agent-2"></div>
+                                </div>
+
+                                <!-- Agent 3: Builder -->
+                                <div class="agent-panel" id="agent-3">
+                                    <div class="agent-header">
+                                        <div class="agent-avatar avatar-3">&#9881;</div>
+                                        <div class="agent-info">
+                                            <div class="agent-name">Agent 3: Feasibility Stress-Tester</div>
+                                            <div class="agent-role">Builder &bull; Tech &amp; Scaling Limits</div>
+                                        </div>
+                                    </div>
+                                    <div class="agent-reviews-list" id="reviews-agent-3"></div>
+                                </div>
+
+                                <!-- Agent 4: Overthinker -->
+                                <div class="agent-panel" id="agent-4">
+                                    <div class="agent-header">
+                                        <div class="agent-avatar avatar-4">&#9762;</div>
+                                        <div class="agent-info">
+                                            <div class="agent-name">Agent 4: Adversarial Hunter</div>
+                                            <div class="agent-role">Red Team &bull; Tail Risks &amp; Exploits</div>
+                                        </div>
+                                    </div>
+                                    <div class="agent-reviews-list" id="reviews-agent-4"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-actions">
+                        <button type="button" class="btn btn-secondary" onclick="goToStep(2)">&larr; Back to Claims</button>
+                        <button type="button" class="btn btn-primary" onclick="proceedToStep4()">
+                            Pass to AI Judge &rarr;
+                        </button>
+                    </div>
+                </section>
+
+                <!-- STEP 4: AI Judge Verdict -->
+                <section class="step-slide" id="step-4" aria-label="Step 4: AI Judge Verdict">
+                    <div class="step-content">
+                        <div class="step-inner-wrap">
+                            <div class="step-heading-group">
+                                <div class="step-pretitle">Phase 04 &bull; Executive Brief</div>
+                                <h2 class="step-title">AI Judge Final Verdict &amp; Risk Synthesis</h2>
+                                <p class="step-subtitle">The neutral arbitrator has synthesized all agent attacks, calculated probability of breakdown, and compiled your decision memo.</p>
+                            </div>
+
+                            <div class="judge-verdict-card">
+                                <!-- Top Verdict Banner -->
+                                <div class="verdict-banner">
+                                    <div>
+                                        <div class="verdict-header-title">Arbiter Consensus</div>
+                                        <div class="verdict-headline" id="verdictHeadline">HIGH RISK &bull; 2 CRITICAL CRACKS</div>
+                                        <div class="verdict-substatus" id="verdictSubstatus">Foundational security and unit economics assumptions failed attack tests.</div>
+                                    </div>
+                                    <div class="score-meter-wrap">
+                                        <div class="score-meter-val" id="vulnScoreVal">68%</div>
+                                        <div class="score-meter-label">Vulnerability Score</div>
+                                    </div>
+                                </div>
+
+                                <!-- Consensus Stats Row -->
+                                <div class="consensus-stats-row">
+                                    <div class="stat-pill survived">
+                                        <div class="stat-pill-num" id="statSurvived">1</div>
+                                        <div class="stat-pill-name">Survived (Green)</div>
+                                    </div>
+                                    <div class="stat-pill weakened">
+                                        <div class="stat-pill-num" id="statWeakened">1</div>
+                                        <div class="stat-pill-name">Weakened (Yellow)</div>
+                                    </div>
+                                    <div class="stat-pill broken">
+                                        <div class="stat-pill-num" id="statBroken">2</div>
+                                        <div class="stat-pill-name">Broken (Red)</div>
+                                    </div>
+                                    <div class="stat-pill unresolved">
+                                        <div class="stat-pill-num" id="statUnresolved">0</div>
+                                        <div class="stat-pill-name">Unresolved (Gray)</div>
+                                    </div>
+                                </div>
+
+                                <!-- Key Takeaways -->
+                                <div class="takeaways-section">
+                                    <div class="takeaways-heading">
+                                        <span>&#128394;</span> Key Takeaways from Judge Bot
+                                    </div>
+                                    <div class="takeaways-list" id="takeawaysList">
+                                        <!-- Dynamically generated -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step-actions">
+                        <button type="button" class="btn btn-secondary" onclick="goToStep(3)">&larr; Back to Red Team</button>
+                        <button type="button" class="btn btn-primary" onclick="resetWizard()">
+                            &#8634; Start New Analysis
+                        </button>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State Management
+        let currentStep = 1;
+        let claims = [];
+
+        // Sample Presets
+        const samples = {
+            'vector': "We are launching an in-memory vector indexing layer priced at $99/mo targeting enterprise security teams. We assume customers will switch easily from pgvector because query speed is 3x faster, and enterprise buyers will willingly self-host via Docker without requiring SOC2 Type II certification in Year 1.",
+            'ai-editor': "We are expanding our AI code editor by forcing team seat licensing ($40/seat/mo minimum 5 seats). We assume solo developers will convert their companies, engineering leaders won't block IP transmission to LLMs, and open-source alternatives like Continue.dev won't reach parity within 12 months.",
+            'marketplace': "We are building an on-demand marketplace for specialized aerospace CNC machinists charging a 15% take-rate. We assume suppliers won't disintermediate off-platform after the first contract, and defense contractors will accept online escrow payments."
+        };
+
+        function loadSample(key) {
+            const el = document.getElementById('rawInput');
+            if (el && samples[key]) {
+                el.value = samples[key];
+            }
+        }
+
+        // Navigation Controller with Smooth Slide Transitions
+        function goToStep(step) {
+            if (step < 1 || step > 4) return;
+            currentStep = step;
+
+            // Slide Track
+            const track = document.getElementById('wizardTrack');
+            track.style.transform = `translateX(-${(step - 1) * 100}%)`;
+
+            // Update Top Stepper Indicators
+            for (let i = 1; i <= 4; i++) {
+                const node = document.getElementById(`node-${i}`);
+                if (!node) continue;
+                node.classList.remove('active', 'completed');
+                if (i === step) {
+                    node.classList.add('active');
+                } else if (i < step) {
+                    node.classList.add('completed');
+                }
+            }
+
+            // Scroll the target step container to top
+            const targetSlide = document.getElementById(`step-${step}`);
+            if (targetSlide) {
+                const scrollable = targetSlide.querySelector('.step-content');
+                if (scrollable) scrollable.scrollTop = 0;
+            }
+        }
+
+        // STEP 1 -> STEP 2: Extract Claims
+        function proceedToStep2() {
+            const rawText = document.getElementById('rawInput').value.trim();
+            if (!rawText) {
+                alert('Please enter your proposal, decision, or project details to test.');
+                return;
+            }
+
+            extractClaimsFromText(rawText);
+            renderClaimsList();
+            goToStep(2);
+        }
+
+        function extractClaimsFromText(text) {
+            // Intelligent heuristic extraction based on sentences and keywords
+            const rawParts = text.split(/(?<=[.?!])\s+/).filter(p => p.trim().length > 15);
+            claims = [];
+
+            if (rawParts.length >= 2) {
+                rawParts.forEach((sentence, idx) => {
+                    let cat = "Core Hypothesis";
+                    const lower = sentence.toLowerCase();
+                    if (lower.includes('$') || lower.includes('price') || lower.includes('cost') || lower.includes('mo') || lower.includes('take-rate')) {
+                        cat = "Unit Economics";
+                    } else if (lower.includes('enterprise') || lower.includes('soc2') || lower.includes('security') || lower.includes('compliance')) {
+                        cat = "Security & Compliance";
+                    } else if (lower.includes('speed') || lower.includes('scale') || lower.includes('faster') || lower.includes('latency') || lower.includes('docker')) {
+                        cat = "Technical Feasibility";
+                    } else if (lower.includes('switch') || lower.includes('customer') || lower.includes('buyer') || lower.includes('convert')) {
+                        cat = "Adoption & Switching";
+                    }
+
+                    claims.push({
+                        id: idx + 1,
+                        text: sentence.trim(),
+                        category: cat
+                    });
+                });
+            } else {
+                // Default fallback extracted decomposition
+                claims = [
+                    { id: 1, text: "Enterprise buyers will adopt self-hosted software without SOC2 certification.", category: "Security & Compliance" },
+                    { id: 2, text: "Customers will migrate away from existing incumbents for a 3x speed increase.", category: "Adoption & Switching" },
+                    { id: 3, text: "A $99/month tier provides sufficient margins to cover dedicated support overhead.", category: "Unit Economics" }
+                ];
+            }
+        }
+
+        // STEP 2: Claims Management (Add, Edit, Delete)
+        function renderClaimsList() {
+            const container = document.getElementById('claimsContainer');
+            const countChip = document.getElementById('claimsCount');
+            const deployBtn = document.getElementById('deployAgentsBtn');
+
+            countChip.textContent = `${claims.length} Claim${claims.length === 1 ? '' : 's'} Extracted`;
+            deployBtn.disabled = claims.length === 0;
+
+            if (claims.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; background: white; border-radius: 8px; border: 1px dashed #cbd5e1; color: #64748b;">
+                        No active claims. Type an assumption above and click "+ Add Claim".
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = claims.map((claim, idx) => `
+                <div class="claim-card" id="claim-card-${claim.id}">
+                    <div class="claim-number-tag">#0${idx + 1}</div>
+                    <div class="claim-body-wrap">
+                        <input 
+                            type="text" 
+                            class="claim-text-input" 
+                            value="${escapeHtml(claim.text)}" 
+                            title="Click to edit claim"
+                            onchange="updateClaim(${claim.id}, this.value)" 
+                        />
+                        <div class="claim-category-badge">${claim.category || 'Assumption'}</div>
+                    </div>
+                    <button type="button" class="claim-delete-btn" title="Remove claim" onclick="deleteClaim(${claim.id})">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        function updateClaim(id, newText) {
+            const target = claims.find(c => c.id === id);
+            if (target && newText.trim()) {
+                target.text = newText.trim();
+            }
+        }
+
+        function deleteClaim(id) {
+            claims = claims.filter(c => c.id !== id);
+            renderClaimsList();
+        }
+
+        function addClaim() {
+            const input = document.getElementById('newClaimInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const nextId = claims.length > 0 ? Math.max(...claims.map(c => c.id)) + 1 : 1;
+            claims.push({
+                id: nextId,
+                text: text,
+                category: "Custom Premise"
+            });
+
+            input.value = '';
+            renderClaimsList();
+        }
+
+        // STEP 2 -> STEP 3: Red Team Attacks
+        function proceedToStep3() {
+            if (claims.length === 0) {
+                alert('Please ensure you have at least one claim to test.');
+                return;
+            }
+
+            generateAgentReviews();
+            goToStep(3);
+        }
+
+        // Agent review synthesis with colored status badges
+        function generateAgentReviews() {
+            // Statuses required: survived (green), weakened (yellow), broken (red), unresolved (gray)
+            const agentConfigs = [
+                {
+                    id: 1,
+                    name: "Assumption Breaker",
+                    bias: "logic",
+                    templates: [
+                        { status: "broken", critique: "Foundational fallacy: assumes buyer friction is purely technical rather than organizational." },
+                        { status: "weakened", critique: "Logical leap: correlation between speed and willingness to rip out legacy infra is weak." },
+                        { status: "survived", critique: "Core premise holds against pure theoretical challenge." },
+                        { status: "unresolved", critique: "Ambiguous user intent; cannot falsify without deployment telemetry." }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: "Market Auditor",
+                    bias: "receipts",
+                    templates: [
+                        { status: "weakened", critique: "Incumbents like pgvector already offer free co-location. A 3x edge rarely justifies a $99/mo premium." },
+                        { status: "broken", critique: "Fatal pricing math: enterprise support costs will consume 140% of ACV at $99/mo." },
+                        { status: "survived", critique: "Commercial comps confirm underserved tier between self-hosted and cloud API." },
+                        { status: "unresolved", critique: "Public TAM data for this exact segment is conflicting." }
+                    ]
+                },
+                {
+                    id: 3,
+                    name: "Builder Stress-Tester",
+                    bias: "tech",
+                    templates: [
+                        { status: "survived", critique: "Memory-mapped indexing easily delivers 3x throughput on modern multi-core NVMe nodes." },
+                        { status: "weakened", critique: "Docker self-hosting creates severe cold-start latency during memory reload cycles." },
+                        { status: "broken", critique: "Unbounded RAM usage will trigger OS OOM-killer without strict kernel cgroups." },
+                        { status: "unresolved", critique: "Performance benchmark depends heavily on vector dimensionality (1536 vs 3072)." }
+                    ]
+                },
+                {
+                    id: 4,
+                    name: "Adversarial Hunter",
+                    bias: "security",
+                    templates: [
+                        { status: "broken", critique: "No enterprise infosec will sign off on production ingestion without SOC2 or verifiable pen-test." },
+                        { status: "weakened", critique: "Exposing vector queries without role-based access control invites prompt injection leaks." },
+                        { status: "survived", critique: "Air-gapped deployment mitigates external network exposure risks." },
+                        { status: "unresolved", critique: "Regulatory posture under EU AI Act compliance is currently untested." }
+                    ]
+                }
+            ];
+
+            // Render reviews for each agent panel
+            agentConfigs.forEach(agent => {
+                const listEl = document.getElementById(`reviews-agent-${agent.id}`);
+                if (!listEl) return;
+
+                listEl.innerHTML = claims.map((claim, idx) => {
+                    // Distribute statuses realistically across the 4 statuses
+                    const statusIdx = (agent.id + idx) % 4;
+                    const statusCycle = ['broken', 'weakened', 'survived', 'unresolved'];
+                    const assignedStatus = statusCycle[statusIdx];
+                    
+                    // Match a critique
+                    const matchedTemplate = agent.templates.find(t => t.status === assignedStatus) || agent.templates[0];
+
+                    return `
+                        <div class="agent-review-card">
+                            <div class="review-claim-top">
+                                <span class="review-claim-ref">Claim #0${idx + 1}</span>
+                                <span class="badge-status badge-${assignedStatus}">${assignedStatus}</span>
+                            </div>
+                            <div class="agent-critique-text">&ldquo;${matchedTemplate.critique}&rdquo;</div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        // STEP 3 -> STEP 4: AI Judge Verdict
+        function proceedToStep4() {
+            synthesizeVerdict();
+            goToStep(4);
+        }
+
+        function synthesizeVerdict() {
+            // Count badges across all panels
+            let survived = 0;
+            let weakened = 0;
+            let broken = 0;
+            let unresolved = 0;
+
+            const badgeEls = document.querySelectorAll('#agentsGrid .badge-status');
+            badgeEls.forEach(el => {
+                if (el.classList.contains('badge-survived')) survived++;
+                else if (el.classList.contains('badge-weakened')) weakened++;
+                else if (el.classList.contains('badge-broken')) broken++;
+                else if (el.classList.contains('badge-unresolved')) unresolved++;
+            });
+
+            const total = survived + weakened + broken + unresolved || 1;
+            // Vulnerability formula: broken = 1.0, weakened = 0.5, unresolved = 0.25, survived = 0
+            const rawScore = Math.round(((broken * 1.0 + weakened * 0.5 + unresolved * 0.25) / total) * 100);
+            const vulnScore = Math.min(Math.max(rawScore, 18), 94);
+
+            // Update DOM metrics
+            document.getElementById('statSurvived').textContent = survived;
+            document.getElementById('statWeakened').textContent = weakened;
+            document.getElementById('statBroken').textContent = broken;
+            document.getElementById('statUnresolved').textContent = unresolved;
+
+            const scoreEl = document.getElementById('vulnScoreVal');
+            scoreEl.textContent = `${vulnScore}%`;
+            if (vulnScore > 60) {
+                scoreEl.style.color = '#f87171'; // Red
+            } else if (vulnScore > 35) {
+                scoreEl.style.color = '#fbbf24'; // Yellow
+            } else {
+                scoreEl.style.color = '#34d399'; // Green
+            }
+
+            const headlineEl = document.getElementById('verdictHeadline');
+            const substatusEl = document.getElementById('verdictSubstatus');
+
+            if (broken >= 2 || vulnScore >= 60) {
+                headlineEl.textContent = `HIGH VULNERABILITY \u2022 ${broken} CRITICAL CRACKS`;
+                substatusEl.textContent = "Your proposal has structural blind spots in security and commercial viability that will likely trigger early failure.";
+            } else if (weakened >= 2 || vulnScore >= 40) {
+                headlineEl.textContent = `CONDITIONAL PASS \u2022 REVISIONS REQUIRED`;
+                substatusEl.textContent = "The core technical premise is resilient, but enterprise procurement hurdles require an immediate mitigation roadmap.";
+            } else {
+                headlineEl.textContent = `RESILIENT FOUNDATION \u2022 READY TO PROCEED`;
+                substatusEl.textContent = "Most foundational claims survived intense red-teaming. Proceed with lightweight pilot deployments.";
+            }
+
+            // Generate Judge Bot Key Takeaways
+            const takeawaysEl = document.getElementById('takeawaysList');
+            takeawaysEl.innerHTML = `
+                <div class="takeaway-item">
+                    <span class="takeaway-tag critical">Fatal Flaw</span>
+                    <div class="takeaway-body">
+                        <strong>Security &amp; Procurement Block:</strong> Enterprising buyers prioritize governance and SOC2 certifications over raw speed improvements. Self-hosted Docker without compliance guarantees will stall deals in infosec review.
+                    </div>
+                </div>
+                <div class="takeaway-item">
+                    <span class="takeaway-tag warning">Unit Economics</span>
+                    <div class="takeaway-body">
+                        <strong>Pricing Disconnect:</strong> The $99/month price point leaves zero gross margin for white-glove onboarding and technical support required by self-hosted enterprise setups.
+                    </div>
+                </div>
+                <div class="takeaway-item">
+                    <span class="takeaway-tag positive">Proven Strength</span>
+                    <div class="takeaway-body">
+                        <strong>Performance Edge Verified:</strong> Builder benchmarks confirm that a specialized in-memory vector indexing tier genuinely delivers the advertised 3x throughput gain over standard relational extensions.
+                    </div>
+                </div>
+                <div class="takeaway-item">
+                    <span class="takeaway-tag action">Prescribed Action</span>
+                    <div class="takeaway-body">
+                        <strong>First Validation Step:</strong> Pivot messaging from "Self-hosted Docker" to a managed VPC integration, and run 5 interviews with VP Infosec leaders before writing another line of deployment code.
+                    </div>
+                </div>
+            `;
+        }
+
+        // Reset and slide back to Step 1
+        function resetWizard() {
+            document.getElementById('rawInput').value = '';
+            claims = [];
+            document.getElementById('newClaimInput').value = '';
+            goToStep(1);
+        }
+
+        // Utility: Escape HTML for security
+        function escapeHtml(string) {
+            const div = document.createElement('div');
+            div.textContent = string;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

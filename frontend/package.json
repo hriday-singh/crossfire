@@ -7,9 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --no-cache",
     "test:watch": "vitest",
-    "test:all": "tsc --noEmit && vitest run",
+    "test:all": "tsc --noEmit && vitest run --no-cache",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },

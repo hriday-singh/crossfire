@@ -44,6 +44,7 @@ export type AppAction =
   | { type: "EXTRACTING_SUCCESS"; payload: Case }
   | { type: "EXTRACTING_ERROR"; payload: { stage: string; message: string; details?: unknown } }
   | { type: "UPDATE_CLAIM_STATEMENT"; payload: { claimId: string; statement: string } }
+  | { type: "TOGGLE_CLAIM_LOAD_BEARING"; payload: { claimId: string } }
   | { type: "REMOVE_CLAIM"; payload: { claimId: string } }
   | { type: "ADD_CLAIM"; payload: { statement: string } }
   | { type: "START_CONFIRMING" }
@@ -104,6 +105,19 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       const updatedClaims = state.currentCase.claims.map((c) =>
         c.id === action.payload.claimId
           ? { ...c, statement: action.payload.statement }
+          : c
+      );
+      return {
+        ...state,
+        currentCase: { ...state.currentCase, claims: updatedClaims },
+      };
+    }
+
+    case "TOGGLE_CLAIM_LOAD_BEARING": {
+      if (!state.currentCase) return state;
+      const updatedClaims = state.currentCase.claims.map((c) =>
+        c.id === action.payload.claimId
+          ? { ...c, load_bearing: !c.load_bearing }
           : c
       );
       return {
@@ -249,6 +263,16 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
               objective: `Evaluating assumption against failure criteria`,
               state: "running",
             };
+
+            const planItemExists = updatedCase.test_plan.some((p) => p.id === testId);
+            if (!planItemExists) {
+              updatedCase.test_plan.push({
+                id: testId,
+                target_claim: targetClaim,
+                failure_mode: failureMode,
+                objective: `Evaluating assumption against failure criteria`,
+              });
+            }
           }
           break;
         }
@@ -274,10 +298,19 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
                 finding,
               };
             } else if (finding.test_id) {
+              const mappedFailureMode =
+                finding.evaluator === "receipts"
+                  ? "evidence"
+                  : finding.evaluator === "builder"
+                  ? "feasibility"
+                  : finding.evaluator === "overthinker"
+                  ? "edge-case"
+                  : "assumption";
+
               updatedTests[finding.test_id] = {
                 test_id: finding.test_id,
                 target_claim: targetClaimId,
-                failure_mode: finding.evaluator === "receipts" ? "evidence" : "assumption",
+                failure_mode: mappedFailureMode,
                 objective: "Completed evaluation",
                 state: "completed",
                 finding,

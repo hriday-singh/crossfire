@@ -19,13 +19,13 @@ describe("UI Primitives", () => {
 
     it("applies variant classes correctly", () => {
       const { rerender } = render(<Button variant="destructive">Delete</Button>);
-      expect(screen.getByRole("button")).toHaveClass("bg-rose-950/40");
+      expect(screen.getByRole("button")).toHaveClass("bg-rose-50");
 
       rerender(<Button variant="outline">Cancel</Button>);
       expect(screen.getByRole("button")).toHaveClass("border");
 
       rerender(<Button variant="ghost">Ghost</Button>);
-      expect(screen.getByRole("button")).toHaveClass("hover:bg-zinc-800/60");
+      expect(screen.getByRole("button")).toHaveClass("hover:bg-zinc-100");
     });
 
     it("handles disabled state", () => {
@@ -42,16 +42,16 @@ describe("UI Primitives", () => {
   describe("Badge", () => {
     it("renders badges with semantic status variants", () => {
       const { rerender } = render(<Badge variant="survived">Survived</Badge>);
-      expect(screen.getByText("Survived")).toHaveClass("text-emerald-400");
+      expect(screen.getByText("Survived")).toHaveClass("text-emerald-800");
 
       rerender(<Badge variant="broken">Broken</Badge>);
-      expect(screen.getByText("Broken")).toHaveClass("text-rose-400");
+      expect(screen.getByText("Broken")).toHaveClass("text-rose-800");
 
       rerender(<Badge variant="weakened">Weakened</Badge>);
-      expect(screen.getByText("Weakened")).toHaveClass("text-amber-400");
+      expect(screen.getByText("Weakened")).toHaveClass("text-amber-800");
 
       rerender(<Badge variant="unresolved">Unresolved</Badge>);
-      expect(screen.getByText("Unresolved")).toHaveClass("text-purple-400");
+      expect(screen.getByText("Unresolved")).toHaveClass("text-indigo-800");
     });
   });
 

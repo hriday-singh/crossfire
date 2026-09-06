@@ -79,6 +79,19 @@ describe("caseReducer", () => {
     });
     expect(state.currentCase?.claims).toHaveLength(2);
     expect(state.currentCase?.claims[1].statement).toBe("Newly Added Claim");
+
+    // Toggle load bearing
+    state = caseReducer(state, {
+      type: "TOGGLE_CLAIM_LOAD_BEARING",
+      payload: { claimId: "c1" },
+    });
+    expect(state.currentCase?.claims[0].load_bearing).toBe(true);
+
+    state = caseReducer(state, {
+      type: "TOGGLE_CLAIM_LOAD_BEARING",
+      payload: { claimId: "c1" },
+    });
+    expect(state.currentCase?.claims[0].load_bearing).toBe(false);
   });
 
   it("should process SSE events deterministically and update findings & verdicts", () => {

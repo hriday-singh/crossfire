@@ -3,28 +3,29 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: #ffffff;
-    --foreground: #09090b;
-    --card: #ffffff;
-    --card-foreground: #09090b;
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #09090b;
-    --primary: #09090b;
-    --primary-foreground: #ffffff;
-    --secondary: #f4f4f5;
-    --secondary-foreground: #09090b;
-    --destructive: #e11d48;
+  :root,
+  .dark {
+    --background: #09090b;
+    --foreground: #f4f4f5;
+    --card: #18181b;
+    --card-foreground: #f4f4f5;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #f4f4f5;
+    --primary: #ffffff;
+    --primary-foreground: #09090b;
+    --secondary: #27272a;
+    --secondary-foreground: #f4f4f5;
+    --destructive: #f87171;
     --destructive-foreground: #ffffff;
 
-    /* Strict 4-verdict palette with WCAG AA light-mode contrast */
-    --verdict-survived: #059669;
-    --verdict-weakened: #d97706;
-    --verdict-broken: #e11d48;
-    --verdict-unresolved: #4f46e5;
+    /* Strict 4-verdict palette per DESIGN.md Section 2.2 */
+    --verdict-survived: #34d399;
+    --verdict-weakened: #fbbf24;
+    --verdict-broken: #f87171;
+    --verdict-unresolved: #818cf8;
   }
 
   * {
@@ -38,21 +39,21 @@
   }
 }
 
-/* Custom minimal light scrollbar */
+/* Custom minimal dark scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #ffffff;
+  background: #09090b;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e4e4e7;
+  background: #27272a;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #d4d4d8;
+  background: #3f3f46;
 }

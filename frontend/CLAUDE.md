@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Frontend Build Standards & Agent Instructions
 
 ---
@@ -96,7 +95,8 @@
 - [ ] Lint + typecheck pass[cite: 1]
 - [ ] Migration file generated if schema changed — not applied[cite: 1]
 - [ ] No commit made[cite: 1]
-=======
+---
+
 # Crossfire Frontend — Agent Instructions & Testing Mandate
 
 You are working inside the `frontend/` workspace of the Crossfire project as **Dev A**.
@@ -146,4 +146,3 @@ npm run typecheck
 # Build check
 npm run build
 ```
->>>>>>> 79d063aeba80301e1d8f444fd376afe87d1fea57
