@@ -72,7 +72,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `devils_advocate.py` producing real `Finding` | `[x]` | Assumption test, prompt-only, isolated to single claim, zero tool chains |
 | `POST /cases/{id}/confirm` (202, non-blocking) | `[x]` | Validates state gate, launches background `run_pipeline()`, returns 202 immediately |
 | `GET /cases/{id}` | `[x]` | Returns full Case for evidence drawer |
-| `dispatch()` routing wired with Dev A | `[~]` | Evaluators ready; waiting for Dev A to implement `run_evaluators()` call site |
+| `dispatch()` routing wired with Dev A | `[x]` | Fully wired: `run_evaluators()` in `core/loop.py` dispatches to `core.evaluators.dispatch` |
 | SSE events verified against contract | `[x]` | Verified documented event ordering in SSE stream |
 | Claim-confirmation gate is real, not client-faked | `[x]` | Rejects confirm requests when not in `awaiting_confirmation` status |
 | `overthinker.py` (stretch) | `[x]` | Edge-case test evaluator implemented and unit tested |
