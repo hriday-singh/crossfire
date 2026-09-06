@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useCase } from "@/context/CaseContext";
 import { ClaimCard } from "@/components/features/ClaimCard";
+import { LiveActivityFeed } from "@/components/features/LiveActivityFeed";
 import { EvidenceDrawer } from "@/components/features/EvidenceDrawer";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 
@@ -130,6 +131,14 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
 
+          {/* Live Activity Feed during testing or when activities exist */}
+          {(isTesting || state.activities.length > 0) && (
+            <LiveActivityFeed
+              activities={state.activities}
+              isStreaming={isTesting}
+            />
+          )}
+
           {/* Filter & Sort Bar */}
           <div className="flex items-center justify-between gap-space-4">
             <div className="flex items-center gap-space-2">
@@ -193,6 +202,7 @@ export const DashboardScreen: React.FC = () => {
                   findings={relevantFindings}
                   consequence={relevantConsequence}
                   isTestingMode={state.isStreaming || currentCase.status === "testing"}
+                  activeActivities={state.activeTestActivities}
                   onClick={() => selectClaim(claim.id)}
                 />
               );

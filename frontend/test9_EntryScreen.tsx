@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
-import { ingestImage, ingestPdf } from "@/lib/api";
+import { ingestImage, ingestPdf, ingestUrl } from "@/lib/api";
 import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
-import { AttachmentBar, EntryAttachment } from "@/components/features/AttachmentBar";
-import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
-
-const MAX_PROPOSAL_CHARS = 500;
+import { detectWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
 
 const isImageFile = (filename: string): boolean => {
   const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
@@ -16,12 +13,13 @@ const isImageFile = (filename: string): boolean => {
 export const EntryScreen: React.FC = () => {
   const { state, startExtracting, setActiveModal } = useCase();
   const [rawInput, setRawInput] = useState("");
-  const [attachments, setAttachments] = useState<EntryAttachment[]>([]);
+  const [attachedContext, setAttachedContext] = useState<string | null>(null);
+  const [attachmentName, setAttachmentName] = useState<string | null>(null);
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState("");
-  const [smartNotice, setSmartNotice] = useState<string | null>(null);
+  const [smartUrlNotice, setSmartUrlNotice] = useState<string | null>(null);
   const [agentMode, setAgentMode] = useState<"auto" | "custom">("auto");
   const [selectedAgents, setSelectedAgents] = useState<string[]>([
     "devils_advocate",
@@ -53,124 +51,95 @@ export const EntryScreen: React.FC = () => {
     }
   }, [rawInput]);
 
-  const addUrlAttachment = (cleanUrl: string, hostname: string) => {
-    const id = `url-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setAttachments((prev) => {
-      // Avoid duplicate URLs
-      if (prev.some((a) => a.url === cleanUrl)) return prev;
-      return [
-        ...prev,
-        {
-          id,
-          type: "url",
-          name: hostname,
-          url: cleanUrl,
-        },
-      ];
-    });
-  };
+  const autoAddUrl = async (detected: DetectedWebUrl) => {
+    if (isIngesting || attachedContext) return;
 
-  const autoAddDetectedUrl = (detected: DetectedWebUrl) => {
-    addUrlAttachment(detected.cleanUrl, detected.hostname);
-
+    // Separate text in the chat box:
     if (!detected.remainingText) {
       setRawInput(`Analyze proposal and assertions from ${detected.hostname}`);
     } else {
       setRawInput(detected.remainingText);
     }
 
-    setSmartNotice(`Web URL ${detected.hostname} detected & added to attachments.`);
+    // Show the separate URL input and set its value
+    setShowUrlInput(true);
+    setUrlInputValue(detected.cleanUrl);
+
+    // Provide friendly notice
+    setSmartUrlNotice(`Web URL ${detected.hostname} detected & added separately.`);
+
+    // Automatically trigger URL ingestion
+    await handleUrlSubmit(detected.cleanUrl);
   };
 
-  const handleTextChange = (value: string) => {
-    // 1. Check for excess character overflow beyond 500 characters
-    if (value.length > MAX_PROPOSAL_CHARS) {
-      const proposalText = value.slice(0, MAX_PROPOSAL_CHARS);
-      const overflowText = value.slice(MAX_PROPOSAL_CHARS).trim();
-
-      if (overflowText) {
-        const blobCount = attachments.filter((a) => a.type === "text_blob").length + 1;
-        const newBlob: EntryAttachment = {
-          id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          type: "text_blob",
-          name: `Context Snippet #${blobCount}`,
-          context: overflowText,
-          charCount: overflowText.length,
-        };
-        setAttachments((prev) => [...prev, newBlob]);
-        setSmartNotice(
-          `Proposal exceeded 500 characters. Moved excess (${overflowText.length.toLocaleString()} chars) to context blob.`
-        );
-      }
-      setRawInput(proposalText);
-      return;
-    }
-
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
     setRawInput(value);
 
-    // 2. When the user finishes typing a URL with a delimiter (space, comma, semicolon, newline)
+    // When the user finishes typing a URL with a delimiter (space, comma, semicolon, newline)
     if (/[\s,;]$/.test(value)) {
       const detected = detectWebUrl(value);
-      if (detected) {
-        autoAddDetectedUrl(detected);
+      if (detected && !attachedContext && !isIngesting) {
+        autoAddUrl(detected);
       }
     }
   };
 
-  // Debounced detection when user pauses typing after entering a URL
+  // Debounced detection when user pauses typing after completing a URL
   useEffect(() => {
-    if (!rawInput.trim()) return;
+    if (!rawInput.trim() || attachedContext || isIngesting) return;
 
     const timer = setTimeout(() => {
       const detected = detectWebUrl(rawInput);
-      if (detected && (!detected.remainingText || /[\s,;]/.test(rawInput))) {
-        autoAddDetectedUrl(detected);
+      if (detected && !attachedContext && !isIngesting) {
+        if (!detected.remainingText || /[\s,;]/.test(rawInput)) {
+          autoAddUrl(detected);
+        }
       }
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [rawInput]);
+  }, [rawInput, attachedContext, isIngesting]);
 
   const handleBlur = () => {
-    if (!rawInput.trim()) return;
+    if (!rawInput.trim() || attachedContext || isIngesting) return;
     const detected = detectWebUrl(rawInput);
-    if (detected) {
-      autoAddDetectedUrl(detected);
+    if (detected && !attachedContext && !isIngesting) {
+      autoAddUrl(detected);
     }
   };
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const pasted = e.clipboardData.getData("text").trim();
-    if (!pasted) return;
-
-    // Check if pasted text contains URLs
-    const detectedMulti = extractAllWebUrls(pasted);
-    if (detectedMulti.urls.length > 0) {
-      e.preventDefault();
-      detectedMulti.urls.forEach((u) => addUrlAttachment(u.cleanUrl, u.hostname));
-
-      // Also handle text overflow on remaining text
-      const remaining = detectedMulti.remainingText;
-      const combined = rawInput ? `${rawInput} ${remaining}`.trim() : remaining;
-      handleTextChange(
-        combined || (detectedMulti.urls.length === 1
-          ? `Analyze proposal and assertions from ${detectedMulti.urls[0].hostname}`
-          : "Analyze proposal and assertions from attached references")
-      );
-      setSmartNotice(
-        detectedMulti.urls.length === 1
-          ? `Web URL ${detectedMulti.urls[0].hostname} added to attachments.`
-          : `${detectedMulti.urls.length} Web URLs added to attachments.`
-      );
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (
+      !rawInput.trim() ||
+      state.isExtracting ||
+      isIngesting ||
+      (agentMode === "custom" && selectedAgents.length === 0)
+    ) {
       return;
     }
 
-    // Check if pasted plain text exceeds character limit
-    if (rawInput.length + pasted.length > MAX_PROPOSAL_CHARS) {
-      e.preventDefault();
-      const combined = `${rawInput}${rawInput ? " " : ""}${pasted}`;
-      handleTextChange(combined);
+    const agentsPayload = agentMode === "custom" ? selectedAgents : undefined;
+
+    const detected = detectWebUrl(rawInput);
+    if (detected && !attachedContext) {
+      const effectiveInput =
+        detected.remainingText || `Analyze proposal and assertions from ${detected.hostname}`;
+      setIsIngesting(true);
+      try {
+        const res = await ingestUrl(detected.cleanUrl);
+        setAttachedContext(res.context);
+        startExtracting(effectiveInput, res.context, agentMode, agentsPayload);
+      } catch {
+        startExtracting(effectiveInput, null, agentMode, agentsPayload);
+      } finally {
+        setIsIngesting(false);
+      }
+      return;
     }
+
+    startExtracting(rawInput.trim(), attachedContext, agentMode, agentsPayload);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -182,35 +151,20 @@ export const EntryScreen: React.FC = () => {
 
     if (e.key === "Enter" && !e.shiftKey) {
       const detected = detectWebUrl(rawInput);
-      if (detected) {
+      if (detected && !attachedContext && !isIngesting) {
         e.preventDefault();
-        autoAddDetectedUrl(detected);
+        autoAddUrl(detected);
       }
     }
   };
 
-  const handleManualUrlSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const target = urlInputValue.trim();
-    if (!target) return;
-
-    const normalized = normalizeWebUrl(target);
-    if (!normalized) {
-      setIngestError("Please enter a valid web URL (e.g. example.com or https://example.com)");
-      return;
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = e.clipboardData.getData("text").trim();
+    const detected = detectWebUrl(pasted);
+    if (detected && !attachedContext) {
+      setShowUrlInput(true);
+      setUrlInputValue(detected.cleanUrl);
     }
-
-    let hostname = normalized;
-    try {
-      hostname = new URL(normalized).hostname;
-    } catch {
-      // fallback
-    }
-
-    addUrlAttachment(normalized, hostname);
-    setUrlInputValue("");
-    setShowUrlInput(false);
-    setIngestError(null);
   };
 
   const processFile = async (file: File) => {
@@ -220,19 +174,15 @@ export const EntryScreen: React.FC = () => {
     try {
       const isImage = isImageFile(file.name);
       const res = isImage ? await ingestImage(file) : await ingestPdf(file);
+      setAttachedContext(res.context);
       const label = isImage ? `Screenshot: ${file.name}` : file.name;
-      const newFileAttachment: EntryAttachment = {
-        id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        type: "file",
-        name: label,
-        context: res.context,
-        charCount: res.character_count,
-      };
-      setAttachments((prev) => [...prev, newFileAttachment]);
+      setAttachmentName(`${label} (${res.character_count.toLocaleString()} chars)`);
     } catch (err: unknown) {
       const errorMsg =
         (err as { message?: string })?.message || "Failed to extract text from file.";
       setIngestError(errorMsg);
+      setAttachedContext(null);
+      setAttachmentName(null);
     } finally {
       setIsIngesting(false);
     }
@@ -277,54 +227,46 @@ export const EntryScreen: React.FC = () => {
     await processFile(file);
   };
 
-  const handleRemoveAttachment = (id: string) => {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  const handleUrlSubmit = async (urlToSubmit?: string, e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const target = (urlToSubmit || urlInputValue).trim();
+    if (!target || isIngesting) return;
+
+    setIngestError(null);
+    setIsIngesting(true);
+
+    try {
+      const res = await ingestUrl(target);
+      setAttachedContext(res.context);
+      let displayUrl = target;
+      try {
+        const parsed = new URL(target.startsWith("www.") ? `https://${target}` : target);
+        displayUrl = parsed.hostname;
+      } catch {
+        // keep raw
+      }
+      setAttachmentName(`${displayUrl} (${res.character_count.toLocaleString()} chars)`);
+      setShowUrlInput(false);
+      setUrlInputValue("");
+    } catch (err: unknown) {
+      const errorMsg =
+        (err as { message?: string })?.message || "Failed to ingest URL.";
+      setIngestError(errorMsg);
+    } finally {
+      setIsIngesting(false);
+    }
+  };
+
+  const handleRemoveAttachment = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAttachedContext(null);
+    setAttachmentName(null);
+    setIngestError(null);
+    setSmartUrlNotice(null);
   };
 
   const handleDropzoneClick = () => {
     fileInputRef.current?.click();
-  };
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (
-      !rawInput.trim() ||
-      state.isExtracting ||
-      isIngesting ||
-      (agentMode === "custom" && selectedAgents.length === 0)
-    ) {
-      return;
-    }
-
-    const agentsPayload = agentMode === "custom" ? selectedAgents : undefined;
-
-    // Build structured context from all attached references
-    const contextSections: string[] = [];
-
-    const urlItems = attachments.filter((a) => a.type === "url");
-    if (urlItems.length > 0) {
-      contextSections.push(
-        `Reference URLs for verification:\n${urlItems.map((u) => `- ${u.url || u.name}`).join("\n")}`
-      );
-    }
-
-    const textBlobs = attachments.filter((a) => a.type === "text_blob" && a.context);
-    if (textBlobs.length > 0) {
-      contextSections.push(
-        `Supporting Context Blobs:\n${textBlobs.map((b, i) => `[Context #${i + 1}]\n${b.context}`).join("\n\n")}`
-      );
-    }
-
-    const fileItems = attachments.filter((a) => a.type === "file" && a.context);
-    if (fileItems.length > 0) {
-      contextSections.push(
-        `Attached Documents / OCR Transcripts:\n${fileItems.map((f) => `[${f.name}]\n${f.context}`).join("\n\n")}`
-      );
-    }
-
-    const combinedContext = contextSections.length > 0 ? contextSections.join("\n\n---\n\n") : null;
-
-    startExtracting(rawInput.trim(), combinedContext, agentMode, agentsPayload);
   };
 
   if (state.isExtracting) {
@@ -401,7 +343,7 @@ export const EntryScreen: React.FC = () => {
                 ref={textareaRef}
                 id="proposal-input"
                 value={rawInput}
-                onChange={(e) => handleTextChange(e.target.value)}
+                onChange={handleInputChange}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
@@ -410,22 +352,16 @@ export const EntryScreen: React.FC = () => {
                 autoFocus
                 className="w-full bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-md text-body-md rounded-lg p-space-4 resize-none transition-all outline-none focus:bg-surface-container-low min-h-[130px] leading-relaxed border border-transparent focus:border-outline-variant"
               />
-              {/* Character Limit Counter */}
+              {/* Inline Token/Character Counter */}
               <div className="absolute bottom-3 right-3 flex items-center gap-space-2 pointer-events-none">
-                <span
-                  className={`font-code-sm text-code-sm px-space-1.5 py-0.5 rounded transition-colors ${
-                    rawInput.length >= 480
-                      ? "text-primary-container font-semibold"
-                      : "text-outline"
-                  }`}
-                >
-                  {rawInput.length} / {MAX_PROPOSAL_CHARS} characters
+                <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5">
+                  {rawInput.length} characters
                 </span>
               </div>
             </div>
 
-            {/* Smart Notice */}
-            {smartNotice && (
+            {/* Smart Web URL Detection Notice */}
+            {smartUrlNotice && (
               <div
                 role="status"
                 className="mt-space-2 px-space-3 py-space-1.5 rounded bg-primary-container/15 border border-primary-container/30 text-primary font-body-sm text-xs flex items-center justify-between animate-in fade-in-50"
@@ -434,11 +370,11 @@ export const EntryScreen: React.FC = () => {
                   <span className="material-symbols-outlined text-[16px] text-primary shrink-0">
                     auto_awesome
                   </span>
-                  <span className="truncate">{smartNotice}</span>
+                  <span className="truncate">{smartUrlNotice}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSmartNotice(null)}
+                  onClick={() => setSmartUrlNotice(null)}
                   className="text-outline hover:text-on-surface p-0.5 rounded cursor-pointer shrink-0 transition-colors"
                   aria-label="Dismiss notice"
                 >
@@ -487,90 +423,109 @@ export const EntryScreen: React.FC = () => {
                     progress_activity
                   </span>
                   <span className="font-body-sm text-body-sm text-on-surface">
-                    Extracting document context...
+                    Extracting and curating context...
                   </span>
                 </div>
                 <span className="font-code-sm text-code-sm text-outline">Processing</span>
               </div>
             )}
 
-            {/* Compact Multi-Attachment Pills Bar (1, 2, +1, +2...) */}
-            <AttachmentBar
-              attachments={attachments}
-              onRemoveAttachment={handleRemoveAttachment}
-            />
-
-            {/* Always Available Dropzone & URL Trigger (Never Locks) */}
-            <div className="flex flex-col gap-space-2 mt-space-3">
-              <div
-                id="dropzone"
-                onClick={handleDropzoneClick}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`group bg-surface-container rounded-lg p-space-3 flex items-center justify-between cursor-pointer transition-colors hover:bg-surface-container-high ${
-                  isDragging ? "ring-2 ring-primary bg-surface-container-high" : ""
-                }`}
-              >
+            {/* Attached Context Badge */}
+            {!isIngesting && attachmentName && (
+              <div className="mt-space-3 bg-surface-container rounded-lg p-space-3 flex items-center justify-between border border-outline-variant/60">
+                <div className="flex items-center gap-space-2 text-on-surface min-w-0">
+                  <span className="material-symbols-outlined text-[18px] text-primary shrink-0">
+                    check_circle
+                  </span>
+                  <span className="font-body-sm text-body-sm text-primary font-medium truncate">
+                    Attached: {attachmentName}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDropzoneClick();
-                  }}
-                  className="flex items-center gap-space-2 text-outline group-hover:text-on-surface transition-colors min-w-0 bg-transparent border-0 p-0 text-left cursor-pointer"
+                  onClick={handleRemoveAttachment}
+                  className="text-outline hover:text-on-surface p-1 rounded transition-colors cursor-pointer"
+                  aria-label="Remove attachment"
+                  title="Remove attachment"
                 >
-                  <span className="material-symbols-outlined text-[18px] text-outline group-hover:text-primary-container shrink-0">
-                    attach_file
-                  </span>
-                  <span className="font-body-sm text-body-sm truncate text-outline group-hover:text-on-surface">
-                    + Add reference link or upload document (PDF, Screenshot / Image)
-                  </span>
+                  <span className="material-symbols-outlined text-[18px]">close</span>
                 </button>
-                <div className="flex items-center gap-space-2 shrink-0 pl-space-2">
+              </div>
+            )}
+
+            {/* Default Dropzone and URL Trigger */}
+            {!isIngesting && !attachmentName && (
+              <div className="flex flex-col gap-space-2">
+                <div
+                  id="dropzone"
+                  onClick={handleDropzoneClick}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`group mt-space-3 bg-surface-container rounded-lg p-space-3 flex items-center justify-between cursor-pointer transition-colors hover:bg-surface-container-high ${
+                    isDragging ? "ring-2 ring-primary bg-surface-container-high" : ""
+                  }`}
+                >
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowUrlInput(!showUrlInput);
+                      handleDropzoneClick();
                     }}
-                    className="font-code-sm text-code-sm text-outline hover:text-on-surface px-space-2 py-0.5 rounded bg-surface-container-low transition-colors cursor-pointer"
+                    className="flex items-center gap-space-2 text-outline group-hover:text-on-surface transition-colors min-w-0 bg-transparent border-0 p-0 text-left cursor-pointer"
                   >
-                    {showUrlInput ? "Close" : "+ Web URL"}
+                    <span className="material-symbols-outlined text-[18px] text-outline group-hover:text-primary-container shrink-0">
+                      attach_file
+                    </span>
+                    <span className="font-body-sm text-body-sm truncate text-outline group-hover:text-on-surface">
+                      + Add reference link or upload document (PDF, Screenshot / Image)
+                    </span>
                   </button>
-                  <span className="font-code-sm text-code-sm text-outline">Optional</span>
+                  <div className="flex items-center gap-space-2 shrink-0 pl-space-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowUrlInput(!showUrlInput);
+                      }}
+                      className="font-code-sm text-code-sm text-outline hover:text-on-surface px-space-2 py-0.5 rounded bg-surface-container-low transition-colors cursor-pointer"
+                    >
+                      {showUrlInput ? "Close" : "+ Web URL"}
+                    </button>
+                    <span className="font-code-sm text-code-sm text-outline">Optional</span>
+                  </div>
                 </div>
-              </div>
 
-              {showUrlInput && (
-                <div className="flex items-center gap-space-2 bg-surface-container rounded-lg p-space-2 border border-outline-variant">
-                  <span className="material-symbols-outlined text-[18px] text-outline ml-space-1">
-                    link
-                  </span>
-                  <input
-                    type="text"
-                    value={urlInputValue}
-                    onChange={(e) => setUrlInputValue(e.target.value)}
-                    placeholder="example.com/spec or https://example.com"
-                    className="flex-1 bg-transparent text-on-surface placeholder:text-outline font-body-sm text-body-sm px-space-2 py-1 outline-none"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleManualUrlSubmit();
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => handleManualUrlSubmit()}
-                    disabled={!urlInputValue.trim()}
-                    className="px-space-3 py-1 text-xs h-7 bg-primary-container text-on-primary-container rounded cursor-pointer"
-                  >
-                    Attach URL
-                  </Button>
-                </div>
-              )}
-            </div>
+                {showUrlInput && (
+                  <div className="flex items-center gap-space-2 bg-surface-container rounded-lg p-space-2 border border-outline-variant">
+                    <span className="material-symbols-outlined text-[18px] text-outline ml-space-1">
+                      link
+                    </span>
+                    <input
+                      type="url"
+                      value={urlInputValue}
+                      onChange={(e) => setUrlInputValue(e.target.value)}
+                      placeholder="https://example.com/article-or-spec"
+                      className="flex-1 bg-transparent text-on-surface placeholder:text-outline font-body-sm text-body-sm px-space-2 py-1 outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleUrlSubmit();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => handleUrlSubmit()}
+                      disabled={!urlInputValue.trim() || isIngesting}
+                      className="px-space-3 py-1 text-xs h-7 bg-primary-container text-on-primary-container rounded"
+                    >
+                      Attach URL
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Agent Suite Selection Panel (Auto vs Custom) */}
             <AgentSelectorPanel

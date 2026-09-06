@@ -35,7 +35,7 @@ describe("Screen Components", () => {
       expect(textarea.value).toContain("apply to college");
     });
 
-    it("handles PDF document upload and displays attachment pill", async () => {
+    it("handles PDF document upload and displays character count badge", async () => {
       const ingestSpy = vi.spyOn(api, "ingestPdf").mockResolvedValueOnce({
         context: "Extracted strategic memo contents",
         character_count: 1250,
@@ -57,14 +57,13 @@ describe("Screen Components", () => {
 
       expect(ingestSpy).toHaveBeenCalledWith(file);
       await waitFor(() => {
-        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText("memo.pdf")).toBeInTheDocument();
+        expect(screen.getByText(/Attached: memo\.pdf \(1,250 chars\)/i)).toBeInTheDocument();
       });
 
       // Remove attachment
-      const removeBtn = screen.getByLabelText(/Remove attachment memo\.pdf/i);
+      const removeBtn = screen.getByLabelText("Remove attachment");
       fireEvent.click(removeBtn);
-      expect(screen.queryByText("memo.pdf")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Attached: memo\.pdf/i)).not.toBeInTheDocument();
     });
 
     it("displays error alert when PDF ingestion fails", async () => {
@@ -90,7 +89,7 @@ describe("Screen Components", () => {
       });
     });
 
-    it("handles image screenshot upload via ingestImage and displays pill", async () => {
+    it("handles image screenshot upload via ingestImage and displays badge", async () => {
       const ingestImageSpy = vi.spyOn(api, "ingestImage").mockResolvedValueOnce({
         context: "Extracted screenshot analytics from chart",
         character_count: 820,
@@ -112,14 +111,13 @@ describe("Screen Components", () => {
 
       expect(ingestImageSpy).toHaveBeenCalledWith(file);
       await waitFor(() => {
-        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText(/Screenshot: dashboard_metrics\.png/i)).toBeInTheDocument();
+        expect(screen.getByText(/Attached: Screenshot: dashboard_metrics\.png \(820 chars\)/i)).toBeInTheDocument();
       });
 
       // Remove attachment
-      const removeBtn = screen.getByLabelText(/Remove attachment Screenshot: dashboard_metrics\.png/i);
+      const removeBtn = screen.getByLabelText("Remove attachment");
       fireEvent.click(removeBtn);
-      expect(screen.queryByText(/Screenshot: dashboard_metrics\.png/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Attached: Screenshot: dashboard_metrics\.png/i)).not.toBeInTheDocument();
     });
 
     it("displays error alert when dropped file type is not supported", async () => {
@@ -146,7 +144,12 @@ describe("Screen Components", () => {
       });
     });
 
-    it("adds URL attachment instantly without network ingestion when submitted via URL input", async () => {
+    it("attaches web URL context when submitted", async () => {
+      const ingestSpy = vi.spyOn(api, "ingestUrl").mockResolvedValueOnce({
+        context: "Article text from techcrunch",
+        character_count: 850,
+      });
+
       render(
         <CaseProvider>
           <EntryScreen />
@@ -157,7 +160,7 @@ describe("Screen Components", () => {
       const webUrlToggle = screen.getByText("+ Web URL");
       fireEvent.click(webUrlToggle);
 
-      const urlInput = screen.getByPlaceholderText(/example\.com/i);
+      const urlInput = screen.getByPlaceholderText(/https:\/\/example\.com/i);
       fireEvent.change(urlInput, { target: { value: "https://techcrunch.com/article" } });
 
       const attachBtn = screen.getByText("Attach URL");
@@ -165,14 +168,13 @@ describe("Screen Components", () => {
         fireEvent.click(attachBtn);
       });
 
-      // URL should be added as attachment pill instantly without calling ingestUrl
+      expect(ingestSpy).toHaveBeenCalledWith("https://techcrunch.com/article");
       await waitFor(() => {
-        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText("techcrunch.com")).toBeInTheDocument();
+        expect(screen.getByText(/Attached: techcrunch\.com \(850 chars\)/i)).toBeInTheDocument();
       });
     });
 
-    it("adds URL as attachment pill when pasting a web URL into textarea", async () => {
+    it("auto-populates URL input when pasting a web URL into textarea", async () => {
       render(
         <CaseProvider>
           <EntryScreen />
@@ -180,22 +182,24 @@ describe("Screen Components", () => {
       );
 
       const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
-      await act(async () => {
-        fireEvent.paste(textarea, {
-          clipboardData: {
-            getData: () => "https://nytimes.com/article/tech-analysis",
-          },
-        });
+      fireEvent.paste(textarea, {
+        clipboardData: {
+          getData: () => "https://nytimes.com/article/tech-analysis",
+        },
       });
 
-      // URL should be added as an attachment pill
-      await waitFor(() => {
-        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText("nytimes.com")).toBeInTheDocument();
-      });
+      expect(screen.getByPlaceholderText(/https:\/\/example\.com/i)).toHaveValue(
+        "https://nytimes.com/article/tech-analysis"
+      );
+      expect(screen.getByText("Attach URL")).toBeInTheDocument();
     });
 
-    it("extracts and adds web URL as attachment when typed with delimiter", async () => {
+    it("automatically extracts and adds web URL when typed with delimiter in the main chat box", async () => {
+      const ingestSpy = vi.spyOn(api, "ingestUrl").mockResolvedValueOnce({
+        context: "Extracted article text from tech blog",
+        character_count: 940,
+      });
+
       render(
         <CaseProvider>
           <EntryScreen />
@@ -214,17 +218,22 @@ describe("Screen Components", () => {
       // Verify the URL was separated out from the proposal text
       expect(textarea).toHaveValue("We should adopt this strategy:");
 
-      // Verify URL was added as attachment pill (no ingestUrl call)
+      // Verify URL ingestion was automatically triggered
+      expect(ingestSpy).toHaveBeenCalledWith("https://techcrunch.com/article/plg");
       await waitFor(() => {
-        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText("techcrunch.com")).toBeInTheDocument();
+        expect(screen.getByText(/Attached: techcrunch\.com \(940 chars\)/i)).toBeInTheDocument();
         expect(screen.getByRole("status")).toHaveTextContent(
-          /Web URL techcrunch\.com/i
+          /Web URL techcrunch\.com detected & added separately/i
         );
       });
     });
 
-    it("auto-generates proposal prompt when only a web URL is typed", async () => {
+    it("automatically provides proposal prompt when only a web URL is typed in chat box", async () => {
+      const ingestSpy = vi.spyOn(api, "ingestUrl").mockResolvedValueOnce({
+        context: "Documentation repository content",
+        character_count: 1120,
+      });
+
       render(
         <CaseProvider>
           <EntryScreen />
@@ -243,35 +252,10 @@ describe("Screen Components", () => {
       // Verify intelligent proposal title was provided
       expect(textarea).toHaveValue("Analyze proposal and assertions from github.com");
 
-      // Verify URL was added as attachment pill
+      // Verify URL ingestion was automatically triggered
+      expect(ingestSpy).toHaveBeenCalledWith("https://github.com/fastapi/fastapi");
       await waitFor(() => {
-        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText("github.com")).toBeInTheDocument();
-      });
-    });
-
-    it("shows character count limit and converts overflow text to text blob", async () => {
-      render(
-        <CaseProvider>
-          <EntryScreen />
-        </CaseProvider>
-      );
-
-      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
-
-      // Type text that exceeds 500 characters
-      const longText = "A".repeat(520);
-      await act(async () => {
-        fireEvent.change(textarea, { target: { value: longText } });
-      });
-
-      // Verify proposal is capped at 500 characters
-      expect((textarea as HTMLTextAreaElement).value.length).toBe(500);
-
-      // Verify overflow text became a text blob attachment
-      await waitFor(() => {
-        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText(/Context Snippet/i)).toBeInTheDocument();
+        expect(screen.getByText(/Attached: github\.com \(1,120 chars\)/i)).toBeInTheDocument();
       });
     });
   });

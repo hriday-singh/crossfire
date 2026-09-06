@@ -10,6 +10,7 @@ interface TestRowProps {
   objective?: string;
   state: TestExecutionState;
   finding?: Finding;
+  activeActivity?: string;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export const TestRow: React.FC<TestRowProps> = ({
   failureMode,
   state,
   finding,
+  activeActivity,
   className = "",
 }) => {
   const testLabel = formatTestName(failureMode);
@@ -66,6 +68,15 @@ export const TestRow: React.FC<TestRowProps> = ({
           </span>
         </div>
       </div>
+
+      {isRunning && activeActivity && (
+        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-primary-container font-mono bg-primary-container/10 px-2.5 py-1 rounded border border-primary-container/20">
+          <span className="material-symbols-outlined text-[13px] animate-spin shrink-0">
+            progress_activity
+          </span>
+          <span className="truncate">{activeActivity}</span>
+        </div>
+      )}
 
       {finding && (
         <div className="mt-1 flex flex-col gap-1 border-t border-outline-variant pt-2.5 text-xs">

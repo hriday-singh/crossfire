@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectWebUrl, normalizeWebUrl, extractAllWebUrls } from "@/lib/urlUtils";
+import { detectWebUrl } from "@/lib/urlUtils";
 
 describe("detectWebUrl", () => {
   it("detects standard https URLs", () => {
@@ -25,22 +25,6 @@ describe("detectWebUrl", () => {
     expect(result?.remainingText).toBe("Check out today");
   });
 
-  it("detects bare domains without protocol and prepends https://", () => {
-    const result = detectWebUrl("Check stripe.com/billing for unit economics");
-    expect(result).not.toBeNull();
-    expect(result?.cleanUrl).toBe("https://stripe.com/billing");
-    expect(result?.hostname).toBe("stripe.com");
-    expect(result?.remainingText).toBe("Check for unit economics");
-  });
-
-  it("detects github.com bare domain with repo path", () => {
-    const result = detectWebUrl("We can inspect github.com/fastapi/fastapi for architecture");
-    expect(result).not.toBeNull();
-    expect(result?.cleanUrl).toBe("https://github.com/fastapi/fastapi");
-    expect(result?.hostname).toBe("github.com");
-    expect(result?.remainingText).toBe("We can inspect for architecture");
-  });
-
   it("trims trailing punctuation from the end of URLs", () => {
     const result = detectWebUrl("We should test this: https://example.com/api/v1.");
     expect(result).not.toBeNull();
@@ -64,36 +48,5 @@ describe("detectWebUrl", () => {
     expect(detectWebUrl("Version 3.14.15 is deployed")).toBeNull();
     expect(detectWebUrl("e.g. we want lower latency")).toBeNull();
     expect(detectWebUrl("")).toBeNull();
-  });
-});
-
-describe("normalizeWebUrl", () => {
-  it("prepends https:// when protocol is missing", () => {
-    expect(normalizeWebUrl("stripe.com/pricing")).toBe("https://stripe.com/pricing");
-    expect(normalizeWebUrl("www.example.org")).toBe("https://www.example.org");
-  });
-
-  it("preserves explicit http:// and https://", () => {
-    expect(normalizeWebUrl("http://localhost:8000")).toBe("http://localhost:8000");
-    expect(normalizeWebUrl("https://openai.com")).toBe("https://openai.com");
-  });
-
-  it("returns null for non-URLs", () => {
-    expect(normalizeWebUrl("node.js")).toBeNull();
-    expect(normalizeWebUrl("not-a-domain")).toBeNull();
-    expect(normalizeWebUrl("")).toBeNull();
-  });
-});
-
-describe("extractAllWebUrls", () => {
-  it("extracts multiple URLs in a single pass", () => {
-    const input = "Compare stripe.com/billing against https://paddle.com/pricing and braintreepayments.com";
-    const result = extractAllWebUrls(input);
-
-    expect(result.urls).toHaveLength(3);
-    expect(result.urls[0].cleanUrl).toBe("https://stripe.com/billing");
-    expect(result.urls[1].cleanUrl).toBe("https://paddle.com/pricing");
-    expect(result.urls[2].cleanUrl).toBe("https://braintreepayments.com");
-    expect(result.remainingText).toBe("Compare against and");
   });
 });

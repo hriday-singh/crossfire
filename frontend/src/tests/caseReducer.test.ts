@@ -172,6 +172,46 @@ describe("caseReducer", () => {
     expect(state.caseHistory).toHaveLength(1);
   });
 
+  it("should process activity SSE events and update activeTestActivities", () => {
+    let state = caseReducer(INITIAL_STATE, {
+      type: "SSE_EVENT",
+      payload: {
+        event: "activity",
+        data: {
+          case_id: "case-act-1",
+          tag: "Evidence Test",
+          text: 'Querying DuckDuckGo: "law enforcement automated bot filings"',
+          claim_id: "c1",
+          action: "search",
+        },
+      },
+    });
+
+    expect(state.activities).toHaveLength(1);
+    expect(state.activities[0].tag).toBe("Evidence Test");
+    expect(state.activities[0].text).toContain("Querying DuckDuckGo");
+    expect(state.activeTestActivities["c1"]).toContain("Querying DuckDuckGo");
+    expect(state.activeTestActivities["Evidence Test"]).toContain("Querying DuckDuckGo");
+    expect(state.activeTestActivities["receipts"]).toContain("Querying DuckDuckGo");
+
+    // Test capping at 100
+    for (let i = 0; i < 110; i++) {
+      state = caseReducer(state, {
+        type: "SSE_EVENT",
+        payload: {
+          event: "activity",
+          data: {
+            case_id: "case-act-1",
+            tag: "Pipeline",
+            text: `Step ${i}`,
+          },
+        },
+      });
+    }
+    expect(state.activities).toHaveLength(100);
+    expect(state.activities[99].text).toBe("Step 109");
+  });
+
   it("should handle CLEAR_HISTORY and DELETE_HISTORY_ITEM", () => {
     const mockCase1: Case = {
       id: "case-1",

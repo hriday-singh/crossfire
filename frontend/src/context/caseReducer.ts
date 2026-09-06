@@ -1,5 +1,6 @@
 import {
   ActiveTestRow,
+  ActivityItem,
   Case,
   Claim,
   DecisionConsequence,
@@ -42,6 +43,8 @@ export interface AppState {
   isStreaming: boolean;
   error: { stage: string; message: string; details?: unknown } | null;
   eventLog: SSEEventLogItem[];
+  activities: ActivityItem[];
+  activeTestActivities: Record<string, string>;
   selectedClaimId: string | null;
   activeTests: Record<string, ActiveTestRow>;
   caseHistory: Case[];
@@ -62,6 +65,8 @@ export const INITIAL_STATE: AppState = {
   isStreaming: false,
   error: null,
   eventLog: [],
+  activities: [],
+  activeTestActivities: {},
   selectedClaimId: null,
   activeTests: {},
   caseHistory: [],
@@ -225,6 +230,8 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         isExtracting: true,
         error: null,
         eventLog: [],
+        activities: [],
+        activeTestActivities: {},
         activeTests: {},
         selectedClaimId: null,
         currentCase: {
@@ -405,6 +412,8 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         error: null,
         selectedClaimId: null,
         activeTests: {},
+        activities: [],
+        activeTestActivities: {},
         startedAt: null,
         completedAt: null,
       };
@@ -462,6 +471,31 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           updatedCase.status = "awaiting_confirmation";
           newActiveScreen = "confirm";
           break;
+        }
+
+        case "activity": {
+          const actItem: ActivityItem = {
+            id: `act-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            timestamp: (data.timestamp as string) || new Date().toISOString(),
+            tag: (data.tag as string) || "Investigation",
+            text: (data.text as string) || "",
+            claim_id: (data.claim_id as string) || null,
+            action: (data.action as string) || null,
+          };
+          const updatedActivities = [...state.activities, actItem];
+          const updatedActiveTestActivities = { ...state.activeTestActivities };
+          if (data.claim_id) {
+            updatedActiveTestActivities[data.claim_id as string] = actItem.text;
+          }
+          if (data.action) {
+            updatedActiveTestActivities[data.action as string] = actItem.text;
+          }
+          return {
+            ...state,
+            eventLog: updatedLog,
+            activities: updatedActivities,
+            activeTestActivities: updatedActiveTestActivities,
+          };
         }
 
         case "test_started": {

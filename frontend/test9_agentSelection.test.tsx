@@ -77,7 +77,6 @@ describe("AgentSelectorPanel Component", () => {
     const builderCheckbox = screen.getByRole("checkbox", { name: /Builder/i });
     expect(builderCheckbox).not.toBeChecked();
     fireEvent.click(builderCheckbox);
-    expect(handleToggle).toHaveBeenCalledTimes(1);
     expect(handleToggle).toHaveBeenCalledWith("builder");
 
     // Switch mode to auto

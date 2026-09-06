@@ -115,7 +115,7 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                       onToggleAgent(agent.id);
                     }
                   }}
-                  className={`rounded-lg p-3 border transition-all select-none outline-none ${
+                  className={`rounded-lg p-3 border transition-all select-none ${
                     isDisabled
                       ? "bg-surface-container/50 border-outline-variant/30 opacity-70 cursor-default"
                       : isSelected
@@ -127,36 +127,30 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                     <input
                       type="checkbox"
                       id={`agent-checkbox-${agent.id}`}
-                      aria-label={agent.name}
                       checked={isSelected}
                       disabled={isDisabled}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        if (!isDisabled) {
-                          onToggleAgent(agent.id);
-                        }
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-0.5 accent-primary cursor-pointer outline-none focus:outline-none"
+                      onChange={() => onToggleAgent(agent.id)}
+                      className="mt-0.5 accent-primary cursor-pointer"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span
-                          className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs truncate select-none"
+                        <label
+                          htmlFor={`agent-checkbox-${agent.id}`}
+                          className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs cursor-pointer truncate"
                         >
                           {agent.name}
-                        </span>
-                        <span className="material-symbols-outlined text-[16px] text-outline ml-1 shrink-0 select-none">
+                        </label>
+                        <span className="material-symbols-outlined text-[16px] text-outline ml-1 shrink-0">
                           {agent.icon}
                         </span>
                       </div>
-                      <p className="font-code-sm text-[11px] text-primary-container font-medium mt-0.5 select-none">
+                      <p className="font-code-sm text-[11px] text-primary-container font-medium mt-0.5">
                         Conducts: {agent.testName}
                       </p>
-                      <p className="font-code-sm text-code-sm text-outline mt-0.5 select-none">
+                      <p className="font-code-sm text-code-sm text-outline mt-0.5">
                         {agent.shortRole}
                       </p>
-                      <p className="font-body-xs text-body-xs text-on-surface-variant mt-1 leading-normal line-clamp-2 select-none">
+                      <p className="font-body-xs text-body-xs text-on-surface-variant mt-1 leading-normal line-clamp-2">
                         {agent.description}
                       </p>
                     </div>

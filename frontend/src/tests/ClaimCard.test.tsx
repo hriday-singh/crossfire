@@ -169,4 +169,35 @@ describe("ClaimCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Impact: critical/i)).toBeInTheDocument();
   });
+
+  it("passes activeActivities to running test rows in testing mode", () => {
+    render(
+      <ClaimCard
+        claim={{
+          id: "claim-active-1",
+          statement: "AI automated filings are accepted by agencies",
+          load_bearing: true,
+          status: null,
+        }}
+        isTestingMode={true}
+        tests={[
+          {
+            test_id: "t-act-1",
+            target_claim: "claim-active-1",
+            failure_mode: "evidence",
+            objective: "Verify agency policies",
+            state: "running",
+          },
+        ]}
+        activeActivities={{
+          evidence: 'Querying DuckDuckGo: "agency automated filing policies"',
+        }}
+      />
+    );
+
+    expect(screen.getByText(/evidence test/i)).toBeInTheDocument();
+    expect(
+      screen.getByText('Querying DuckDuckGo: "agency automated filing policies"')
+    ).toBeInTheDocument();
+  });
 });
