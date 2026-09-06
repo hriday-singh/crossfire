@@ -72,13 +72,13 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `devils_advocate.py` producing real `Finding` | `[x]` | Assumption test, prompt-only, isolated to single claim, zero tool chains |
 | `POST /cases/{id}/confirm` (202, non-blocking) | `[x]` | Validates state gate, launches background `run_pipeline()`, returns 202 immediately |
 | `GET /cases/{id}` | `[x]` | Returns full Case for evidence drawer |
-| `dispatch()` routing wired with Dev A | `[~]` | Evaluators ready; waiting for Dev A to implement `run_evaluators()` call site |
+| `dispatch()` routing wired with Dev A | `[x]` | Fully wired to `run_evaluators()`. Routes `evidence`→Receipts, `behavior`/`constraint`/`feasibility`→Builder, `assumption`→Devil's Advocate, `edge-case`/`alternative`→Overthinker with fallback |
 | SSE events verified against contract | `[x]` | Verified documented event ordering in SSE stream |
 | Claim-confirmation gate is real, not client-faked | `[x]` | Rejects confirm requests when not in `awaiting_confirmation` status |
 | `overthinker.py` (stretch) | `[x]` | Edge-case test evaluator implemented and unit tested |
 
 **Last updated:** Dev C
-**Note:** Checkpoint 1 and Checkpoint 2 deliverables complete. All 9 route and evaluator unit tests pass. `dispatch()` routing will be hooked into Dev A's `run_evaluators()` once Dev A writes the orchestrator in `core/loop.py`.
+**Note:** All Checkpoint 1, Checkpoint 2, and stretch deliverables complete. Evaluator `dispatch()` routing wired into `core.loop.run_evaluators`, `events.py` SSE transport and `core.loop.handle_confirm` verified end-to-end. All API, evaluator, and dispatch unit tests passing cleanly.
 
 
 ---
@@ -92,5 +92,6 @@ Anything that needs another dev's attention goes here, tagged with their name. C
 - **@Dev C** — resolved. Two SSE wiring bugs fixed in `api/routes.py`. (1) It kept its own `_case_queues` dict and tried `from core.loop import get_case_queue`, which does not exist — the ImportError fell through to a queue the pipeline never wrote to, so the stream emitted nothing forever. It now iterates `events.subscribe(case_id)`. (2) The generator broke on `None`, but `events.close()` puts a private `_DONE` sentinel, so it would have yielded a junk `event: message` frame and hung; `subscribe()` handles the sentinel itself. `_case_queues` is gone — do not reintroduce a second registry.
 - **@Dev C** — resolved. `confirm_case` did a bare `asyncio.create_task(run_pipeline(...))`. The event loop only weakly references tasks, so the run could be garbage-collected mid-flight. Now calls `core.loop.handle_confirm(case_id)`, which holds it in `_background_tasks`.
 - **@Dev B** — the pipeline reaches the evaluators now, but `TAVILY_API_KEY` is empty in `.env` and `DEMO_MODE=false` with `DEMO_FIXTURES` still an empty dict (`evidence/search.py:46`). So `run_receipts` degrades to a zero-evidence Finding, and `reconcile()` correctly refuses to build a verdict on no evidence — every claim still lands `unresolved`. Verified live: a single-claim run produces `findings: 1`, `evaluator=receipts`, `evidence=0`, `confidence=0.0`. This is now the only thing standing between the eval set and real verdicts. Needs either a Tavily key or `DEMO_MODE=true` plus populated fixtures.
-- **@Dev C** — `core/evaluators/builder.py` is live: `run_builder(item, case, provider) -> Finding`, `evaluator="builder"`, maps to the UI's **Feasibility Test**. Route the `constraint`/feasibility failure mode to it in `dispatch()`.
+- **@Dev C** — resolved. `core/evaluators/builder.py` mapped to `constraint`, `feasibility`, and `behavior` failure modes in `dispatch()` and covered by unit tests in `tests/evaluators/test_dispatch.py`.
 - **@Dev B / @Dev C** — resolved for C, open for B. API surface and confirmation gate are in and wired. Checkpoint 1 now hinges on real evidence only.
+
