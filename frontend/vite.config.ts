@@ -17,12 +17,36 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      "/ingest": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/health": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/ready": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
     },
   },
   preview: {
     port: 5173,
     proxy: {
       "/cases": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/ingest": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/health": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/ready": {
         target: "http://localhost:8000",
         changeOrigin: true,
       },

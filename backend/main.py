@@ -19,4 +19,14 @@ app.add_middleware(
 )
 
 
+@app.get("/health")
+@app.get("/ready")
+def health_check():
+    return {
+        "status": "ok",
+        "provider": settings.llm_provider,
+        "model": settings.llm_model,
+    }
+
+
 app.include_router(router)

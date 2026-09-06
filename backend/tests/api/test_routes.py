@@ -463,5 +463,123 @@ def test_post_ingest_pdf_scanned_rejected(client, monkeypatch):
     assert "Scanned or image-only PDF detected" in response.json()["detail"]
 
 
+def test_health_and_ready_endpoints(client):
+    from config import get_settings
+
+    settings = get_settings()
+
+    res_health = client.get("/health")
+    assert res_health.status_code == 200
+    data_health = res_health.json()
+    assert data_health["status"] == "ok"
+    assert data_health["provider"] == settings.llm_provider
+    assert data_health["model"] == settings.llm_model
+
+    res_ready = client.get("/ready")
+    assert res_ready.status_code == 200
+    data_ready = res_ready.json()
+    assert data_ready["status"] == "ok"
+    assert data_ready["provider"] == settings.llm_provider
+    assert data_ready["model"] == settings.llm_model
+
+
+def test_rate_limiter_disabled_by_default(client, fake_provider_factory):
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    provider = fake_provider_factory(
+        responses=[ExtractedClaims(statements=["Assertion"])] * 15
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        # Rate limiter is disabled by default: 11 requests should all succeed
+        for i in range(12):
+            res = client.post("/cases", json={"raw_input": f"Proposal attempt {i}"})
+            assert res.status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_rate_limiter_blocks_after_10_requests_per_minute_when_enabled(client, fake_provider_factory):
+    from api.rate_limiter import rate_limiter
+    from api.routes import get_llm_provider
+    from core.loop import ExtractedClaims
+    from main import app
+
+    rate_limiter.enabled = True
+    provider = fake_provider_factory(
+        responses=[ExtractedClaims(statements=["Assertion"])] * 15
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        # First 10 requests should succeed
+        for i in range(10):
+            res = client.post("/cases", json={"raw_input": f"Proposal attempt {i}"})
+            assert res.status_code == 200, f"Request {i+1} failed unexpectedly"
+
+        # 11th request from same IP should receive 429 Too Many Requests
+        res_blocked = client.post("/cases", json={"raw_input": "Proposal attempt 11"})
+        assert res_blocked.status_code == 429
+        assert "Rate limit exceeded" in res_blocked.json()["detail"]
+        assert "Retry-After" in res_blocked.headers
+
+        # Non-rate-limited endpoints like /health should still be accessible
+        res_health = client.get("/health")
+        assert res_health.status_code == 200
+    finally:
+        rate_limiter.enabled = False
+        rate_limiter.reset()
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_post_ingest_image_success(client, monkeypatch):
+    import base64
+
+    async def mock_ingest_image(source, claim_statement=None, provider=None):
+        assert isinstance(source, bytes)
+        return "Extracted Image text from mock OCR"
+
+    monkeypatch.setattr("api.routes.ingest_image", mock_ingest_image)
+
+    encoded = base64.b64encode(b"\x89PNG\r\n\x1a\n fake png").decode("ascii")
+    response = client.post(
+        "/ingest/image",
+        json={"image_base64": encoded, "claim_statement": "Target market"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["context"] == "Extracted Image text from mock OCR"
+    assert data["character_count"] == len("Extracted Image text from mock OCR")
+
+
+def test_post_ingest_image_invalid_base64(client):
+    response = client.post(
+        "/ingest/image",
+        json={"image_base64": "invalid-base64-character-string!@#"},
+    )
+    assert response.status_code == 400
+    assert "Invalid base64 image data" in response.json()["detail"]
+
+
+def test_post_ingest_image_empty_text_rejected(client, monkeypatch):
+    import base64
+
+    async def mock_ingest_image(source, claim_statement=None, provider=None):
+        return ""
+
+    monkeypatch.setattr("api.routes.ingest_image", mock_ingest_image)
+
+    encoded = base64.b64encode(b"dummy image bytes").decode("ascii")
+    response = client.post(
+        "/ingest/image",
+        json={"image_base64": encoded},
+    )
+    assert response.status_code == 400
+    assert "No extractable text found in image" in response.json()["detail"]
+
+
 
 

@@ -47,29 +47,29 @@ export const ConfirmScreen: React.FC = () => {
 
   const getClaimCategory = (statement: string, index: number) => {
     const s = statement.toLowerCase();
-    if (s.includes("trust") || s.includes("student") || s.includes("user")) {
-      return "Behavioral trust & delegation";
+    if (s.includes("trust") || s.includes("student") || s.includes("user") || s.includes("customer")) {
+      return "Behavioral trust & adoption";
     }
-    if (s.includes("competitor") || s.includes("market") || s.includes("pricing")) {
-      return "Market uniqueness & competitive moat";
+    if (s.includes("competitor") || s.includes("market") || s.includes("pricing") || s.includes("revenue") || s.includes("cost")) {
+      return "Market dynamics & unit economics";
     }
-    if (s.includes("theme") || s.includes("ui") || s.includes("onboarding")) {
-      return "User interface preference";
-    }
-    if (s.includes("parse") || s.includes("portal") || s.includes("api") || s.includes("technical")) {
+    if (s.includes("portal") || s.includes("api") || s.includes("technical") || s.includes("infra") || s.includes("scale") || s.includes("ai")) {
       return "Technical feasibility";
     }
-    return index % 2 === 0 ? "Strategic viability" : "Operational friction";
+    if (s.includes("legal") || s.includes("compliance") || s.includes("security") || s.includes("privacy")) {
+      return "Regulatory & compliance";
+    }
+    return index % 2 === 0 ? "Strategic premise" : "Operational requirement";
   };
 
-  const getClaimRisk = (claim: { load_bearing?: boolean | null }, index: number) => {
+  const getClaimRisk = (claim: { load_bearing?: boolean | null }) => {
     if (claim.load_bearing === false) {
-      return { label: "Low Risk", color: "text-outline" };
+      return { label: "Supporting", color: "text-outline" };
     }
-    if (index === 1) {
-      return { label: "Medium Risk", color: "text-tertiary" };
+    if (claim.load_bearing === true) {
+      return { label: "High Impact", color: "text-error" };
     }
-    return { label: "High Risk", color: "text-error" };
+    return { label: "Awaiting Scrutiny", color: "text-tertiary" };
   };
 
   return (
@@ -123,7 +123,7 @@ export const ConfirmScreen: React.FC = () => {
               const isEditing = editingClaimId === claim.id;
               const formattedId = `C-${String(index + 1).padStart(2, "0")}`;
               const category = getClaimCategory(claim.statement, index);
-              const risk = getClaimRisk(claim, index);
+              const risk = getClaimRisk(claim);
               const isLoadBearing = claim.load_bearing ?? true;
 
               return (
@@ -188,7 +188,7 @@ export const ConfirmScreen: React.FC = () => {
                             type="button"
                             onClick={(e) => handleToggleLoadBearing(e, claim.id)}
                             title="Click to toggle load-bearing"
-                            className={`px-2 py-0.5 rounded font-code-sm text-code-sm font-medium border transition-colors ${
+                            className={`px-2 py-0.5 rounded font-code-sm text-code-sm font-medium border transition-colors cursor-pointer ${
                               isLoadBearing
                                 ? "bg-primary-container/10 text-primary-container border-primary-container/20 hover:bg-primary-container/20"
                                 : "bg-surface-container-high text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-highest"
@@ -212,8 +212,9 @@ export const ConfirmScreen: React.FC = () => {
                           ? handleSaveEdit(claim.id)
                           : handleStartEdit(claim.id, claim.statement)
                       }
-                      className="btn-edit p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-surface-container-lowest"
+                      className="btn-edit p-2 text-outline hover:text-primary transition-colors rounded hover:bg-surface-container-lowest min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
                       title={isEditing ? "Save Claim" : "Edit Claim"}
+                      aria-label={isEditing ? `Save claim ${formattedId}` : `Edit claim ${formattedId}`}
                     >
                       <span className="material-symbols-outlined text-[18px]">
                         {isEditing ? "check" : "edit"}
@@ -222,8 +223,9 @@ export const ConfirmScreen: React.FC = () => {
                     <button
                       type="button"
                       onClick={(e) => handleDeleteClaim(e, claim.id)}
-                      className="btn-delete p-1.5 text-outline hover:text-error transition-colors rounded hover:bg-surface-container-lowest"
+                      className="btn-delete p-2 text-outline hover:text-error transition-colors rounded hover:bg-surface-container-lowest min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
                       title="Remove Claim"
+                      aria-label={`Remove claim ${formattedId}`}
                     >
                       <span className="material-symbols-outlined text-[18px]">delete</span>
                     </button>

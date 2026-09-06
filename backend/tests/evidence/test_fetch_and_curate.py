@@ -116,6 +116,21 @@ async def test_fetch_failure_drops_the_source_without_crashing(
     assert finding.evaluator == "receipts"
 
 
+@pytest.mark.asyncio
+async def test_fetch_page_times_out_strictly_and_returns_empty(monkeypatch):
+    import asyncio
+    from evidence.fetch import fetch_page
+
+    async def hanging_fetch(url: str) -> str:
+        await asyncio.sleep(2.0)
+        return "too late"
+
+    monkeypatch.setattr("evidence.fetch._do_fetch", hanging_fetch)
+    # Using 0.05s timeout to test timeout handling quickly without slowing test suite
+    res = await fetch_page("https://example.com/slow", timeout=0.05)
+    assert res == ""
+
+
 def test_curate_truncates_to_relevant_sentences(sample_claim):
     """curate() reduces arbitrary text down to 1-3 sentences relevant to the claim."""
     from evidence.curate import curate

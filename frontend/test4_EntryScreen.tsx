@@ -434,20 +434,6 @@ export const EntryScreen: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* FAQ Discovery Quick-Link */}
-          <div className="mt-space-4 flex items-center justify-end">
-            <button
-              type="button"
-              onClick={() => setActiveModal("faq")}
-              className="flex items-center gap-1.5 text-outline hover:text-on-surface font-code-sm text-code-sm transition-colors cursor-pointer group"
-            >
-              <span className="material-symbols-outlined text-[15px] text-outline group-hover:text-primary-container">
-                help_outline
-              </span>
-              <span>How does Crossfire work? View FAQ</span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -464,13 +450,6 @@ export const EntryScreen: React.FC = () => {
             >
               GitHub
             </a>
-            <button
-              type="button"
-              onClick={() => setActiveModal("faq")}
-              className="hover:text-on-surface transition-colors cursor-pointer"
-            >
-              FAQ
-            </button>
             <button
               type="button"
               onClick={() => setActiveModal("logs")}

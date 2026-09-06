@@ -3,9 +3,9 @@ Owner: Dev B. PDF text extraction and ingestion feeding Case.context.
 See docs/03-dev-B-evidence-receipts.md hour 35+ stretch.
 
 Guarantees:
-- Extracts clean text using pypdf
+- Extracts clean text using pypdf for digital text layers (<10ms)
+- Automatically falls back to RapidOCR via PyMuPDF page rasterization for scanned/photo PDFs
 - Feeds Case.context via same curation step
-- Rejects scanned/image-only PDFs cleanly with explicit error (no OCR path)
 """
 from __future__ import annotations
 
@@ -28,8 +28,8 @@ def extract_pdf_text(source: str | Path | bytes | BinaryIO) -> str:
 
     Raises:
         FileNotFoundError: If a file path is passed but does not exist.
-        ValueError: If the PDF contains no pages or is a scanned/image-only PDF
-            with no extractable text (OCR is intentionally unsupported).
+        ValueError: If the PDF contains no pages or if neither digital text extraction
+            nor RapidOCR detects extractable text.
     """
     stream: BinaryIO | str | Path
     if isinstance(source, (str, Path)):
@@ -62,11 +62,23 @@ def extract_pdf_text(source: str | Path | bytes | BinaryIO) -> str:
     full_text = "\n\n".join(extracted_pages).strip()
     non_ws_chars = len(re.sub(r"\s+", "", full_text))
 
-    # Reject scanned or image-only PDFs with no extractable text
+    # If digital text is thin or absent (< 20 non-whitespace chars), fall back to RapidOCR
+    # via PyMuPDF page rasterization to extract text from scanned/photo pages.
     if non_ws_chars < 20:
+        logger.info("Thin or absent digital text layer: attempting RapidOCR on rasterized PDF pages")
+        try:
+            from ingestion.ocr import ocr_pdf_pages
+
+            ocr_text = ocr_pdf_pages(source)
+            if ocr_text and len(re.sub(r"\s+", "", ocr_text)) >= 20:
+                return ocr_text
+        except Exception as ocr_err:
+            logger.warning(f"RapidOCR PDF fallback failed: {ocr_err}")
+
+        # If both digital extraction and OCR found no text, raise ValueError
         raise ValueError(
-            "Scanned or image-only PDF detected: no extractable text found. "
-            "OCR is not supported."
+            "No extractable text found in PDF document. Digital text layer is empty "
+            "and OCR detected no recognizable text."
         )
 
     return full_text

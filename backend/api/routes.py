@@ -18,15 +18,17 @@ from api.schemas import (
     ConfirmCaseRequest,
     ConfirmCaseResponse,
     CreateCaseRequest,
+    IngestImageRequest,
     IngestPdfRequest,
     IngestResponse,
     IngestUrlRequest,
 )
 from core.loop import extract_claims, handle_confirm
 from core.models import Case
-from ingestion import ingest_pdf, ingest_url
+from ingestion import ingest_image, ingest_pdf, ingest_url
 from providers import get_provider
 from providers.base import LLMProvider
+from api.rate_limiter import rate_limit_public_endpoint
 
 
 router = APIRouter()
@@ -38,7 +40,12 @@ def get_llm_provider() -> LLMProvider:
 
 
 
-@router.post("/cases", response_model=Case, status_code=status.HTTP_200_OK)
+@router.post(
+    "/cases",
+    response_model=Case,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit_public_endpoint)],
+)
 async def create_case(
     payload: CreateCaseRequest,
     provider: Annotated[LLMProvider, Depends(get_llm_provider)],
@@ -80,11 +87,11 @@ async def stream_case(case_id: str) -> StreamingResponse:
         raise HTTPException(status_code=404, detail="Case not found")
 
     async def event_generator():
-        # Fast path if case has already finished and event queue is closed/empty
-        if case.status == "done" and (events.is_closed(case_id) or events.get_queue(case_id).empty()):
+        # Fast path if case has already finished and no event history exists to replay
+        if case.status == "done" and not events.get_history(case_id):
             yield f"event: run_complete\ndata: {json.dumps({'case_id': case_id})}\n\n"
             return
-        if case.status == "error" and (events.is_closed(case_id) or events.get_queue(case_id).empty()):
+        if case.status == "error" and not events.get_history(case_id):
             yield f"event: error\ndata: {json.dumps({'stage': 'run_pipeline', 'message': 'Case previously failed'})}\n\n"
             return
 
@@ -181,6 +188,7 @@ async def get_case(case_id: str) -> Case:
     "/ingest/url",
     response_model=IngestResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit_public_endpoint)],
 )
 async def handle_ingest_url(
     payload: IngestUrlRequest,
@@ -212,6 +220,7 @@ async def handle_ingest_url(
     "/ingest/pdf",
     response_model=IngestResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit_public_endpoint)],
 )
 async def handle_ingest_pdf(
     payload: IngestPdfRequest,
@@ -245,4 +254,52 @@ async def handle_ingest_pdf(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to ingest PDF: {exc}",
         )
+
+
+@router.post(
+    "/ingest/image",
+    response_model=IngestResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit_public_endpoint)],
+)
+async def handle_ingest_image(
+    payload: IngestImageRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> IngestResponse:
+    """
+    POST /ingest/image: Ingests base64-encoded image content (PNG, JPG, WEBP),
+    extracts text via RapidOCR, curates it, and returns context.
+    """
+    try:
+        image_bytes = base64.b64decode(payload.image_base64, validate=True)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid base64 image data: {exc}",
+        )
+
+    try:
+        context = await ingest_image(
+            source=image_bytes,
+            claim_statement=payload.claim_statement,
+            provider=provider,
+        )
+        if not context or not context.strip():
+            raise ValueError(
+                "No extractable text found in image: OCR detected no recognizable text or confidence was below threshold."
+            )
+        return IngestResponse(context=context, character_count=len(context))
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to ingest image: {exc}",
+        )
+
 

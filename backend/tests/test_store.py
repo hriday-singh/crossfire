@@ -58,3 +58,18 @@ def test_store_set_overwrites_existing():
     assert updated is not None
     assert updated.status == "done"
     assert updated.raw_input == "Version 2"
+
+
+def test_store_persists_across_cache_clear():
+    case = Case(id="case-persist-400", raw_input="Persistent Case", status="extracting")
+    store.set(case)
+
+    # Evict only the in-memory dict (simulate process restart without running _clear_db)
+    super(store.CaseDict, store._cases).clear()
+    assert "case-persist-400" not in store._cases
+
+    # store.get should re-fetch and hydrate from SQLite
+    hydrated = store.get("case-persist-400")
+    assert hydrated is not None
+    assert hydrated.id == "case-persist-400"
+    assert hydrated.raw_input == "Persistent Case"

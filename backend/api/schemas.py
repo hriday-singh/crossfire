@@ -37,6 +37,11 @@ class IngestPdfRequest(BaseModel):
     claim_statement: str | None = Field(default=None, description="Optional claim statement to focus curation on")
 
 
+class IngestImageRequest(BaseModel):
+    image_base64: str = Field(..., description="Base64-encoded binary content of the image (PNG, JPG, WEBP)")
+    claim_statement: str | None = Field(default=None, description="Optional claim statement to focus curation on")
+
+
 class IngestResponse(BaseModel):
     context: str = Field(..., description="Curated context extracted from the document or URL")
     character_count: int = Field(..., description="Length of the extracted context in characters")

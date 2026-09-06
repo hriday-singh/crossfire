@@ -89,27 +89,115 @@ async def classify_load_bearing(claim: Claim, case: Case, provider: LLMProvider)
     return result.answer
 
 
-# Keyword buckets, checked in order — first match wins. Routes claims by what
-# they actually need tested, not round-robin across evaluators.
-_FAILURE_MODE_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
-    ("assumption", ("assume", "premise", "expect", "suppose", "believe", "willing", "natural", "obvious", "users prefer", "people want")),
-    ("evidence", ("pay", "trust", "adopt", "will use", "demand")),
-    ("behavior", ("will scale", "performance", "latency", "load", "concurrent")),
-    ("constraint", ("compliance", "certif", "legal", "regulat", "theme", "screen")),
-    ("alternative", ("only option", "no competitor", "unique", "first")),
+# Keyword buckets with weights. Routes claims by what they actually need tested
+# using weighted scoring so specific empirical/evidence, behavioral, or constraint
+# signals take precedence over generic assumption markers (e.g. 'assume', 'expect').
+_FAILURE_MODE_WEIGHTS: list[tuple[str, list[tuple[str, float]]]] = [
+    (
+        "evidence",
+        [
+            ("pay", 2.5),
+            ("$", 2.5),
+            ("dollar", 2.5),
+            ("price", 2.5),
+            ("pricing", 2.5),
+            ("cost", 2.5),
+            ("revenue", 2.5),
+            ("demand", 2.5),
+            ("adopt", 2.5),
+            ("trust", 2.5),
+            ("will use", 2.0),
+            ("churn", 2.5),
+            ("conversion", 2.5),
+            ("sales", 2.5),
+            ("market", 2.0),
+        ],
+    ),
+    (
+        "behavior",
+        [
+            ("will scale", 2.5),
+            ("scale", 2.0),
+            ("performance", 2.0),
+            ("latency", 2.0),
+            ("load", 2.0),
+            ("concurrent", 2.0),
+            ("throughput", 2.0),
+            ("qps", 2.0),
+            ("uptime", 2.0),
+        ],
+    ),
+    (
+        "constraint",
+        [
+            ("compliance", 2.5),
+            ("certif", 2.0),
+            ("legal", 2.0),
+            ("regulat", 2.0),
+            ("hipaa", 2.5),
+            ("gdpr", 2.5),
+            ("soc2", 2.5),
+            ("theme", 2.0),
+            ("screen", 2.0),
+        ],
+    ),
+    (
+        "alternative",
+        [
+            ("only option", 2.5),
+            ("no competitor", 2.5),
+            ("unique", 2.0),
+            ("first to market", 2.5),
+            ("first", 1.5),
+            ("unprecedented", 2.0),
+            ("novel", 1.5),
+        ],
+    ),
+    (
+        "assumption",
+        [
+            ("assume", 1.0),
+            ("premise", 1.0),
+            ("expect", 1.0),
+            ("suppose", 1.0),
+            ("believe", 1.0),
+            ("willing", 1.0),
+            ("natural", 1.0),
+            ("obvious", 1.0),
+            ("users prefer", 1.5),
+            ("people want", 1.5),
+        ],
+    ),
 ]
-
 
 
 def build_test_plan(case: Case) -> list[TestPlanItem]:
     items: list[TestPlanItem] = []
     for claim in case.claims:
         statement_lower = claim.statement.lower()
-        failure_mode = "evidence"  # default: most claims need evidence testing
-        for mode, keywords in _FAILURE_MODE_KEYWORDS:
-            if any(kw in statement_lower for kw in keywords):
-                failure_mode = mode
-                break
+        mode_scores: dict[str, float] = {}
+
+        for mode, weighted_keywords in _FAILURE_MODE_WEIGHTS:
+            score = sum(
+                weight
+                for kw, weight in weighted_keywords
+                if kw in statement_lower
+            )
+            if score > 0:
+                mode_scores[mode] = score
+
+        if mode_scores:
+            # Pick highest score; tie-breaker preserves order in _FAILURE_MODE_WEIGHTS
+            failure_mode = max(
+                mode_scores.keys(),
+                key=lambda m: (
+                    mode_scores[m],
+                    -[fm[0] for fm in _FAILURE_MODE_WEIGHTS].index(m),
+                ),
+            )
+        else:
+            failure_mode = "evidence"  # default: most claims need evidence testing
+
         items.append(
             TestPlanItem(
                 id=str(uuid4()),

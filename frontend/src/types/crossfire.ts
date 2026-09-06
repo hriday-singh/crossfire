@@ -64,6 +64,8 @@ export interface Case {
   findings: Finding[];
   consequences: DecisionConsequence[];
   status: CaseStatus;
+  started_at?: number | null;
+  completed_at?: number | null;
 }
 
 // API schema types
@@ -80,6 +82,26 @@ export interface ConfirmCaseResponse {
   case_id: string;
   status: string;
   message: string;
+}
+
+export interface IngestUrlRequest {
+  url: string;
+  claim_statement?: string | null;
+}
+
+export interface IngestPdfRequest {
+  pdf_base64: string;
+  claim_statement?: string | null;
+}
+
+export interface IngestImageRequest {
+  image_base64: string;
+  claim_statement?: string | null;
+}
+
+export interface IngestResponse {
+  context: string;
+  character_count: number;
 }
 
 // SSE Event frames

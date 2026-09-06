@@ -173,6 +173,23 @@ async def test_build_test_plan_routes_assumption_claims_to_assumption_mode():
     assert all(item.failure_mode == "assumption" for item in plan)
 
 
+@pytest.mark.asyncio
+async def test_build_test_plan_routes_mixed_assumption_and_evidence_to_evidence_mode():
+    from core.loop import build_test_plan
+    from core.models import Case, Claim
+
+    case = Case(
+        id="case-mixed",
+        raw_input="Enterprise SaaS",
+        claims=[
+            Claim(id="c1", statement="We assume enterprise clients will pay $50k/year"),
+            Claim(id="c2", statement="We expect customer demand will drive subscription pricing"),
+        ],
+    )
+    plan = build_test_plan(case)
+    assert all(item.failure_mode == "evidence" for item in plan)
+
+
 
 # --- Hour 18-25: reconcile() ---
 

@@ -185,24 +185,26 @@ async def search_evidence(claim: Claim) -> list[EvidenceItem]:
 
 `DEMO_MODE` is a `.env`-driven flag, and the fixture is keyed by the actual `claim_id` from the demo's prepared case, not a fuzzy text match — flip it off for the internal eval set in section 11, on for the live pitch.
 
-## 6. Document ingestion (stretch item, but spec it now so it drops in cleanly later)
+## 6. Document & Image Ingestion (RapidOCR & PyMuPDF)
 
-Revised: `ocrmypdf` is cut. It requires Tesseract, Ghostscript, and QPDF as native system packages, and getting three laptops on different OSes to agree on that install under hackathon time pressure is an avoidable risk for a stretch feature. We're also not routing raw PDF bytes through `google-genai`'s multimodal document handling as the replacement — that reintroduces the exact "don't dump the full thing into the model's context" problem this pipeline exists to avoid, since a multimodal PDF call bills per page as image tokens with no curation step in between.
+RapidOCR (`rapidocr_onnxruntime`) and PyMuPDF (`pymupdf`) provide system-dependency-free OCR for images (screenshots, JPEGs, PNGs) and scanned/photo PDFs without native system packages (no Tesseract, Ghostscript, poppler, or QPDF required).
 
 ```
-uploaded PDF -> pdfplumber / pypdf extracts text directly (zero system dependencies)
-             -> same curation step as section 5 (truncate to what's relevant to the stated decision)
-             -> stored as Case.context
+uploaded PDF -> pypdf extracts digital text layer directly (<10ms)
+             -> if digital text is present (>20 chars):
+                -> curate_snippet bounds context to <= 2,000 chars -> Case.context
+             -> if scanned or image-only (<20 chars):
+                -> pymupdf renders pages to 150 DPI PNG images in memory
+                -> RapidOCR extracts text from rendered page images
+                -> curate_snippet bounds context -> Case.context
 
-  if the PDF has no extractable text layer (scanned/image-only):
-             -> reject with a clear error ("text-based PDFs only for this build") — no OCR path in v1
+uploaded image (PNG/JPG) -> RapidOCR extracts text from image bytes
+                         -> curate_snippet bounds context -> Case.context
 ```
 
-Since document/URL ingestion is already a stretch item in both source docs, not core, scoping it to text-based PDFs only is the same "cut what doesn't prove the thesis" logic the docs already apply elsewhere (Overthinker, the third provider) — not a regression. Revisit OCR post-hackathon, deliberately, rather than solving it under time pressure for a feature that might not even make the cut.
+This eliminates the need for expensive multimodal raw image token calls while keeping OCR processing 100% local, fast, and free of OS-level C dependencies.
 
 A pasted URL follows a different path from a Tavily-found source, since there's no Tavily result to curate from here: straight to the same Scrapling fetch used for load-bearing deep-verification in section 5, then the same curation step. Both feed `Case.context`, not a new field — a document or URL is context for the case, never a second product, per your own docs.
-
-Direct image uploads (a screenshot, a photo of a whiteboard) are explicitly out of scope — both source docs cut this input type, and nothing in this revision reopens it. If that scope decision changes later, a system-dependency-free OCR library is the right shape for it (the same reasoning that got `ocrmypdf` cut applies), but that's a decision for after this spec is frozen, not inside it.
 
 ## 7. SSE event schema
 

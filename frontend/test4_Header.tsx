@@ -173,17 +173,6 @@ export const Header: React.FC = () => {
             )}
           </button>
 
-          {/* Frequently Asked Questions */}
-          <button
-            type="button"
-            onClick={() => setActiveModal("faq")}
-            aria-label="View frequently asked questions"
-            title="FAQ & Decision Testing Guide"
-            className="text-outline hover:text-on-surface transition-colors flex items-center justify-center p-2 rounded hover:bg-surface-container cursor-pointer min-h-[36px] min-w-[36px]"
-          >
-            <span className="material-symbols-outlined text-[18px]">help_outline</span>
-          </button>
-
           {/* Case History & Settings */}
           <button
             type="button"

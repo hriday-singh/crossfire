@@ -9,7 +9,6 @@ import { DashboardScreen } from "@/components/screens/DashboardScreen";
 
 import { LiveLogsDrawer } from "@/components/features/LiveLogsDrawer";
 import { HistoryModal } from "@/components/features/HistoryModal";
-import { FaqDrawer } from "@/components/features/FaqDrawer";
 
 const AppContent: React.FC = () => {
   const { state, dispatch } = useCase();
@@ -42,9 +41,6 @@ const AppContent: React.FC = () => {
 
       {/* Case History & Settings Drawer */}
       <HistoryModal />
-
-      {/* Frequently Asked Questions Drawer */}
-      <FaqDrawer />
     </div>
   );
 };

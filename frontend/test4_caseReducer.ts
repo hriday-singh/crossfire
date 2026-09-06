@@ -21,7 +21,7 @@ export interface AppState {
   selectedClaimId: string | null;
   activeTests: Record<string, ActiveTestRow>;
   caseHistory: Case[];
-  activeModal: "none" | "history" | "logs" | "faq";
+  activeModal: "none" | "history" | "logs";
   startedAt: number | null;
   completedAt: number | null;
 }

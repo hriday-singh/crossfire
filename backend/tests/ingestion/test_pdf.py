@@ -71,10 +71,22 @@ def test_extract_pdf_text_file_not_found():
 
 
 def test_extract_pdf_text_scanned_or_blank_pdf_raises_value_error():
-    """Scanned or image-only PDFs with no extractable text must cleanly raise ValueError (no OCR)."""
+    """Scanned or image-only PDFs with no extractable text in digital layer and OCR must cleanly raise ValueError."""
     blank_bytes = make_blank_pdf()
-    with pytest.raises(ValueError, match="Scanned or image-only PDF detected"):
+    with pytest.raises(ValueError, match="No extractable text found in PDF document"):
         extract_pdf_text(blank_bytes)
+
+
+def test_extract_pdf_text_scanned_fallback_to_ocr(monkeypatch):
+    """When digital text layer has fewer than 20 chars, falls back to ocr_pdf_pages."""
+    blank_bytes = make_blank_pdf()
+
+    def mock_ocr(source, max_pages=15, dpi=150):
+        return "This is OCR extracted text from a scanned PDF page with more than 20 characters."
+
+    monkeypatch.setattr("ingestion.ocr.ocr_pdf_pages", mock_ocr)
+    extracted = extract_pdf_text(blank_bytes)
+    assert "This is OCR extracted text from a scanned PDF page" in extracted
 
 
 @pytest.mark.asyncio

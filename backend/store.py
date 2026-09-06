@@ -1,20 +1,93 @@
 """
-Owner: Dev A. In-memory dict[case_id -> Case] for the hackathon. No DB.
+Owner: Dev A. SQLite-backed persistent store for Case objects.
+Replaces volatile in-memory storage so cases survive process restarts.
 """
 from __future__ import annotations
 
+import os
+import sqlite3
+from pathlib import Path
+
 from core.models import Case
 
-_cases: dict[str, Case] = {}
+_DB_PATH = Path(os.getenv("SQLITE_DB_PATH", Path(__file__).parent / "crossfire.db"))
+
+
+def _get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _init_db() -> None:
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cases (
+                id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_cases_updated_at ON cases(updated_at)")
+
+
+_init_db()
+
+
+def _clear_db() -> None:
+    with _get_connection() as conn:
+        conn.execute("DELETE FROM cases")
+
+
+class CaseDict(dict):
+    def clear(self) -> None:
+        super().clear()
+        _clear_db()
+
+
+_cases: dict[str, Case] = CaseDict()
 
 
 def get(case_id: str) -> Case | None:
-    return _cases.get(case_id)
+    if case_id in _cases:
+        return _cases[case_id]
+
+    with _get_connection() as conn:
+        cur = conn.execute("SELECT data FROM cases WHERE id = ?", (case_id,))
+        row = cur.fetchone()
+        if row:
+            case = Case.model_validate_json(row["data"])
+            _cases[case_id] = case
+            return case
+
+    return None
 
 
 def set(case: Case) -> None:
     _cases[case.id] = case
+    data_json = case.model_dump_json()
+
+    with _get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO cases (id, data, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                data = excluded.data,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (case.id, data_json),
+        )
 
 
 def delete(case_id: str) -> None:
     _cases.pop(case_id, None)
+    with _get_connection() as conn:
+        conn.execute("DELETE FROM cases WHERE id = ?", (case_id,))
+
+
+def clear() -> None:
+    _cases.clear()

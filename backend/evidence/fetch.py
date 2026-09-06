@@ -78,8 +78,10 @@ def is_safe_url(url: str) -> bool:
 
 
 
+import asyncio
+
 @retry(
-    stop=stop_after_attempt(2),
+    stop=stop_after_attempt(1),
     wait=wait_exponential(multiplier=0.1, min=0.1, max=0.5),
     retry=retry_if_not_exception_type((ValueError, AssertionError)),
     reraise=True,
@@ -97,11 +99,11 @@ async def _do_fetch(url: str) -> str:
     return text or ""
 
 
-async def fetch_page(url: str) -> str:
+async def fetch_page(url: str, timeout: float = 5.0) -> str:
     """Fetches full page text using Scrapling for deep verification.
 
     - Rejects search engine results pages directly (structural invariant)
-    - Retries transient failures
+    - Times out strictly at 5s per URL, returning empty string on timeout
     - Returns empty string on dead link or un-bypassable bot wall (never crashes)
     """
     if is_serp_url(url):
@@ -113,9 +115,11 @@ async def fetch_page(url: str) -> str:
     if not is_safe_url(url):
         raise ValueError(f"Fetching private or unsafe URL is disallowed: {url}")
 
-
     try:
-        return await _do_fetch(url)
+        return await asyncio.wait_for(_do_fetch(url), timeout=timeout)
+    except asyncio.TimeoutError:
+        logger.warning(f"Scrapling fetch timed out after {timeout}s for URL {url}")
+        return ""
     except (ValueError, AssertionError):
         raise
     except Exception as exc:

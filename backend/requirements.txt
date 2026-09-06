@@ -7,3 +7,5 @@ google-genai
 scrapling[fetchers]
 tenacity
 pypdf
+rapidocr_onnxruntime
+pymupdf

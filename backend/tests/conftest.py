@@ -16,6 +16,17 @@ below (`pip install pytest pytest-asyncio`, and either mark async tests with
 from __future__ import annotations
 
 import pytest
+import events
+from api.rate_limiter import rate_limiter
+
+@pytest.fixture(autouse=True)
+def reset_events_fixture():
+    events.reset()
+    rate_limiter.reset()
+    yield
+    events.reset()
+    rate_limiter.reset()
+
 
 from core.models import (
     Case,

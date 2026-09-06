@@ -5,8 +5,13 @@ import {
   confirmCase,
   getCase,
   getStreamUrl,
+  ingestImage,
+  ingestPdf,
+  ingestUrl,
+  getHealth,
+  fileToBase64,
 } from "@/lib/api";
-import { Case, ConfirmCaseResponse } from "@/types/crossfire";
+import { Case, ConfirmCaseResponse, IngestResponse } from "@/types/crossfire";
 
 describe("api client", () => {
   beforeEach(() => {
@@ -157,6 +162,221 @@ describe("api client", () => {
       expect(getStreamUrl("case/with/slashes", "http://localhost:8000")).toBe(
         "http://localhost:8000/cases/case%2Fwith%2Fslashes/stream"
       );
+    });
+  });
+
+  describe("fileToBase64", () => {
+    it("converts Blob/File to raw base64 string", async () => {
+      const blob = new Blob(["Hello PDF content"], { type: "application/pdf" });
+      const b64 = await fileToBase64(blob);
+      expect(typeof b64).toBe("string");
+      expect(b64.length).toBeGreaterThan(0);
+      // Verify decoded content equals original
+      const decoded = atob(b64);
+      expect(decoded).toBe("Hello PDF content");
+    });
+  });
+
+  describe("ingestPdf", () => {
+    it("posts base64 PDF payload to /ingest/pdf and returns IngestResponse", async () => {
+      const mockResponse: IngestResponse = {
+        context: "Extracted and curated context from PDF document",
+        character_count: 48,
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const res = await ingestPdf("SGVsbG8gUERGCg==", "Focus claim statement");
+      expect(fetch).toHaveBeenCalledWith(
+        "/ingest/pdf",
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pdf_base64: "SGVsbG8gUERGCg==",
+            claim_statement: "Focus claim statement",
+          }),
+        })
+      );
+      expect(res).toEqual(mockResponse);
+    });
+
+    it("accepts a File object and encodes it automatically", async () => {
+      const mockResponse: IngestResponse = {
+        context: "Extracted file context",
+        character_count: 22,
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const file = new File(["dummy pdf data"], "memo.pdf", { type: "application/pdf" });
+      const res = await ingestPdf(file);
+      expect(res).toEqual(mockResponse);
+      expect(fetch).toHaveBeenCalledWith(
+        "/ingest/pdf",
+        expect.objectContaining({
+          method: "POST",
+        })
+      );
+    });
+
+    it("throws CrossfireApiError on non-ok status like scanned PDF", async () => {
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          detail: "Scanned or image-only PDF detected: no extractable text found.",
+        }),
+      });
+
+      await expect(ingestPdf("dummy-base64")).rejects.toThrow(
+        "Scanned or image-only PDF detected: no extractable text found."
+      );
+    });
+  });
+
+  describe("ingestUrl", () => {
+    it("posts URL to /ingest/url and returns IngestResponse", async () => {
+      const mockResponse: IngestResponse = {
+        context: "Curated article text from target website",
+        character_count: 41,
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const res = await ingestUrl("https://example.com/article", "Target claim");
+      expect(fetch).toHaveBeenCalledWith(
+        "/ingest/url",
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: "https://example.com/article",
+            claim_statement: "Target claim",
+          }),
+        })
+      );
+      expect(res).toEqual(mockResponse);
+    });
+
+    it("throws CrossfireApiError if SERP URL is rejected", async () => {
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          detail: "Direct search engine results page ingestion is disallowed.",
+        }),
+      });
+
+      await expect(ingestUrl("https://google.com/search?q=test")).rejects.toThrow(
+        "Direct search engine results page ingestion is disallowed."
+      );
+    });
+  });
+
+  describe("ingestImage", () => {
+    it("posts base64 image payload to /ingest/image and returns IngestResponse", async () => {
+      const mockResponse: IngestResponse = {
+        context: "Extracted and curated context from screenshot image",
+        character_count: 50,
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const res = await ingestImage("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "Focus claim");
+      expect(fetch).toHaveBeenCalledWith(
+        "/ingest/image",
+        expect.objectContaining({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_base64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            claim_statement: "Focus claim",
+          }),
+        })
+      );
+      expect(res).toEqual(mockResponse);
+    });
+
+    it("accepts a File object and encodes it automatically", async () => {
+      const mockResponse: IngestResponse = {
+        context: "Extracted screenshot context",
+        character_count: 28,
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const file = new File(["dummy image png data"], "screenshot.png", { type: "image/png" });
+      const res = await ingestImage(file);
+      expect(res).toEqual(mockResponse);
+      expect(fetch).toHaveBeenCalledWith(
+        "/ingest/image",
+        expect.objectContaining({
+          method: "POST",
+        })
+      );
+    });
+
+    it("throws CrossfireApiError on non-ok status like no extractable text", async () => {
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          detail: "No extractable text found in image: OCR detected no text.",
+        }),
+      });
+
+      await expect(ingestImage("dummy-base64")).rejects.toThrow(
+        "No extractable text found in image: OCR detected no text."
+      );
+    });
+  });
+
+  describe("getHealth", () => {
+    it("fetches backend health and returns provider and model information", async () => {
+      const mockHealth = {
+        status: "ok",
+        provider: "openai_compat",
+        model: "gemini-3.7-flash",
+      };
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockHealth,
+      });
+
+      const res = await getHealth();
+      expect(fetch).toHaveBeenCalledWith(
+        "/health",
+        expect.objectContaining({
+          method: "GET",
+        })
+      );
+      expect(res).toEqual(mockHealth);
+    });
+
+    it("throws CrossfireApiError on failure", async () => {
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+      });
+
+      await expect(getHealth()).rejects.toThrow("Failed to fetch health (503)");
     });
   });
 });
