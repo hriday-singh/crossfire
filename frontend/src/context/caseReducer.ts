@@ -55,10 +55,13 @@ export type AppAction =
   | { type: "RESET_CASE" }
   | { type: "LOAD_CASE"; payload: Case }
   | { type: "UPDATE_CASE"; payload: Case }
+  | { type: "NAVIGATE_SCREEN"; payload: ScreenView }
   | { type: "CLEAR_ERROR" };
 
 export function caseReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "NAVIGATE_SCREEN":
+      return { ...state, activeScreen: action.payload };
     case "SET_ACTIVE_MODAL":
       return { ...state, activeModal: action.payload };
 

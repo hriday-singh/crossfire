@@ -26,7 +26,7 @@ export const TestRow: React.FC<TestRowProps> = ({
   return (
     <div
       className={cn(
-        "group flex flex-col gap-1.5 rounded-md border border-border/40 bg-zinc-950/60 p-3 transition-colors",
+        "group flex flex-col gap-2 rounded-lg border border-zinc-800/80 bg-zinc-900/60 p-3.5 transition-colors",
         isRunning && "border-indigo-500/40 bg-indigo-950/20",
         className
       )}
@@ -36,11 +36,11 @@ export const TestRow: React.FC<TestRowProps> = ({
           {isRunning ? (
             <Loader2 size={15} className="animate-spin text-indigo-400 shrink-0" />
           ) : isCompleted ? (
-            <CircleCheck size={15} className="text-zinc-400 shrink-0" />
+            <CircleCheck size={15} className="text-emerald-400 shrink-0" />
           ) : (
-            <Circle size={15} className="text-zinc-600 shrink-0 stroke-dashed" />
+            <Circle size={15} className="text-zinc-500 shrink-0 stroke-dashed" />
           )}
-          <span className="font-mono text-xs font-semibold tracking-wider text-zinc-300 uppercase">
+          <span className="font-mono text-xs font-semibold tracking-wider text-zinc-200 uppercase">
             {testLabel}
           </span>
         </div>
@@ -56,9 +56,9 @@ export const TestRow: React.FC<TestRowProps> = ({
             className={cn(
               "font-mono text-xs",
               isRunning
-                ? "text-indigo-400 animate-pulse"
+                ? "text-indigo-400 font-medium animate-pulse"
                 : isCompleted
-                ? "text-zinc-400"
+                ? "text-zinc-400 font-medium"
                 : "text-zinc-500"
             )}
           >
@@ -68,17 +68,17 @@ export const TestRow: React.FC<TestRowProps> = ({
       </div>
 
       {finding && (
-        <div className="mt-1 flex flex-col gap-1 border-t border-border/30 pt-2 text-xs">
+        <div className="mt-1 flex flex-col gap-1 border-t border-zinc-800/80 pt-2.5 text-xs">
           <div className="font-medium text-zinc-200">
             {finding.result}
           </div>
           {finding.reasoning && (
-            <div className="text-muted-foreground line-clamp-2 leading-relaxed">
+            <div className="text-zinc-400 line-clamp-2 leading-relaxed">
               {finding.reasoning}
             </div>
           )}
           {finding.evidence && finding.evidence.length > 0 && (
-            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
+            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
               <span>{finding.evidence.length} source{finding.evidence.length > 1 ? "s" : ""} verified</span>
             </div>
           )}

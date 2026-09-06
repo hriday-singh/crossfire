@@ -47,9 +47,7 @@ async def create_case(
     POST /cases: Extract claims from raw input, store case with status awaiting_confirmation,
     and publish claim_map_ready + awaiting_confirmation SSE events per docs/00-CONTRACTS.md §3.
     """
-    case = await extract_claims(payload.raw_input, provider)
-    if payload.context:
-        case.context = payload.context
+    case = await extract_claims(payload.raw_input, provider, context=payload.context)
     store.set(case)
 
     # Emit initial SSE events so early stream subscribers receive them

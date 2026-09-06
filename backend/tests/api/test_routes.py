@@ -250,7 +250,12 @@ def test_confirm_updates_case_with_user_edited_claims(client, monkeypatch, sampl
         json={"claims": [edited_claim.model_dump()]},
     )
     assert response.status_code == 202
+    body = response.json()
+    assert body["status"] == "testing"
+    assert body["case_id"] == sample_case.id
+
     saved_case = store.get(sample_case.id)
+    assert saved_case is not None
     assert len(saved_case.claims) == 1
     assert saved_case.claims[0].id == "c-edited"
     assert saved_case.claims[0].statement == "User edited this specific claim assertion"

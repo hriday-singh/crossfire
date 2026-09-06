@@ -79,6 +79,7 @@ describe("Screen Components", () => {
         selectClaim: vi.fn(),
         resetCase: vi.fn(),
         loadPreset: vi.fn(),
+        navigateScreen: vi.fn(),
         setActiveModal: vi.fn(),
         refreshCurrentCase: vi.fn(),
       });

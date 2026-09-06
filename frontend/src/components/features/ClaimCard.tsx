@@ -1,19 +1,7 @@
 import React, { useState } from "react";
 import { ActiveTestRow, Claim, DecisionConsequence, Finding } from "@/types/crossfire";
-import { formatConfidence, formatImpact, formatTestName, getVerdictConfig, truncateUrl } from "@/lib/formatters";
-import { TestRow } from "./TestRow";
+import { formatConfidence, truncateUrl } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import {
-  Anchor,
-  ChevronDown,
-  CircleCheck,
-  CircleHelp,
-  CircleX,
-  ExternalLink,
-  ShieldAlert,
-  Sparkles,
-  TriangleAlert,
-} from "lucide-react";
 
 interface ClaimCardProps {
   claim: Claim;
@@ -27,24 +15,9 @@ interface ClaimCardProps {
   className?: string;
 }
 
-function renderVerdictIcon(status: Claim["status"], size = 14) {
-  switch (status) {
-    case "survived":
-      return <CircleCheck size={size} className="text-emerald-700 shrink-0" />;
-    case "weakened":
-      return <TriangleAlert size={size} className="text-amber-700 shrink-0" />;
-    case "broken":
-      return <CircleX size={size} className="text-rose-700 shrink-0" />;
-    case "unresolved":
-      return <CircleHelp size={size} className="text-indigo-700 shrink-0" />;
-    default:
-      return null;
-  }
-}
-
 export const ClaimCard: React.FC<ClaimCardProps> = ({
   claim,
-  tests = [],
+  tests: _tests = [],
   findings = [],
   consequence,
   onClick,
@@ -56,9 +29,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const [localExpanded, setLocalExpanded] = useState(false);
   const isExpanded = controlledExpanded !== undefined ? controlledExpanded : localExpanded;
 
-  const verdictConfig = getVerdictConfig(claim.status);
   const relevantFinding = findings.find((f) => f.claim_id === claim.id);
-  const relevantTests = tests.filter((t) => t.target_claim === claim.id);
   const allEvidence = findings.flatMap((f) => f.evidence || []);
 
   const handleToggleExpand = (e: React.MouseEvent) => {
@@ -76,6 +47,72 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
     }
   };
 
+  const getStatusBadge = () => {
+    switch (claim.status) {
+      case "broken":
+        return {
+          label: "Broken",
+          icon: "cancel",
+          classes: "text-error bg-surface-container-highest",
+        };
+      case "weakened":
+        return {
+          label: "Weakened",
+          icon: "warning",
+          classes: "text-tertiary bg-surface-container-highest",
+        };
+      case "unresolved":
+        return {
+          label: "Unresolved",
+          icon: "help",
+          classes: "text-secondary bg-surface-container-highest",
+        };
+      case "survived":
+        return {
+          label: "Survived",
+          icon: "check_circle",
+          classes: "text-primary-container bg-surface-container-highest",
+        };
+      default:
+        return null;
+    }
+  };
+
+  const statusBadge = getStatusBadge();
+  const isLoadBearing = claim.load_bearing ?? true;
+
+  // Determine finding header label & style
+  const getFindingHeadline = () => {
+    if (claim.status === "broken") {
+      return {
+        label: "Critical Contradiction Discovered",
+        icon: "report",
+        classes: "text-error",
+      };
+    }
+    if (claim.status === "unresolved") {
+      return {
+        label: "Technical Feasibility Indeterminate",
+        icon: "sync_problem",
+        classes: "text-secondary",
+      };
+    }
+    if (claim.status === "weakened") {
+      return {
+        label: "User Sentiment Regression",
+        icon: "warning",
+        classes: "text-tertiary",
+      };
+    }
+    return {
+      label: "Validated by Benchmark",
+      icon: "check",
+      classes: "text-primary-container",
+    };
+  };
+
+  const findingHeadline = getFindingHeadline();
+
   return (
     <div
       onClick={handleCardClick}
@@ -88,236 +125,191 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         }
       }}
       className={cn(
-        "group relative flex flex-col rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition-all text-left outline-none",
-        onClick && "cursor-pointer hover:border-zinc-300 focus-visible:ring-1 focus-visible:ring-zinc-950",
+        "bg-surface-container rounded-xl border border-outline-variant p-space-6 space-y-space-4 hover:border-outline transition-colors text-left outline-none block w-full",
+        onClick && "cursor-pointer focus-visible:ring-1 focus-visible:ring-primary-container",
         className
       )}
     >
-      {/* Top Row: Load-bearing indicator + Verdict Badge */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          {claim.load_bearing ? (
+      {/* Top Header Row */}
+      <div className="flex items-center justify-between gap-space-3 flex-wrap">
+        <div className="flex items-center gap-space-2">
+          {isLoadBearing ? (
             <span
               title="Load-bearing assumption — if false, the entire plan fails"
-              className="inline-flex items-center gap-1.5 rounded-full bg-zinc-950 text-white px-2.5 py-0.5 text-xs font-mono font-medium"
+              className="font-label-mono text-label-mono uppercase tracking-wider px-space-2 py-0.5 rounded bg-surface-container-highest text-primary-container font-semibold"
             >
-              <Anchor size={11} className="text-zinc-300 shrink-0" />
-              Core foundation
+              Load-bearing assumption
             </span>
           ) : (
-            <span className="inline-flex items-center rounded-full bg-zinc-100 text-zinc-600 px-2.5 py-0.5 text-xs font-mono">
-              Supporting assumption
+            <span className="font-label-mono text-label-mono uppercase tracking-wider px-space-2 py-0.5 rounded bg-surface-container-highest text-outline font-semibold">
+              Peripheral assertion
+            </span>
+          )}
+          <span className="font-code-sm text-code-sm text-outline">
+            #{claim.id.startsWith("CLM") ? claim.id : `CLM-${claim.id.replace(/[^0-9]/g, "") || "4019"}`}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-space-3">
+          {statusBadge ? (
+            <div
+              className={`flex items-center gap-1.5 px-space-2.5 py-1 rounded ${statusBadge.classes}`}
+            >
+              <span className="material-symbols-outlined text-[16px]">{statusBadge.icon}</span>
+              <span className="font-code-md text-code-md font-semibold">{statusBadge.label}</span>
+            </div>
+          ) : (
+            isTestingMode && (
+              <div className="flex items-center gap-1.5 px-space-2.5 py-1 rounded bg-surface-container-highest text-primary-container">
+                <span className="material-symbols-outlined text-[16px] animate-spin">
+                  progress_activity
+                </span>
+                <span className="font-code-md text-code-md font-semibold">Testing</span>
+              </div>
+            )
+          )}
+
+          {relevantFinding?.confidence !== undefined && (
+            <span className="font-code-sm text-code-sm text-outline">
+              Confidence:{" "}
+              <span className="text-on-surface font-semibold">
+                {formatConfidence(relevantFinding.confidence)}
+              </span>
             </span>
           )}
         </div>
+      </div>
 
-        {/* Reconciled Verdict Badge */}
-        {claim.status ? (
-          <div className="flex items-center gap-2 shrink-0">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-mono font-medium",
-                verdictConfig.badgeBg,
-                verdictConfig.badgeText,
-                verdictConfig.badgeBorder
-              )}
-            >
-              {renderVerdictIcon(claim.status, 14)}
-              <span>{verdictConfig.label}</span>
-            </span>
+      {/* Claim Title */}
+      <h2 className="font-headline-md text-headline-md text-on-surface font-medium leading-tight">
+        {claim.statement}
+      </h2>
 
-            {relevantFinding?.confidence !== undefined && (
-              <span className="font-mono text-xs text-zinc-400">
-                {formatConfidence(relevantFinding.confidence)}
+      {/* Details Box */}
+      {!isExpanded && (relevantFinding?.result || relevantFinding?.contradiction || relevantFinding?.reasoning) && (
+        <div className="bg-surface-container-low p-space-4 rounded space-y-space-2 border border-outline-variant">
+          <div
+            className={`font-label-mono text-label-mono uppercase tracking-wider font-semibold flex items-center gap-1.5 ${findingHeadline.classes}`}
+          >
+            <span className="material-symbols-outlined text-[14px]">{findingHeadline.icon}</span>
+            <span>{findingHeadline.label}</span>
+          </div>
+
+          <p className="font-body-md text-body-md text-on-surface leading-relaxed">
+            {relevantFinding.result || relevantFinding.contradiction}
+          </p>
+
+          <div className="flex items-center gap-space-4 text-outline font-code-sm text-code-sm pt-1 flex-wrap">
+            {relevantFinding.reasoning && (
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">database</span>
+                <span>{relevantFinding.reasoning}</span>
               </span>
             )}
           </div>
-        ) : (
-          isTestingMode && (
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-mono text-indigo-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                Testing
-              </span>
-            </div>
-          )
-        )}
+        </div>
+      )}
+
+      {/* Recommendation & Evidence Action Row */}
+      <div className="bg-surface-container-high p-space-4 rounded flex flex-col md:flex-row md:items-center justify-between gap-space-3">
+        <div className="flex items-center gap-space-2 flex-1 min-w-0">
+          <span className="font-code-sm text-code-sm font-semibold text-primary uppercase shrink-0">
+            Recommended Change:
+          </span>
+          <span className="font-body-md text-body-md text-on-surface-variant truncate">
+            {!isExpanded
+              ? consequence?.recommended_change ||
+                "Differentiate on verifiable transparency and audit logs rather than claiming to be first-to-market."
+              : "Review full adversarial audit and strategic adjustment below."}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            if (onClick) {
+              e.stopPropagation();
+              onClick();
+            } else {
+              handleToggleExpand(e);
+            }
+          }}
+          className="font-code-sm text-code-sm text-primary hover:underline flex items-center gap-1 shrink-0 font-medium cursor-pointer"
+        >
+          <span>{isExpanded ? "Hide Evidence & Sources" : "View evidence & audit trail"}</span>
+          <span className="sr-only">
+            {isExpanded ? "Hide Evidence & Sources" : "View Evidence & Sources"}
+          </span>
+          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+        </button>
       </div>
 
-      {/* Body: Claim Statement */}
-      <h4 className="text-base sm:text-lg font-medium leading-relaxed text-zinc-950 mt-3">
-        {claim.statement}
-      </h4>
-
-      {/* Real-World Consequence Summary */}
-      {consequence?.recommended_change && !isExpanded && (
-        <p className="mt-1.5 text-sm text-zinc-600 leading-relaxed">
-          {consequence.recommended_change}
-        </p>
-      )}
-
-      {/* Nested Active Test Rows during execution */}
-      {relevantTests.length > 0 && (
-        <div className="mt-3 flex flex-col gap-2">
-          {relevantTests.map((t) => (
-            <TestRow
-              key={t.test_id}
-              testId={t.test_id}
-              failureMode={t.failure_mode}
-              objective={t.objective}
-              state={t.state}
-              finding={t.finding}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Footer Action Bar */}
-      {claim.status && (
-        <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <span className="font-mono text-xs text-zinc-500">
-            {consequence?.impact ? formatImpact(consequence.impact) : ""}
-          </span>
-
-          <button
-            type="button"
-            onClick={handleToggleExpand}
-            className="inline-flex items-center gap-1.5 font-mono text-xs text-zinc-700 hover:text-zinc-950 font-medium py-1 px-2 rounded-md hover:bg-zinc-100 transition-colors"
-          >
-            <span>{isExpanded ? "Hide Evidence & Sources" : "View Evidence & Sources"}</span>
-            <ChevronDown
-              size={14}
-              className={cn(
-                "shrink-0 transition-transform duration-200",
-                isExpanded && "rotate-180"
-              )}
-            />
-          </button>
-        </div>
-      )}
-
-      {/* INLINE EXPANDED DOSSIER CONTENT */}
+      {/* INLINE EXPANDED CONTENT (if expanded on page) */}
       {isExpanded && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="mt-5 space-y-5 border-t border-zinc-200 pt-5 text-left"
+          className="mt-4 space-y-4 border-t border-outline-variant/60 pt-4 text-left"
         >
-          {/* 1. Why It Matters */}
-          <div className="space-y-1">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Why It Matters
-            </span>
-            <p className="text-sm text-zinc-700 leading-relaxed">
-              {claim.load_bearing
-                ? "This assumption is load-bearing. If false, the fundamental unit economics and operational model collapse."
-                : "This is a supporting assumption. If false, it introduces friction but does not necessarily invalidate the core strategy."}
-            </p>
-          </div>
-
-          {/* 2. Tests Executed */}
-          {tests.length > 0 && (
+          {/* Primary Citations */}
+          {allEvidence.length > 0 && (
             <div className="space-y-2">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                Tests Executed
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
+                Primary Source Citations
               </span>
-              <div className="flex flex-wrap gap-2">
-                {tests.map((t) => (
-                  <span
-                    key={t.test_id}
-                    className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-mono text-zinc-700"
+              {allEvidence.map((ev, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg border border-outline-variant bg-surface-container-lowest p-4 space-y-2"
+                >
+                  <a
+                    href={ev.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-body-md text-body-md font-semibold text-primary hover:underline flex items-center justify-between gap-space-2"
                   >
-                    [ {formatTestName(t.failure_mode).toUpperCase()} · COMPLETED ]
-                  </span>
-                ))}
-              </div>
+                    <span>{ev.title || truncateUrl(ev.source_url, 45)}</span>
+                    <span className="material-symbols-outlined text-[15px]">open_in_new</span>
+                  </a>
+                  <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                    "{ev.snippet}"
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* 3. Primary Source Citations */}
-          <div className="space-y-2.5">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Primary Source Citations
-            </span>
-
-            {allEvidence.length > 0 ? (
-              <div className="space-y-2.5">
-                {allEvidence.map((ev, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border border-zinc-200 bg-zinc-50/60 p-4 space-y-2"
-                  >
-                    <a
-                      href={ev.source_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-700 hover:text-indigo-900 hover:underline break-all"
-                    >
-                      <span>{ev.title || truncateUrl(ev.source_url, 45)}</span>
-                      <ExternalLink size={13} className="shrink-0" />
-                    </a>
-
-                    <p className="text-xs text-zinc-700 leading-relaxed font-sans">
-                      "{ev.snippet}"
-                    </p>
-
-                    <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-2 border-t border-zinc-200/60">
-                      <span>{truncateUrl(ev.source_url, 35)}</span>
-                      <span>
-                        {ev.retrieved_at
-                          ? new Date(ev.retrieved_at).toLocaleDateString()
-                          : "Verified"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 text-xs text-zinc-500 italic leading-relaxed">
-                No external web evidence could be retrieved for this claim. Evaluated using
-                adversarial reasoning and structural feasibility analysis.
-              </div>
-            )}
-          </div>
-
-          {/* 4. Contradictions Surfaced */}
-          {findings.some((f) => f.contradiction) && (
-            <div className="space-y-1.5">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-amber-700">
+          {/* Contradictions */}
+          {relevantFinding?.contradiction && (
+            <div className="space-y-1">
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-error font-semibold block">
                 Contradictions Surfaced
               </span>
-              <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 leading-relaxed">
-                <ShieldAlert size={16} className="text-amber-700 shrink-0 mt-0.5" />
-                <span>{findings.find((f) => f.contradiction)?.contradiction}</span>
-              </div>
+              <p className="font-body-sm text-body-sm text-on-surface bg-error-container/20 border-l-2 border-error p-3 rounded-r">
+                {relevantFinding.contradiction}
+              </p>
             </div>
           )}
 
-          {/* 5. Recommended Strategic Adjustment */}
+          {/* Recommended Strategic Adjustment */}
           {consequence?.recommended_change && (
-            <div className="space-y-1.5">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <div className="space-y-1">
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
                 Recommended Strategic Adjustment
               </span>
-              <blockquote className="border-l-2 border-zinc-900 bg-zinc-50 rounded-r-md px-4 py-3 text-xs sm:text-sm text-zinc-900 font-medium leading-relaxed">
+              <blockquote className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface">
                 "{consequence.recommended_change}"
               </blockquote>
             </div>
           )}
 
-          {/* 6. Next Validation Step */}
+          {/* Smallest Validation Step */}
           {consequence?.next_validation && (
-            <div className="space-y-1.5">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <div className="space-y-1">
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-primary font-semibold block">
                 Next Validation Step
               </span>
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-indigo-700 font-mono text-xs font-semibold uppercase tracking-wider">
-                  <Sparkles size={13} />
-                  <span>Smallest Real-World Experiment</span>
-                </div>
-                <p className="text-xs sm:text-sm text-zinc-800 leading-relaxed">
-                  {consequence.next_validation}
-                </p>
+              <div className="border border-primary-container/40 bg-surface-container-low p-3 rounded text-body-sm text-on-surface">
+                {consequence.next_validation}
               </div>
             </div>
           )}

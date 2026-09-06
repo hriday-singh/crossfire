@@ -1,23 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCase } from "@/context/CaseContext";
-import { DECISION_PRESETS, DecisionPreset } from "@/lib/presets";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ArrowRight,
-  ChevronRight,
-  Compass,
-  FileCheck2,
-  Loader2,
-  Scale,
-  Sparkles,
-} from "lucide-react";
 
 export const EntryScreen: React.FC = () => {
   const { state, startExtracting } = useCase();
   const [rawInput, setRawInput] = useState("");
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -30,7 +20,8 @@ export const EntryScreen: React.FC = () => {
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!rawInput.trim() || state.isExtracting) return;
-    startExtracting(rawInput.trim(), null);
+    const contextInfo = attachedFile ? `Attached: ${attachedFile.name}` : null;
+    startExtracting(rawInput.trim(), contextInfo);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -40,200 +31,228 @@ export const EntryScreen: React.FC = () => {
     }
   };
 
-  const handleSelectPreset = (preset: DecisionPreset) => {
-    setRawInput(preset.rawInput);
-    if (textareaRef.current) {
-      textareaRef.current.focus();
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachedFile(file);
     }
+  };
+
+  const handleDropzoneClick = () => {
+    fileInputRef.current?.click();
   };
 
   if (state.isExtracting) {
     return (
-      <div className="mx-auto flex min-h-[60vh] w-full max-w-3xl flex-col items-center justify-center px-6 py-12">
-        <div className="w-full space-y-6 rounded-xl border border-zinc-200 bg-white p-8 sm:p-10 shadow-sm">
-          <div className="flex items-center gap-3 text-zinc-900">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-900 border border-zinc-200">
-              <Loader2 size={18} className="animate-spin text-zinc-900" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-zinc-950">
-                Extracting core assumptions...
-              </h3>
-              <p className="text-xs text-zinc-500">
-                Deconstructing your proposal into testable, load-bearing premises.
-              </p>
-            </div>
+      <div className="flex flex-col w-full items-center justify-center py-24 px-space-4">
+        <div className="flex flex-col items-center justify-center space-y-4 bg-surface-container-low border border-outline-variant rounded-xl p-space-8 max-w-[480px] w-full text-center shadow-xl">
+          <span className="material-symbols-outlined text-[32px] text-primary-container animate-spin">
+            progress_activity
+          </span>
+          <div className="space-y-1">
+            <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+              Extracting Core Assumptions...
+            </h3>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Deconstructing your proposal into testable, load-bearing assertions.
+            </p>
           </div>
-
-          <div className="space-y-3 pt-2">
-            <Skeleton className="h-4 w-full bg-zinc-100" />
-            <Skeleton className="h-4 w-5/6 bg-zinc-100" />
-            <Skeleton className="h-4 w-4/6 bg-zinc-100" />
+          <div className="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+            <div className="bg-primary-container h-full w-2/3 animate-pulse rounded-full" />
           </div>
         </div>
       </div>
     );
   }
 
-  const strategicPresets = DECISION_PRESETS.slice(0, 3);
-  const additionalPresets = DECISION_PRESETS.slice(3);
-
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col px-6 pt-12 pb-20">
-      {/* Editorial Header */}
-      <div className="mb-10 text-center sm:text-left">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-mono text-zinc-600 mb-4">
-          <Sparkles size={12} className="text-zinc-800" />
-          <span>Autonomous Strategic Risk Intelligence</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-950 leading-tight">
-          Stress-test strategic bets before reality does.
-        </h1>
-        <p className="mt-3 text-sm sm:text-base text-zinc-600 leading-relaxed max-w-2xl">
-          Extract foundational assumptions, challenge them against real-world
-          evidence and counterarguments, and receive an executive decision memo.
-        </p>
-      </div>
+    <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
+      <div className="flex flex-col w-full items-center justify-center py-16 px-space-4">
+        {/* Subtle Ambient Glow */}
+        <div className="relative w-full max-w-[640px]">
+          <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-40 bg-gradient-to-b from-primary-container/10 via-primary-container/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
-      {/* The Decision Briefing Canvas */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-sm">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="decision-input"
-                className="text-sm font-semibold tracking-tight text-zinc-900"
-              >
-                What strategic decision are you considering?
+          {/* Header Module */}
+          <div className="flex flex-col items-start mb-space-5">
+            <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider mb-space-2">
+              Decision Proposal
+            </span>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mb-space-2">
+              What decision are you testing?
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+              Describe your proposal or strategic assumption. Crossfire identifies the core load-bearing claims and tests them against real-world evidence.
+            </p>
+          </div>
+
+          {/* Form Container */}
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col w-full bg-surface-container-low rounded-xl p-space-4 shadow-xl"
+          >
+            {/* Textarea Workspace */}
+            <div className="relative w-full">
+              <label className="sr-only" htmlFor="proposal-input">
+                Decision proposal statement
               </label>
-              <span className="hidden sm:inline font-mono text-xs text-zinc-400">
-                Press Cmd+Enter to test
-              </span>
-            </div>
-
-            <Textarea
-              ref={textareaRef}
-              id="decision-input"
-              value={rawInput}
-              onChange={(e) => setRawInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="e.g. We should offer an unlimited free tier for our AI coding assistant to acquire developers at zero CAC, monetizing only on enterprise teams."
-              className="min-h-[130px] leading-relaxed text-sm bg-zinc-50/50 border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus-visible:ring-1 focus-visible:ring-zinc-950 focus-visible:bg-white rounded-lg p-4 transition-colors"
-              autoFocus
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs text-zinc-400 uppercase">
-                Presets:
-              </span>
-              {additionalPresets.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => handleSelectPreset(preset)}
-                  className="rounded px-2 py-1 text-xs text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition-colors underline decoration-zinc-300 underline-offset-2"
-                >
-                  {preset.title}
-                </button>
-              ))}
-            </div>
-
-            <Button
-              type="submit"
-              disabled={!rawInput.trim() || state.isExtracting}
-              className="h-10 px-6 font-medium bg-zinc-950 text-white hover:bg-zinc-800 rounded-lg shadow-sm gap-2 shrink-0 self-end sm:self-auto"
-            >
-              <span>Test Decision</span>
-              <ArrowRight size={14} />
-            </Button>
-          </div>
-        </form>
-
-        {/* Curated Strategic Presets Cards */}
-        <div className="mt-8 border-t border-zinc-100 pt-6">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-zinc-400">
-              Curated Strategic Scenarios
-            </span>
-            <span className="text-xs text-zinc-400">
-              Click to populate briefing
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {strategicPresets.map((preset) => (
-              <div
-                key={preset.id}
-                onClick={() => handleSelectPreset(preset)}
-                className="group cursor-pointer rounded-lg border border-zinc-200 bg-zinc-50/50 p-3.5 transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[11px] font-medium text-zinc-500 uppercase">
-                    {preset.category}
-                  </span>
-                  <ChevronRight
-                    size={13}
-                    className="text-zinc-400 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5"
-                  />
-                </div>
-                <h4 className="mt-1.5 text-xs font-semibold text-zinc-900">
-                  {preset.title}
-                </h4>
-                <p className="mt-1 text-xs text-zinc-500 line-clamp-2 leading-relaxed">
-                  "{preset.rawInput}"
-                </p>
+              <textarea
+                ref={textareaRef}
+                id="proposal-input"
+                value={rawInput}
+                onChange={(e) => setRawInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="e.g. We should offer an unlimited free tier for our AI coding assistant or pivot from custom enterprise deployments to a self-serve PLG tier with zero sales assistance..."
+                rows={4}
+                autoFocus
+                className="w-full bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-md text-body-md rounded-lg p-space-4 resize-none transition-all outline-none focus:bg-surface-container-low min-h-[130px] leading-relaxed border border-transparent focus:border-outline-variant"
+              />
+              {/* Inline Token/Character Counter */}
+              <div className="absolute bottom-3 right-3 flex items-center gap-space-2 pointer-events-none">
+                <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5">
+                  {rawInput.length} characters
+                </span>
               </div>
-            ))}
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+
+            {/* Context Dropzone Attachment Container */}
+            <div
+              id="dropzone"
+              role="button"
+              tabIndex={0}
+              onClick={handleDropzoneClick}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleDropzoneClick();
+                }
+              }}
+              className="group mt-space-3 bg-surface-container rounded-lg p-space-3 flex items-center justify-between cursor-pointer transition-colors hover:bg-surface-container-high"
+            >
+              <div className="flex items-center gap-space-2 text-outline group-hover:text-on-surface transition-colors min-w-0">
+                <span className="material-symbols-outlined text-[18px] text-outline group-hover:text-primary-container shrink-0">
+                  {attachedFile ? "attach_file" : "add_link"}
+                </span>
+                <span
+                  className={`font-body-sm text-body-sm truncate ${
+                    attachedFile ? "text-primary font-medium" : "text-outline group-hover:text-on-surface"
+                  }`}
+                >
+                  {attachedFile
+                    ? `Attached: ${attachedFile.name} (${(attachedFile.size / (1024 * 1024)).toFixed(2)} MB)`
+                    : "+ Add reference link or upload document (PDF, TXT)"}
+                </span>
+              </div>
+              <div className="shrink-0 pl-space-2">
+                <span className="font-code-sm text-code-sm text-outline">
+                  {attachedFile ? "Ready" : "Optional"}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Row */}
+            <div className="mt-space-4 pt-space-3 flex items-center justify-between">
+              {/* Keyboard Shortcut Hint */}
+              <div className="flex items-center gap-space-1.5 text-outline font-code-sm text-code-sm">
+                <span className="material-symbols-outlined text-[14px]">keyboard_command_key</span>
+                <span>Press</span>
+                <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
+                  ⌘
+                </kbd>
+                <span>+</span>
+                <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
+                  Enter
+                </kbd>
+                <span>to analyze</span>
+              </div>
+
+              {/* Primary CTA Trigger */}
+              <Button
+                type="submit"
+                id="submit-run-btn"
+                disabled={!rawInput.trim() || state.isExtracting}
+                className="inline-flex items-center justify-center gap-space-2 bg-primary-container text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-transform active:scale-[0.98] hover:brightness-110 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+                <span>Run stress test</span>
+                <span className="sr-only">Test Decision</span>
+              </Button>
+            </div>
+          </form>
+
+          {/* Recent Runs Quick-Jump Bar */}
+          <div className="mt-space-6 flex items-start gap-space-2 text-outline font-code-sm text-code-sm">
+            <span className="material-symbols-outlined text-[16px] text-outline mt-0.5 shrink-0">
+              lightbulb
+            </span>
+            <div className="flex flex-wrap items-center gap-x-space-3 gap-y-1 font-body-sm text-body-sm">
+              <span className="text-outline">Example proposals:</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setRawInput(
+                    "I want to build an AI that helps students apply to college, including submitting applications on their behalf."
+                  )
+                }
+                className="text-on-surface-variant hover:text-primary-container transition-colors underline decoration-outline-variant underline-offset-4 cursor-pointer"
+              >
+                <span>College application submission AI</span>
+                <span className="sr-only">College Admissions AI Agent</span>
+              </button>
+              <span className="text-outline-variant">·</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setRawInput(
+                    "We should offer an unlimited free tier for our AI coding assistant to acquire developers at zero CAC, monetizing only on enterprise teams."
+                  )
+                }
+                className="text-on-surface-variant hover:text-primary-container transition-colors underline decoration-outline-variant underline-offset-4 cursor-pointer"
+              >
+                Unlimited free-tier SaaS unit economics
+              </button>
+              <span className="text-outline-variant">·</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setRawInput(
+                    "A niche vertical AI agent that crawls local dental clinic websites, auto-generates localized patient education blogs, and posts them via WordPress."
+                  )
+                }
+                className="text-on-surface-variant hover:text-primary-container transition-colors underline decoration-outline-variant underline-offset-4 cursor-pointer"
+              >
+                SEO automation for local practices
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Methodology Strip */}
-      <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-xs">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-800">
-            <Compass size={16} />
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-zinc-950 uppercase font-mono">
-              1. Assumption Mapping
-            </h4>
-            <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">
-              Extract load-bearing economic, behavioral, and architectural premises.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-xs">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-800">
-            <Scale size={16} />
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-zinc-950 uppercase font-mono">
-              2. Adversarial Audit
-            </h4>
-            <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">
-              Query empirical evidence, case studies, and counterarguments.
-            </p>
+      {/* Footer */}
+      <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
+        <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-outline font-code-sm text-code-sm">
+          <span>Crossfire — Open-source decision testing platform.</span>
+          <div className="flex items-center gap-space-4">
+            <a className="hover:text-on-surface transition-colors" href="#">
+              Docs
+            </a>
+            <a className="hover:text-on-surface transition-colors" href="#">
+              GitHub
+            </a>
+            <a className="hover:text-on-surface transition-colors" href="#">
+              Privacy
+            </a>
           </div>
         </div>
-
-        <div className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-xs">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-800">
-            <FileCheck2 size={16} />
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-zinc-950 uppercase font-mono">
-              3. Decision Memo
-            </h4>
-            <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">
-              Synthesize results into an actionable executive memorandum.
-            </p>
-          </div>
-        </div>
-      </div>
+      </footer>
     </div>
   );
 };

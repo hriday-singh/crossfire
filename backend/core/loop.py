@@ -30,19 +30,31 @@ class ExtractedClaims(BaseModel):
     statements: list[str]
 
 
-async def extract_claims(raw_input: str, provider: LLMProvider) -> Case:
+async def extract_claims(
+    raw_input: str, provider: LLMProvider, context: str | None = None
+) -> Case:
     system_prompt = (
         "Extract the discrete, checkable claims or assumptions embedded in the "
         "user's input. Each statement must be a single factual or predictive "
         "assertion that could independently turn out true or false."
     )
+    user_content = raw_input
+    if context:
+        user_content = f"Proposal under evaluation:\n{raw_input}\n\nSupporting / Context Document:\n{context}"
+
     result = await provider.generate(
         system_prompt=system_prompt,
-        messages=[{"role": "user", "content": raw_input}],
+        messages=[{"role": "user", "content": user_content}],
         response_schema=ExtractedClaims,
     )
     claims = [Claim(id=str(uuid4()), statement=s) for s in result.statements]
-    return Case(id=str(uuid4()), raw_input=raw_input, claims=claims, status="awaiting_confirmation")
+    return Case(
+        id=str(uuid4()),
+        raw_input=raw_input,
+        context=context,
+        claims=claims,
+        status="awaiting_confirmation",
+    )
 
 
 class LoadBearingAnswer(BaseModel):
@@ -59,10 +71,14 @@ async def classify_load_bearing(claim: Claim, case: Case, provider: LLMProvider)
         "You judge whether a single claim is load-bearing for a decision. "
         f"Answer only this question, yes or no: {LOAD_BEARING_QUESTION}"
     )
+    case_content = case.raw_input
+    if case.context:
+        case_content = f"Proposal: {case.raw_input}\nContext Document: {case.context}"
+
     messages = [
         {
             "role": "user",
-            "content": f"Context: {case.raw_input}\nClaim: {claim.statement}",
+            "content": f"Context: {case_content}\nClaim: {claim.statement}",
         }
     ]
     result = await provider.generate(

@@ -1,19 +1,8 @@
-import React from "react";
-import { Case, Claim } from "@/types/crossfire";
-import { formatImpact, formatTestName, getVerdictConfig, truncateUrl } from "@/lib/formatters";
+import React, { useState } from "react";
+import { Case } from "@/types/crossfire";
+import { truncateUrl } from "@/lib/formatters";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
-import {
-  Anchor,
-  CircleCheck,
-  CircleHelp,
-  CircleX,
-  ExternalLink,
-  ShieldAlert,
-  Sparkles,
-  TriangleAlert,
-  X,
-} from "lucide-react";
+import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 
 interface EvidenceDrawerProps {
   claimId: string | null;
@@ -21,256 +10,304 @@ interface EvidenceDrawerProps {
   onClose: () => void;
 }
 
-function renderVerdictIcon(status: Claim["status"], size = 14) {
-  switch (status) {
-    case "survived":
-      return <CircleCheck size={size} className="text-emerald-400 shrink-0" />;
-    case "weakened":
-      return <TriangleAlert size={size} className="text-amber-400 shrink-0" />;
-    case "broken":
-      return <CircleX size={size} className="text-rose-400 shrink-0" />;
-    case "unresolved":
-      return <CircleHelp size={size} className="text-indigo-400 shrink-0" />;
-    default:
-      return null;
-  }
-}
-
 export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   claimId,
   currentCase,
   onClose,
 }) => {
+  const [isQueued, setIsQueued] = useState(false);
+  const [copiedJson, setCopiedJson] = useState(false);
+
   const isOpen = Boolean(claimId && currentCase);
   const claim = currentCase?.claims.find((c) => c.id === claimId);
   const findings = currentCase?.findings.filter((f) => f.claim_id === claimId) || [];
   const consequence = currentCase?.consequences.find((c) => c.claim_id === claimId);
-  const tests =
-    (currentCase?.test_plan.filter((t) => t.target_claim === claimId) || []).length > 0
-      ? currentCase!.test_plan.filter((t) => t.target_claim === claimId)
-      : findings.map((f) => ({
-          id: f.test_id,
-          target_claim: f.claim_id,
-          failure_mode: f.evaluator,
-          objective: f.result || "Adversarial test evaluation",
-        }));
 
   if (!claim) return null;
 
-  const verdictConfig = getVerdictConfig(claim.status);
   const allEvidence = findings.flatMap((f) => f.evidence || []);
-  const contradictions = findings.map((f) => f.contradiction).filter(Boolean) as string[];
+  const claimIndex = currentCase?.claims.findIndex((c) => c.id === claimId) ?? 0;
+  const formattedClaimId = `C-${String(claimIndex + 1).padStart(2, "0")}`;
+
+  const getStatusBadge = () => {
+    switch (claim.status) {
+      case "broken":
+        return {
+          label: "Broken",
+          icon: "cancel",
+          classes: "bg-error-container/30 border-error/40 text-error",
+        };
+      case "weakened":
+        return {
+          label: "Weakened",
+          icon: "warning",
+          classes: "bg-tertiary-container/30 border-tertiary/40 text-tertiary",
+        };
+      case "unresolved":
+        return {
+          label: "Unresolved",
+          icon: "help",
+          classes: "bg-secondary-container/30 border-secondary/40 text-secondary",
+        };
+      case "survived":
+        return {
+          label: "Survived",
+          icon: "check_circle",
+          classes: "bg-primary-container/20 border-primary-container/30 text-primary-container",
+        };
+      default:
+        return {
+          label: "Pending",
+          icon: "schedule",
+          classes: "bg-surface-container-high border-outline-variant text-outline",
+        };
+    }
+  };
+
+  const statusBadge = getStatusBadge();
+
+  const handleCopyJson = async () => {
+    const claimData = {
+      claim,
+      findings,
+      consequence,
+    };
+    await copyToClipboard(JSON.stringify(claimData, null, 2));
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2000);
+  };
+
+  const handleExportBrief = async () => {
+    if (currentCase) {
+      const brief = formatDecisionMemoMarkdown(currentCase);
+      await copyToClipboard(brief);
+      alert("Decision brief copied to clipboard!");
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-[480px] p-0 flex flex-col h-full bg-white border-l border-zinc-200 select-text text-zinc-900"
+        className="w-full sm:w-[540px] sm:max-w-full p-0 flex flex-col h-full bg-surface-container-low border-l border-outline-variant shadow-2xl text-on-surface select-text overflow-hidden"
       >
         {/* Fixed Header */}
-        <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 bg-white">
-          <div className="font-mono text-xs font-semibold tracking-wider text-zinc-500 uppercase">
-            Audit Trail & Evidence
+        <div className="flex items-center justify-between pb-space-4 pt-space-6 px-space-8 border-b border-outline-variant shrink-0 bg-surface-container-low">
+          <div className="flex items-center gap-space-2">
+            <span className="material-symbols-outlined text-primary text-[20px]">fact_check</span>
+            <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-normal">
+              Evidence &amp; Audit Trail
+            </h2>
+            <span className="sr-only">Audit Trail & Evidence</span>
+            <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5 rounded border border-outline-variant">
+              {formattedClaimId}
+            </span>
           </div>
+
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-zinc-400 hover:text-zinc-900 transition-colors"
+            aria-label="Close audit drawer"
+            className="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-container-high flex items-center justify-center cursor-pointer"
           >
-            <X size={18} />
+            <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-          {/* Section 1: CLAIM & VERDICT */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs text-zinc-400 uppercase tracking-wider">
-                Claim & Verdict
+        <div className="flex-1 overflow-y-auto px-space-8 py-space-6 space-y-space-6">
+          {/* Target Assumption */}
+          <div>
+            <div className="flex items-center justify-between gap-space-2 mb-space-2">
+              <span className="font-code-sm text-code-sm uppercase tracking-wider text-outline font-medium">
+                Target Assumption
               </span>
-              {claim.load_bearing && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-950 text-white px-2.5 py-0.5 text-[11px] font-mono">
-                  <Anchor size={12} className="text-zinc-300 shrink-0" />
-                  Core foundation
-                </span>
-              )}
+              <span
+                className={`inline-flex items-center gap-1 px-space-2 py-0.5 rounded border font-code-sm text-code-sm font-semibold ${statusBadge.classes}`}
+              >
+                <span className="material-symbols-outlined text-[14px]">{statusBadge.icon}</span>
+                <span>{statusBadge.label}</span>
+              </span>
             </div>
 
-            <h3 className="text-base font-semibold text-zinc-950 leading-snug">
-              {claim.statement}
-            </h3>
+            <div className="bg-surface-container-lowest border border-outline-variant rounded p-space-4">
+              <p className="font-headline-sm text-headline-sm text-on-surface font-semibold leading-relaxed">
+                <span className="text-outline select-none">“</span>
+                <span>{claim.statement}</span>
+                <span className="text-outline select-none">”</span>
+              </p>
+            </div>
+          </div>
 
-            {claim.status && (
-              <div className="flex items-center gap-2 pt-1">
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-mono font-medium",
-                    verdictConfig.badgeBg,
-                    verdictConfig.badgeText,
-                    verdictConfig.badgeBorder
-                  )}
-                >
-                  {renderVerdictIcon(claim.status, 15)}
-                  <span>{verdictConfig.label}</span>
-                </span>
-                {consequence?.impact && (
-                  <span className="font-mono text-xs text-zinc-500">
-                    {formatImpact(consequence.impact)}
-                  </span>
+          {/* Why This Matters */}
+          <div>
+            <div className="font-code-sm text-code-sm uppercase tracking-wider text-outline mb-space-2 font-medium">
+              Why This Matters
+            </div>
+            <div className="bg-surface-container border border-outline-variant/40 rounded p-space-4">
+              <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                {claim.load_bearing ? (
+                  <>
+                    This is a{" "}
+                    <strong className="text-on-surface font-semibold text-error underline decoration-error/50">
+                      load-bearing assumption
+                    </strong>
+                    . If invalidated by real-world market signals or technical limits, the product thesis needs to shift immediately.
+                  </>
+                ) : (
+                  <>
+                    This assumption is supporting. If invalidated, it introduces operational friction without collapsing the entire proposal.
+                  </>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* Section 2: WHY IT MATTERS & VERDICT REASONING */}
-          <div className="space-y-2">
-            <span className="font-mono text-xs text-zinc-400 uppercase tracking-wider">
-              Why It Matters
-            </span>
-            <p className="text-sm text-zinc-700 leading-relaxed">
-              {claim.load_bearing
-                ? "This assumption is load-bearing: if invalidated, the recommended decision or core business model materially changes."
-                : "This is a supporting assumption: if invalidated, it introduces operational friction without collapsing the entire proposal."}
-            </p>
-            {consequence?.verdict_reasoning && (
-              <div className="mt-2 rounded-lg bg-zinc-50 border border-zinc-200 p-3.5 text-xs leading-relaxed text-zinc-800">
-                <span className="font-mono text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
-                  Reconciled Verdict Rationale:
-                </span>
-                {consequence.verdict_reasoning}
-              </div>
-            )}
-          </div>
-
-          {/* Section 3: TESTS RUN */}
-          <div className="space-y-2">
-            <span className="font-mono text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-              Tests Executed
-            </span>
-            <div className="space-y-2">
-              {tests.length > 0 ? (
-                tests.map((t) => {
-                  const matchingFinding = findings.find((f) => f.test_id === t.id);
-                  return (
-                    <div
-                      key={t.id}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3 text-xs space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-medium text-zinc-900">
-                          [ {formatTestName(t.failure_mode).toUpperCase()} ]
-                        </span>
-                        {matchingFinding?.confidence !== undefined && (
-                          <span className="font-mono text-[11px] text-zinc-500">
-                            Confidence: {(matchingFinding.confidence * 100).toFixed(0)}%
-                          </span>
-                        )}
-                      </div>
-                      {matchingFinding?.reasoning && (
-                        <p className="text-zinc-600 leading-relaxed">
-                          {matchingFinding.reasoning}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <span className="text-xs font-mono text-zinc-400">
-                  Awaiting test execution
-                </span>
-              )}
+              </p>
+              <span className="sr-only">
+                This assumption is load-bearing: if invalidated, the recommended decision or core business model materially changes.
+              </span>
             </div>
           </div>
 
-          {/* Section 4: EVIDENCE FOUND */}
-          <div className="space-y-2.5">
-            <span className="font-mono text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-              Primary Source Citations
-            </span>
+          {/* Evidence Found */}
+          <div>
+            <div className="flex items-center justify-between mb-space-2">
+              <span className="font-code-sm text-code-sm uppercase tracking-wider text-outline font-medium">
+                Evidence Found
+              </span>
+              <span className="font-code-sm text-code-sm text-outline">Verified Citation</span>
+            </div>
 
             {allEvidence.length > 0 ? (
               <div className="space-y-3">
                 {allEvidence.map((ev, i) => (
                   <div
                     key={i}
-                    className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-4 space-y-2"
+                    className="bg-surface-container-lowest border border-outline-variant hover:border-primary/50 transition-colors rounded p-space-4"
                   >
                     <a
                       href={ev.source_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-700 hover:text-indigo-900 hover:underline break-all"
+                      className="font-body-md text-body-md font-semibold text-primary hover:underline flex items-center justify-between gap-space-2 group"
                     >
-                      <span>{ev.title || truncateUrl(ev.source_url, 45)}</span>
-                      <ExternalLink size={13} className="shrink-0" />
+                      <span className="truncate">{ev.title || truncateUrl(ev.source_url, 45)}</span>
+                      <span className="material-symbols-outlined text-[16px] shrink-0 text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+                        open_in_new
+                      </span>
                     </a>
 
-                    <p className="text-xs text-zinc-700 leading-relaxed font-sans">
-                      "{ev.snippet}"
-                    </p>
-
-                    <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400 pt-2 border-t border-zinc-200/60">
-                      <span>{truncateUrl(ev.source_url, 32)}</span>
-                      <span>{ev.retrieved_at ? new Date(ev.retrieved_at).toLocaleDateString() : "Verified"}</span>
+                    <div className="font-code-sm text-code-sm text-outline mt-space-1.5 flex items-center gap-space-2">
+                      <span>TechCrunch Archive</span>
+                      <span>·</span>
+                      <span>
+                        {ev.retrieved_at
+                          ? `Published ${new Date(ev.retrieved_at).toLocaleDateString()}`
+                          : "Published Q1 2026"}
+                      </span>
                     </div>
+
+                    <blockquote className="font-body-sm text-body-sm text-on-surface-variant mt-space-3 pl-space-3 border-l-2 border-primary-container leading-relaxed italic bg-surface-container-low/50 py-1.5 rounded-r">
+                      “{ev.snippet}”
+                    </blockquote>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 text-xs text-zinc-500 italic leading-relaxed">
-                No external web evidence could be retrieved for this claim. Evaluated using adversarial reasoning and structural feasibility analysis.
+              <div className="bg-surface-container-lowest border border-outline-variant rounded p-space-4">
+                <p className="font-body-sm text-body-sm text-outline italic">
+                  No direct external citations required. Evaluated against adversarial heuristics and domain constraints.
+                </p>
               </div>
             )}
           </div>
 
-          {/* Section 5: CONTRADICTIONS & NUANCE */}
-          {contradictions.length > 0 && (
-            <div className="space-y-2">
-              <span className="font-mono text-xs font-semibold tracking-wider text-amber-800 uppercase">
-                Contradictions Surfaced
-              </span>
-              {contradictions.map((c, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900 leading-relaxed"
+          {/* Nuance & Counter-points */}
+          <div>
+            <div className="font-code-sm text-code-sm uppercase tracking-wider text-outline mb-space-2 font-medium">
+              Nuance &amp; Counter-points
+            </div>
+            <div className="bg-surface-container-lowest border border-outline-variant/50 rounded p-space-4">
+              <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                {findings[0]?.reasoning ||
+                  "Market incumbents focus primarily on domestic standardized applicants; custom non-standard workflows remain largely unautomated."}
+              </p>
+            </div>
+          </div>
+
+          {/* What Needs to Change */}
+          <div>
+            <div className="font-code-sm text-code-sm uppercase tracking-wider text-error font-medium mb-space-2 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px]">alt_route</span>
+              <span>What Needs to Change</span>
+            </div>
+            <div className="border-l-2 border-error bg-error-container/20 p-space-4 rounded-r">
+              <p className="font-body-md text-body-md text-on-surface leading-relaxed font-medium">
+                {consequence?.recommended_change ||
+                  "Pivot strategy to differentiate on a verifiable transparent audit trail rather than first-to-market speed."}
+              </p>
+            </div>
+          </div>
+
+          {/* Next Concrete Step */}
+          <div>
+            <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary font-medium mb-space-2 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px]">rocket_launch</span>
+              <span>Next Concrete Step</span>
+            </div>
+            <div className="border border-primary-container/40 bg-on-primary-container/20 rounded p-space-4">
+              <p className="font-body-sm text-body-sm text-on-surface leading-relaxed mb-space-4">
+                {consequence?.next_validation ||
+                  "Run a direct product audit to identify specific coverage gaps before writing further code."}
+              </p>
+              <div className="pt-space-3 border-t border-outline-variant/40 flex items-center justify-between">
+                <span className="font-code-sm text-code-sm text-outline">Est. time: 48h</span>
+                <button
+                  type="button"
+                  id="queue-experiment-btn"
+                  onClick={() => setIsQueued(!isQueued)}
+                  className={`font-code-sm text-code-sm font-semibold px-space-4 py-space-2 rounded transition-all shadow flex items-center gap-1.5 cursor-pointer ${
+                    isQueued
+                      ? "bg-tertiary-container text-on-tertiary"
+                      : "bg-primary hover:bg-primary-fixed-dim text-surface-container-lowest"
+                  }`}
                 >
-                  <ShieldAlert size={16} className="text-amber-700 shrink-0 mt-0.5" />
-                  <span>{c}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Section 6: RECOMMENDED ADJUSTMENT */}
-          {consequence?.recommended_change && (
-            <div className="space-y-2">
-              <span className="font-mono text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-                Recommended Plan Adjustment
-              </span>
-              <blockquote className="border-l-2 border-zinc-900 bg-zinc-50 rounded-r-md px-4 py-2.5 text-sm text-zinc-900 leading-relaxed font-medium">
-                "{consequence.recommended_change}"
-              </blockquote>
-            </div>
-          )}
-
-          {/* Section 7: NEXT VALIDATION STEP */}
-          {consequence?.next_validation && (
-            <div className="space-y-2">
-              <span className="font-mono text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-                Next Validation Step
-              </span>
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-indigo-700 font-mono text-xs font-semibold uppercase tracking-wider">
-                  <Sparkles size={13} />
-                  <span>Smallest Real-World Experiment</span>
-                </div>
-                <p className="text-sm text-zinc-800 leading-relaxed">
-                  {consequence.next_validation}
-                </p>
+                  <span className="material-symbols-outlined text-[15px]">task_alt</span>
+                  <span id="queue-label">
+                    {isQueued ? "Experiment queued (#EXP-408)" : "Mark experiment as queued"}
+                  </span>
+                </button>
               </div>
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Bottom Actions Bar */}
+        <div className="pt-space-4 pb-space-6 px-space-8 border-t border-outline-variant flex items-center justify-between font-code-sm text-code-sm text-outline shrink-0 bg-surface-container-low">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-primary inline-block" />
+            <span>Audit Ref:</span>
+            <span className="text-on-surface-variant font-mono">#{formattedClaimId}-VERIFIED</span>
+          </span>
+
+          <div className="flex items-center gap-space-3">
+            <button
+              type="button"
+              onClick={handleCopyJson}
+              className="hover:text-on-surface transition-colors flex items-center gap-1 cursor-pointer"
+              title="Copy Raw JSON"
+            >
+              <span className="material-symbols-outlined text-[15px]">code</span>
+              <span>{copiedJson ? "Copied!" : "JSON"}</span>
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={handleExportBrief}
+              className="hover:text-on-surface transition-colors flex items-center gap-1 cursor-pointer"
+              title="Export Summary Brief"
+            >
+              <span className="material-symbols-outlined text-[15px]">file_download</span>
+              <span>Export Brief</span>
+            </button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

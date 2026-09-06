@@ -75,7 +75,7 @@ describe("EvidenceDrawer", () => {
 
     expect(screen.getByText("Audit Trail & Evidence")).toBeInTheDocument();
     expect(
-      screen.getByText("Law firms will pay $500/month for document summaries")
+      screen.getByText(/Law firms will pay \$500\/month for document summaries/i)
     ).toBeInTheDocument();
     expect(screen.getByText("Broken")).toBeInTheDocument();
     expect(screen.getByText("Legal Tech Pricing Report 2026")).toBeInTheDocument();

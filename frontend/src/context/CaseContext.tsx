@@ -12,6 +12,7 @@ interface CaseContextValue {
   selectClaim: (claimId: string | null) => void;
   resetCase: () => void;
   loadPreset: (presetId: string) => void;
+  navigateScreen: (screen: AppState["activeScreen"]) => void;
   setActiveModal: (modal: AppState["activeModal"]) => void;
   refreshCurrentCase: () => Promise<void>;
 }
@@ -103,6 +104,10 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: "RESET_CASE" });
   };
 
+  const navigateScreen = (screen: AppState["activeScreen"]) => {
+    dispatch({ type: "NAVIGATE_SCREEN", payload: screen });
+  };
+
   const loadPreset = (presetId: string) => {
     const preset = DECISION_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
@@ -123,6 +128,7 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectClaim,
         resetCase,
         loadPreset,
+        navigateScreen,
         setActiveModal,
         refreshCurrentCase,
       }}

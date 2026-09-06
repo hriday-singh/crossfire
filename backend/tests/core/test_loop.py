@@ -76,6 +76,27 @@ async def test_extract_claims_empty_statements(fake_provider_factory):
 
 
 @pytest.mark.asyncio
+async def test_extract_claims_with_context_includes_context_in_prompt_and_case(fake_provider_factory):
+    from core.loop import ExtractedClaims, extract_claims
+
+    provider = fake_provider_factory(
+        responses=[ExtractedClaims(statements=["Hospital contracts require on-prem deployment"])]
+    )
+    context_doc = "Security Policy: All medical software must be deployed strictly on-premises."
+    case = await extract_claims(
+        "Deploying hospital AI scribe in the cloud",
+        provider,
+        context=context_doc,
+    )
+    assert case.status == "awaiting_confirmation"
+    assert case.context == context_doc
+    assert len(case.claims) == 1
+    assert case.claims[0].statement == "Hospital contracts require on-prem deployment"
+    assert "Supporting / Context Document" in provider.calls[0]["messages"][0]["content"]
+    assert context_doc in provider.calls[0]["messages"][0]["content"]
+
+
+@pytest.mark.asyncio
 async def test_classify_load_bearing_obvious_yes(fake_provider_factory, sample_claim, sample_case):
     """A claim like 'students will trust autonomous submission' — if false, the
     decision changes materially. Assert the function returns True, and that
@@ -101,6 +122,17 @@ async def test_classify_load_bearing_obvious_no(fake_provider_factory, sample_lo
     provider = fake_provider_factory(responses=[LoadBearingAnswer(answer=False)])
     result = await classify_load_bearing(sample_low_stakes_claim, sample_case, provider)
     assert result is False
+
+
+@pytest.mark.asyncio
+async def test_classify_load_bearing_with_context(fake_provider_factory, sample_claim, sample_case):
+    from core.loop import LoadBearingAnswer, classify_load_bearing
+
+    sample_case.context = "Strict state regulatory requirement on medical data."
+    provider = fake_provider_factory(responses=[LoadBearingAnswer(answer=True)])
+    result = await classify_load_bearing(sample_claim, sample_case, provider)
+    assert result is True
+    assert "Context Document: Strict state regulatory requirement" in provider.calls[0]["messages"][0]["content"]
 
 
 # --- Hour 11-18 ---

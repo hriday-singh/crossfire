@@ -1,100 +1,169 @@
 import React from "react";
 import { useCase } from "@/context/CaseContext";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { DEFAULT_COLLEGE_AI_CASE } from "@/lib/presets";
 
 export const Header: React.FC = () => {
-  const { state, resetCase } = useCase();
+  const { state, dispatch, resetCase, navigateScreen, selectClaim } = useCase();
 
-  const getStatusText = () => {
-    if (state.isStreaming || state.currentCase?.status === "testing") {
-      return "testing claims";
+  const isRunnerActive =
+    state.isStreaming ||
+    state.currentCase?.status === "testing" ||
+    state.isExtracting ||
+    state.isConfirming;
+
+  const handleNav = (path: "ingestion" | "claim-map" | "live-runner-verdicts" | "audit-sheet") => {
+    if (path === "ingestion") {
+      selectClaim(null);
+      navigateScreen("entry");
+    } else if (path === "claim-map") {
+      if (!state.currentCase) {
+        dispatch({ type: "LOAD_CASE", payload: DEFAULT_COLLEGE_AI_CASE });
+      }
+      selectClaim(null);
+      navigateScreen("confirm");
+    } else if (path === "live-runner-verdicts") {
+      if (!state.currentCase) {
+        dispatch({ type: "LOAD_CASE", payload: DEFAULT_COLLEGE_AI_CASE });
+      }
+      selectClaim(null);
+      navigateScreen("dashboard");
+    } else if (path === "audit-sheet") {
+      if (!state.currentCase) {
+        dispatch({ type: "LOAD_CASE", payload: DEFAULT_COLLEGE_AI_CASE });
+      }
+      // Select broken target claim or first claim
+      const targetClaim =
+        state.currentCase?.claims.find((c) => c.status === "broken") ||
+        state.currentCase?.claims[0] ||
+        DEFAULT_COLLEGE_AI_CASE.claims[1];
+      selectClaim(targetClaim.id);
+      navigateScreen("dashboard");
     }
-    if (state.activeScreen === "dashboard" || state.currentCase?.status === "done") {
-      return "decision memo";
-    }
-    if (state.activeScreen === "confirm") {
-      return "align assumptions";
-    }
-    return "decision testing";
   };
 
-  const getStatusBadge = () => {
-    if (state.isExtracting) {
-      return {
-        label: "Extracting",
-        classes: "bg-indigo-50 text-indigo-700 border-indigo-200",
-        dot: "bg-indigo-600 animate-pulse",
-      };
-    }
-    if (state.isStreaming || state.currentCase?.status === "testing") {
-      return {
-        label: "Testing",
-        classes: "bg-amber-50 text-amber-700 border-amber-200",
-        dot: "bg-amber-600 animate-pulse",
-      };
-    }
-    if (state.activeScreen === "confirm") {
-      return {
-        label: "Aligning",
-        classes: "bg-zinc-100 text-zinc-700 border-zinc-200",
-        dot: "bg-zinc-500",
-      };
-    }
-    if (state.activeScreen === "dashboard" || state.currentCase?.status === "done") {
-      return {
-        label: "Completed",
-        classes: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        dot: "bg-emerald-600",
-      };
-    }
-    return {
-      label: "Ready",
-      classes: "bg-zinc-100 text-zinc-600 border-zinc-200",
-      dot: "bg-zinc-400",
-    };
-  };
-
-  const statusBadge = getStatusBadge();
+  const isIngestionActive = state.activeScreen === "entry";
+  const isClaimMapActive = state.activeScreen === "confirm";
+  const isLiveRunnerActive =
+    (state.activeScreen === "runner" || state.activeScreen === "dashboard") &&
+    !state.selectedClaimId;
+  const isAuditSheetActive = Boolean(state.selectedClaimId);
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 w-full items-center justify-between border-b border-zinc-200 bg-white/90 px-6 backdrop-blur-md">
-      {/* Brand & Editorial Masthead */}
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={resetCase}
-          className="group flex items-baseline gap-2 text-left focus:outline-none"
-        >
-          <span className="text-base font-semibold tracking-tight text-zinc-950 group-hover:text-zinc-700 transition-colors">
-            Crossfire
-          </span>
-          <span className="font-mono text-xs text-zinc-500">
-            / {getStatusText()}
-          </span>
-        </button>
-
-        <span
-          className={`hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-mono font-medium ${statusBadge.classes}`}
-        >
-          <span className={`h-1.5 w-1.5 rounded-full ${statusBadge.dot}`} />
-          {statusBadge.label}
-        </span>
-      </div>
-
-      {/* Primary Actions */}
-      <div className="flex items-center gap-2">
-        {state.activeScreen !== "entry" && (
-          <Button
-            variant="outline"
-            size="sm"
+    <header className="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
+      <div className="h-14 w-full px-space-6 flex items-center justify-between max-w-6xl mx-auto">
+        {/* Brand & Engine Version */}
+        <div className="flex items-center gap-space-3">
+          <button
+            type="button"
             onClick={resetCase}
-            className="h-8 gap-1.5 text-xs text-zinc-700 hover:text-zinc-950 border-zinc-200 bg-white shadow-xs hover:bg-zinc-50"
+            className="flex items-center gap-space-2 text-left focus:outline-none group"
           >
-            <Plus size={13} />
-            <span>New Decision</span>
-          </Button>
-        )}
+            <span className="font-code-lg text-code-lg tracking-widest uppercase font-semibold text-on-surface group-hover:text-primary transition-colors">
+              Crossfire
+            </span>
+            <span className="sr-only">/ decision testing</span>
+          </button>
+          <span className="font-code-sm text-code-sm text-outline px-space-2 py-0.5 border border-outline-variant rounded select-none">
+            v1.4-engine
+          </span>
+        </div>
+
+        {/* Center Nav Pipeline */}
+        <nav
+          className="hidden lg:flex items-center gap-space-6 h-full font-code-sm text-code-sm"
+          data-active-classes="text-on-surface border-b-2 border-primary-container font-medium"
+        >
+          <button
+            type="button"
+            onClick={() => handleNav("ingestion")}
+            data-path="ingestion"
+            aria-current={isIngestionActive ? "page" : undefined}
+            className={`transition-colors flex items-center h-full ${
+              isIngestionActive
+                ? "text-on-surface border-b-2 border-primary-container font-medium"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            01 Ingestion
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNav("claim-map")}
+            data-path="claim-map"
+            aria-current={isClaimMapActive ? "page" : undefined}
+            className={`transition-colors flex items-center h-full ${
+              isClaimMapActive
+                ? "text-on-surface border-b-2 border-primary-container font-medium"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            02 Claim Map
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNav("live-runner-verdicts")}
+            data-path="live-runner-verdicts"
+            aria-current={isLiveRunnerActive ? "page" : undefined}
+            className={`transition-colors flex items-center h-full ${
+              isLiveRunnerActive
+                ? "text-on-surface border-b-2 border-primary-container font-medium"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            03 Live Runner & Verdicts
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNav("audit-sheet")}
+            data-path="audit-sheet"
+            aria-current={isAuditSheetActive ? "page" : undefined}
+            className={`transition-colors flex items-center h-full ${
+              isAuditSheetActive
+                ? "text-on-surface border-b-2 border-primary-container font-medium"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            04 Audit Sheet
+          </button>
+        </nav>
+
+        {/* Right Tools & Profile */}
+        <div className="flex items-center gap-space-4">
+          <div className="flex items-center gap-space-2 px-space-2 py-1 bg-surface-container-low border border-outline-variant rounded">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-container opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-container"></span>
+            </span>
+            <span className="font-label-mono text-label-mono uppercase tracking-wider text-on-surface">
+              {isRunnerActive ? "RUNNER ACTIVE" : "RUNNER READY"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="text-outline hover:text-on-surface transition-colors flex items-center p-space-1 rounded hover:bg-surface-container"
+            title="Terminal & Logs"
+          >
+            <span className="material-symbols-outlined text-[18px]">terminal</span>
+          </button>
+
+          <button
+            type="button"
+            className="text-outline hover:text-on-surface transition-colors flex items-center p-space-1 rounded hover:bg-surface-container"
+            title="Settings"
+          >
+            <span className="material-symbols-outlined text-[18px]">settings</span>
+          </button>
+
+          <img
+            alt="Profile"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-outline-variant"
+            src="https://lh3.googleusercontent.com/aida/AEtjO1VkXSrQpw5M0xl8nFNHXNETQxEaabYojzIUEfIkxRtXbb7j73IUgu8jjq6TpxNrUO80E_YRGgRh0KxZ7sX6ZfPx_nT-3GIIDA8vNnMeKxcEP7HgJOALbZypuoBzeTCkqdY6hwrVwp7Sf7QuDnmUuL5xHDCNLJBaM-XceAzkY6p_ekPppeLvd72akqzuS87KoaNVBSNUQuW2cheLk7I3kCOpJooGGWH_JnNyd6WYymnjJ2wrINT28kI4wOM"
+          />
+        </div>
       </div>
     </header>
   );

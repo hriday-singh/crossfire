@@ -46,46 +46,46 @@ export function getVerdictConfig(status: ClaimStatus | null | undefined): Verdic
     case "survived":
       return {
         label: "Survived",
-        badgeBg: "bg-emerald-50",
-        badgeText: "text-emerald-800",
-        badgeBorder: "border-emerald-200/80",
-        dotColor: "bg-emerald-600",
-        hex: "#059669",
+        badgeBg: "bg-emerald-950/40",
+        badgeText: "text-emerald-400",
+        badgeBorder: "border-emerald-500/30",
+        dotColor: "bg-emerald-400",
+        hex: "#34d399",
       };
     case "weakened":
       return {
         label: "Weakened",
-        badgeBg: "bg-amber-50",
-        badgeText: "text-amber-800",
-        badgeBorder: "border-amber-200/80",
-        dotColor: "bg-amber-600",
-        hex: "#d97706",
+        badgeBg: "bg-amber-950/40",
+        badgeText: "text-amber-400",
+        badgeBorder: "border-amber-500/30",
+        dotColor: "bg-amber-400",
+        hex: "#fbbf24",
       };
     case "broken":
       return {
         label: "Broken",
-        badgeBg: "bg-rose-50",
-        badgeText: "text-rose-800",
-        badgeBorder: "border-rose-200/80",
-        dotColor: "bg-rose-600",
-        hex: "#e11d48",
+        badgeBg: "bg-rose-950/40",
+        badgeText: "text-rose-400",
+        badgeBorder: "border-rose-500/30",
+        dotColor: "bg-rose-400",
+        hex: "#f87171",
       };
     case "unresolved":
       return {
         label: "Unresolved",
-        badgeBg: "bg-indigo-50",
-        badgeText: "text-indigo-800",
-        badgeBorder: "border-indigo-200/80",
-        dotColor: "bg-indigo-600",
-        hex: "#4f46e5",
+        badgeBg: "bg-indigo-950/40",
+        badgeText: "text-indigo-400",
+        badgeBorder: "border-indigo-500/30",
+        dotColor: "bg-indigo-400",
+        hex: "#818cf8",
       };
     default:
       return {
         label: "Untested",
-        badgeBg: "bg-zinc-100",
-        badgeText: "text-zinc-600",
-        badgeBorder: "border-zinc-200",
-        dotColor: "bg-zinc-400",
+        badgeBg: "bg-zinc-800",
+        badgeText: "text-zinc-400",
+        badgeBorder: "border-zinc-700",
+        dotColor: "bg-zinc-500",
         hex: "#71717a",
       };
   }

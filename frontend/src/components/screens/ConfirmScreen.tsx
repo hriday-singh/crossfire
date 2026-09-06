@@ -1,23 +1,13 @@
 import React, { useState } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Button } from "@/components/ui/button";
-import {
-  Anchor,
-  ArrowRight,
-  Check,
-  FileText,
-  Loader2,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export const ConfirmScreen: React.FC = () => {
-  const { state, dispatch, confirmAndRun } = useCase();
+  const { state, dispatch, confirmAndRun, navigateScreen } = useCase();
   const [editingClaimId, setEditingClaimId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
-  const [newClaimText, setNewClaimText] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [newClaimText, setNewClaimText] = useState("");
 
   const currentCase = state.currentCase;
   if (!currentCase) return null;
@@ -37,18 +27,6 @@ export const ConfirmScreen: React.FC = () => {
     setEditingClaimId(null);
   };
 
-  const handleKeyDownEdit = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-    claimId: string
-  ) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSaveEdit(claimId);
-    } else if (e.key === "Escape") {
-      setEditingClaimId(null);
-    }
-  };
-
   const handleDeleteClaim = (e: React.MouseEvent, claimId: string) => {
     e.stopPropagation();
     dispatch({ type: "REMOVE_CLAIM", payload: { claimId } });
@@ -59,7 +37,7 @@ export const ConfirmScreen: React.FC = () => {
     dispatch({ type: "TOGGLE_CLAIM_LOAD_BEARING", payload: { claimId } });
   };
 
-  const handleAddClaim = (e: React.FormEvent) => {
+  const handleAddClaimSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newClaimText.trim()) return;
     dispatch({ type: "ADD_CLAIM", payload: { statement: newClaimText.trim() } });
@@ -67,225 +45,290 @@ export const ConfirmScreen: React.FC = () => {
     setIsAdding(false);
   };
 
-  const loadBearingCount = currentCase.claims.filter((c) => c.load_bearing).length;
+  const getClaimCategory = (statement: string, index: number) => {
+    const s = statement.toLowerCase();
+    if (s.includes("trust") || s.includes("student") || s.includes("user")) {
+      return "Behavioral trust & delegation";
+    }
+    if (s.includes("competitor") || s.includes("market") || s.includes("pricing")) {
+      return "Market uniqueness & competitive moat";
+    }
+    if (s.includes("theme") || s.includes("ui") || s.includes("onboarding")) {
+      return "User interface preference";
+    }
+    if (s.includes("parse") || s.includes("portal") || s.includes("api") || s.includes("technical")) {
+      return "Technical feasibility";
+    }
+    return index % 2 === 0 ? "Strategic viability" : "Operational friction";
+  };
+
+  const getClaimRisk = (claim: { load_bearing?: boolean | null }, index: number) => {
+    if (claim.load_bearing === false) {
+      return { label: "Low Risk", color: "text-outline" };
+    }
+    if (index === 1) {
+      return { label: "Medium Risk", color: "text-tertiary" };
+    }
+    return { label: "High Risk", color: "text-error" };
+  };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col px-6 pt-10 pb-20">
-      {/* Proposition Echo Header */}
-      <div className="mb-8 rounded-xl border border-zinc-200 bg-zinc-50/60 p-6">
-        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-zinc-500 mb-2">
-          <FileText size={13} className="text-zinc-600" />
-          <span>Proposition Under Test</span>
-        </div>
-        <h2 className="text-lg sm:text-xl font-medium leading-relaxed text-zinc-950 font-sans">
-          "{currentCase.raw_input}"
-        </h2>
-        {currentCase.context && (
-          <p className="mt-2 text-xs font-mono text-zinc-500">
-            Context: {currentCase.context}
-          </p>
-        )}
-      </div>
-
-      {/* Checklist Header */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 pb-3">
-        <div>
-          <h3 className="font-semibold text-zinc-950 text-base">
-            Align Foundational Assumptions ({currentCase.claims.length})
-          </h3>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Click text to edit statement · Toggle foundation status
-          </p>
-        </div>
-        <div className="font-mono text-xs text-zinc-500">
-          <span className="font-semibold text-zinc-900">{loadBearingCount}</span> core /{" "}
-          <span>{currentCase.claims.length - loadBearingCount}</span> supporting
-        </div>
-      </div>
-
-      {/* Assumptions Checklist Stack */}
-      <div className="space-y-3">
-        {currentCase.claims.map((claim, index) => {
-          const isEditing = editingClaimId === claim.id;
-
-          return (
-            <div
-              key={claim.id}
-              onClick={() => !isEditing && handleStartEdit(claim.id, claim.statement)}
-              className={cn(
-                "group relative rounded-xl border bg-white p-4 sm:p-5 transition-all",
-                isEditing
-                  ? "border-zinc-950 shadow-sm ring-1 ring-zinc-950"
-                  : "border-zinc-200 hover:border-zinc-300 hover:shadow-xs cursor-pointer"
-              )}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex flex-1 items-start gap-3 min-w-0">
-                  <span className="mt-0.5 font-mono text-xs font-semibold text-zinc-400 shrink-0 select-none">
-                    {String(index + 1).padStart(2, "0")}.
-                  </span>
-
-                  {isEditing ? (
-                    <div
-                      className="flex-1 space-y-2.5"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <textarea
-                        value={editingText}
-                        onChange={(e) => setEditingText(e.target.value)}
-                        onKeyDown={(e) => handleKeyDownEdit(e, claim.id)}
-                        className="w-full rounded-lg border border-zinc-300 bg-white p-3 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
-                        rows={3}
-                        autoFocus
-                      />
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveEdit(claim.id)}
-                          className="h-8 text-xs px-3 bg-zinc-950 text-white hover:bg-zinc-800 gap-1.5"
-                        >
-                          <Check size={13} />
-                          <span>Save</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingClaimId(null)}
-                          className="h-8 text-xs px-3 text-zinc-600 hover:text-zinc-950"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm sm:text-base font-medium leading-relaxed text-zinc-900">
-                      {claim.statement}
-                    </p>
-                  )}
-                </div>
-
-                {!isEditing && (
-                  <button
-                    type="button"
-                    onClick={(e) => handleDeleteClaim(e, claim.id)}
-                    title="Remove assumption"
-                    className="rounded p-1 text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-rose-600 hover:bg-rose-50 transition-all shrink-0"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                )}
-              </div>
-
-              {/* Sub-bar with Core Foundation Toggle */}
-              {!isEditing && (
-                <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2.5">
-                  <button
-                    type="button"
-                    onClick={(e) => handleToggleLoadBearing(e, claim.id)}
-                    title={
-                      claim.load_bearing
-                        ? "Click to convert to supporting assumption"
-                        : "Click to mark as core foundation"
-                    }
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-mono transition-colors",
-                      claim.load_bearing
-                        ? "bg-zinc-950 text-white border-zinc-950 font-medium hover:bg-zinc-800"
-                        : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900"
-                    )}
-                  >
-                    <Anchor
-                      size={11}
-                      className={claim.load_bearing ? "text-white" : "text-zinc-400"}
-                    />
-                    <span>
-                      {claim.load_bearing ? "Core foundation" : "Supporting assumption"}
-                    </span>
-                  </button>
-
-                  <span className="text-[11px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Click text to edit
-                  </span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Inline Add Assumption Form */}
-      {isAdding ? (
-        <form
-          onSubmit={handleAddClaim}
-          className="mt-4 space-y-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-5"
-        >
-          <label className="block font-mono text-xs uppercase text-zinc-500 font-semibold">
-            Add New Assumption Statement
-          </label>
-          <input
-            type="text"
-            value={newClaimText}
-            onChange={(e) => setNewClaimText(e.target.value)}
-            placeholder="e.g. Free-tier users will convert to paid users at standard SaaS rates."
-            className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
-            autoFocus
-          />
-          <div className="flex items-center gap-2 pt-1">
-            <Button
-              type="submit"
-              size="sm"
-              className="h-8 text-xs bg-zinc-950 text-white hover:bg-zinc-800"
-            >
-              Add Assumption
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsAdding(false)}
-              className="h-8 text-xs text-zinc-600 hover:text-zinc-950"
-            >
-              Cancel
-            </Button>
+    <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
+      <div className="flex flex-col w-full">
+        <div className="w-full max-w-[760px] mx-auto py-10 px-4">
+          {/* Clean Step Indicator */}
+          <div className="flex items-center gap-2 mb-3 text-body-xs font-code-sm uppercase tracking-wider text-primary-container font-medium">
+            <span className="inline-block w-2 h-2 rounded-full bg-primary-container" />
+            <span>Step 2 of 4 · Review Extracted Claims</span>
           </div>
-        </form>
-      ) : (
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => setIsAdding(true)}
-            className="inline-flex items-center gap-1.5 font-mono text-xs text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 rounded-md px-3 py-1.5 transition-colors border border-dashed border-zinc-200"
-          >
-            <Plus size={14} />
-            <span>Add another assumption</span>
-          </button>
-        </div>
-      )}
 
-      {/* Footer Actions */}
-      <div className="mt-12 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-zinc-200 pt-6">
-        <span className="font-mono text-xs text-zinc-500">
-          Ready to stress-test {currentCase.claims.length} assumptions
-        </span>
+          {/* Header Title & Subtext */}
+          <div className="mb-6">
+            <h1 className="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight mb-1.5">
+              We identified{" "}
+              <span className="text-primary-container" id="claim-count">
+                {currentCase.claims.length}
+              </span>{" "}
+              claims to test
+            </h1>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              Review the extracted assumptions below. You can edit, remove, or add claims before running tests.
+            </p>
+          </div>
 
-        <Button
-          onClick={confirmAndRun}
-          disabled={currentCase.claims.length === 0 || state.isConfirming}
-          className="h-10 px-6 font-medium bg-zinc-950 text-white hover:bg-zinc-800 rounded-lg shadow-sm gap-2"
-        >
-          {state.isConfirming ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              <span>Launching tests...</span>
-            </>
-          ) : (
-            <>
-              <span>Confirm & Run Tests</span>
-              <ArrowRight size={15} />
-            </>
+          {/* Clean Decision Echo Card */}
+          <div className="bg-surface-container-low border border-outline-variant/60 rounded-xl p-space-4 mb-8">
+            <div className="text-label-mono font-label-mono uppercase tracking-wider text-outline font-semibold mb-1.5 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px]">lightbulb</span>
+              <span>Decision Under Test</span>
+            </div>
+            <p className="font-headline-sm text-headline-sm text-on-surface font-medium leading-relaxed">
+              {currentCase.raw_input}
+            </p>
+          </div>
+
+          {/* Section Header */}
+          <div className="flex items-center justify-between mb-4 px-1">
+            <span className="font-label-mono text-label-mono uppercase tracking-wider text-on-surface-variant font-semibold">
+              Assumptions to Validate
+            </span>
+            <span className="font-body-xs text-body-xs text-outline">
+              {currentCase.claims.length} ready to verify
+            </span>
+          </div>
+
+          {/* Vertical Stack of Assumption Cards */}
+          <div className="flex flex-col gap-3" id="claims-container">
+            {currentCase.claims.map((claim, index) => {
+              const isEditing = editingClaimId === claim.id;
+              const formattedId = `C-${String(index + 1).padStart(2, "0")}`;
+              const category = getClaimCategory(claim.statement, index);
+              const risk = getClaimRisk(claim, index);
+              const isLoadBearing = claim.load_bearing ?? true;
+
+              return (
+                <div
+                  key={claim.id}
+                  data-id={formattedId}
+                  className="claim-card bg-surface-container border border-outline-variant/40 rounded-xl p-5 flex items-start justify-between group transition-all duration-150 hover:border-outline-variant hover:bg-surface-container-high"
+                >
+                  <div className="flex items-start min-w-0 pr-4 flex-1">
+                    <span className="font-code-md text-code-md text-primary-container font-semibold mr-3 select-none shrink-0 pt-0.5">
+                      [{formattedId}]
+                    </span>
+
+                    <div className="flex-1 min-w-0">
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSaveEdit(claim.id);
+                              } else if (e.key === "Escape") {
+                                setEditingClaimId(null);
+                              }
+                            }}
+                            className="w-full rounded-lg bg-surface-container-lowest text-on-surface p-2 font-body-md border border-outline-variant outline-none focus:border-primary-container"
+                            rows={3}
+                            autoFocus
+                          />
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveEdit(claim.id)}
+                              className="h-7 text-xs bg-primary-container text-on-primary-container hover:brightness-110"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingClaimId(null)}
+                              className="h-7 text-xs text-outline hover:text-on-surface"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => handleStartEdit(claim.id, claim.statement)}
+                          className="claim-text font-body-md text-body-md font-medium text-on-surface leading-normal outline-none cursor-pointer"
+                        >
+                          {claim.statement}
+                        </div>
+                      )}
+
+                      {!isEditing && (
+                        <div className="font-body-xs text-body-xs text-outline mt-2 flex items-center gap-2.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleLoadBearing(e, claim.id)}
+                            title="Click to toggle load-bearing"
+                            className={`px-2 py-0.5 rounded font-code-sm text-code-sm font-medium border transition-colors ${
+                              isLoadBearing
+                                ? "bg-primary-container/10 text-primary-container border-primary-container/20 hover:bg-primary-container/20"
+                                : "bg-surface-container-high text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-highest"
+                            }`}
+                          >
+                            {isLoadBearing ? "Load-bearing" : "Secondary"}
+                          </button>
+                          <span className="text-on-surface-variant">{category}</span>
+                          <span className="w-1 h-1 rounded-full bg-outline-variant" />
+                          <span className={`${risk.color} font-medium`}>{risk.label}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isEditing
+                          ? handleSaveEdit(claim.id)
+                          : handleStartEdit(claim.id, claim.statement)
+                      }
+                      className="btn-edit p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-surface-container-lowest"
+                      title={isEditing ? "Save Claim" : "Edit Claim"}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {isEditing ? "check" : "edit"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteClaim(e, claim.id)}
+                      className="btn-delete p-1.5 text-outline hover:text-error transition-colors rounded hover:bg-surface-container-lowest"
+                      title="Remove Claim"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Inline Add Claim Form */}
+          {isAdding && (
+            <form
+              onSubmit={handleAddClaimSubmit}
+              className="mt-4 bg-surface-container border border-dashed border-outline-variant rounded-xl p-4 space-y-3"
+            >
+              <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider font-semibold">
+                Add New Hypothesis Statement
+              </span>
+              <input
+                type="text"
+                value={newClaimText}
+                onChange={(e) => setNewClaimText(e.target.value)}
+                placeholder="Enter testable hypothesis or architectural assertion..."
+                autoFocus
+                className="w-full bg-surface-container-lowest text-on-surface p-3 font-body-md rounded-lg border border-outline-variant outline-none focus:border-primary-container"
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="bg-primary-container text-on-primary-container hover:brightness-110"
+                >
+                  Save Hypothesis
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsAdding(false)}
+                  className="text-outline hover:text-on-surface"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
           )}
-        </Button>
+
+          {/* Bottom Actions Row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/30">
+            {/* Left Action: Add Assumption */}
+            <button
+              type="button"
+              id="add-claim-btn"
+              onClick={() => setIsAdding(true)}
+              className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface flex items-center gap-2 cursor-pointer py-2 px-3 rounded-lg hover:bg-surface-container transition-colors justify-center sm:justify-start border border-outline-variant/40 hover:border-outline-variant"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span>Add an assumption</span>
+            </button>
+
+            {/* Center & Right Actions Group */}
+            <div className="flex items-center justify-between sm:justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => navigateScreen("entry")}
+                className="font-body-sm text-body-sm text-outline hover:text-on-surface transition-colors flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-surface-container cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                <span>Back</span>
+              </button>
+
+              <Button
+                type="button"
+                id="confirm-run-btn"
+                onClick={confirmAndRun}
+                disabled={currentCase.claims.length === 0 || state.isConfirming}
+                className="bg-primary-container text-on-primary-container font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {state.isConfirming ? (
+                  <>
+                    <span className="material-symbols-outlined text-[18px] animate-spin">
+                      progress_activity
+                    </span>
+                    <span>INITIALIZING RUNNER...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Run Tests</span>
+                    <span className="sr-only">Confirm & Run Tests</span>
+                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Footer */}
+      <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
+        <div className="flex items-center gap-space-4 font-body-xs text-body-xs text-outline">
+          <span>Crossfire Decision Verification</span>
+        </div>
+        <div className="font-body-xs text-body-xs text-outline">© 2025 Crossfire Inc.</div>
+      </footer>
     </div>
   );
 };

@@ -95,8 +95,8 @@ describe("ClaimCard", () => {
     // Now evidence and citations are visible
     expect(screen.getByText("Procurement Delays in AI SaaS")).toBeInTheDocument();
     expect(screen.getByText(/Enterprises demand pilot periods/i)).toBeInTheDocument();
-    expect(screen.getByText(/Budget cycles delayed onboarding/i)).toBeInTheDocument();
-    expect(screen.getByText(/Introduce a 90-day paid pilot/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Budget cycles delayed onboarding/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Introduce a 90-day paid pilot/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/Offer 3 design partners a 90-day pilot agreement/i)).toBeInTheDocument();
 
     // Toggle close

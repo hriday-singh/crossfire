@@ -24,20 +24,20 @@ describe("formatters", () => {
   it("should format verdicts correctly and ensure unresolved is violet, not gray", () => {
     const survived = getVerdictConfig("survived");
     expect(survived.label).toBe("Survived");
-    expect(survived.hex).toBe("#059669");
+    expect(survived.hex).toBe("#34d399");
 
     const weakened = getVerdictConfig("weakened");
     expect(weakened.label).toBe("Weakened");
-    expect(weakened.hex).toBe("#d97706");
+    expect(weakened.hex).toBe("#fbbf24");
 
     const broken = getVerdictConfig("broken");
     expect(broken.label).toBe("Broken");
-    expect(broken.hex).toBe("#e11d48");
+    expect(broken.hex).toBe("#f87171");
 
     const unresolved = getVerdictConfig("unresolved");
     expect(unresolved.label).toBe("Unresolved");
-    // Mandatory Rule: Unresolved is indigo (#4f46e5), NEVER gray
-    expect(unresolved.hex).toBe("#4f46e5");
+    // Mandatory Rule: Unresolved is indigo (#818cf8), NEVER gray
+    expect(unresolved.hex).toBe("#818cf8");
     expect(unresolved.badgeText).toContain("indigo");
   });
 

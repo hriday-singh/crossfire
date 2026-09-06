@@ -7,7 +7,7 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-card text-foreground border border-border",
+        default: "bg-zinc-900/60 text-zinc-100 border border-zinc-800",
         destructive:
           "border border-rose-800/60 bg-rose-950/40 text-rose-300 [&>svg]:text-rose-400",
         warning:
