@@ -101,9 +101,6 @@ async def ingest_pdf(
             return await curate_snippet_llm(raw_text, claim_statement, provider=provider)
         return curate_snippet(raw_text, claim_statement)
 
-    # Return clean bounded text for Case.context
-    if len(raw_text) > 2000:
-        truncated = raw_text[:2000]
-        last_space = truncated.rsplit(" ", 1)
-        return last_space[0] + "..." if len(last_space) > 1 else truncated
+    # Return full extracted text for Case.context (supporting multi-page documents)
     return raw_text
+

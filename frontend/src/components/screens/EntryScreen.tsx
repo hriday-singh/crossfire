@@ -98,9 +98,29 @@ export const EntryScreen: React.FC = () => {
   };
 
   const handleTextChange = (value: string) => {
-    // When typing past 500 characters, keep rawInput capped at 500.
-    // Do not clip single characters into snippets.
+    // When input exceeds 500 characters:
     if (value.length > MAX_PROPOSAL_CHARS) {
+      const insertedCount = value.length - rawInput.length;
+      // Bulk insert/paste via context menu, drag-and-drop, or input change:
+      if (insertedCount > 5) {
+        setRawInput(value.slice(0, MAX_PROPOSAL_CHARS));
+        const blobCount =
+          attachments.filter((a) => a.type === "text_blob").length + 1;
+        const newBlob: EntryAttachment = {
+          id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: "text_blob",
+          name: `Context Block #${blobCount}`,
+          context: value,
+          charCount: value.length,
+        };
+        setAttachments((prev) => [...prev, newBlob]);
+        setSmartNotice(
+          `First 500 characters placed in proposal. Full document (${value.length.toLocaleString()} chars) attached as context block.`,
+        );
+        return;
+      }
+
+      // User typing individual keystrokes past 500: cap at 500 without creating snippets
       setRawInput(value.slice(0, MAX_PROPOSAL_CHARS));
       return;
     }
@@ -142,7 +162,34 @@ export const EntryScreen: React.FC = () => {
     const pasted = e.clipboardData.getData("text").trim();
     if (!pasted) return;
 
-    // 1. Check if pasted text contains URLs
+    // 1. Large text (> 500 characters or total combined > 500 characters):
+    // Full document MUST go inside the context block, and first 500 characters populate the proposal.
+    // This MUST run BEFORE URL extraction so large multi-page documents containing links are NOT shredded.
+    if (
+      pasted.length > MAX_PROPOSAL_CHARS ||
+      rawInput.length + pasted.length > MAX_PROPOSAL_CHARS
+    ) {
+      e.preventDefault();
+      const combined = rawInput ? `${rawInput}\n\n${pasted}`.trim() : pasted;
+      setRawInput(combined.slice(0, MAX_PROPOSAL_CHARS));
+
+      const blobCount =
+        attachments.filter((a) => a.type === "text_blob").length + 1;
+      const newBlob: EntryAttachment = {
+        id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: "text_blob",
+        name: `Context Block #${blobCount}`,
+        context: combined,
+        charCount: combined.length,
+      };
+      setAttachments((prev) => [...prev, newBlob]);
+      setSmartNotice(
+        `First 500 characters placed in proposal. Full document (${combined.length.toLocaleString()} chars) attached as context block.`,
+      );
+      return;
+    }
+
+    // 2. Short text (<= 500 characters): Check if it contains web URLs
     const detectedMulti = extractAllWebUrls(pasted);
     if (detectedMulti.urls.length > 0) {
       e.preventDefault();
@@ -152,24 +199,7 @@ export const EntryScreen: React.FC = () => {
 
       const remaining = detectedMulti.remainingText;
       if (remaining) {
-        const combined = rawInput
-          ? `${rawInput} ${remaining}`.trim()
-          : remaining;
-        if (combined.length > MAX_PROPOSAL_CHARS) {
-          setRawInput(combined.slice(0, MAX_PROPOSAL_CHARS));
-          const blobCount =
-            attachments.filter((a) => a.type === "text_blob").length + 1;
-          const newBlob: EntryAttachment = {
-            id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            type: "text_blob",
-            name: `Context Block #${blobCount}`,
-            context: remaining,
-            charCount: remaining.length,
-          };
-          setAttachments((prev) => [...prev, newBlob]);
-        } else {
-          setRawInput(combined);
-        }
+        setRawInput((prev) => (prev ? `${prev} ${remaining}`.trim() : remaining));
       }
       setSmartNotice(
         detectedMulti.urls.length === 1
@@ -178,33 +208,8 @@ export const EntryScreen: React.FC = () => {
       );
       return;
     }
-
-    // 2. Large text exceeds 500 characters:
-    // 500-character get in proposal input AND full text goes inside context blob!
-    if (
-      pasted.length > MAX_PROPOSAL_CHARS ||
-      rawInput.length + pasted.length > MAX_PROPOSAL_CHARS
-    ) {
-      e.preventDefault();
-      const combined = rawInput ? `${rawInput} ${pasted}`.trim() : pasted;
-      setRawInput(combined.slice(0, MAX_PROPOSAL_CHARS));
-
-      const blobCount =
-        attachments.filter((a) => a.type === "text_blob").length + 1;
-      const newBlob: EntryAttachment = {
-        id: `blob-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        type: "text_blob",
-        name: `Context Block #${blobCount}`,
-        context: pasted,
-        charCount: pasted.length,
-      };
-      setAttachments((prev) => [...prev, newBlob]);
-      setSmartNotice(
-        `First 500 characters placed in proposal. Full document (${pasted.length.toLocaleString()} chars) attached as context block.`,
-      );
-      return;
-    }
   };
+
 
   const hasContentBlock = attachments.length > 0;
   const hasValidInput = hasContentBlock || rawInput.trim().length > 5;

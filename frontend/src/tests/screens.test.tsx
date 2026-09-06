@@ -87,7 +87,9 @@ describe("Screen Components", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByRole("alert")).toHaveTextContent(/Scanned or image-only PDF detected/i);
+        expect(screen.getByRole("alert")).toHaveTextContent(
+          /Unable to read text from "scanned\.pdf"/i
+        );
       });
     });
 
@@ -174,7 +176,7 @@ describe("Screen Components", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
-          /Only PDF documents and image screenshots/i
+          /Supported formats: PDF documents, screenshots\/images, or text files/i
         );
       });
     });
@@ -302,15 +304,15 @@ describe("Screen Components", () => {
         });
       });
 
-      // Verify proposal input was not trimmed with 500 characters of the block
-      expect((textarea as HTMLTextAreaElement).value).toBe("");
+      // Verify proposal input receives first 500 characters
+      expect((textarea as HTMLTextAreaElement).value).toBe(longText.slice(0, 500));
 
       // Verify the ENTIRE pasted text became a context block attachment
       await waitFor(() => {
         expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /^Context Block #1$/i })).toBeInTheDocument();
         expect(screen.getByRole("status")).toHaveTextContent(
-          /Large text .* attached as full context block/i
+          /First 500 characters placed in proposal.*attached as context block/i
         );
       });
     });
@@ -392,7 +394,8 @@ describe("Screen Components", () => {
         });
       });
 
-      // Textarea remains empty because it converted to a content block attachment
+      // Clear the textarea to verify the button is enabled even when textarea is empty
+      fireEvent.change(textarea, { target: { value: "" } });
       expect((textarea as HTMLTextAreaElement).value).toBe("");
 
       // Content block pill is present
