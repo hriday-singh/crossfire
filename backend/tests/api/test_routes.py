@@ -369,6 +369,7 @@ async def test_stream_emits_ping_heartbeat_during_idle(sample_case, monkeypatch)
 
     sample_case.status = "testing"
     store.set(sample_case)
+    await events.publish(sample_case.id, "claim_map_ready", {})
 
     # Patch timeout in routes to 0.05s so the test runs in milliseconds
     monkeypatch.setattr("api.routes.SSE_PING_INTERVAL_SECONDS", 0.05)

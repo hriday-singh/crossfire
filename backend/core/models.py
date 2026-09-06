@@ -23,6 +23,9 @@ class Claim(BaseModel):
     load_bearing: bool | None = None       # set after the load-bearing question runs
     load_bearing_reason: str | None = None # why this claim is load-bearing or secondary
     status: ClaimStatus | None = None
+    fatal_flaw: str | None = None          # isolated flaw if weakened/broken
+    salvaged_claim: str | None = None      # minimal viable re-architecture (Break to Rebuild)
+    tradeoff_acknowledged: str | None = None  # operational trade-off of the salvaged claim
 
 
 class TestPlanItem(BaseModel):
@@ -68,8 +71,11 @@ class DecisionConsequence(BaseModel):
     impact: str                             # high | medium | low, or a short phrase
     recommended_change: str
     next_validation: str | None = None      # required when status is broken/unresolved and load-bearing
-    verdict_reasoning: str = ""             # why Judge reconciled to this status — persisted here,
+    verdict_reasoning: str = ""             # why Steelman reconciled to this status — persisted here,
                                              # not just riding along on the SSE event
+    fatal_flaw: str | None = None           # isolated flaw from Steel Man
+    salvaged_claim: str | None = None       # minimal viable fix from Steel Man
+    tradeoff_acknowledged: str | None = None  # operational trade-off from Steel Man
 
 
 class Case(BaseModel):

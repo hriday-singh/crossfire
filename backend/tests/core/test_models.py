@@ -150,3 +150,36 @@ def test_case_full_json_roundtrip(sample_claim, sample_test_plan_item, sample_fi
     assert reconstructed.findings[0].evaluator == "receipts"
     assert len(reconstructed.consequences) == 1
     assert reconstructed.consequences[0].next_validation == "Interview 10 college counselors"
+
+
+def test_claim_steelman_salvage_fields():
+    c = Claim(id="c1", statement="Users will pay $500/mo")
+    assert c.fatal_flaw is None
+    assert c.salvaged_claim is None
+    assert c.tradeoff_acknowledged is None
+
+    c_mitigated = Claim(
+        id="c1",
+        statement="Users will pay $500/mo",
+        status=ClaimStatus.WEAKENED,
+        fatal_flaw="Unsubstantiated price elasticity",
+        salvaged_claim="Users will pay $99/mo for starter tier",
+        tradeoff_acknowledged="Lower initial ARPU requires higher customer volume",
+    )
+    assert c_mitigated.fatal_flaw == "Unsubstantiated price elasticity"
+    assert c_mitigated.salvaged_claim == "Users will pay $99/mo for starter tier"
+    assert c_mitigated.tradeoff_acknowledged == "Lower initial ARPU requires higher customer volume"
+
+
+def test_decision_consequence_steelman_salvage_fields():
+    dc = DecisionConsequence(
+        claim_id="c1",
+        impact="high",
+        recommended_change="Pilot lower tier",
+        fatal_flaw="Unsubstantiated price elasticity",
+        salvaged_claim="Users will pay $99/mo for starter tier",
+        tradeoff_acknowledged="Lower initial ARPU requires higher customer volume",
+    )
+    assert dc.fatal_flaw == "Unsubstantiated price elasticity"
+    assert dc.salvaged_claim == "Users will pay $99/mo for starter tier"
+    assert dc.tradeoff_acknowledged == "Lower initial ARPU requires higher customer volume"
