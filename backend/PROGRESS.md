@@ -76,10 +76,10 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `dispatch()` routing wired with Dev A | `[x]` | Fully wired to `run_evaluators()`. Routes `evidence`→Receipts, `behavior`/`constraint`/`feasibility`→Builder, `assumption`→Devil's Advocate, `edge-case`/`alternative`→Overthinker with fallback |
 | SSE events verified against contract | `[x]` | Verified documented event ordering in SSE stream |
 | Claim-confirmation gate is real, not client-faked | `[x]` | Rejects confirm requests when not in `awaiting_confirmation` status |
-| `overthinker.py` (stretch) | `[x]` | Edge-case test evaluator implemented and unit tested |
+| `overthinker.py` (stretch) | `[x]` | Edge-case test evaluator implemented, with dedicated test suite in `tests/evaluators/test_overthinker.py` |
 
 **Last updated:** Dev C
-**Note:** All Checkpoint 1, Checkpoint 2, and stretch deliverables complete. Evaluator `dispatch()` routing wired into `core.loop.run_evaluators`, `events.py` SSE transport and `core.loop.handle_confirm` verified end-to-end. All API, evaluator, and dispatch unit tests passing cleanly.
+**Note:** All Checkpoint 1, Checkpoint 2, and stretch deliverables complete. Dedicated unit test suite for `overthinker.py` implemented (`tests/evaluators/test_overthinker.py`), API and SSE stream edge-case tests added (`tests/api/test_routes.py`), and all 27 unit tests across Dev C files are passing cleanly. Evaluator `dispatch()` routing wired into `core.loop.run_evaluators`, `events.py` SSE transport and `core.loop.handle_confirm` verified end-to-end.
 
 
 ---
