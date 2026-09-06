@@ -24,8 +24,8 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 
 | Task | Status | Notes |
 |---|---|---|
-| Contracts frozen (`core/models.py`, `providers/base.py`) | `[ ]` | |
-| `GeminiProvider` wired | `[ ]` | |
+| Contracts frozen (`core/models.py`, `providers/base.py`) | `[x]` | |
+| `GeminiProvider` wired | `[~]` | scaffolded, generate() not implemented yet |
 | `extract_claims()` | `[ ]` | |
 | `classify_load_bearing()` v1 | `[ ]` | |
 | `build_test_plan()` | `[ ]` | |
@@ -36,8 +36,8 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `builder.py` (if time) | `[ ]` | |
 | `tests/eval_set/` harness | `[ ]` | |
 
-**Last updated:** — by — at hour —
-**Note:**
+**Last updated:** Dev A at hour 0
+**Note:** Full repo skeleton in place (all dirs/files per docs/05-PARALLEL-WORKFLOW.md §3), venv set up, `pytest` green (13 passed, 35 skipped). `core/models.py` + `providers/base.py` frozen, matches `docs/00-CONTRACTS.md` exactly. Added a provider registry (`providers/get_provider(name, api_key)`) plus `LLM_PROVIDER`/`LLM_API_KEY` in `.env` so switching/overriding providers is config, not code. `anthropic.py`/`openai_compat.py` are stubs (raise `NotImplementedError`); `core/loop.py` has real signatures matching `test_loop.py`'s skeletons but no logic yet — that's hour 2-25, gated on the two RESEARCH FIRST docs (`dev-a/research/01-load-bearing.md`, `02-reconcile.md`).
 
 ## Dev B — Evidence + Receipts
 
