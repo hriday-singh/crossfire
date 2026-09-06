@@ -51,17 +51,17 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 
 | Task | Status | Notes |
 |---|---|---|
-| `search_evidence()` (Tavily) | `[ ]` | |
-| Curation v1 (heuristic) | `[ ]` | |
-| `receipts.py` producing real `Finding` | `[ ]` | |
-| Scrapling deep-fetch + adaptive-scrutiny wiring | `[ ]` | |
-| Demo fallback switch (`DEMO_FIXTURES`) | `[ ]` | |
-| Failure handling (dead sources → unresolved, not crash) | `[ ]` | |
+| `search_evidence()` (Tavily) | `[x]` | single-query basic search with tenacity retry, graceful empty list degradation |
+| Curation v1 (heuristic) | `[x]` | keyword relevance scoring, strictly bounded 1-3 sentences |
+| `receipts.py` producing real `Finding` | `[x]` | calls through LLMProvider with curated evidence, produces well-formed Finding |
+| Scrapling deep-fetch + adaptive-scrutiny wiring | `[x]` | deep-fetch only for load_bearing is True and thin snippet, SERP guard enforced |
+| Demo fallback switch (`DEMO_FIXTURES`) | `[x]` | DEMO_MODE flag + explicit claim.id match bypasses network calls |
+| Failure handling (dead sources → unresolved, not crash) | `[x]` | network/API failures degrade to empty list rather than raising |
 | Curation v2 (LLM, if time) | `[ ]` | |
 | `ingestion/pdf.py` (stretch) | `[ ]` | |
 
-**Last updated:** — by — at hour —
-**Note:**
+**Last updated:** Dev B
+**Note:** All core Dev B modules (`evidence/search.py`, `evidence/curate.py`, `evidence/fetch.py`, `core/evaluators/receipts.py`) and all tests in `tests/evidence/` and `tests/evaluators/test_receipts.py` implemented and passing cleanly.
 
 ## Dev C — API + SSE + Evaluators
 

@@ -12,35 +12,61 @@ from core.models import Finding
 async def test_run_receipts_produces_finding_with_evidence(
     fake_provider_factory, sample_claim, sample_test_plan_item, sample_finding
 ):
-    """SKELETON:
     from core.evaluators.receipts import run_receipts
+
     provider = fake_provider_factory(responses=[sample_finding])
     finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
     assert isinstance(finding, Finding)
     assert finding.evaluator == "receipts"
-    """
-    pytest.skip("fill in once core.evaluators.receipts.run_receipts exists")
+    assert finding.claim_id == sample_claim.id
+    assert finding.test_id == sample_test_plan_item.id
 
 
 @pytest.mark.asyncio
-async def test_run_receipts_calls_through_llm_provider_not_google_genai_directly(monkeypatch):
-    """Architectural guard, backend spec §3: 'nothing talks to google-genai
-    directly outside providers/gemini.py'. If receipts.py ever imports
-    google_genai directly, that's the bug this test exists to catch —
-    monkeypatch `google.genai` (or however it's imported) to raise if touched,
-    and assert calling run_receipts with a FakeLLMProvider never triggers it.
-    """
-    pytest.skip("fill in once core.evaluators.receipts exists")
+async def test_run_receipts_calls_through_llm_provider_not_google_genai_directly(
+    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item, sample_finding
+):
+    """Architectural guard: nothing talks to google-genai directly outside providers/gemini.py."""
+    import sys
+    from core.evaluators.receipts import run_receipts
+
+    class ForbiddenModule:
+        def __getattr__(self, name):
+            raise AssertionError("Direct access to google.genai is forbidden in evaluators!")
+
+    monkeypatch.setitem(sys.modules, "google.genai", ForbiddenModule())
+
+    provider = fake_provider_factory(responses=[sample_finding])
+    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    assert finding.evaluator == "receipts"
+    assert len(provider.calls) == 1
 
 
 @pytest.mark.asyncio
-async def test_run_receipts_with_zero_evidence_still_returns_a_finding(fake_provider_factory, sample_claim, sample_test_plan_item):
-    """When search_evidence + fetch both come back empty (dead sources), Receipts
-    should still produce a Finding — just one with empty `evidence` and
-    reasoning that reflects the lack of support, which should push the claim
-    toward `unresolved` at reconciliation, not raise an exception here.
-    """
-    pytest.skip("fill in once core.evaluators.receipts.run_receipts exists")
+async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
+    monkeypatch, fake_provider_factory, sample_claim, sample_test_plan_item
+):
+    """When search_evidence + fetch both come back empty, Receipts still produces a Finding."""
+    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+
+    async def empty_search(c):
+        return []
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
+
+    canned_assessment = ReceiptsAssessment(
+        result="No external evidence found",
+        reasoning="Search yielded zero results.",
+        confidence=0.2,
+        contradiction=None,
+    )
+    provider = fake_provider_factory(responses=[canned_assessment])
+
+    finding = await run_receipts(sample_claim, sample_test_plan_item, provider)
+    assert isinstance(finding, Finding)
+    assert finding.evaluator == "receipts"
+    assert finding.evidence == []
+    assert finding.confidence <= 0.35
 
 
 def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_negative(sample_claim):
