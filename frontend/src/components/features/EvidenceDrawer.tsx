@@ -177,6 +177,29 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
           </div>
 
+          {/* Judge Verdict & Reconciliation */}
+          {consequence?.verdict_reasoning && (
+            <div>
+              <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary-container mb-space-2 font-medium flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px]">gavel</span>
+                <span>Judge Reconciled Verdict</span>
+              </div>
+              <div className="bg-surface-container-lowest border border-outline-variant rounded p-space-4 space-y-space-2">
+                <p className="font-body-md text-body-md text-on-surface font-medium leading-relaxed">
+                  {consequence.verdict_reasoning}
+                </p>
+                {consequence.impact && (
+                  <div className="pt-2 flex items-center gap-2 border-t border-outline-variant/40 text-xs font-mono text-outline">
+                    <span>Strategic Impact:</span>
+                    <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface font-semibold uppercase">
+                      {consequence.impact}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Tests Executed (DESIGN.md Screen 4 §3) */}
           {tests.length > 0 && (
             <div>
@@ -255,14 +278,48 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
           {/* Nuance & Counter-points */}
           <div>
             <div className="font-code-sm text-code-sm uppercase tracking-wider text-outline mb-space-2 font-medium">
-              Nuance &amp; Counter-points
+              Adversarial Evaluator Perspectives ({findings.length})
             </div>
-            <div className="bg-surface-container-lowest border border-outline-variant/50 rounded p-space-4">
-              <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                {findings[0]?.reasoning ||
-                  "Evaluated against adversarial heuristics, boundary edge-cases, and operational constraints."}
-              </p>
-            </div>
+            {findings.length > 0 ? (
+              <div className="space-y-3">
+                {findings.map((f, i) => (
+                  <div
+                    key={f.test_id || i}
+                    className="bg-surface-container-lowest border border-outline-variant/50 rounded p-space-4 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-container-high text-primary-container uppercase">
+                        [{f.evaluator.replace("_", " ")}]
+                      </span>
+                      {f.confidence !== undefined && (
+                        <span className="font-code-sm text-code-sm text-outline">
+                          Confidence: {(f.confidence * 100).toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
+                    {f.contradiction && (
+                      <p className="font-body-sm text-body-sm text-error font-medium">
+                        ⚠️ {f.contradiction}
+                      </p>
+                    )}
+                    <p className="font-body-sm text-body-sm text-on-surface font-medium">
+                      {f.result}
+                    </p>
+                    {f.reasoning && f.reasoning !== f.result && (
+                      <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed text-xs">
+                        {f.reasoning}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-surface-container-lowest border border-outline-variant/50 rounded p-space-4">
+                <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                  Evaluated against adversarial heuristics, boundary edge-cases, and operational constraints.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* What Needs to Change */}

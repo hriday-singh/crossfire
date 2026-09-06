@@ -173,6 +173,26 @@ describe("Screen Components", () => {
         expect(screen.getByText(/Attached: techcrunch\.com \(850 chars\)/i)).toBeInTheDocument();
       });
     });
+
+    it("auto-populates URL input when pasting a web URL into textarea", async () => {
+      render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+      fireEvent.paste(textarea, {
+        clipboardData: {
+          getData: () => "https://nytimes.com/article/tech-analysis",
+        },
+      });
+
+      expect(screen.getByPlaceholderText(/https:\/\/example\.com/i)).toHaveValue(
+        "https://nytimes.com/article/tech-analysis"
+      );
+      expect(screen.getByText("Attach URL")).toBeInTheDocument();
+    });
   });
 
   describe("ConfirmScreen", () => {

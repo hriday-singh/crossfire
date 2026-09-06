@@ -10,6 +10,7 @@ import { DashboardScreen } from "@/components/screens/DashboardScreen";
 import { LiveLogsDrawer } from "@/components/features/LiveLogsDrawer";
 import { HistoryModal } from "@/components/features/HistoryModal";
 import { FaqDrawer } from "@/components/features/FaqDrawer";
+import { SettingsModal } from "@/components/features/SettingsModal";
 
 const AppContent: React.FC = () => {
   const { state, dispatch } = useCase();
@@ -40,11 +41,14 @@ const AppContent: React.FC = () => {
       {/* Real-time Telemetry Log Viewer */}
       <LiveLogsDrawer />
 
-      {/* Case History & Settings Drawer */}
+      {/* Case History Drawer */}
       <HistoryModal />
 
       {/* Frequently Asked Questions Drawer */}
       <FaqDrawer />
+
+      {/* System Settings Modal */}
+      <SettingsModal />
     </div>
   );
 };

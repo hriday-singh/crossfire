@@ -18,7 +18,7 @@ Cross-reference for `docs/02-dev-A-core-loop-providers.md`, `docs/03-dev-B-evide
 
 ## Dev B — [`dev-b/`](dev-b/README.md) (spec still at `03-dev-B-evidence-receipts.md`)
 
-**RESEARCH FIRST:** none. Every task has a concrete algorithm or API call named (Tavily query shape, curation heuristic, Scrapling trigger condition, demo-fixture switch, failure-degradation rule).
+**RESEARCH FIRST:** none. Every task has a concrete algorithm or API call named (DuckDuckGo Lite search shape, curation heuristic, Scrapling trigger condition, demo-fixture switch, failure-degradation rule).
 
 **ANTIGRAVITY:** all of it, in order — `evidence/search.py`, `evidence/curate.py`, `core/evaluators/receipts.py`, `evidence/fetch.py`, adaptive-scrutiny branch, demo fallback switch, failure handling, stretch `ingestion/pdf.py`.
 

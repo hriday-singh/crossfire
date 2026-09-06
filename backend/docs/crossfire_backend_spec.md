@@ -5,8 +5,8 @@ This is the build spec for the backend, written from the confirmed idea-level do
 - Language/framework: Python, FastAPI, Pydantic v2
 - Orchestration: plain `asyncio`, no agent framework (CrewAI/LangGraph rejected — see rationale below)
 - First LLM provider: Gemini, via `google-genai`. Anthropic and an OpenAI-compatible adapter (covers OpenAI, Ollama, custom endpoints) are stubbed behind the same interface from hour zero, not built out yet.
-- Search/discovery: Tavily — cheap, `search_depth="basic"` by default, used only to find candidate URLs and snippets, kept to one query per claim to conserve calls (revised — see section 5)
-- Fetch/parse: Scrapling — the deep-verification step for load-bearing claims when a Tavily snippet isn't enough, plus pasted-URL and document ingestion; never used to scrape a search engine's own results page (revised — see section 5)
+- Search/discovery: DuckDuckGo Lite via Scrapling — zero API key cost, fast, used to find candidate URLs and snippets, kept to one query per claim to conserve bandwidth (revised — see section 5)
+- Fetch/parse: Scrapling — the deep-verification step for load-bearing claims when a search snippet isn't enough, plus pasted-URL and document ingestion; never used to scrape heavy bloated SERPs directly (revised — see section 5)
 - Document ingestion: `pypdf`/`pdfplumber` for text-based PDFs only for the hackathon; scanned/image-only PDFs and direct image uploads are out of scope for v1 — the latter was explicitly cut in both source docs and stays cut (revised — see section 6)
 - Reliability: `tenacity` for retries/backoff
 - Secrets: `.env` via `python-dotenv`
@@ -104,7 +104,7 @@ class LLMProvider(Protocol):
 
 `GeminiProvider` is the only concrete implementation for the hackathon. It wraps `google-genai`, and when `response_schema` is set, it uses Gemini's native structured-output mode rather than hand-parsed JSON. `AnthropicProvider` and `OpenAICompatibleProvider` are empty classes implementing the same protocol, so adding a second provider later is "write one class," not "restructure every call site." Every evaluator and every internal step (claim extraction, load-bearing check, reconciliation) calls through this interface — nothing talks to `google-genai` directly outside this one module.
 
-Note this is deliberately just a text/structured-output interface — no `tools=[...]` parameter, since search and fetch are handled by your own Tavily/Scrapling pipeline (section 5), not by provider-native tool calls. Keeping the provider interface tool-free is also what makes swapping providers later completely mechanical.
+Note this is deliberately just a text/structured-output interface — no `tools=[...]` parameter, since search and fetch are handled by your own DuckDuckGo/Scrapling pipeline (section 5), not by provider-native tool calls. Keeping the provider interface tool-free is also what makes swapping providers later completely mechanical.
 
 ## 4. Core loop, as an actual call sequence
 
@@ -146,11 +146,11 @@ Reconciliation (`reconcile()`) is a single call that receives every `Finding` fo
 
 ## 5. Evidence pipeline (Receipts)
 
-Revised again to a cleaner division of labor: Tavily is discovery only, Scrapling is inspection only, and Scrapling never touches a search engine's own results page (scraping a SERP directly is brittle and CAPTCHA-prone — that's what the Tavily API exists to avoid in the first place). The two tools do different jobs and only Scrapling is free to lean on harder, since it's local and has no per-call cost the way Tavily's API does.
+Revised again to a cleaner division of labor: DuckDuckGo Lite via Scrapling's AsyncFetcher handles discovery without any third-party API key, Scrapling handles page inspection, and neither relies on costly external search APIs.
 
 ```
 claim.statement
-   -> Tavily search (1 query, search_depth="basic", tenacity-wrapped)   [cheap: discovery only]
+   -> DuckDuckGo Lite search (1 query, via Scrapling AsyncFetcher)   [zero API key: discovery]
    -> 3-4 candidate URLs + titles + snippets
 
    if claim.load_bearing and the snippet isn't strong enough to hang a verdict on:
@@ -159,15 +159,15 @@ claim.statement
        -> full page text for those sources, replacing the thin snippet for this claim
 
    -> curate: extract the 1-3 sentences actually relevant to the claim, from whichever text is available
-      (Tavily's snippet, or the deeper Scrapling fetch when load-bearing status triggered it)
+      (search snippet, or the deeper Scrapling fetch when load-bearing status triggered it)
    -> EvidenceItem list  (only the curated snippet enters the LLM prompt, never the full page)
 ```
 
-This is the same adaptive-scrutiny principle already in your docs — spend the extra fetch only where a wrong answer would change the decision — applied to the evidence pipeline specifically, and it keeps Tavily usage to one cheap call per claim regardless of how deep the verification goes, since the expensive part (a full page fetch) is Scrapling's job, not an extra paid search. A claim like "a competitor already does this" is the clearest example: Tavily finds the competitor's URL, Scrapling fetches the actual page once that URL is load-bearing, and curation pulls the exact sentence rather than trusting a search snippet to be precise enough.
+This is the same adaptive-scrutiny principle already in your docs — spend the extra fetch only where a wrong answer would change the decision — applied to the evidence pipeline specifically, and it keeps search usage minimal regardless of how deep the verification goes, since the expensive part (a full page fetch) is Scrapling's job, not an extra search. A claim like "a competitor already does this" is the clearest example: DuckDuckGo Lite finds the competitor's URL, Scrapling fetches the actual page once that URL is load-bearing, and curation pulls the exact sentence rather than trusting a search snippet to be precise enough.
 
 The curation step itself is a small, cheap operation — either a simple keyword/relevance heuristic, or (if time allows) one short, low-token LLM call whose only job is "pick the 1-3 sentences relevant to <claim> from this text." Either way, nothing beyond the curated `EvidenceItem.snippet` reaches the Receipts evaluator's context window.
 
-Failure handling: if Tavily returns nothing, or a Scrapling deep-fetch fails (dead link, a wall it genuinely can't beat), that source is dropped, not retried into a crash — Receipts still produces a `Finding`, just with fewer or zero `EvidenceItem`s, which is exactly what should push a claim toward `unresolved` rather than a forced verdict. `tenacity` covers transient failures on both tools; a source that's genuinely gone is a data point, not an error.
+Failure handling: if DuckDuckGo Lite returns nothing, or a Scrapling deep-fetch fails (dead link, a wall it genuinely can't beat), that source is dropped, not retried into a crash — Receipts still produces a `Finding`, just with fewer or zero `EvidenceItem`s, which is exactly what should push a claim toward `unresolved` rather than a forced verdict. `tenacity` covers transient failures on both tools; a source that's genuinely gone is a data point, not an error.
 
 **Demo fallback.** Your own docs already require this: live search can't be the single point of failure holding up the demo's one load-bearing claim. Implement it as an explicit switch, not implicit string-matching on the query text (a keyword match on the demo's wording is fragile and mixes staging concerns into production search code):
 
@@ -180,7 +180,7 @@ DEMO_FIXTURES: dict[str, list[EvidenceItem]] = {
 async def search_evidence(claim: Claim) -> list[EvidenceItem]:
     if settings.DEMO_MODE and claim.id in DEMO_FIXTURES:
         return DEMO_FIXTURES[claim.id]
-    # ... standard Tavily call
+    # ... standard DuckDuckGo Lite search call
 ```
 
 `DEMO_MODE` is a `.env`-driven flag, and the fixture is keyed by the actual `claim_id` from the demo's prepared case, not a fuzzy text match — flip it off for the internal eval set in section 11, on for the live pitch.
@@ -204,7 +204,7 @@ uploaded image (PNG/JPG) -> RapidOCR extracts text from image bytes
 
 This eliminates the need for expensive multimodal raw image token calls while keeping OCR processing 100% local, fast, and free of OS-level C dependencies.
 
-A pasted URL follows a different path from a Tavily-found source, since there's no Tavily result to curate from here: straight to the same Scrapling fetch used for load-bearing deep-verification in section 5, then the same curation step. Both feed `Case.context`, not a new field — a document or URL is context for the case, never a second product, per your own docs.
+A pasted URL follows a different path from a search-found source, since there's no search result to curate from here: straight to the same Scrapling fetch used for load-bearing deep-verification in section 5, then the same curation step. Both feed `Case.context`, not a new field — a document or URL is context for the case, never a second product, per your own docs.
 
 ## 7. SSE event schema
 
@@ -247,7 +247,7 @@ backend/
     anthropic.py              # stub
     openai_compat.py           # stub, also covers Ollama/custom endpoints
   evidence/
-    search.py                 # Tavily wrapper (search_depth="basic", one query per claim), demo fixtures
+    search.py                 # DuckDuckGo Lite search wrapper via Scrapling, demo fixtures
     fetch.py                  # Scrapling wrapper — load-bearing deep-verification (section 5) AND
                                # pasted-URL ingestion (section 6) share this one module
     curate.py                 # snippet curation (shared by receipts.py and ingestion/)
@@ -266,7 +266,7 @@ Suggested three-way split, matching this layout directly onto the hour-by-hour p
 
 ```
 GEMINI_API_KEY=
-TAVILY_API_KEY=
+# TAVILY_API_KEY= (deprecated, search uses DuckDuckGo Lite via Scrapling)
 # added later, not now:
 # ANTHROPIC_API_KEY=
 # OPENAI_API_KEY=

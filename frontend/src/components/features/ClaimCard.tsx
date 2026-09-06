@@ -30,8 +30,16 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const [localExpanded, setLocalExpanded] = useState(false);
   const isExpanded = controlledExpanded !== undefined ? controlledExpanded : localExpanded;
 
-  const relevantFinding = findings.find((f) => f.claim_id === claim.id);
-  const allEvidence = findings.flatMap((f) => f.evidence || []);
+  const claimFindings = findings.filter((f) => f.claim_id === claim.id);
+  const relevantFinding = claimFindings[0] || findings.find((f) => f.claim_id === claim.id);
+  const allEvidence = (claimFindings.length > 0 ? claimFindings : findings).flatMap((f) => f.evidence || []);
+  const allContradictions = Array.from(
+    new Set(
+      (claimFindings.length > 0 ? claimFindings : findings)
+        .map((f) => f.contradiction)
+        .filter((c): c is string => Boolean(c))
+    )
+  );
 
   const handleToggleExpand = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -82,32 +90,100 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const statusBadge = getStatusBadge();
   const isLoadBearing = claim.load_bearing ?? true;
 
-  // Determine finding header label & style
+  // Determine finding header label & style dynamically
   const getFindingHeadline = () => {
+    const evaluator = relevantFinding?.evaluator?.toLowerCase();
+
     if (claim.status === "broken") {
+      if (evaluator === "devils_advocate") {
+        return {
+          label: "Fatal Assumption Flaw Identified",
+          icon: "gavel",
+          classes: "text-error",
+        };
+      }
+      if (evaluator === "builder") {
+        return {
+          label: "Critical Feasibility Blocker",
+          icon: "handyman",
+          classes: "text-error",
+        };
+      }
+      if (evaluator === "overthinker") {
+        return {
+          label: "Catastrophic Tail Risk Discovered",
+          icon: "warning",
+          classes: "text-error",
+        };
+      }
       return {
         label: "Critical Contradiction Discovered",
         icon: "report",
         classes: "text-error",
       };
     }
+
     if (claim.status === "unresolved") {
+      if (evaluator === "receipts") {
+        return {
+          label: "Empirical Evidence Inconclusive",
+          icon: "search",
+          classes: "text-secondary",
+        };
+      }
+      if (evaluator === "builder") {
+        return {
+          label: "Feasibility Assessment Indeterminate",
+          icon: "sync_problem",
+          classes: "text-secondary",
+        };
+      }
       return {
-        label: "Technical Feasibility Indeterminate",
-        icon: "sync_problem",
+        label: "Validation Inconclusive — Open Risk",
+        icon: "help_outline",
         classes: "text-secondary",
       };
     }
+
     if (claim.status === "weakened") {
+      if (evaluator === "devils_advocate") {
+        return {
+          label: "Vulnerable Implicit Premise",
+          icon: "psychology",
+          classes: "text-tertiary",
+        };
+      }
+      if (evaluator === "builder") {
+        return {
+          label: "Operational Friction & Scaling Limits",
+          icon: "speed",
+          classes: "text-tertiary",
+        };
+      }
+      if (evaluator === "overthinker") {
+        return {
+          label: "Boundary Condition Vulnerability",
+          icon: "crisis_alert",
+          classes: "text-tertiary",
+        };
+      }
       return {
-        label: "User Sentiment Regression",
+        label: "Challenged by Empirical Counter-Evidence",
         icon: "warning",
         classes: "text-tertiary",
       };
     }
+
+    if (evaluator === "receipts") {
+      return {
+        label: "Supported by Empirical Evidence",
+        icon: "verified",
+        classes: "text-primary-container",
+      };
+    }
     return {
-      label: "Validated by Benchmark",
-      icon: "check",
+      label: "Survived Adversarial Stress-Test",
+      icon: "check_circle",
       classes: "text-primary-container",
     };
   };
@@ -186,8 +262,32 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         {claim.statement}
       </h2>
 
+      {/* Live Adversarial Test Stream (Visible during active testing) */}
+      {isTestingMode && tests.length > 0 && !isExpanded && (
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between text-xs font-mono text-outline">
+            <span className="flex items-center gap-1.5 text-primary-container font-medium">
+              <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+              <span>Adversarial Testing in Progress ({tests.length} test{tests.length > 1 ? "s" : ""})</span>
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {tests.map((t) => (
+              <TestRow
+                key={t.test_id}
+                testId={t.test_id}
+                failureMode={t.failure_mode}
+                objective={t.objective}
+                state={t.state}
+                finding={t.finding}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Details Box */}
-      {!isExpanded && (relevantFinding?.result || relevantFinding?.contradiction || relevantFinding?.reasoning) && (
+      {!isExpanded && !isTestingMode && (relevantFinding?.result || relevantFinding?.contradiction || relevantFinding?.reasoning || consequence?.verdict_reasoning) && (
         <div className="bg-surface-container-low p-space-4 rounded space-y-space-2 border border-outline-variant">
           <div
             className={`font-label-mono text-label-mono uppercase tracking-wider font-semibold flex items-center gap-1.5 ${findingHeadline.classes}`}
@@ -197,14 +297,26 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           </div>
 
           <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-            {relevantFinding.result || relevantFinding.contradiction}
+            {relevantFinding?.result || relevantFinding?.contradiction || consequence?.verdict_reasoning}
           </p>
 
+          {consequence?.verdict_reasoning && (
+            <div className="font-body-sm text-body-sm text-on-surface-variant flex items-start gap-1.5 pt-1">
+              <span className="material-symbols-outlined text-[15px] text-primary-container shrink-0">gavel</span>
+              <span><strong>Judge Verdict:</strong> {consequence.verdict_reasoning}</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-space-4 text-outline font-code-sm text-code-sm pt-1 flex-wrap">
-            {relevantFinding.reasoning && (
+            {relevantFinding?.reasoning && !consequence?.verdict_reasoning && (
               <span className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">database</span>
                 <span>{relevantFinding.reasoning}</span>
+              </span>
+            )}
+            {claimFindings.length > 1 && (
+              <span className="font-mono text-xs text-outline">
+                +{claimFindings.length - 1} more evaluator finding{claimFindings.length > 2 ? "s" : ""}
               </span>
             )}
           </div>
@@ -273,11 +385,71 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               </div>
             </div>
           )}
+
+          {/* Judge Verdict & Reconciliation */}
+          {consequence?.verdict_reasoning && (
+            <div className="space-y-1.5">
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-primary-container font-semibold flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[15px]">gavel</span>
+                <span>Judge Reconciled Verdict</span>
+              </span>
+              <div className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface space-y-1">
+                <p className="font-medium text-on-surface">{consequence.verdict_reasoning}</p>
+                {consequence.impact && (
+                  <span className="inline-block font-mono text-xs uppercase px-2 py-0.5 rounded bg-surface-container-high text-outline">
+                    Impact: {consequence.impact}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Adversarial Evaluator Perspectives */}
+          {claimFindings.length > 0 && (
+            <div className="space-y-2">
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
+                Adversarial Evaluator Perspectives ({claimFindings.length})
+              </span>
+              <div className="space-y-2">
+                {claimFindings.map((f, i) => (
+                  <div
+                    key={f.test_id || i}
+                    className="rounded-lg border border-outline-variant bg-surface-container-lowest p-3 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-container-high text-primary-container uppercase">
+                        [{f.evaluator.replace("_", " ")}]
+                      </span>
+                      {f.confidence !== undefined && (
+                        <span className="font-mono text-xs text-outline">
+                          Confidence: {(f.confidence * 100).toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
+                    {f.contradiction && (
+                      <p className="font-body-sm text-body-sm text-error font-medium">
+                        ⚠️ {f.contradiction}
+                      </p>
+                    )}
+                    <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                      {f.result}
+                    </p>
+                    {f.reasoning && f.reasoning !== f.result && (
+                      <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed text-xs">
+                        {f.reasoning}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Primary Citations */}
           {allEvidence.length > 0 && (
             <div className="space-y-2">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
-                Primary Source Citations
+                Primary Source Citations ({allEvidence.length})
               </span>
               {allEvidence.map((ev, i) => (
                 <div
@@ -302,14 +474,19 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           )}
 
           {/* Contradictions */}
-          {relevantFinding?.contradiction && (
+          {allContradictions.length > 0 && (
             <div className="space-y-1">
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-error font-semibold block">
                 Contradictions Surfaced
               </span>
-              <p className="font-body-sm text-body-sm text-on-surface bg-error-container/20 border-l-2 border-error p-3 rounded-r">
-                {relevantFinding.contradiction}
-              </p>
+              {allContradictions.map((contra, idx) => (
+                <p
+                  key={idx}
+                  className="font-body-sm text-body-sm text-on-surface bg-error-container/20 border-l-2 border-error p-3 rounded-r"
+                >
+                  {contra}
+                </p>
+              ))}
             </div>
           )}
 

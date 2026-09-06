@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { vi } from "vitest";
+import { vi, beforeEach } from "vitest";
 
 // Provide default fetch mock for component mounts in jsdom
 beforeEach(() => {

@@ -347,7 +347,7 @@ data: <JSON_PAYLOAD>
 ```json
 {
   "stage": "search_evidence",
-  "message": "Tavily search rate limit reached. Proceeding with heuristic fallback."
+  "message": "DuckDuckGo search rate limit reached. Proceeding with heuristic fallback."
 }
 ```
 *Handling:*

@@ -5,11 +5,12 @@ import { DECISION_PRESETS } from "@/lib/presets";
 import { Case } from "@/types/crossfire";
 
 export const HistoryModal: React.FC = () => {
-  const { state, dispatch, setActiveModal, startExtracting } = useCase();
+  const { state, dispatch, setActiveModal, startExtracting, navigateScreen } = useCase();
   const isOpen = state.activeModal === "history";
 
   const handleSelectCase = (caseItem: Case) => {
     dispatch({ type: "LOAD_CASE", payload: caseItem });
+    navigateScreen("dashboard");
     setActiveModal("none");
   };
 
@@ -20,9 +21,14 @@ export const HistoryModal: React.FC = () => {
       } catch {
         // ignore
       }
-      dispatch({ type: "RESET_CASE" });
+      dispatch({ type: "CLEAR_HISTORY" });
       setActiveModal("none");
     }
+  };
+
+  const handleDeleteItem = (e: React.MouseEvent, caseId: string) => {
+    e.stopPropagation();
+    dispatch({ type: "DELETE_HISTORY_ITEM", payload: caseId });
   };
 
   return (
@@ -36,10 +42,10 @@ export const HistoryModal: React.FC = () => {
         <div className="flex items-center justify-between pb-space-4 pt-space-6 px-space-6 border-b border-outline-variant shrink-0 bg-surface-container-low">
           <div className="flex items-center gap-space-2">
             <span className="material-symbols-outlined text-primary-container text-[20px]">
-              manage_history
+              history
             </span>
             <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-normal">
-              Case History &amp; Settings
+              Case History
             </h2>
             <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5 rounded border border-outline-variant">
               {state.caseHistory.length} saved
@@ -61,7 +67,7 @@ export const HistoryModal: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-verdict-survived" />
             <span className="text-on-surface">API Target:</span>
-            <span className="text-outline">/cases (Live Engine v1.4)</span>
+            <span className="text-outline">/cases (Live Engine)</span>
           </div>
           {state.caseHistory.length > 0 && (
             <button
@@ -128,22 +134,34 @@ export const HistoryModal: React.FC = () => {
                           </p>
                           <div className="flex items-center gap-2 pt-1 font-code-sm text-code-sm text-outline flex-wrap">
                             <span>{item.claims.length} claims</span>
-                            <span>�</span>
+                            <span>·</span>
                             <span className="text-verdict-broken">{brokenCount} broken</span>
-                            <span>�</span>
+                            <span>·</span>
                             <span className="text-tertiary">{weakenedCount} weakened</span>
-                            <span>�</span>
+                            <span>·</span>
                             <span className="text-verdict-survived">{survivedCount} survived</span>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleSelectCase(item)}
-                          className="font-code-sm text-code-sm px-space-3 py-1.5 rounded bg-primary-container text-on-primary-container hover:brightness-110 transition-all font-semibold shrink-0 cursor-pointer"
-                        >
-                          View Memo
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteItem(e, item.id)}
+                            aria-label={`Delete run ${item.id}`}
+                            className="text-outline hover:text-error p-1.5 rounded hover:bg-surface-container-highest transition-colors cursor-pointer"
+                            title="Delete from history"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSelectCase(item)}
+                            className="font-code-sm text-code-sm px-space-3 py-1.5 rounded bg-primary-container text-on-primary-container hover:brightness-110 transition-all font-semibold shrink-0 cursor-pointer"
+                          >
+                            View Memo
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -177,9 +195,10 @@ export const HistoryModal: React.FC = () => {
                       startExtracting(preset.rawInput, preset.contextHint);
                       setActiveModal("none");
                     }}
-                    className="font-code-sm text-code-sm text-primary hover:underline shrink-0 cursor-pointer"
+                    className="font-code-sm text-code-sm text-primary hover:underline shrink-0 cursor-pointer flex items-center gap-1"
                   >
-                    Test this ?
+                    <span>Test this</span>
+                    <span>→</span>
                   </button>
                 </div>
               ))}

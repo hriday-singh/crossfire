@@ -68,7 +68,7 @@ async def run_receipts(
         if not isinstance(claim, Claim):
             claim = Claim(id=getattr(item, "target_claim", "claim-unknown"), statement=getattr(item, "objective", ""))
 
-    # 2. Search evidence (Tavily)
+    # 2. Search evidence (DuckDuckGo via Scrapling)
     evidence_items = await search_evidence(claim)
 
     # 3. Adaptive Scrutiny: deep-fetch top 1-2 URLs only if load_bearing and snippet is thin

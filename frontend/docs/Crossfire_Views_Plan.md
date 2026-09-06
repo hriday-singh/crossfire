@@ -103,7 +103,7 @@ graph TD
   3. **Real Evidence Sources (`EvidenceItem` list):**
      * Clickable primary source URL with clean domain label.
      * Source title.
-     * Curated quote/snippet retrieved by Tavily / Scrapling.
+     * Curated quote/snippet retrieved by DuckDuckGo / Scrapling.
      * *Honest Empty State:* If web evidence was absent, an explicit, truthful callout: *"No public evidence could be retrieved for this claim"*.
   4. **Contradictions:** Explicit counterarguments or conflicting data found, if any.
   5. **Recommended Change:** Actionable guidance on how to adjust your decision or business plan.

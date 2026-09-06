@@ -21,9 +21,9 @@ Keep this light. Read this file, your own `docs/dev-*-tasks.md` file, and `docs/
 | Validation | Pydantic v2 | all data contracts — see `docs/00-CONTRACTS.md` |
 | Orchestration | Plain `asyncio` (`asyncio.gather`, `asyncio.create_task`, `asyncio.Queue`) | no CrewAI/LangGraph — deliberately rejected, see backend spec §1 |
 | First LLM provider | Gemini via `google-genai` | Anthropic + OpenAI-compatible are stubbed behind the same interface, not built out |
-| Search | Tavily (`search_depth="basic"`, one query per claim) | discovery only |
-| Fetch | Scrapling | deep-verification + pasted-URL ingestion only, never scrapes a SERP |
-| Retries | `tenacity` | wraps Tavily and Scrapling calls |
+| Search | DuckDuckGo Lite via Scrapling (one query per claim) | discovery only, zero API keys required |
+| Fetch | Scrapling | deep-verification + pasted-URL ingestion only |
+| Retries | `tenacity` | wraps DuckDuckGo and Scrapling calls |
 | Secrets | `.env` via `python-dotenv` | never logged, never committed |
 | Storage | `dict[str, Case]` in-memory | no DB for this build |
 | Frontend transport | Server-Sent Events | one stream per case |

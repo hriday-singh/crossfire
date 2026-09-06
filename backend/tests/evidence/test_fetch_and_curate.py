@@ -12,7 +12,7 @@ async def test_deep_fetch_only_triggered_for_load_bearing_thin_snippet(
     monkeypatch, sample_claim, sample_test_plan_item, fake_provider_factory, sample_finding
 ):
     """Adaptive scrutiny, backend spec §5: Scrapling only runs when
-    claim.load_bearing is True AND the Tavily snippet isn't strong enough.
+    claim.load_bearing is True AND the search snippet isn't strong enough.
     Assert fetch() is NOT called for a non-load-bearing claim, and IS called
     for a load-bearing one with a thin snippet."""
     from core.evaluators.receipts import run_receipts

@@ -82,7 +82,7 @@ class LLMProvider(Protocol):
     ) -> str | BaseModel: ...
 ```
 
-Deliberately text/structured-output only — no `tools=[...]`. Search and fetch are handled by `evidence/` (Tavily/Scrapling), never by provider-native tool calls. This is what makes swapping providers later purely mechanical.
+Deliberately text/structured-output only — no `tools=[...]`. Search and fetch are handled by `evidence/` (DuckDuckGo/Scrapling), never by provider-native tool calls. This is what makes swapping providers later purely mechanical.
 
 `GeminiProvider` is the only concrete implementation built for the hackathon. `AnthropicProvider` and `OpenAICompatibleProvider` are empty classes implementing the same protocol — stubs, not built out.
 

@@ -19,6 +19,10 @@ export const EntryScreen: React.FC = () => {
   const [urlInputValue, setUrlInputValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
 
+  const isMac =
+    typeof window !== "undefined" &&
+    (navigator.platform?.includes("Mac") || navigator.userAgent.includes("Mac"));
+
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -40,6 +44,19 @@ export const EntryScreen: React.FC = () => {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
       handleSubmit();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = e.clipboardData.getData("text").trim();
+    if (
+      (pasted.startsWith("http://") || pasted.startsWith("https://")) &&
+      !pasted.includes("\n") &&
+      !pasted.includes(" ") &&
+      !attachedContext
+    ) {
+      setShowUrlInput(true);
+      setUrlInputValue(pasted);
     }
   };
 
@@ -168,7 +185,7 @@ export const EntryScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
-      <div className="flex flex-col w-full items-center justify-center py-16 px-space-4">
+      <div className="flex flex-col w-full items-center justify-center pt-8 pb-12 px-space-4">
         {/* Subtle Ambient Glow */}
         <div className="relative w-full max-w-[640px]">
           <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-40 bg-gradient-to-b from-primary-container/10 via-primary-container/5 to-transparent blur-3xl pointer-events-none -z-10" />
@@ -189,8 +206,25 @@ export const EntryScreen: React.FC = () => {
           {/* Form Container */}
           <form
             onSubmit={handleSubmit}
-            className="flex flex-col w-full bg-surface-container-low rounded-xl p-space-4 shadow-xl"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className="relative flex flex-col w-full bg-surface-container-low rounded-xl p-space-4 shadow-xl border border-outline-variant/40"
           >
+            {isDragging && (
+              <div className="absolute inset-0 bg-surface-container/90 border-2 border-dashed border-primary-container rounded-xl flex flex-col items-center justify-center z-20 pointer-events-none backdrop-blur-xs">
+                <span className="material-symbols-outlined text-[36px] text-primary-container animate-bounce">
+                  upload_file
+                </span>
+                <span className="font-headline-sm text-headline-sm text-on-surface font-semibold mt-2">
+                  Drop PDF or Screenshot to attach
+                </span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant">
+                  Crossfire will extract context and link it to your proposal
+                </span>
+              </div>
+            )}
+
             {/* Textarea Workspace */}
             <div className="relative w-full">
               <label className="sr-only" htmlFor="proposal-input">
@@ -202,6 +236,7 @@ export const EntryScreen: React.FC = () => {
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder="e.g. We should offer an unlimited free tier for our AI coding assistant or pivot from custom enterprise deployments to a self-serve PLG tier with zero sales assistance..."
                 rows={4}
                 autoFocus
@@ -228,10 +263,10 @@ export const EntryScreen: React.FC = () => {
             {ingestError && (
               <div
                 role="alert"
-                className="mt-space-3 bg-red-950/40 border border-red-800/60 rounded-lg p-space-3 flex items-center justify-between text-red-300"
+                className="mt-space-3 bg-error-container/30 border border-error/50 rounded-lg p-space-3 flex items-center justify-between text-error"
               >
                 <div className="flex items-center gap-space-2 min-w-0">
-                  <span className="material-symbols-outlined text-[18px] text-red-400 shrink-0">
+                  <span className="material-symbols-outlined text-[18px] text-error shrink-0">
                     error
                   </span>
                   <span className="font-body-sm text-body-sm truncate">{ingestError}</span>
@@ -239,7 +274,7 @@ export const EntryScreen: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIngestError(null)}
-                  className="text-red-400 hover:text-red-200 p-1 rounded transition-colors"
+                  className="text-error hover:text-on-surface p-1 rounded transition-colors cursor-pointer"
                   aria-label="Dismiss error"
                 >
                   <span className="material-symbols-outlined text-[16px]">close</span>
@@ -363,10 +398,12 @@ export const EntryScreen: React.FC = () => {
             <div className="mt-space-4 pt-space-3 flex items-center justify-between">
               {/* Keyboard Shortcut Hint */}
               <div className="flex items-center gap-space-1.5 text-outline font-code-sm text-code-sm">
-                <span className="material-symbols-outlined text-[14px]">keyboard_command_key</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  {isMac ? "keyboard_command_key" : "keyboard"}
+                </span>
                 <span>Press</span>
                 <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
-                  ⌘
+                  {isMac ? "⌘" : "Ctrl"}
                 </kbd>
                 <span>+</span>
                 <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">

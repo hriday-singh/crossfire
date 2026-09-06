@@ -176,6 +176,7 @@ describe("caseReducer", () => {
     const mockCase1: Case = {
       id: "case-1",
       raw_input: "Input 1",
+      context: null,
       status: "done",
       claims: [],
       test_plan: [],
@@ -185,6 +186,7 @@ describe("caseReducer", () => {
     const mockCase2: Case = {
       id: "case-2",
       raw_input: "Input 2",
+      context: null,
       status: "done",
       claims: [],
       test_plan: [],

@@ -93,4 +93,15 @@ describe("EvidenceDrawer", () => {
       screen.getByText(/This assumption is load-bearing/i)
     ).toBeInTheDocument();
   });
+
+  it("renders Judge Reconciled Verdict and evaluator badge", () => {
+    render(
+      <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
+    );
+    expect(screen.getByText("Judge Reconciled Verdict")).toBeInTheDocument();
+    expect(
+      screen.getByText("Clear price resistance found in benchmark studies.")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/\[receipts\]/i)).toBeInTheDocument();
+  });
 });

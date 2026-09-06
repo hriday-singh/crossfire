@@ -104,4 +104,69 @@ describe("ClaimCard", () => {
     fireEvent.click(hideBtn);
     expect(screen.queryByText(/Procurement Delays in AI SaaS/i)).not.toBeInTheDocument();
   });
+
+  it("renders live running tests when isTestingMode is true without needing expand", () => {
+    render(
+      <ClaimCard
+        claim={{
+          id: "claim-stream-1",
+          statement: "High conversion rate on landing page",
+          load_bearing: true,
+          status: null,
+        }}
+        isTestingMode={true}
+        tests={[
+          {
+            test_id: "test-stream-1",
+            target_claim: "claim-stream-1",
+            failure_mode: "evidence",
+            objective: "Verify funnel benchmarks",
+            state: "running",
+          },
+          {
+            test_id: "test-stream-2",
+            target_claim: "claim-stream-1",
+            failure_mode: "feasibility",
+            objective: "Assess technical CAC limits",
+            state: "queued",
+          },
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByText(/Adversarial Testing in Progress/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/evidence test/i)).toBeInTheDocument();
+    expect(screen.getByText("Running...")).toBeInTheDocument();
+    expect(screen.getByText(/feasibility test/i)).toBeInTheDocument();
+    expect(screen.getByText("Queued")).toBeInTheDocument();
+  });
+
+  it("renders Judge Reconciled Verdict when expanded", () => {
+    render(
+      <ClaimCard
+        claim={{
+          id: "claim-verdict-1",
+          statement: "Customers will migrate instantly",
+          load_bearing: true,
+          status: "broken",
+        }}
+        consequence={{
+          claim_id: "claim-verdict-1",
+          impact: "critical",
+          recommended_change: "Provide automated migration scripts.",
+          next_validation: "Test script with 2 beta users.",
+          verdict_reasoning: "High switching cost will prevent adoption.",
+        }}
+        isExpanded={true}
+      />
+    );
+
+    expect(screen.getByText("Judge Reconciled Verdict")).toBeInTheDocument();
+    expect(
+      screen.getByText("High switching cost will prevent adoption.")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Impact: critical/i)).toBeInTheDocument();
+  });
 });

@@ -76,7 +76,7 @@ The complete user journey consists of three core screens and one slide-over draw
   3. **Real Evidence Sources (`EvidenceItem`):**
      * Clickable primary source URL with clean domain pill (e.g. `techcrunch.com`) in `text-xs font-mono text-blue-400`.
      * Document / article title (`text-sm font-medium text-zinc-200`).
-     * Curated quote snippet retrieved by Tavily / Scrapling (`text-sm text-zinc-400 leading-relaxed mt-1`).
+     * Curated quote snippet retrieved by DuckDuckGo / Scrapling (`text-sm text-zinc-400 leading-relaxed mt-1`).
      * *Honest Empty State:* If no public sources exist: *"No public evidence could be retrieved for this claim"* (`text-sm text-zinc-500 italic`).
   4. **Contradictions:** Explicit counter-evidence or conflicting facts found (`bg-zinc-950 border border-zinc-800 p-3 rounded-md text-zinc-300`).
   5. **Recommended Plan Adjustment:** Plain-English guidance on what changes in the proposal (`text-sm text-zinc-200`).

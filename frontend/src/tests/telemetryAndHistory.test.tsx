@@ -100,7 +100,7 @@ describe("Telemetry & History Modals", () => {
     );
 
     fireEvent.click(screen.getByText("Open History"));
-    expect(screen.getByText("Case History & Settings")).toBeInTheDocument();
+    expect(screen.getByText("Case History")).toBeInTheDocument();
     expect(screen.getByText("Example Decision Models")).toBeInTheDocument();
 
     // Close history
@@ -122,12 +122,17 @@ describe("Telemetry & History Modals", () => {
     fireEvent.click(terminalBtn);
     expect(screen.getByTestId("active-modal").textContent).toBe("logs");
 
-    // Settings button should open history
-    const settingsBtn = screen.getByLabelText(/View case history and settings/i);
-    fireEvent.click(settingsBtn);
+    // History button should open history
+    const historyBtn = screen.getByLabelText(/View case history/i);
+    fireEvent.click(historyBtn);
     expect(screen.getByTestId("active-modal").textContent).toBe("history");
 
-    // Profile avatar should render initials CF cleanly
-    expect(screen.getByText("CF")).toBeInTheDocument();
+    // Settings button should open settings
+    const settingsBtn = screen.getByLabelText(/View settings/i);
+    fireEvent.click(settingsBtn);
+    expect(screen.getByTestId("active-modal").textContent).toBe("settings");
+
+    // Profile avatar should not be present
+    expect(screen.queryByText("CF")).not.toBeInTheDocument();
   });
 });

@@ -36,7 +36,7 @@ Runs once per claim, after `extract_claims()`, before `build_test_plan()`. `load
 
 ## Feature 5 — Downstream consumers (cross-file — check before shipping any tweak)
 
-- **`evidence/fetch.py` (Dev B, hour 11-35):** the adaptive-scrutiny branch triggers a Scrapling deep-fetch *only* when `claim.load_bearing is True` and the Tavily snippet is thin. A change that makes this function return `True` more often directly increases Dev B's API spend (more deep-fetches) — flag any framing change that shifts the yes-rate to Dev B before merging.
+- **`evidence/fetch.py` (Dev B, hour 11-35):** the adaptive-scrutiny branch triggers a Scrapling deep-fetch *only* when `claim.load_bearing is True` and the search snippet is thin. A change that makes this function return `True` more often directly increases deep-fetches — flag any framing change that shifts the yes-rate to Dev B before merging.
 - **`build_consequences()` (yours, hour 18-25):** every broken/unresolved claim that is also `load_bearing` must get a concrete `next_validation`. A stricter or looser `load_bearing` definition changes how many consequences carry that requirement.
 - **`tests/eval_set/` (yours, hour 38-42):** hand-picked cases assert specific claims land as load-bearing or not. A framing change can silently flip a case's expected outcome — re-run the full eval set, not just the two hand-picked hour-11 cases.
 

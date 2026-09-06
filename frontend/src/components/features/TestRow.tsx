@@ -26,28 +26,28 @@ export const TestRow: React.FC<TestRowProps> = ({
   return (
     <div
       className={cn(
-        "group flex flex-col gap-2 rounded-lg border border-zinc-800/80 bg-zinc-900/60 p-3.5 transition-colors",
-        isRunning && "border-indigo-500/40 bg-indigo-950/20",
+        "group flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container-high p-3.5 transition-colors",
+        isRunning && "border-primary-container/40 bg-primary-container/10",
         className
       )}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           {isRunning ? (
-            <Loader2 size={15} className="animate-spin text-indigo-400 shrink-0" />
+            <Loader2 size={15} className="animate-spin text-primary-container shrink-0" />
           ) : isCompleted ? (
-            <CircleCheck size={15} className="text-emerald-400 shrink-0" />
+            <CircleCheck size={15} className="text-verdict-survived shrink-0" />
           ) : (
-            <Circle size={15} className="text-zinc-500 shrink-0 stroke-dashed" />
+            <Circle size={15} className="text-outline shrink-0 stroke-dashed" />
           )}
-          <span className="font-mono text-xs font-semibold tracking-wider text-zinc-200 uppercase">
+          <span className="font-mono text-xs font-semibold tracking-wider text-on-surface uppercase">
             {testLabel}
           </span>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {finding?.confidence !== undefined && (
-            <span className="font-mono text-xs text-zinc-400">
+            <span className="font-mono text-xs text-on-surface-variant">
               conf: {formatConfidence(finding.confidence)}
             </span>
           )}
@@ -56,10 +56,10 @@ export const TestRow: React.FC<TestRowProps> = ({
             className={cn(
               "font-mono text-xs",
               isRunning
-                ? "text-indigo-400 font-medium animate-pulse"
+                ? "text-primary-container font-medium animate-pulse"
                 : isCompleted
-                ? "text-zinc-400 font-medium"
-                : "text-zinc-500"
+                ? "text-on-surface-variant font-medium"
+                : "text-outline"
             )}
           >
             {isRunning ? "Running..." : isCompleted ? "Completed" : "Queued"}
@@ -68,17 +68,17 @@ export const TestRow: React.FC<TestRowProps> = ({
       </div>
 
       {finding && (
-        <div className="mt-1 flex flex-col gap-1 border-t border-zinc-800/80 pt-2.5 text-xs">
-          <div className="font-medium text-zinc-200">
+        <div className="mt-1 flex flex-col gap-1 border-t border-outline-variant pt-2.5 text-xs">
+          <div className="font-medium text-on-surface">
             {finding.result}
           </div>
           {finding.reasoning && (
-            <div className="text-zinc-400 line-clamp-2 leading-relaxed">
+            <div className="text-on-surface-variant line-clamp-2 leading-relaxed">
               {finding.reasoning}
             </div>
           )}
           {finding.evidence && finding.evidence.length > 0 && (
-            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+            <div className="mt-0.5 flex items-center gap-2 text-[11px] text-outline font-mono">
               <span>{finding.evidence.length} source{finding.evidence.length > 1 ? "s" : ""} verified</span>
             </div>
           )}

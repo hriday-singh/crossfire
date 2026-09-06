@@ -109,7 +109,7 @@ async def fetch_page(url: str, timeout: float = 5.0) -> str:
     if is_serp_url(url):
         raise ValueError(
             f"Fetching search engine results pages directly is disallowed: {url}. "
-            "URLs must come from discovery (Tavily/DDG), not direct search engine queries."
+            "URLs must come from discovery (DuckDuckGo), not direct search engine queries."
         )
 
     if not is_safe_url(url):
