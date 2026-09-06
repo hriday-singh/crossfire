@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RED TEAM ANALYSIS - Step 2: Input</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "on-primary-container": "#006970",
+              "secondary-container": "#6f00be",
+              "error-container": "#93000a",
+              "error": "#ffb4ab",
+              "primary-container": "#00f0ff",
+              "on-error-container": "#ffdad6",
+              "outline": "#849495",
+              "on-tertiary-container": "#715d00",
+              "on-surface": "#dce4e5",
+              "inverse-primary": "#006970",
+              "surface-container-lowest": "#080f10",
+              "on-secondary-container": "#d6a9ff",
+              "surface-container-low": "#151d1e",
+              "secondary-fixed": "#f0dbff",
+              "primary": "#dbfcff",
+              "secondary-fixed-dim": "#ddb7ff",
+              "secondary": "#ddb7ff",
+              "primary-fixed": "#7df4ff",
+              "on-secondary-fixed-variant": "#6900b3",
+              "tertiary-container": "#fed639",
+              "on-primary-fixed-variant": "#004f54",
+              "on-tertiary-fixed-variant": "#554500",
+              "on-secondary": "#490080",
+              "on-background": "#dce4e5",
+              "surface-container-high": "#232b2c",
+              "inverse-surface": "#dce4e5",
+              "outline-variant": "#3b494b",
+              "surface-tint": "#00dbe9",
+              "surface-container-highest": "#2e3637",
+              "surface-container": "#192122",
+              "on-tertiary-fixed": "#231b00",
+              "surface-variant": "#2e3637",
+              "surface-dim": "#0d1515",
+              "surface": "#0d1515",
+              "on-primary-fixed": "#002022",
+              "on-tertiary": "#3b2f00",
+              "tertiary-fixed": "#ffe179",
+              "background": "#0d1515",
+              "on-primary": "#00363a",
+              "on-secondary-fixed": "#2c0051",
+              "primary-fixed-dim": "#00dbe9",
+              "surface-bright": "#333b3b",
+              "inverse-on-surface": "#2a3233",
+              "tertiary-fixed-dim": "#eac324",
+              "tertiary": "#fff5de",
+              "on-error": "#690005",
+              "on-surface-variant": "#b9cacb"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+            },
+            "spacing": {
+              "stack_lg": "2rem",
+              "margin": "2rem",
+              "gutter": "1.5rem",
+              "stack_sm": "0.5rem",
+              "grid_pattern_size": "50px",
+              "stack_md": "1rem"
+            },
+            "fontFamily": {
+              "mono-code": ["JetBrains Mono"],
+              "body-sm": ["Inter"],
+              "mono-label": ["JetBrains Mono"],
+              "headline-lg": ["Barlow Condensed"],
+              "headline-lg-mobile": ["Barlow Condensed"],
+              "headline-xl": ["Barlow Condensed"],
+              "body-md": ["Inter"]
+            },
+            "fontSize": {
+              "mono-code": ["14px", {"lineHeight": "1.6", "fontWeight": "400"}],
+              "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+              "mono-label": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "500"}],
+              "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "600"}],
+              "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "600"}],
+              "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "0.02em", "fontWeight": "700"}],
+              "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .bg-grid-pattern {
+                background-size: theme('spacing.grid_pattern_size') theme('spacing.grid_pattern_size');
+                background-image: 
+                    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            }
+            .glow-primary {
+                box-shadow: 0 0 15px theme('colors.primary-container');
+            }
+            .glow-primary-hover:hover {
+                box-shadow: 0 0 20px theme('colors.primary-container');
+            }
+            .text-glow {
+                text-shadow: 0 0 8px theme('colors.primary-container');
+            }
+            
+            /* Scrollbar styling for textarea */
+            ::-webkit-scrollbar {
+                width: 8px;
+            }
+            ::-webkit-scrollbar-track {
+                background: theme('colors.surface-container'); 
+            }
+            ::-webkit-scrollbar-thumb {
+                background: theme('colors.outline-variant'); 
+                border-radius: 4px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: theme('colors.primary-container'); 
+            }
+        }
+    </style>
+</head>
+<body class="bg-[#090a0f] text-on-background h-screen overflow-hidden flex flex-col font-body-md bg-grid-pattern relative">
+<!-- Background Shader -->
+
+<!-- Top Navigation Container -->
+<header class="fixed top-0 left-0 w-full z-50 flex flex-col bg-surface-container-low/40 backdrop-blur-xl border-b border-outline-variant/30">
+<!-- Progress Bar -->
+<div class="w-full h-[2px] bg-white/10">
+<div class="h-full bg-primary-container glow-primary" style="width: 40%;"></div>
+</div>
+<div class="flex items-center justify-between px-gutter h-16">
+<!-- Brand -->
+<div class="font-headline-lg text-headline-lg font-bold tracking-tighter text-primary drop-shadow-[0_0_8px_rgba(0,219,233,0.5)] flex items-center gap-3">
+<span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">radar</span>
+                 RED TEAM ANALYSIS
+            </div>
+<!-- Step Badge -->
+<div class="font-mono-label text-mono-label text-primary-container px-3 py-1 border border-primary-container/30 bg-primary-container/10 rounded">
+                STEP 2 OF 5: INPUT
+            </div>
+<!-- Utilities -->
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors duration-300 p-2 rounded-full border border-outline-variant/30 hover:border-primary-container/50 bg-surface-container/50 flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">contrast</span>
+</button>
+</div>
+</div>
+</header>
+<!-- SideNavBar (Suppressed for Wizard flow as per logic, keeping focused on task) -->
+<!-- Main Content Area -->
+<main class="flex-1 relative z-10 flex flex-col items-center justify-center pt-24 pb-20 px-margin h-full">
+<!-- Glassmorphic Panel -->
+<div class="w-full max-w-5xl h-full max-h-[819px] flex flex-col bg-surface-container-high/60 backdrop-blur-xl border border-primary-container/40 rounded-DEFAULT shadow-[0_0_20px_rgba(0,240,255,0.1)] relative overflow-hidden">
+<!-- Internal Grid -->
+<div class="absolute inset-0 bg-grid-pattern opacity-50 pointer-events-none"></div>
+<div class="relative z-10 flex flex-col h-full p-8">
+<!-- Header -->
+<div class="mb-8">
+<h1 class="font-headline-xl text-headline-xl text-primary mb-2 text-glow">ENTER HYPOTHESIS OR BUSINESS PLAN</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Paste your business proposition, executive summary, or pitch deck notes for claims decomposition.</p>
+</div>
+<!-- Input Area -->
+<div class="flex-1 flex flex-col gap-6 min-h-0">
+<!-- Field 1 -->
+<div class="flex flex-col gap-2">
+<label class="font-mono-label text-mono-label text-primary-container uppercase tracking-wider" for="project-name">Project Name / Hypothesis</label>
+<input class="w-full bg-surface-container-lowest/50 border-b border-outline-variant text-on-surface font-mono-code text-mono-code px-4 py-3 focus:outline-none focus:border-primary-container focus:ring-0 transition-all duration-300 placeholder:text-outline-variant/50 hover:bg-surface-container-low/50" id="project-name" placeholder="e.g., NexusPay: Decentralized Autonomous Cross-Border Settlement Protocol" type="text"/>
+</div>
+<!-- Field 2 -->
+<div class="flex-1 flex flex-col gap-2 min-h-0 relative group">
+<label class="font-mono-label text-mono-label text-primary-container uppercase tracking-wider" for="business-plan">Business Plan Content</label>
+<textarea class="flex-1 w-full resize-none bg-[#050809]/80 border border-outline-variant/30 text-on-surface font-mono-code text-mono-code p-4 focus:outline-none focus:border-primary-container/80 focus:shadow-[0_0_10px_rgba(0,240,255,0.2)] transition-all duration-300 hover:border-outline-variant leading-relaxed" id="business-plan" spellcheck="false"># VALUE PROPOSITION
+NexusPay aims to eliminate intermediate banking fees and reduce cross-border transaction times from 3-5 days to under 10 seconds utilizing a novel Layer-2 zero-knowledge rollup architecture.
+
+# MARKET SIZING
+Targeting the $156T global B2B payments market. Assuming a conservative 0.05% market capture in Year 1, yielding projected transaction volume of $78B.
+
+# MARGINS &amp; REVENUE
+Transaction fee set at 0.1% flat. Projected Year 1 gross revenue: $78M. Operating costs fixed at $12M annually (primarily engineering and compliance), yielding 84% gross margin.
+
+# TECH STACK
+- Frontend: Next.js, Web3.js
+- Smart Contracts: Solidity (Ethereum L1 anchor), StarkNet (L2 scaling)
+- Infrastructure: AWS, IPFS for distributed ledger backups
+- Security: Multi-party computation (MPC) wallets for institutional clients
+
+# ACQUISITION STRATEGY
+Direct enterprise sales to mid-market import/export businesses in SE Asia and LATAM. Partnerships with existing localized ERP software providers for API integration.</textarea>
+</div>
+</div>
+<!-- Utilities Micro-bar -->
+<div class="mt-4 flex items-center justify-between border-t border-outline-variant/30 pt-4">
+<div class="font-mono-code text-mono-code text-outline flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+                        412 words
+                    </div>
+<div class="flex items-center gap-3">
+<button class="font-mono-label text-mono-label text-outline hover:text-error transition-colors px-3 py-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+                            CLEAR TEXT
+                        </button>
+<button class="font-mono-label text-mono-label text-primary hover:text-primary-container transition-colors border border-outline-variant/50 hover:border-primary-container px-3 py-1 rounded-DEFAULT bg-surface-container/30 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">upload_file</span>
+                            UPLOAD PITCH DECK (.pdf, .txt)
+                        </button>
+<button class="font-mono-label text-mono-label text-secondary-fixed hover:text-secondary-fixed-dim transition-colors border border-secondary-container/50 hover:border-secondary-fixed px-3 py-1 rounded-DEFAULT bg-secondary-container/20 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">auto_fix_high</span>
+                            AI AUTO-FORMAT
+                        </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Navigation Bar (Bottom of Viewport, positioned above footer) -->
+<div class="absolute bottom-16 left-0 w-full px-margin z-20 pointer-events-none flex items-center justify-center">
+<div class="w-full max-w-5xl flex items-center justify-between pointer-events-auto">
+<button class="font-mono-label text-mono-label text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2 px-4 py-2 border border-transparent hover:border-outline-variant/50 rounded-DEFAULT bg-surface/50 backdrop-blur-sm">
+<span class="material-symbols-outlined">arrow_left_alt</span>
+                    BACK TO WELCOME
+                </button>
+<button class="font-mono-label text-mono-label text-surface-container-lowest bg-primary-container hover:bg-primary transition-all px-6 py-3 rounded-DEFAULT glow-primary glow-primary-hover flex items-center gap-3 font-bold tracking-wide">
+                    ANALYZE &amp; EXTRACT CLAIMS
+                    <span class="material-symbols-outlined">arrow_right_alt</span>
+<span class="bg-surface-container-lowest/20 px-1 rounded text-[10px] ml-2 font-mono-code border border-surface-container-lowest/30">Enter ↵</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex items-center justify-between px-gutter py-2 pointer-events-none bg-gradient-to-t from-surface-container-lowest to-transparent h-12">
+<div class="font-mono-code text-mono-code text-primary opacity-80 font-bold drop-shadow-[0_0_4px_rgba(0,219,233,0.3)]">
+            Screen 2 of 5 — Press Enter to extract claims
+        </div>
+<div class="flex items-center gap-4 font-mono-code text-mono-code text-outline pointer-events-auto">
+<a class="hover:text-primary transition-colors" href="#">v1.0.4-stable</a>
+<div class="flex items-center gap-1 text-on-primary-container bg-primary-container/10 px-2 py-0.5 rounded border border-primary-container/20">
+<span class="w-1.5 h-1.5 bg-[#10b981] rounded-full animate-pulse"></span>
+                system_active
+            </div>
+</div>
+</footer>
+</body></html><script>
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.location.href = 'step3.html';
+            });
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === 'ArrowRight') {
+                window.location.href = 'step3.html';
+            }
+        });
+    </script>

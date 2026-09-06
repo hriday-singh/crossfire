@@ -5,6 +5,7 @@ import { ingestImage, ingestPdf } from "@/lib/api";
 import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
 import { AttachmentBar, EntryAttachment } from "@/components/features/AttachmentBar";
 import { EntryPresetsBar } from "@/components/features/EntryPresetsBar";
+import { CubeSpinner } from "@/components/features/CubeSpinner";
 import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
 
 const MAX_PROPOSAL_CHARS = 500;
@@ -315,22 +316,7 @@ export const EntryScreen: React.FC = () => {
   if (state.isExtracting) {
     return (
       <div className="flex flex-col w-full items-center justify-center py-24 px-space-4">
-        <div className="flex flex-col items-center justify-center space-y-4 bg-surface-container-low border border-outline-variant rounded-xl p-space-8 max-w-[480px] w-full text-center shadow-xl">
-          <span className="material-symbols-outlined text-[32px] text-primary-container animate-spin">
-            progress_activity
-          </span>
-          <div className="space-y-1">
-            <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-              Extracting Core Assumptions...
-            </h3>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
-              Deconstructing your proposal into testable, load-bearing assertions.
-            </p>
-          </div>
-          <div className="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
-            <div className="bg-primary-container h-full w-2/3 animate-pulse rounded-full" />
-          </div>
-        </div>
+        <CubeSpinner />
       </div>
     );
   }
@@ -548,9 +534,10 @@ export const EntryScreen: React.FC = () => {
                   />
                   <Button
                     type="button"
+                    variant="primary"
                     onClick={() => handleManualUrlSubmit()}
                     disabled={!urlInputValue.trim()}
-                    className="px-space-3 py-1 text-xs h-7 bg-primary-container text-on-primary-container rounded cursor-pointer"
+                    className="px-space-3 py-1 text-xs h-7 bg-primary-container hover:bg-blue-600 text-white rounded cursor-pointer transition-colors"
                   >
                     Attach URL
                   </Button>
@@ -590,13 +577,14 @@ export const EntryScreen: React.FC = () => {
               <Button
                 type="submit"
                 id="submit-run-btn"
+                variant="primary"
                 disabled={
                   !rawInput.trim() ||
                   state.isExtracting ||
                   isIngesting ||
                   (agentMode === "custom" && selectedAgents.length === 0)
                 }
-                className="inline-flex items-center justify-center gap-space-2 bg-primary-container text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-transform active:scale-[0.98] hover:brightness-110 shadow-sm cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:bg-blue-600 text-white font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[18px]">play_arrow</span>
                 <span>Run stress test</span>

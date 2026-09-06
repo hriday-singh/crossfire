@@ -17,8 +17,9 @@ describe("Screen Components", () => {
       );
 
       expect(screen.getByPlaceholderText(/unlimited free tier/i)).toBeInTheDocument();
-      expect(screen.getByText("College Admissions AI Agent")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Test Decision/i })).toBeInTheDocument();
+      const submitBtn = screen.getByRole("button", { name: /Test Decision/i });
+      expect(submitBtn).toBeInTheDocument();
+      expect(submitBtn).toHaveClass("bg-primary-container", "hover:bg-blue-600", "text-white");
     });
 
     it("populates textarea when clicking a preset button", () => {

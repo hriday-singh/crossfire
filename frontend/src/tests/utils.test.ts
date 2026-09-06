@@ -18,6 +18,8 @@ describe("cn utility", () => {
     expect(cn("px-2", "px-4")).toBe("px-4");
     expect(cn("text-red-500", "text-blue-500")).toBe("text-blue-500");
     expect(cn("bg-red-500 p-4", "bg-blue-500 p-2")).toBe("bg-blue-500 p-2");
+    expect(cn("text-headline-sm", "text-white")).toBe("text-headline-sm text-white");
+    expect(cn("text-white", "text-headline-sm")).toBe("text-white text-headline-sm");
   });
 
   it("handles null, undefined, boolean, and empty inputs gracefully", () => {

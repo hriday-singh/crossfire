@@ -22,6 +22,9 @@ describe("UI Primitives", () => {
       const { rerender } = render(<Button variant="destructive">Delete</Button>);
       expect(screen.getByRole("button")).toHaveClass("bg-rose-950/40");
 
+      rerender(<Button variant="primary">Submit</Button>);
+      expect(screen.getByRole("button")).toHaveClass("bg-primary-container", "hover:bg-blue-600", "text-white");
+
       rerender(<Button variant="outline">Cancel</Button>);
       expect(screen.getByRole("button")).toHaveClass("border");
 

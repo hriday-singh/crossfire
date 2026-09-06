@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RED TEAM ANALYSIS - Final Verdict</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Inter:wght@400&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                "surface": "#0d1515",
+                "tertiary-fixed-dim": "#eac324",
+                "on-primary-container": "#006970",
+                "on-background": "#dce4e5",
+                "primary-fixed-dim": "#00dbe9",
+                "on-secondary": "#490080",
+                "on-error-container": "#ffdad6",
+                "surface-bright": "#333b3b",
+                "on-tertiary-container": "#715d00",
+                "outline-variant": "#3b494b",
+                "inverse-primary": "#006970",
+                "background": "#0d1515",
+                "primary-container": "#00f0ff",
+                "on-primary-fixed": "#002022",
+                "surface-container-lowest": "#080f10",
+                "on-tertiary-fixed": "#231b00",
+                "secondary-fixed-dim": "#ddb7ff",
+                "surface-container": "#192122",
+                "on-tertiary": "#3b2f00",
+                "inverse-on-surface": "#2a3233",
+                "surface-container-low": "#151d1e",
+                "on-surface": "#dce4e5",
+                "on-tertiary-fixed-variant": "#554500",
+                "secondary-fixed": "#f0dbff",
+                "on-secondary-fixed-variant": "#6900b3",
+                "surface-dim": "#0d1515",
+                "tertiary": "#fff5de",
+                "on-error": "#690005",
+                "on-primary": "#00363a",
+                "tertiary-fixed": "#ffe179",
+                "on-primary-fixed-variant": "#004f54",
+                "error-container": "#93000a",
+                "outline": "#849495",
+                "on-surface-variant": "#b9cacb",
+                "error": "#ffb4ab",
+                "secondary-container": "#6f00be",
+                "on-secondary-container": "#d6a9ff",
+                "surface-container-high": "#232b2c",
+                "surface-variant": "#2e3637",
+                "surface-tint": "#00dbe9",
+                "primary-fixed": "#7df4ff",
+                "tertiary-container": "#fed639",
+                "secondary": "#ddb7ff",
+                "inverse-surface": "#dce4e5",
+                "primary": "#dbfcff",
+                "surface-container-highest": "#2e3637",
+                "on-secondary-fixed": "#2c0051"
+              },
+              "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+              },
+              "spacing": {
+                "gutter": "1.5rem",
+                "grid_pattern_size": "50px",
+                "stack_md": "1rem",
+                "stack_lg": "2rem",
+                "margin": "2rem",
+                "stack_sm": "0.5rem"
+              },
+              "fontFamily": {
+                "headline-lg-mobile": [
+                  "Barlow Condensed"
+                ],
+                "headline-xl": [
+                  "Barlow Condensed"
+                ],
+                "body-md": [
+                  "Inter"
+                ],
+                "mono-code": [
+                  "JetBrains Mono"
+                ],
+                "headline-lg": [
+                  "Barlow Condensed"
+                ],
+                "mono-label": [
+                  "JetBrains Mono"
+                ],
+                "body-sm": [
+                  "Inter"
+                ]
+              },
+              "fontSize": {
+                "headline-lg-mobile": [
+                  "24px",
+                  {
+                    "lineHeight": "1.2",
+                    "fontWeight": "600"
+                  }
+                ],
+                "headline-xl": [
+                  "48px",
+                  {
+                    "lineHeight": "1.1",
+                    "letterSpacing": "0.02em",
+                    "fontWeight": "700"
+                  }
+                ],
+                "body-md": [
+                  "16px",
+                  {
+                    "lineHeight": "1.6",
+                    "fontWeight": "400"
+                  }
+                ],
+                "mono-code": [
+                  "14px",
+                  {
+                    "lineHeight": "1.6",
+                    "fontWeight": "400"
+                  }
+                ],
+                "headline-lg": [
+                  "32px",
+                  {
+                    "lineHeight": "1.2",
+                    "letterSpacing": "0.02em",
+                    "fontWeight": "600"
+                  }
+                ],
+                "mono-label": [
+                  "12px",
+                  {
+                    "lineHeight": "1.4",
+                    "letterSpacing": "0.05em",
+                    "fontWeight": "500"
+                  }
+                ],
+                "body-sm": [
+                  "14px",
+                  {
+                    "lineHeight": "1.5",
+                    "fontWeight": "400"
+                  }
+                ]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-background');
+            margin: 0;
+            overflow: hidden; /* Zero vertical scrolling */
+        }
+        
+        .glow-border {
+            box-shadow: 0 0 4px theme('colors.primary');
+        }
+
+        .glow-text {
+            text-shadow: 0 0 8px rgba(0, 219, 233, 0.5);
+        }
+
+        .pulse-beacon {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .progress-bar-glow {
+            box-shadow: 0 0 8px theme('colors.primary');
+        }
+        
+        #shader-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col relative">
+<!-- Background Shader -->
+<canvas id="shader-canvas"></canvas>
+<script>
+    const canvas = document.getElementById('shader-canvas');
+    const gl = canvas.getContext('webgl');
+    
+    if (gl) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const vsSource = `
+            attribute vec2 position;
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        `;
+        
+        const fsSource = `<!-- STITCH_SHADER_START:ANIMATION_14 class="" -->
+<div class="" style="display:block;width:100%;height:100%;min-height:200px;">
+<canvas id="shader-canvas-ANIMATION_14" style="display:block;width:100%;height:100%"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_14');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+
+varying vec2 v_texCoord;
+
+float grid(vec2 uv, float spacing, float thickness) {
+    vec2 lines = mod(uv, spacing);
+    float l = step(spacing - thickness, lines.x) + step(spacing - thickness, lines.y);
+    return clamp(l, 0.0, 1.0);
+}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    vec2 mouse = u_mouse / u_resolution;
+    
+    // Deep Obsidian Base
+    vec3 bgColor = vec3(0.05, 0.08, 0.08); // #0d1515
+    
+    // Technical Grid Logic
+    vec2 gridUV = gl_FragCoord.xy;
+    float g1 = grid(gridUV, 60.0, 1.0);
+    float g2 = grid(gridUV, 12.0, 0.5) * 0.2;
+    float finalGrid = max(g1, g2);
+    
+    // Interactive Glow Radius
+    float dist = length(uv - mouse);
+    float glowMask = 1.0 - smoothstep(0.0, 0.6, dist);
+    
+    // Red Team Brand Colors
+    vec3 neonCyan = vec3(0.0, 0.94, 1.0);
+    vec3 neonPurple = vec3(0.66, 0.33, 0.97);
+    vec3 accent = mix(neonCyan, neonPurple, uv.x);
+    
+    vec3 gridOutput = finalGrid * neonCyan * 0.1;
+    vec3 interactiveOutput = glowMask * accent * 0.2;
+    
+    // Subtle Scanlines
+    float scanline = sin(gl_FragCoord.y * 0.8 + u_time * 4.0) * 0.015;
+    
+    vec3 finalColor = bgColor + gridOutput + interactiveOutput + scanline;
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_14 -->`;
+        
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        }
+        
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+        
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+        
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        const positions = [
+            -1.0, -1.0,
+             1.0, -1.0,
+            -1.0,  1.0,
+            -1.0,  1.0,
+             1.0, -1.0,
+             1.0,  1.0,
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+        
+        const positionLocation = gl.getAttribLocation(program, "position");
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        
+        const timeLocation = gl.getUniformLocation(program, "u_time");
+        const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+        const mouseLocation = gl.getUniformLocation(program, "u_mouse");
+        
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = canvas.height - e.clientY;
+        });
+        
+        function render(time) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            
+            gl.uniform1f(timeLocation, time * 0.001);
+            gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+            gl.uniform2f(mouseLocation, mouseX, mouseY);
+            
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            requestAnimationFrame(render);
+        }
+        requestAnimationFrame(render);
+    }
+</script>
+<!-- Progress Bar (Wizard Flow) -->
+<div class="fixed top-0 left-0 w-full h-[2px] bg-white/10 z-[60]">
+<div class="h-full bg-primary progress-bar-glow w-full"></div>
+</div>
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-gutter h-16 bg-surface/60 backdrop-blur-xl border-b border-outline-variant/30 shadow-[0_0_15px_rgba(0,219,233,0.1)] pt-[2px]">
+<div class="flex items-center gap-4">
+<span class="font-headline-lg text-headline-lg font-bold tracking-tighter text-primary drop-shadow-[0_0_8px_rgba(0,219,233,0.5)]">RED TEAM ANALYSIS</span>
+<div class="h-6 w-px bg-outline-variant/50"></div>
+<span class="font-mono-label text-mono-label text-primary bg-primary/10 px-2 py-1 rounded border border-primary/30">Step 5 of 5: Final Verdict &amp; Synthesis</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary transition-colors duration-300">
+<span class="material-symbols-outlined" data-icon="contrast">contrast</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 relative z-10 pt-20 pb-20 px-gutter flex flex-col h-full overflow-hidden">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-stack_md h-full">
+<!-- Left Column: Score & Metrics -->
+<div class="col-span-12 md:col-span-4 flex flex-col gap-stack_md h-full">
+<!-- Score Card -->
+<div class="bg-surface-container-low/60 backdrop-blur-md border border-outline-variant/30 rounded-lg p-stack_md flex flex-col items-center justify-center flex-1 relative overflow-hidden group">
+<div class="relative z-10 text-center">
+<div class="font-mono-label text-mono-label text-outline mb-2 tracking-widest uppercase">Resilience Score</div>
+<div class="relative inline-flex items-center justify-center">
+<!-- Radial Gauge Ring Placeholder (CSS) -->
+<svg class="w-48 h-48 transform -rotate-90" viewbox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" r="45" stroke="rgba(255, 255, 255, 0.1)" stroke-width="2"></circle>
+<circle class="transition-all duration-1000 ease-out drop-shadow-[0_0_8px_rgba(254,214,57,0.5)]" cx="50" cy="50" fill="none" r="45" stroke="#fed639" stroke-dasharray="282.7" stroke-dashoffset="90.46" stroke-width="4"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center font-mono-code text-[48px] font-bold text-tertiary-container drop-shadow-[0_0_10px_rgba(254,214,57,0.4)]">
+                                68
+                            </div>
+</div>
+<div class="font-mono-label text-mono-label text-outline mt-2">/ 100</div>
+</div>
+<div class="relative z-10 mt-6 bg-tertiary-container/10 border border-tertiary-container/50 px-4 py-2 rounded flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-tertiary-container shadow-[0_0_5px_theme('colors.tertiary-container')]"></div>
+<span class="font-mono-label text-mono-label text-tertiary-container uppercase tracking-wider">MODERATE RESILIENCE // CRITICAL VULNERABILITIES DETECTED</span>
+</div>
+</div>
+<!-- Metric Strip -->
+<div class="flex flex-col gap-2 shrink-0">
+<div class="bg-surface-container-low/60 backdrop-blur-md border border-outline-variant/30 rounded p-3 flex justify-between items-center">
+<span class="font-mono-label text-mono-label text-outline">Survived</span>
+<span class="font-mono-code text-mono-code text-[#10b981] font-bold">2 CLAIMS</span>
+</div>
+<div class="bg-surface-container-low/60 backdrop-blur-md border border-outline-variant/30 rounded p-3 flex justify-between items-center border-l-4 border-l-tertiary-container">
+<span class="font-mono-label text-mono-label text-outline">Weakened</span>
+<span class="font-mono-code text-mono-code text-tertiary-container font-bold">2 CLAIMS</span>
+</div>
+<div class="bg-surface-container-low/60 backdrop-blur-md border border-outline-variant/30 rounded p-3 flex justify-between items-center border-l-4 border-l-error">
+<span class="font-mono-label text-mono-label text-outline">Broken</span>
+<span class="font-mono-code text-mono-code text-error font-bold">1 CLAIM</span>
+</div>
+<div class="bg-surface-container-low/60 backdrop-blur-md border border-outline-variant/30 rounded p-3 flex justify-between items-center">
+<span class="font-mono-label text-mono-label text-outline">Unresolved</span>
+<span class="font-mono-code text-mono-code text-on-surface-variant font-bold">1 CLAIM</span>
+</div>
+</div>
+</div>
+<!-- Right Column: Synthesis & Actions -->
+<div class="col-span-12 md:col-span-8 flex flex-col gap-stack_md h-full">
+<!-- Synthesis Section -->
+<div class="bg-surface-container-low/60 backdrop-blur-md border border-outline-variant/30 rounded-lg p-stack_md relative overflow-hidden group flex-1">
+<div class="relative z-10 flex flex-col h-full">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-primary" data-icon="psychology">psychology</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface uppercase tracking-wider">SYNTHESIS FROM THE CHIEF AI ADVERSARY</h2>
+</div>
+<div class="bg-surface/50 border border-primary/20 rounded p-4 flex-1">
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+<span class="font-mono-code text-mono-code text-primary">&gt;_</span> The protocol exhibits robust architectural cryptographic soundness, yet suffers from severe go-to-market and unit economic fragility. Incumbents can replicate the product surface within 90 days if CAC remains above $2,000. Prioritize edge-proving optimization and direct enterprise pilot contracts before capital deployment.
+                            </p>
+</div>
+</div>
+</div>
+<!-- Actionable Checklist Card -->
+<div class="bg-surface-container-low/60 backdrop-blur-md border border-outline-variant/30 rounded-lg p-stack_md relative overflow-hidden flex-1">
+<div class="relative z-10 flex flex-col h-full">
+<h3 class="font-mono-label text-mono-label text-outline uppercase tracking-widest mb-4">5 KEY STRATEGIC TAKEAWAYS &amp; NEXT ACTIONS</h3>
+<ul class="flex flex-col gap-3 flex-1 overflow-y-auto pr-2" style="scrollbar-width: thin; scrollbar-color: theme('colors.outline-variant') transparent;">
+<li class="flex items-start gap-3 bg-surface/30 p-3 rounded border border-outline-variant/20 hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-primary mt-0.5 text-sm" data-icon="check_box">check_box</span>
+<span class="font-body-md text-body-md text-on-surface">Fix latency in core execution layer</span>
+</li>
+<li class="flex items-start gap-3 bg-surface/30 p-3 rounded border border-outline-variant/20 hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-primary mt-0.5 text-sm" data-icon="check_box">check_box</span>
+<span class="font-body-md text-body-md text-on-surface">Recalibrate CAC modeling for Q3 targets</span>
+</li>
+<li class="flex items-start gap-3 bg-surface/30 p-3 rounded border border-outline-variant/20 hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-primary mt-0.5 text-sm" data-icon="check_box">check_box</span>
+<span class="font-body-md text-body-md text-on-surface">Formalize legal structure for international entities</span>
+</li>
+<li class="flex items-start gap-3 bg-surface/30 p-3 rounded border border-outline-variant/20 hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-primary mt-0.5 text-sm" data-icon="check_box">check_box</span>
+<span class="font-body-md text-body-md text-on-surface">Build liquidity lock mechanisms for early stakers</span>
+</li>
+<li class="flex items-start gap-3 bg-surface/30 p-3 rounded border border-outline-variant/20 hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-primary mt-0.5 text-sm" data-icon="check_box">check_box</span>
+<span class="font-body-md text-body-md text-on-surface">Secure 3 enterprise LOIs before Series A</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Action Bar -->
+<div class="fixed bottom-12 left-0 w-full z-40 bg-surface-container-highest/80 backdrop-blur-md border-t border-outline-variant/30 px-gutter py-4 flex items-center justify-between">
+<button class="font-mono-label text-mono-label text-outline hover:text-on-surface transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_back">arrow_back</span> Back to Agents
+        </button>
+<div class="flex items-center gap-4">
+<button class="bg-transparent border border-primary text-primary px-6 py-2 font-mono-label text-mono-label rounded hover:glow-border hover:bg-primary/5 transition-all">
+                Export Audit Report
+            </button>
+<button class="bg-primary text-on-primary px-8 py-2 font-mono-label text-mono-label font-bold rounded glow-border flex items-center gap-2 hover:bg-primary-fixed transition-colors">
+                Start New Analysis <span class="material-symbols-outlined text-sm" data-icon="refresh">refresh</span>
+</button>
+</div>
+</div>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex items-center justify-between px-gutter py-2 pointer-events-none bg-gradient-to-t from-surface-container-lowest to-transparent h-12">
+<span class="font-mono-code text-mono-code text-outline opacity-80">Screen 5 of 5 — Analysis Complete. Press Enter to start new analysis</span>
+<div class="flex gap-4">
+<span class="font-mono-code text-mono-code text-outline opacity-80">v1.0.4-stable</span>
+<span class="font-mono-code text-mono-code text-primary opacity-80 flex items-center gap-2">
+<span class="w-1.5 h-1.5 bg-primary rounded-full pulse-beacon inline-block"></span> system_active
+            </span>
+</div>
+</footer>
+</body></html>

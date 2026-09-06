@@ -170,8 +170,9 @@ export const ConfirmScreen: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
+                              variant="primary"
                               onClick={() => handleSaveEdit(claim.id)}
-                              className="h-7 text-xs bg-primary-container text-on-primary-container hover:brightness-110"
+                              className="h-7 text-xs bg-primary-container hover:bg-blue-600 text-white transition-colors"
                             >
                               Save
                             </Button>
@@ -268,7 +269,8 @@ export const ConfirmScreen: React.FC = () => {
                 <Button
                   type="submit"
                   size="sm"
-                  className="bg-primary-container text-on-primary-container hover:brightness-110"
+                  variant="primary"
+                  className="bg-primary-container hover:bg-blue-600 text-white transition-colors"
                 >
                   Save Hypothesis
                 </Button>
@@ -320,13 +322,14 @@ export const ConfirmScreen: React.FC = () => {
               <Button
                 type="button"
                 id="confirm-run-btn"
+                variant="primary"
                 onClick={confirmAndRun}
                 disabled={
                   currentCase.claims.length === 0 ||
                   state.isConfirming ||
                   (currentCase.selected_agents && currentCase.selected_agents.length === 0)
                 }
-                className="bg-primary-container text-on-primary-container font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                className="bg-primary-container hover:bg-blue-600 text-white font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg active:scale-[0.99] transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 {state.isConfirming ? (
                   <>
