@@ -85,12 +85,12 @@ describe("Screen Components", () => {
 
       render(<ConfirmScreen />);
 
-      expect(screen.getByText("Launch B2B invoice matching")).toBeInTheDocument();
+      expect(screen.getByText(/Launch B2B invoice matching/i)).toBeInTheDocument();
       expect(
         screen.getByText("Accountants will accept automated reconciliation")
       ).toBeInTheDocument();
 
-      const runBtn = screen.getByRole("button", { name: "Confirm and run tests" });
+      const runBtn = screen.getByRole("button", { name: /Confirm & Run Tests/i });
       fireEvent.click(runBtn);
       expect(mockConfirm).toHaveBeenCalledTimes(1);
 

@@ -6,7 +6,6 @@ import { ErrorBanner } from "@/components/layout/ErrorBanner";
 import { EntryScreen } from "@/components/screens/EntryScreen";
 import { ConfirmScreen } from "@/components/screens/ConfirmScreen";
 import { DashboardScreen } from "@/components/screens/DashboardScreen";
-import { HistoryDrawer } from "@/components/features/HistoryDrawer";
 
 const AppContent: React.FC = () => {
   const { state, dispatch } = useCase();
@@ -33,12 +32,6 @@ const AppContent: React.FC = () => {
           <DashboardScreen />
         )}
       </main>
-
-      {/* History Slide-Over Drawer */}
-      <HistoryDrawer
-        open={state.activeModal === "history"}
-        onClose={() => dispatch({ type: "SET_ACTIVE_MODAL", payload: "none" })}
-      />
     </div>
   );
 };
