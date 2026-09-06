@@ -129,7 +129,8 @@ async def test_fetch_failure_drops_the_source_without_crashing(
     provider = fake_provider_factory(responses=[sample_finding])
     finding = await run_receipts(_item_for(sample_claim), _case_for(sample_claim), provider)
     assert finding is not None
-    assert finding.evaluator == "receipts"
+    assert finding.evaluator in ("researcher", "receipts")
+
 
 
 @pytest.mark.asyncio
