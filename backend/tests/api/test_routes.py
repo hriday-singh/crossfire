@@ -48,13 +48,20 @@ def test_post_cases_returns_awaiting_confirmation_case(client, fake_provider_fac
 def test_confirm_returns_202_without_blocking(client, monkeypatch, sample_case):
     import time
     import store
+    from core.loop import handle_confirm
 
     store.set(sample_case)
 
     async def slow_pipeline(case_id):
         await asyncio.sleep(5)
 
-    monkeypatch.setattr("api.routes.run_pipeline", slow_pipeline)
+    # Goes through the real handle_confirm — the scheduling machinery (and the
+    # strong task reference that stops the run being garbage-collected) is what
+    # keeps this non-blocking, so stubbing it out would test nothing.
+    async def confirm_with_slow_pipeline(case_id):
+        await handle_confirm(case_id, run_pipeline=slow_pipeline)
+
+    monkeypatch.setattr("api.routes.handle_confirm", confirm_with_slow_pipeline)
 
     start = time.monotonic()
     response = client.post(
@@ -101,51 +108,57 @@ def test_get_case_returns_full_case_after_done(client, sample_case, sample_findi
 
 
 def test_stream_endpoint_emits_sse_events_in_documented_order(client, sample_case):
+    import events
     import store
-    from api.routes import get_case_queue
 
     store.set(sample_case)
-    queue = get_case_queue(sample_case.id)
+    # The real transport the pipeline writes to. Feeding `events` rather than a
+    # queue owned by the route is the point of the test: if the endpoint ever
+    # reads from a different queue again, this goes red instead of passing
+    # against a registry nothing publishes to.
+    queue = events.get_queue(sample_case.id)
 
-    # Feed the queue with documented SSE events from docs/00-CONTRACTS.md §3
-    queue.put_nowait(("claim_map_ready", {"claims": [{"id": "c1", "statement": "test claim"}]}))
-    queue.put_nowait(("awaiting_confirmation", {}))
-    queue.put_nowait(
-        ("test_started", {"test_id": "t1", "target_claim_id": "c1", "evaluator": "devils_advocate"})
+    def publish(event: str, data: dict) -> None:
+        """Same payload shape events.publish() puts on the queue."""
+        queue.put_nowait({"event": event, "data": data})
+
+    # Documented SSE events from docs/00-CONTRACTS.md §3
+    publish("claim_map_ready", {"claims": [{"id": "c1", "statement": "test claim"}]})
+    publish("awaiting_confirmation", {})
+    publish(
+        "test_started",
+        {"test_id": "t1", "target_claim_id": "c1", "evaluator": "devils_advocate"},
     )
-    queue.put_nowait(
-        (
-            "finding_ready",
-            {
-                "finding": {
-                    "claim_id": "c1",
-                    "test_id": "t1",
-                    "evaluator": "devils_advocate",
-                    "result": "Assumption challenged",
-                    "evidence": [],
-                    "reasoning": "Unproven precedent",
-                    "confidence": 0.7,
-                },
-                "target_claim_id": "c1",
+    publish(
+        "finding_ready",
+        {
+            "finding": {
+                "claim_id": "c1",
+                "test_id": "t1",
+                "evaluator": "devils_advocate",
+                "result": "Assumption challenged",
+                "evidence": [],
+                "reasoning": "Unproven precedent",
+                "confidence": 0.7,
             },
-        )
+            "target_claim_id": "c1",
+        },
     )
-    queue.put_nowait(
-        ("verdict_ready", {"claim_id": "c1", "status": "survived", "verdict_reasoning": "Sufficient support"})
+    publish(
+        "verdict_ready",
+        {"claim_id": "c1", "status": "survived", "verdict_reasoning": "Sufficient support"},
     )
-    queue.put_nowait(
-        (
-            "consequence_ready",
-            {
-                "consequence": {
-                    "claim_id": "c1",
-                    "impact": "low",
-                    "recommended_change": "Proceed",
-                }
-            },
-        )
+    publish(
+        "consequence_ready",
+        {
+            "consequence": {
+                "claim_id": "c1",
+                "impact": "low",
+                "recommended_change": "Proceed",
+            }
+        },
     )
-    queue.put_nowait(("run_complete", {"case_id": sample_case.id}))
+    publish("run_complete", {"case_id": sample_case.id})
 
     response = client.get(f"/cases/{sample_case.id}/stream")
     assert response.status_code == 200

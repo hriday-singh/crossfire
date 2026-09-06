@@ -5,43 +5,21 @@ docs/04-dev-C-api-sse-evaluators.md for the task breakdown.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
+import events
 import store
 from api.schemas import ConfirmCaseRequest, ConfirmCaseResponse, CreateCaseRequest
-from core.loop import extract_claims, run_pipeline
+from core.loop import extract_claims, handle_confirm
 from core.models import Case
 from providers.base import LLMProvider
 from providers.gemini import GeminiProvider
 
 router = APIRouter()
-
-# SSE Queue Registry for streaming events per case
-_case_queues: dict[str, asyncio.Queue] = {}
-
-
-def get_case_queue(case_id: str) -> asyncio.Queue:
-    """Retrieve or create an asyncio.Queue for streaming SSE events for a case."""
-    try:
-        from core.loop import get_case_queue as _core_get_case_queue
-
-        return _core_get_case_queue(case_id)
-    except (ImportError, AttributeError):
-        pass
-
-    if case_id not in _case_queues:
-        _case_queues[case_id] = asyncio.Queue()
-    return _case_queues[case_id]
-
-
-def remove_case_queue(case_id: str) -> None:
-    """Clean up queue when run is complete."""
-    _case_queues.pop(case_id, None)
 
 
 def get_llm_provider() -> LLMProvider:
@@ -67,43 +45,28 @@ async def create_case(
 @router.get("/cases/{case_id}/stream")
 async def stream_case(case_id: str) -> StreamingResponse:
     """
-    GET /cases/{id}/stream: Opens immediately, reads from asyncio.Queue, emits as SSE.
+    GET /cases/{id}/stream: Opens immediately and yields whatever the pipeline
+    publishes, as SSE frames.
+
+    The transport is `events` (Dev A) — the same module `run_pipeline` writes to.
+    `events.subscribe()` buffers regardless of when a consumer attaches, swallows
+    the private end-of-stream sentinel, and drops the queue once drained, so this
+    handler owns no queue state of its own.
     """
-    if store.get(case_id) is None and case_id not in _case_queues:
+    if store.get(case_id) is None:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    queue = get_case_queue(case_id)
-
     async def event_generator():
-        try:
-            while True:
-                item = await queue.get()
-                queue.task_done()
-                if item is None:
-                    break
+        async for item in events.subscribe(case_id):
+            event_name = item["event"]
+            data = item.get("data", {})
+            yield f"event: {event_name}\ndata: {json.dumps(data, default=str)}\n\n"
 
-                if isinstance(item, tuple) and len(item) == 2:
-                    event_name, data = item
-                elif isinstance(item, dict) and "event" in item:
-                    event_name = item["event"]
-                    data = item.get("data", {})
-                else:
-                    event_name = "message"
-                    data = item
-
-                if hasattr(data, "model_dump_json"):
-                    data_str = data.model_dump_json()
-                elif isinstance(data, (dict, list)):
-                    data_str = json.dumps(data)
-                else:
-                    data_str = str(data)
-
-                yield f"event: {event_name}\ndata: {data_str}\n\n"
-
-                if event_name in ("run_complete", "error"):
-                    break
-        finally:
-            remove_case_queue(case_id)
+            # run_pipeline always close()s in a finally, which ends the iteration
+            # on its own. This is the belt-and-braces terminator for a run that
+            # died without closing — otherwise the client hangs on an open stream.
+            if event_name in ("run_complete", "error"):
+                break
 
     return StreamingResponse(
         event_generator(),
@@ -145,8 +108,10 @@ async def confirm_case(
     case.status = "testing"
     store.set(case)
 
-    # Launch pipeline in background (fire-and-forget, non-blocking)
-    asyncio.create_task(run_pipeline(case.id))
+    # Launch in background via core.loop, which holds a strong reference to the
+    # task. A bare asyncio.create_task() here would be weakly referenced by the
+    # event loop and could be garbage-collected mid-run.
+    await handle_confirm(case.id)
 
     return ConfirmCaseResponse(
         case_id=case.id,
