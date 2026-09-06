@@ -15,12 +15,13 @@ from __future__ import annotations
 from core.evaluators.builder import run_builder
 from core.evaluators.devils_advocate import run_devils_advocate
 from core.evaluators.operator import run_operator
-from core.evaluators.receipts import run_receipts
+from core.evaluators.receipts import run_receipts, run_researcher
 from core.models import Case, Finding, TestPlanItem
 from providers.base import LLMProvider
 
-# Backward compatibility alias
+# Backward compatibility aliases
 run_overthinker = run_operator
+
 
 # failure_mode (assigned by core.loop.build_test_plan) -> evaluator:
 #
@@ -35,7 +36,7 @@ run_overthinker = run_operator
 # behavior/constraint/alternative are older aliases; kept so a stored plan from
 # a previous run still routes.
 _ROUTES = {
-    "evidence": run_receipts,
+    "evidence": run_researcher,
     "feasibility": run_builder,
     "behavior": run_builder,
     "constraint": run_builder,
@@ -75,4 +76,6 @@ __all__ = [
     "run_operator",
     "run_overthinker",
     "run_receipts",
+    "run_researcher",
 ]
+

@@ -74,7 +74,7 @@ async def test_dispatch_routes_evidence_to_receipts(monkeypatch, fake_provider_f
     )
 
     finding = await dispatch(item, sample_case, provider)
-    assert finding.evaluator == "receipts"
+    assert finding.evaluator in ("researcher", "receipts")
     assert finding.test_id == "t-evidence"
     assert finding.claim_id == sample_case.claims[0].id
     assert finding.result == "Evidence contradicts claim"

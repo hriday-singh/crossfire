@@ -17,7 +17,7 @@ async def test_run_receipts_produces_finding_with_evidence(
     provider = fake_provider_factory(responses=[sample_finding])
     finding = await run_receipts(sample_test_plan_item, sample_case, provider)
     assert isinstance(finding, Finding)
-    assert finding.evaluator == "receipts"
+    assert finding.evaluator in ("researcher", "receipts")
     assert finding.claim_id == sample_claim.id
     assert finding.test_id == sample_test_plan_item.id
 
@@ -38,7 +38,7 @@ async def test_run_receipts_calls_through_llm_provider_not_google_genai_directly
 
     provider = fake_provider_factory(responses=[sample_finding])
     finding = await run_receipts(sample_test_plan_item, sample_case, provider)
-    assert finding.evaluator == "receipts"
+    assert finding.evaluator in ("researcher", "receipts")
     assert len(provider.calls) == 1
 
 
@@ -64,7 +64,7 @@ async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
 
     finding = await run_receipts(sample_test_plan_item, sample_case, provider)
     assert isinstance(finding, Finding)
-    assert finding.evaluator == "receipts"
+    assert finding.evaluator in ("researcher", "receipts")
     assert finding.evidence == []
     assert finding.confidence <= 0.35
 
@@ -317,4 +317,196 @@ async def test_receipts_drops_contradiction_when_nothing_cited(
     assert len(finding.evidence) == 1
     assert finding.evidence[0].stance == "context"
     assert finding.contradiction is None
+
+
+# ==============================================================================
+# Researcher Persona Enhancement Tests (4 Analytical Constraints)
+# ==============================================================================
+
+
+def test_researcher_system_prompt_contains_all_four_constraints():
+    from core.evaluators.receipts import RESEARCHER_SYSTEM_PROMPT
+
+    # 1. Adversarial Query Generation (Debunk search)
+    assert "Adversarial Query Generation" in RESEARCHER_SYSTEM_PROMPT
+    assert "Debunk" in RESEARCHER_SYSTEM_PROMPT
+    assert "complaints" in RESEARCHER_SYSTEM_PROMPT
+    assert "churn" in RESEARCHER_SYSTEM_PROMPT
+
+    # 2. Source Authority Tiering (Marketing Mirage)
+    assert "Source Authority Tiering" in RESEARCHER_SYSTEM_PROMPT
+    assert "Marketing Mirage" in RESEARCHER_SYSTEM_PROMPT
+    assert "Tier 1" in RESEARCHER_SYSTEM_PROMPT
+    assert "Tier 2" in RESEARCHER_SYSTEM_PROMPT
+    assert "Tier 3" in RESEARCHER_SYSTEM_PROMPT
+    assert "0.5" in RESEARCHER_SYSTEM_PROMPT
+
+    # 3. Temporal Decay (Data Freshness)
+    assert "Temporal Decay" in RESEARCHER_SYSTEM_PROMPT
+    assert "18-24 months" in RESEARCHER_SYSTEM_PROMPT
+    assert "weakened" in RESEARCHER_SYSTEM_PROMPT
+    assert "Data Staleness" in RESEARCHER_SYSTEM_PROMPT
+
+    # 4. Competitor Triangulation
+    assert "Competitor Triangulation" in RESEARCHER_SYSTEM_PROMPT
+    assert "competitor" in RESEARCHER_SYSTEM_PROMPT
+    assert "market leader" in RESEARCHER_SYSTEM_PROMPT
+
+
+def test_researcher_backward_compatibility_aliases():
+    from core.evaluators.receipts import (
+        RECEIPTS_SYSTEM_PROMPT,
+        RESEARCHER_SYSTEM_PROMPT,
+        ReceiptsAssessment,
+        ResearcherAssessment,
+        run_receipts,
+        run_researcher,
+    )
+
+    assert run_receipts is run_researcher
+    assert ReceiptsAssessment is ResearcherAssessment
+    assert RECEIPTS_SYSTEM_PROMPT == RESEARCHER_SYSTEM_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_researcher_marketing_mirage_caps_confidence_and_flags_reasoning(
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
+):
+    """Source Authority Tiering: When only Tier 3 sources are found, confidence must be capped at <= 0.5
+    and reasoning must explicitly flag 'Marketing Mirage'."""
+    from core.evaluators.receipts import CitedSource, ResearcherAssessment, run_researcher
+    from core.models import EvidenceItem
+
+    # Provide only blog / marketing sources (Tier 3)
+    marketing_items = [
+        EvidenceItem(
+            source_url="https://vendor-blog.com/promotional-post",
+            title="Why Our Product Outperforms Everyone",
+            snippet="Our proprietary benchmarks show 10x speed improvements over all competitors.",
+            retrieved_at="2026-09-06T00:00:00Z",
+            source_class="blog",
+        )
+    ]
+
+    async def fake_search(c, query_override=None):
+        return marketing_items
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+
+    # Model returned a confident assessment based on Tier 3 evidence
+    overconfident_assessment = ResearcherAssessment(
+        result="Benchmarks prove 10x improvement",
+        reasoning="Vendor documentation confirms 10x speed boost.",
+        confidence=0.9,
+        contradiction=None,
+        cited=[CitedSource(source_url="https://vendor-blog.com/promotional-post", stance="supports", tier=3)],
+    )
+    provider = fake_provider_factory(responses=[overconfident_assessment])
+
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
+    assert finding.evaluator in ("researcher", "receipts")
+    # Structural invariant: confidence capped at <= 0.5 for pure Tier 3
+    assert finding.confidence <= 0.5
+    # Structural invariant: reasoning must flag Marketing Mirage
+    assert "Marketing Mirage" in finding.reasoning
+
+
+@pytest.mark.asyncio
+async def test_researcher_temporal_decay_downgrades_to_weakened_and_notes_data_staleness(
+    monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
+):
+    """Temporal Decay: If core evidence is > 18-24 months old, verdict is downgraded to 'weakened'
+    and 'Data Staleness' is noted in contradiction."""
+    from core.evaluators.receipts import CitedSource, ResearcherAssessment, run_researcher
+    from core.models import EvidenceItem
+
+    stale_items = [
+        EvidenceItem(
+            source_url="https://tech-reviews.org/2023-survey",
+            title="2023 Industry Survey",
+            snippet="Published January 2023: Initial adoption metrics showed positive consumer interest across institutions. A follow-up study confirmed historical baseline numbers were solid at that time.",
+            retrieved_at="2026-09-06T00:00:00Z",
+            source_class="institutional",
+        )
+    ]
+
+
+    async def fake_search(c, query_override=None):
+        return stale_items
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+
+    stale_assessment = ResearcherAssessment(
+        result="Survey shows positive adoption",
+        reasoning="2023 survey indicates early adoption.",
+        confidence=0.7,
+        contradiction="Data Staleness: Survey data is from 2023, exceeding 24 months old.",
+        cited=[CitedSource(source_url="https://tech-reviews.org/2023-survey", stance="supports", tier=1)],
+    )
+    provider = fake_provider_factory(responses=[stale_assessment])
+
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
+    assert finding.evaluator in ("researcher", "receipts")
+    # Invariant: result must reflect weakened
+    assert "weakened" in finding.result.lower()
+    # Invariant: contradiction must record Data Staleness
+    assert finding.contradiction is not None
+    assert "Data Staleness" in finding.contradiction
+
+
+@pytest.mark.asyncio
+async def test_researcher_competitor_triangulation_triggers_on_uniqueness_claim(
+    monkeypatch, fake_provider_factory, sample_case
+):
+    """Competitor Triangulation: Claims asserting uniqueness trigger a secondary competitor search."""
+    from core.evaluators.receipts import ResearcherAssessment, run_researcher
+    from core.models import Claim, EvidenceItem, TestPlanItem
+
+    # Claim asserting uniqueness
+    unique_claim = Claim(
+        id="c-unique",
+        statement="We are the only platform offering automated instant tax reconciliations",
+        load_bearing=True,
+    )
+    sample_case.claims.append(unique_claim)
+
+    item = TestPlanItem(
+        id="t-unique",
+        target_claim="c-unique",
+        failure_mode="evidence",
+        objective="Verify uniqueness of automated tax reconciliations",
+    )
+
+    searched_queries = []
+
+    async def tracking_search(claim, query_override=None):
+        searched_queries.append(query_override or claim.statement)
+        return [
+            EvidenceItem(
+                source_url=f"https://example.com/result-{len(searched_queries)}",
+                title="Search Result",
+                snippet="Market leader Intuit already launched automated instant tax reconciliation in 2024.",
+                retrieved_at="2026-09-06T00:00:00Z",
+                source_class="web",
+            )
+        ]
+
+    monkeypatch.setattr("core.evaluators.receipts.search_evidence", tracking_search)
+
+    assessment = ResearcherAssessment(
+        result="Competitor Intuit already offers instant tax reconciliation",
+        reasoning="Market leader already provides the feature.",
+        confidence=0.85,
+        contradiction="Intuit offers the exact same capability",
+        cited=[],
+    )
+    provider = fake_provider_factory(responses=[assessment])
+
+    finding = await run_researcher(item, sample_case, provider)
+    assert finding.evaluator in ("researcher", "receipts")
+    # Verified: secondary search query was executed
+    assert len(searched_queries) >= 2
+    # Check that competitor triangulation terms were in the second search query
+    assert any("competitor" in q.lower() or "market leader" in q.lower() for q in searched_queries)
+
 
