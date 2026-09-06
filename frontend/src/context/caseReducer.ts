@@ -429,6 +429,12 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         currentCase: action.payload,
+        // Keep the archived copy in sync: the post-run snapshot refresh is what
+        // fills in anything the stream missed, and history is read back from
+        // localStorage later.
+        caseHistory: state.caseHistory.map((c) =>
+          c.id === action.payload.id ? action.payload : c
+        ),
       };
 
     case "SSE_EVENT": {

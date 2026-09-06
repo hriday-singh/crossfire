@@ -3,7 +3,7 @@ import { ActiveTestRow, Claim, DecisionConsequence, Finding } from "@/types/cros
 import { cleanUiText, formatConfidence, formatTestName, truncateUrl } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { TestRow } from "./TestRow";
-import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
+import { PoweredBySerpApiBadge, SerpApiText } from "@/components/ui/serpapi";
 
 interface ClaimCardProps {
   claim: Claim;
@@ -173,7 +173,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 
       {/* Claim Title */}
       <h2 className="font-headline-md text-headline-md text-on-surface font-medium leading-tight">
-        {cleanUiText(claim.statement)}
+        <SerpApiText text={cleanUiText(claim.statement)} />
       </h2>
 
       {/* Live Adversarial Test Stream (Visible during active testing) */}
@@ -216,13 +216,13 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           </div>
 
           <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-            {cleanUiText(relevantFinding?.result || relevantFinding?.contradiction || consequence?.verdict_reasoning)}
+            <SerpApiText text={cleanUiText(relevantFinding?.result || relevantFinding?.contradiction || consequence?.verdict_reasoning)} />
           </p>
 
           {consequence?.verdict_reasoning && (
             <div className="font-body-sm text-body-sm text-on-surface-variant flex items-start gap-1.5 pt-1">
               <span className="material-symbols-outlined text-[15px] text-primary-container shrink-0">gavel</span>
-              <span><strong>Steel Man Verdict:</strong> {cleanUiText(consequence.verdict_reasoning)}</span>
+              <span><strong>Steel Man Verdict:</strong> <SerpApiText text={cleanUiText(consequence.verdict_reasoning)} /></span>
             </div>
           )}
 
@@ -230,7 +230,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             {relevantFinding?.reasoning && !consequence?.verdict_reasoning && (
               <span className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">database</span>
-                <span>{cleanUiText(relevantFinding.reasoning)}</span>
+                <span><SerpApiText text={cleanUiText(relevantFinding.reasoning)} /></span>
               </span>
             )}
             {claimFindings.length > 1 && (
@@ -385,15 +385,15 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                         <span className="material-symbols-outlined text-[15px] text-error shrink-0 select-none">
                           warning
                         </span>
-                        <span>{cleanUiText(f.contradiction)}</span>
+                        <span><SerpApiText text={cleanUiText(f.contradiction)} /></span>
                       </p>
                     )}
                     <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
-                      {cleanUiText(f.result)}
+                      <SerpApiText text={cleanUiText(f.result)} />
                     </p>
                     {f.reasoning && f.reasoning !== f.result && (
                       <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed text-xs">
-                        {cleanUiText(f.reasoning)}
+                        <SerpApiText text={cleanUiText(f.reasoning)} />
                       </p>
                     )}
                   </div>
@@ -423,7 +423,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                       rel="noopener noreferrer"
                       className="font-body-md text-body-md font-semibold text-primary hover:underline flex items-center gap-space-2 truncate"
                     >
-                      <span className="truncate">{cleanUiText(ev.title || truncateUrl(ev.source_url, 45))}</span>
+                      <span className="truncate"><SerpApiText text={cleanUiText(ev.title || truncateUrl(ev.source_url, 45))} /></span>
                       <span className="material-symbols-outlined text-[15px] shrink-0">open_in_new</span>
                     </a>
                     {ev.provider === "serpapi" && (
@@ -441,7 +441,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                     )}
                   </div>
                   <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
-                    "{cleanUiText(ev.snippet)}"
+                    "<SerpApiText text={cleanUiText(ev.snippet)} />"
                   </p>
                 </div>
               ))}

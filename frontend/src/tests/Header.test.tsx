@@ -1,7 +1,26 @@
+import React from "react";
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Header } from "@/components/layout/Header";
-import { CaseProvider } from "@/context/CaseContext";
+import { CaseProvider, useCase } from "@/context/CaseContext";
+import { Case } from "@/types/crossfire";
+
+const DONE_CASE: Case = {
+  id: "case-header-1",
+  raw_input: "Test input",
+  context: null,
+  status: "done",
+  claims: [],
+  test_plan: [],
+  findings: [],
+  consequences: [],
+};
+
+const LoadCase: React.FC = () => {
+  const { state, dispatch } = useCase();
+  if (!state.currentCase) dispatch({ type: "LOAD_CASE", payload: DONE_CASE });
+  return null;
+};
 
 describe("Header", () => {
   it("renders branding and status text", () => {
@@ -65,4 +84,27 @@ describe("Header", () => {
     expect(screen.queryByText("RUNNER ACTIVE")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/executive operator profile/i)).not.toBeInTheDocument();
   });
+
+  it("hides the new-case button until a case exists", () => {
+    render(
+      <CaseProvider>
+        <Header />
+      </CaseProvider>
+    );
+
+    expect(screen.queryByTestId("new-case-btn")).not.toBeInTheDocument();
+  });
+
+
+  it("shows a new-case button once a case is loaded", () => {
+    render(
+      <CaseProvider>
+        <LoadCase />
+        <Header />
+      </CaseProvider>
+    );
+
+    expect(screen.getByTestId("new-case-btn")).toHaveAccessibleName(/start a new case/i);
+  });
+
 });

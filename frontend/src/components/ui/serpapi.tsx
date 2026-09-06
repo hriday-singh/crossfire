@@ -149,3 +149,71 @@ export const PoweredBySerpApiBadge: React.FC<PoweredBySerpApiProps> = ({
     </a>
   );
 };
+
+export interface SerpApiInlinePillProps {
+  className?: string;
+  size?: number | string;
+  "data-testid"?: string;
+}
+
+/**
+ * Non-interactive inline badge with official SerpApi logo and bold styling.
+ * Safe to embed inside buttons, links, or running text without intercepting clicks.
+ */
+export const SerpApiInlinePill: React.FC<SerpApiInlinePillProps> = ({
+  className = "",
+  size = 13,
+  "data-testid": testId,
+}) => {
+  return (
+    <span
+      data-testid={testId}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 align-baseline select-text ${className}`}
+      title="SerpApi"
+    >
+      <SerpApiIcon size={size} className="shrink-0 inline-block align-middle -translate-y-[0.5px]" />
+      <span className="font-semibold tracking-tight">SerpApi</span>
+    </span>
+  );
+};
+
+const SERPAPI_REGEX = /(\b(?:serp\s*api|serpapi|serp)\b)/gi;
+const SERPAPI_CHECK = /\b(?:serp\s*api|serpapi|serp)\b/i;
+
+/**
+ * Replaces case-insensitive occurrences of "serp", "serpapi", or "serp api"
+ * with the bold SerpApiInlinePill while preserving surrounding text.
+ */
+export function renderWithSerpApi(text: string | null | undefined): React.ReactNode {
+  if (text === null || text === undefined) return null;
+  if (!text) return "";
+
+  if (!SERPAPI_CHECK.test(text)) {
+    return text;
+  }
+
+  const parts = text.split(SERPAPI_REGEX);
+  return parts.map((part, idx) => {
+    if (SERPAPI_CHECK.test(part)) {
+      return <SerpApiInlinePill key={idx} />;
+    }
+    return part;
+  });
+}
+
+export interface SerpApiTextProps {
+  text: string | null | undefined;
+  className?: string;
+}
+
+/**
+ * Convenience wrapper component that safely formats text with inline SerpApi branding.
+ */
+export const SerpApiText: React.FC<SerpApiTextProps> = ({ text, className }) => {
+  const content = renderWithSerpApi(text);
+  if (className) {
+    return <span className={className}>{content}</span>;
+  }
+  return <>{content}</>;
+};
+

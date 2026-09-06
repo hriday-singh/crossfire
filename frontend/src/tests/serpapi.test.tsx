@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { SerpApiIcon, PoweredBySerpApiBadge } from "@/components/ui/serpapi";
+import {
+  SerpApiIcon,
+  PoweredBySerpApiBadge,
+  SerpApiInlinePill,
+  renderWithSerpApi,
+  SerpApiText,
+} from "@/components/ui/serpapi";
 
 describe("SerpApi Branding Components", () => {
   describe("SerpApiIcon", () => {
@@ -56,6 +62,61 @@ describe("SerpApi Branding Components", () => {
       const inlinePill = screen.getByRole("link", { name: /via SerpApi/i });
       expect(inlinePill).toBeInTheDocument();
       expect(inlinePill).toHaveAttribute("href", expect.stringContaining("https://serpapi.com"));
+    });
+  });
+
+  describe("SerpApiInlinePill", () => {
+    it("renders inline pill with SerpApi logo and bold font without interactive tags", () => {
+      render(<SerpApiInlinePill data-testid="serpapi-pill" />);
+      const pill = screen.getByTestId("serpapi-pill");
+      expect(pill).toBeInTheDocument();
+      expect(pill.tagName.toLowerCase()).toBe("span");
+      expect(pill).toHaveTextContent("SerpApi");
+      expect(pill.querySelector("svg")).toBeInTheDocument();
+      // Must not be a link or button so it does not intercept parent clicks
+      expect(pill.closest("button")).toBeNull();
+      expect(pill.closest("a")).toBeNull();
+    });
+  });
+
+  describe("renderWithSerpApi and SerpApiText", () => {
+    it("returns null or empty string for null/undefined/empty input", () => {
+      expect(renderWithSerpApi(null)).toBeNull();
+      expect(renderWithSerpApi(undefined)).toBeNull();
+      expect(renderWithSerpApi("")).toBe("");
+    });
+
+    it("leaves string without serp/serpapi/serp api unchanged (including Serve API)", () => {
+      const result = renderWithSerpApi("Regular Serve API text with no search engine reference");
+      expect(result).toBe("Regular Serve API text with no search engine reference");
+    });
+
+    it("does not match unrelated words starting with serp like server or serpentine", () => {
+      const result = renderWithSerpApi("Connecting to server host");
+      expect(result).toBe("Connecting to server host");
+    });
+
+    it("replaces 'serp', 'serpapi', 'serp api' case-insensitively with SerpApiInlinePill", () => {
+      render(
+        <div data-testid="test-serp-variants">
+          <SerpApiText text='Testing via SERP, confirmed with SerpApi and query via serp api' />
+        </div>
+      );
+      const container = screen.getByTestId("test-serp-variants");
+      const svgs = container.querySelectorAll("svg");
+      expect(svgs.length).toBe(3);
+      expect(container).toHaveTextContent("Testing via SerpApi, confirmed with SerpApi and query via SerpApi");
+    });
+
+    it("replaces standalone 'serp' in lowercase without touching non-serp words", () => {
+      render(
+        <div data-testid="test-standalone-serp">
+          <SerpApiText text="Search provider: serp for claims" />
+        </div>
+      );
+      const container = screen.getByTestId("test-standalone-serp");
+      expect(container.querySelector("svg")).toBeInTheDocument();
+      expect(container).toHaveTextContent("Search provider: SerpApi for claims");
     });
   });
 });

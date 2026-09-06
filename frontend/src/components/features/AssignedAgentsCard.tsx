@@ -83,22 +83,23 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
           );
           const rationale =
             agentRationales[agent.id] ||
-            (agent.id === "researcher" ? agentRationales["receipts"] : undefined);
+            (agent.id === "researcher" ? agentRationales["receipts"] : undefined) ||
+            (agent.id === "operator" ? agentRationales["overthinker"] || "Stress-tests organizational friction, adoption inertia, enterprise gatekeeping, and regulatory liability." : undefined);
 
           return (
             <div
               key={agent.id}
               data-testid={`agent-card-${agent.id}`}
               onClick={() => onToggleAgent(agent.id)}
-              className={`rounded-xl p-4 border transition-all duration-150 cursor-pointer select-none flex flex-col justify-between min-h-[110px] ${
+              className={`rounded-xl p-4 border transition-all duration-150 cursor-pointer select-none flex flex-col justify-between min-h-[110px] overflow-hidden ${
                 isSelected
                   ? "bg-surface-container border-primary-container/60 hover:border-primary-container shadow-xs"
                   : "bg-surface-container/30 border-outline-variant/30 hover:border-outline-variant/60 opacity-60 hover:opacity-85"
               }`}
             >
-              <div>
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1.5 min-w-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <input
                       type="checkbox"
                       id={`confirm-agent-${agent.id}`}
@@ -109,18 +110,21 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
                     />
                     <label
                       htmlFor={`confirm-agent-${agent.id}`}
-                      className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs cursor-pointer truncate"
+                      className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs cursor-pointer select-none whitespace-nowrap"
                     >
                       {agent.name}
                     </label>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-outline border border-outline-variant/40">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+                    <span
+                      title={`Runs ${agent.testName}`}
+                      className="font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-outline border border-outline-variant/40 truncate min-w-0"
+                    >
                       Runs {agent.testName}
                     </span>
                     <span
-                      className={`font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
+                      className={`font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded shrink-0 ${
                         isSelected
                           ? "bg-verdict-survived/15 text-verdict-survived border border-verdict-survived/30"
                           : "bg-surface-container-high text-outline"

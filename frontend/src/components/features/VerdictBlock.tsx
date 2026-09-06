@@ -1,6 +1,7 @@
 import React from "react";
 import { Case, Claim } from "@/types/crossfire";
 import { cleanUiText } from "@/lib/formatters";
+import { SerpApiText } from "@/components/ui/serpapi";
 
 /**
  * Layer 0-1 of the dashboard: the call, the single thing that forced it, and
@@ -112,7 +113,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
           {headline}
         </h2>
         <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-          {cleanUiText(verdict.summary)}
+          <SerpApiText text={cleanUiText(verdict.summary)} />
         </p>
         {counts.length > 0 && (
           <p className="font-code-sm text-code-sm text-outline">{counts.join(" · ")}</p>
@@ -138,7 +139,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                   >
                     <div className="flex items-start justify-between gap-space-3">
                       <span className="font-body-md text-body-md text-on-surface">
-                        {cleanUiText(claim.statement)}
+                        <SerpApiText text={cleanUiText(claim.statement)} />
                       </span>
                       <span
                         className={`font-code-sm text-code-sm font-semibold shrink-0 ${
@@ -150,11 +151,13 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                     </div>
                     {reasoning && (
                       <p className="mt-1 font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                        {cleanUiText(reasoning)}
+                        <SerpApiText text={cleanUiText(reasoning)} />
                       </p>
                     )}
                     {source && (
-                      <p className="mt-1 font-code-sm text-code-sm text-outline">{cleanUiText(source)}</p>
+                      <p className="mt-1 font-code-sm text-code-sm text-outline">
+                        <SerpApiText text={cleanUiText(source)} />
+                      </p>
                     )}
                   </button>
                 </li>
@@ -179,7 +182,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                   className="flex items-start justify-between gap-space-3"
                 >
                   <span className="font-body-md text-body-md text-on-surface leading-relaxed">
-                    {cleanUiText(next.action)}
+                    <SerpApiText text={cleanUiText(next.action)} />
                   </span>
                   {anchor && (
                     <button

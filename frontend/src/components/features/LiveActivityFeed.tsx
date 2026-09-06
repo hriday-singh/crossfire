@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityItem } from "@/types/crossfire";
 import { cn } from "@/lib/utils";
+import { SerpApiText } from "@/components/ui/serpapi";
 
 interface LiveActivityFeedProps {
   activities: ActivityItem[];
@@ -134,7 +135,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
                 </span>
 
                 <span className="text-on-surface-variant leading-relaxed text-xs break-words font-sans group-hover:text-on-surface">
-                  {item.text}
+                  <SerpApiText text={item.text} />
                 </span>
               </div>
             ))

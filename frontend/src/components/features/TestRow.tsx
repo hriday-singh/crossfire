@@ -3,6 +3,7 @@ import { Finding, TestExecutionState } from "@/types/crossfire";
 import { formatConfidence, formatTestName } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { Circle, CircleCheck, Loader2 } from "lucide-react";
+import { SerpApiText } from "@/components/ui/serpapi";
 
 interface TestRowProps {
   testId: string;
@@ -74,18 +75,20 @@ export const TestRow: React.FC<TestRowProps> = ({
           <span className="material-symbols-outlined text-[13px] animate-spin shrink-0">
             progress_activity
           </span>
-          <span className="truncate">{activeActivity}</span>
+          <span className="truncate">
+            <SerpApiText text={activeActivity} />
+          </span>
         </div>
       )}
 
       {finding && (
         <div className="mt-1 flex flex-col gap-1 border-t border-outline-variant pt-2.5 text-xs">
           <div className="font-medium text-on-surface">
-            {finding.result}
+            <SerpApiText text={finding.result} />
           </div>
           {finding.reasoning && (
             <div className="text-on-surface-variant line-clamp-2 leading-relaxed">
-              {finding.reasoning}
+              <SerpApiText text={finding.reasoning} />
             </div>
           )}
           {finding.evidence && finding.evidence.length > 0 && (

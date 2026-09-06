@@ -90,6 +90,9 @@ describe("useCaseStream hook", () => {
 
     expect(listeners["run_complete"]).toBeDefined();
     expect(listeners["test_started"]).toBeDefined();
+    // The verdict event has to be subscribed, otherwise the run's call never
+    // reaches state before run_complete archives the case to history.
+    expect(listeners["case_verdict"]).toBeDefined();
 
     // Trigger an incoming event
     act(() => {

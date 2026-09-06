@@ -3,6 +3,7 @@ import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { DECISION_PRESETS } from "@/lib/presets";
 import { Case } from "@/types/crossfire";
+import { getCase } from "@/lib/api";
 
 export const HistoryModal: React.FC = () => {
   const { state, dispatch, setActiveModal, startExtracting, navigateScreen } = useCase();
@@ -12,6 +13,15 @@ export const HistoryModal: React.FC = () => {
     dispatch({ type: "LOAD_CASE", payload: caseItem });
     navigateScreen("dashboard");
     setActiveModal("none");
+    // Entries archived before the verdict landed (or by an older build) have no
+    // case_verdict - pull the backend copy so the memo isn't missing its call.
+    if (!caseItem.case_verdict && caseItem.status === "done") {
+      getCase(caseItem.id)
+        .then((full) => dispatch({ type: "UPDATE_CASE", payload: full }))
+        .catch(() => {
+          /* case no longer on the backend - keep the local copy */
+        });
+    }
   };
 
   const handleClearHistory = () => {

@@ -155,6 +155,21 @@ export const Header: React.FC = () => {
             </button>
           )}
 
+          {/* Start over - the logo also resets, but nobody finds that */}
+          {state.currentCase && (
+            <button
+              type="button"
+              onClick={resetCase}
+              data-testid="new-case-btn"
+              aria-label="Start a new case"
+              title="Start a new case"
+              className="font-code-sm text-code-sm px-2.5 py-1 rounded border border-outline-variant bg-surface-container text-on-surface hover:bg-surface-container-high hover:border-primary-container transition-colors flex items-center gap-1.5 cursor-pointer min-h-[36px]"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              <span className="hidden sm:inline font-medium">New case</span>
+            </button>
+          )}
+
           {/* Live Pipeline Telemetry Toggle */}
           <button
             type="button"

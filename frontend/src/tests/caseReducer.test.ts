@@ -366,4 +366,38 @@ describe("caseReducer", () => {
     });
     expect(state.currentCase?.selected_agents).toEqual(["receipts"]);
   });
+
+  it("UPDATE_CASE syncs the archived history copy so a refreshed verdict survives", () => {
+    const archived: Case = {
+      id: "case-hist-1",
+      raw_input: "Test input",
+      context: null,
+      status: "done",
+      claims: [],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+
+    const refreshed: Case = {
+      ...archived,
+      case_verdict: {
+        decision_state: "drop",
+        summary: "Does not hold.",
+        broken: ["c1"],
+        unproven: [],
+        survived: [],
+        next_actions: [],
+      },
+    };
+
+    const state = caseReducer(
+      { ...INITIAL_STATE, currentCase: archived, caseHistory: [archived] },
+      { type: "UPDATE_CASE", payload: refreshed }
+    );
+
+    expect(state.currentCase?.case_verdict?.decision_state).toBe("drop");
+    expect(state.caseHistory[0].case_verdict?.decision_state).toBe("drop");
+  });
+
 });

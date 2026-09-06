@@ -38,6 +38,7 @@ export function useCaseStream() {
       "finding_ready",
       "verdict_ready",
       "consequence_ready",
+      "case_verdict",
       "run_complete",
       "error",
       "activity",

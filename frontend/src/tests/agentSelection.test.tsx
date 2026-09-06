@@ -135,9 +135,15 @@ describe("AssignedAgentsCard Component", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/2 of 4 agents armed/i)).toBeInTheDocument();
 
-    // Verify corresponding test badges are shown
+    // Verify corresponding test badges are shown for all agents
     expect(screen.getByText("Runs Feasibility Test")).toBeInTheDocument();
     expect(screen.getByText("Runs Assumption Test")).toBeInTheDocument();
+    expect(screen.getByText("Runs Operational Friction Test")).toBeInTheDocument();
+    expect(screen.getByText("Runs Evidence Test")).toBeInTheDocument();
+
+    // Verify Active and Excluded badges
+    expect(screen.getAllByText("Active")).toHaveLength(2);
+    expect(screen.getAllByText("Excluded")).toHaveLength(2);
 
     // Verify rationale text is displayed
     expect(
