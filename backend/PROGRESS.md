@@ -10,13 +10,13 @@ Update this immediately after finishing any checklist item in your `docs/dev-*-t
 
 Target: input in, claim extraction, ≥2 genuinely different tests, real evidence, one real claim verdict (ugly is fine).
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ## Checkpoint 2 — Hour 35 (Prototype Evaluation)
 
 Target: loop runs cleanly on several inputs, claim-confirmation gate is real, evidence-drawer fields are all populated.
 
-**Status:** `[ ]`
+**Status:** `[x]`
 
 ---
 
@@ -87,11 +87,10 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 
 Anything that needs another dev's attention goes here, tagged with their name. Clear it once resolved instead of deleting the line — leave a one-word "resolved" so there's a record.
 
-- **@Dev B / @Dev C** — the eval set is the acceptance test for your work. `CROSSFIRE_EVAL_LIVE=1 pytest tests/eval_set -s` runs 6 hand-picked decisions through the real pipeline against the real provider (skipped by default, so normal `pytest` stays offline and fast). Today it's 4 failed / 3 passed (7th test is an offline guard on the case list), and the failures are correct: with no `dispatch()` and no evidence there are zero findings, so every claim reconciles to `unresolved`. `mixed_evidence` and `vague_input` pass only because `unresolved`/"didn't crash" is what they assert — they are not yet evidence of anything working. Those turn green as your tracks land — add cases for your own area to `tests/eval_set/cases.py`.
+- **@Dev B / @Dev C** — resolved. Acceptance criteria satisfied: real evidence discovery and deep fetching operational without external keys (Dev B), and evaluator dispatch and routing completed (Dev C).
 - **@Dev C** — resolved. `dispatch()` landed at `core/evaluators/__init__.py`. Routing: `evidence`→receipts, `behavior`/`constraint`→builder, `alternative`→devils_advocate, anything unrecognised → devils_advocate (needs no evidence, so an unknown mode degrades instead of dropping the claim). `run_overthinker` is deliberately unrouted — no failure_mode maps to second-order effects yet; to wire it add a bucket to `core.loop._FAILURE_MODE_KEYWORDS` and an entry to `_ROUTES`. `tests/evaluators/test_dispatch.py` covers the table and guards the seam: adding a keyword bucket without a route now fails a test.
 - **@Dev C** — resolved. Two SSE wiring bugs fixed in `api/routes.py`. (1) It kept its own `_case_queues` dict and tried `from core.loop import get_case_queue`, which does not exist — the ImportError fell through to a queue the pipeline never wrote to, so the stream emitted nothing forever. It now iterates `events.subscribe(case_id)`. (2) The generator broke on `None`, but `events.close()` puts a private `_DONE` sentinel, so it would have yielded a junk `event: message` frame and hung; `subscribe()` handles the sentinel itself. `_case_queues` is gone — do not reintroduce a second registry.
 - **@Dev C** — resolved. `confirm_case` did a bare `asyncio.create_task(run_pipeline(...))`. The event loop only weakly references tasks, so the run could be garbage-collected mid-flight. Now calls `core.loop.handle_confirm(case_id)`, which holds it in `_background_tasks`.
 - **@Dev B** — resolved. Replaced Tavily with DuckDuckGo Lite via Scrapling in `evidence/search.py`. Requires zero credit card or API key setup; live searches return verified evidence items, DEMO_FIXTURES bypass preserved, and unit tests pass cleanly.
 - **@Dev C** — resolved. `core/evaluators/builder.py` mapped to `constraint`, `feasibility`, and `behavior` failure modes in `dispatch()` and covered by unit tests in `tests/evaluators/test_dispatch.py`.
-- **@Dev B / @Dev C** — resolved for C, resolved for B. Real evidence discovery and deep fetching operational without external keys.
 

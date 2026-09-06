@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect } from "react";
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
 import { AppAction, AppState, INITIAL_STATE, caseReducer } from "./caseReducer";
-import { DECISION_PRESETS, MOCK_COLLEGE_CASE } from "@/lib/mockData";
-import { confirmCase, createCase } from "@/lib/api";
+import { DECISION_PRESETS } from "@/lib/mockData";
+import { confirmCase, createCase, getCase } from "@/lib/api";
 import { Case } from "@/types/crossfire";
 
 interface CaseContextValue {
@@ -12,33 +12,25 @@ interface CaseContextValue {
   selectClaim: (claimId: string | null) => void;
   resetCase: () => void;
   loadPreset: (presetId: string) => void;
-  toggleMockMode: () => void;
-  setPlaybackSpeed: (speed: number) => void;
   setActiveModal: (modal: AppState["activeModal"]) => void;
+  refreshCurrentCase: () => Promise<void>;
 }
 
 const CaseContext = createContext<CaseContextValue | null>(null);
 
 const STORAGE_KEY_HISTORY = "crossfire_case_history";
-const STORAGE_KEY_MOCK = "crossfire_mock_mode";
 
 export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(caseReducer, INITIAL_STATE, (initial) => {
     try {
-      const savedMock = localStorage.getItem(STORAGE_KEY_MOCK);
       const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
       const parsedHistory: Case[] = savedHistory ? JSON.parse(savedHistory) : [];
       return {
         ...initial,
-        isMockMode: savedMock ? savedMock === "true" : true, // Default to true so user can test out of the box
-        caseHistory: parsedHistory.length > 0 ? parsedHistory : [MOCK_COLLEGE_CASE],
+        caseHistory: parsedHistory,
       };
     } catch {
-      return {
-        ...initial,
-        isMockMode: true,
-        caseHistory: [MOCK_COLLEGE_CASE],
-      };
+      return initial;
     }
   });
 
@@ -51,60 +43,8 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [state.caseHistory]);
 
-  // Sync mock mode to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_MOCK, String(state.isMockMode));
-    } catch {
-      // Ignore storage errors
-    }
-  }, [state.isMockMode]);
-
   const startExtracting = async (rawInput: string, context?: string | null) => {
     dispatch({ type: "START_EXTRACTING", payload: { rawInput, context } });
-
-    if (state.isMockMode) {
-      // Realistic simulation
-      setTimeout(() => {
-        const mockCase: Case = {
-          id: `case-sim-${Date.now().toString(36)}`,
-          raw_input: rawInput,
-          context: context || null,
-          status: "awaiting_confirmation",
-          claims: [
-            {
-              id: "claim-1",
-              statement: "Students will trust an AI to submit applications on their behalf.",
-              load_bearing: null,
-              status: null,
-            },
-            {
-              id: "claim-2",
-              statement: "There's no existing competitor already solving this well.",
-              load_bearing: null,
-              status: null,
-            },
-            {
-              id: "claim-3",
-              statement: "The AI can reliably parse arbitrary college application portal formats without per-school custom integration.",
-              load_bearing: null,
-              status: null,
-            },
-            {
-              id: "claim-4",
-              statement: "The onboarding screen should use a dark theme.",
-              load_bearing: null,
-              status: null,
-            },
-          ],
-          test_plan: [],
-          findings: [],
-          consequences: [],
-        };
-        dispatch({ type: "EXTRACTING_SUCCESS", payload: mockCase });
-      }, 1200);
-      return;
-    }
 
     try {
       const result = await createCase(rawInput, context);
@@ -126,14 +66,10 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!state.currentCase) return;
     dispatch({ type: "START_CONFIRMING" });
 
-    if (state.isMockMode) {
-      dispatch({ type: "CONFIRMING_SUCCESS" });
-      return;
-    }
-
     try {
-      await confirmCase(state.currentCase.id, state.currentCase.claims);
+      // Connect to SSE stream first by setting streaming mode to avoid race condition
       dispatch({ type: "CONFIRMING_SUCCESS" });
+      await confirmCase(state.currentCase.id, state.currentCase.claims);
     } catch (err: unknown) {
       const errorObj = err as { stage?: string; message?: string };
       dispatch({
@@ -147,6 +83,16 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshCurrentCase = useCallback(async () => {
+    if (!state.currentCase?.id) return;
+    try {
+      const fullCase = await getCase(state.currentCase.id);
+      dispatch({ type: "UPDATE_CASE", payload: fullCase });
+    } catch (err) {
+      console.warn("Failed to refresh case snapshot:", err);
+    }
+  }, [state.currentCase?.id]);
+
   const selectClaim = (claimId: string | null) => {
     dispatch({ type: "SELECT_CLAIM", payload: claimId });
   };
@@ -159,14 +105,6 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const preset = DECISION_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
     startExtracting(preset.rawInput, preset.contextHint);
-  };
-
-  const toggleMockMode = () => {
-    dispatch({ type: "SET_MOCK_MODE", payload: !state.isMockMode });
-  };
-
-  const setPlaybackSpeed = (speed: number) => {
-    dispatch({ type: "SET_PLAYBACK_SPEED", payload: speed });
   };
 
   const setActiveModal = (modal: AppState["activeModal"]) => {
@@ -183,9 +121,8 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectClaim,
         resetCase,
         loadPreset,
-        toggleMockMode,
-        setPlaybackSpeed,
         setActiveModal,
+        refreshCurrentCase,
       }}
     >
       {children}

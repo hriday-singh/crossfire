@@ -26,7 +26,7 @@ Before modifying, creating, or finishing any frontend code, you must read and ad
 - **Framework**: React 19 + Vite (TypeScript)
 - **Styling**: Tailwind CSS + Radix UI Primitives (`@radix-ui/react-*`) + Lucide icons
 - **State**: React Context (`CaseContext`) + Reducer (`caseReducer`)
-- **Transport**: SSE (`EventSource`) + Fetch API with in-memory Mock Simulation mode
+- **Transport**: Native SSE (`EventSource`) + Fetch API wired directly to backend API
 - **Testing**: Vitest + React Testing Library (`@testing-library/react`, `@testing-library/jest-dom`)
 - **DOM**: `jsdom`
 

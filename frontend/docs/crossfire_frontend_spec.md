@@ -26,10 +26,10 @@ Instead of an AI chat window that flatters the user, Crossfire behaves like a **
    - `feasibility` $\rightarrow$ **Feasibility Test**
    - `edge-case` $\rightarrow$ **Edge-Case Test**
 2. **Verdict Color Exclusivity:** The four verdict colors are reserved exclusively for claim and test results. They are never reused for form validation, system alerts, or generic badges.
-3. **Unresolved is an Active, Measured Outcome:** The status `unresolved` signifies that the system actively searched and found conflicting, thin, or absent evidence. It is styled in **Violet/Indigo (`#4f46e5`)**—never gray or disabled.
+3. **Unresolved is an Active, Measured Outcome:** The status `unresolved` signifies that the system actively searched and found conflicting, thin, or absent evidence. It is styled in **Indigo / Violet (`#818cf8`)**—never gray or disabled.
 4. **Single-Entry Simplicity:** One primary input: *"What are you considering?"*. Zero mode pickers, tabs, or personas.
 5. **Evidence Always Accessible:** Every claim card opens a slide-over Evidence Drawer revealing the complete audit trail and primary source citations.
-6. **Restraint Over Spectacle (No 3D):** Clean Light-First Decision Memo aesthetic. High-contrast typography, generous whitespace, fast (<150ms) CSS transitions only. Zero fake telemetry (no glowing live dots, no 3D canvas, no impact meters).
+6. **Restraint Over Spectacle (No 3D):** Clean Dark-First Decision Memo aesthetic. Deep zinc canvas (`#09090b`), elevated card surfaces (`#18181b`), crisp typography (`#f4f4f5`), generous whitespace, fast (<150ms) CSS transitions only. Zero fake telemetry (no glowing live dots, no 3D canvas, no impact meters).
 
 ---
 
@@ -252,27 +252,27 @@ Browser                          FastAPI Backend (Dev C)
 
 ## 5. Design System Tokens & Visual Consistencies
 
-### 5.1 Color Palette (Clean Light-First, WCAG AA)
-The interface uses a clean, breathable light theme with deep slate contrast for effortless reading.
+### 5.1 Color Palette (Dark-First, WCAG AA / AAA)
+The interface uses a deep neutral palette engineered for readability, zero glare, and high contrast.
 
 | Token | Hex Value | Semantic Usage |
 |---|---|---|
-| `--background` | `#fafafa` | Main canvas background (warm off-white) |
-| `--card` | `#ffffff` | Cards, memo container, drawer surface |
-| `--border` | `#e4e4e7` | Subtle card borders, row separators |
-| `--foreground` | `#18181b` | Headlines, claim statements, primary reading text |
-| `--muted-foreground` | `#71717a` | Secondary captions, timestamps, queued state, URLs |
-| `--primary` | `#18181b` | CTA buttons (`text-white`), active focus rings |
+| `--background` | `#09090b` | Main canvas background (deep zinc) |
+| `--card` | `#18181b` | Cards, memo container, drawer surface |
+| `--border` | `#27272a` | Subtle card borders, row separators |
+| `--foreground` | `#f4f4f5` | Headlines, claim statements, primary reading text |
+| `--muted-foreground` | `#a1a1aa` | Secondary captions, timestamps, queued state, URLs |
+| `--primary` | `#ffffff` | CTA buttons (`text-zinc-950`), active focus rings |
 
 ### 5.2 Verdict Visual Tokens (Exclusivity Rule)
-Verdict colors are strictly reserved for claim and test results.
+Verdict colors are strictly reserved for claim and test results. Badges use subtle dark translucent backgrounds with matching borders and luminous text.
 
-| Verdict | Role | Text / Icon Color | Badge Background | Lucide Icon | Meaning |
-|---|---|---|---|---|---|
-| `survived` | Success | `#059669` (Emerald) | `#ecfdf5` | `circle-check` | Withstood tests and web evidence |
-| `weakened` | Caution | `#d97706` (Amber) | `#fffbeb` | `triangle-alert` | Partial validity; assumptions contested |
-| `broken` | Destructive | `#e11d48` (Rose) | `#fff1f2` | `circle-x` | Directly refuted by facts/constraints |
-| `unresolved` | Uncertainty | `#4f46e5` (Indigo) | `#eef2ff` | `circle-help` | Active outcome: evidence thin/conflicting |
+| Verdict | Role | Text / Icon Color | Badge Background | Badge Border | Lucide Icon | Meaning |
+|---|---|---|---|---|---|---|
+| `survived` | Success | `#34d399` (Emerald-400) | `rgba(6, 78, 59, 0.4)` | `rgba(6, 95, 70, 0.5)` | `circle-check` | Withstood tests and web evidence |
+| `weakened` | Caution | `#fbbf24` (Amber-400) | `rgba(120, 53, 15, 0.4)` | `rgba(146, 64, 14, 0.5)` | `triangle-alert` | Partial validity; assumptions contested |
+| `broken` | Destructive | `#f87171` (Rose-400) | `rgba(136, 19, 55, 0.4)` | `rgba(159, 18, 57, 0.5)` | `circle-x` | Directly refuted by facts/constraints |
+| `unresolved` | Uncertainty | `#818cf8` (Indigo-400) | `rgba(49, 46, 129, 0.4)` | `rgba(55, 48, 163, 0.5)` | `circle-help` | Active outcome: evidence thin/conflicting |
 
 > [!CAUTION]
 > **Never render `unresolved` in gray.** Gray indicates inactive/queued elements. `unresolved` is an explicit, measured verdict.
@@ -315,37 +315,38 @@ export function mapFailureModeToTestName(failureMode: string): string {
 - **Route / State:** `view == "entry"`, `Case == null`.
 - **Layout:** Centered single column (max-width 640px). Minimal "Crossfire" wordmark top-left.
 - **Elements:**
-  - Label: *"What are you considering?"* (text-xl font-semibold text-zinc-900).
-  - Textarea: Auto-growing, min-height 120px, white background, comfortable padding.
-  - Primary CTA: *"Test Decision"* button (`bg-zinc-900 text-white`).
-- **Loading State:** Upon submit (`POST /cases`), textarea transforms into a 3-bar skeleton loader with caption: *"Extracting core assumptions..."*.
+  - Label: *"What are you considering?"* (text-xl font-semibold text-zinc-100).
+  - Textarea: Auto-growing, min-height 120px, `bg-zinc-900 border-zinc-800 text-zinc-100`, comfortable padding.
+  - Primary CTA: *"Test Decision"* button (`bg-white text-zinc-950 font-medium hover:bg-zinc-200`).
+- **Loading State:** Upon submit (`POST /cases`), textarea transforms into a 3-bar skeleton loader (`bg-zinc-800`) with caption: *"Extracting core assumptions..."*.
 
 ### Screen 2: Claim Alignment View
 - **Route / State:** `view == "confirm"`, `Case.status == "awaiting_confirmation"`.
 - **Layout:** Centered single column (max-width 720px).
 - **Elements:**
-  - Header Echo: Paraphrase of user's decision in readable prose to verify understanding.
-  - Claim Stack: Clean white cards. Clicking allows inline text edits. Small `(×)` button to delete.
-  - Action Link: `"+ Add assumption"` allows adding an assumption.
-  - Primary CTA: *"Confirm and test assumptions"* $\rightarrow$ `POST /cases/{id}/confirm`.
+  - Header Echo: Paraphrase of user's decision in readable prose to verify understanding (`text-zinc-100 font-medium`).
+  - Claim Stack: Clean dark cards (`bg-zinc-900 border-zinc-800`). Clicking allows inline text edits. Small `(×)` button to delete (`text-zinc-500 hover:text-rose-400`).
+  - Action Link: `"+ Add assumption"` allows adding an assumption (`text-zinc-400 hover:text-zinc-200`).
+  - Primary CTA: *"Confirm and test assumptions"* $\rightarrow$ `POST /cases/{id}/confirm` (`bg-white text-zinc-950 font-medium`).
 - **Constraint:** `load_bearing` flag and `status` badges are **NOT** displayed on this screen.
 
 ### Screen 3: Decision Memo & Live Audit (Testing $\rightarrow$ Completed)
 - **Route / State:** `view == "dashboard"`, `Case.status == "testing"` or `"done"`.
 - **Layout:** Centered container (max-width 840px).
 - **Live Summary Bar:**
-  - *During testing:* Truthful status: *"Testing 4 claims against web evidence and counterarguments..."*
-  - *When done:* Clean summary banner: *"4 claims tested: 1 survived, 1 weakened, 1 broken, 1 unresolved."*
+  - *During testing:* Truthful status: *"Testing 4 claims against web evidence and counterarguments..."* (`text-zinc-400`)
+  - *When done:* Clean summary banner: *"4 claims tested: 1 survived, 1 weakened, 1 broken, 1 unresolved."* (`text-zinc-200 font-medium`)
   - *Zero fake telemetry:* No glowing blue "LIVE STREAM" dots, no pulsing radar beacons, no simulated meters.
 - **Claim Card Elements:**
-  - Load-bearing tag (*"Core foundation"*) rendered when `load_bearing == true`.
-  - Full claim statement in large, readable text (`text-lg font-medium text-zinc-900`).
+  - Dark container: `bg-zinc-900 border border-zinc-800 rounded-lg p-6 hover:border-zinc-700 transition-colors`.
+  - Load-bearing tag (*"Core foundation"*) rendered when `load_bearing == true` (`bg-zinc-800 text-zinc-300 border-zinc-700`).
+  - Full claim statement in large, readable text (`text-lg font-medium text-zinc-100`).
   - Semantic verdict pill badge (`Survived`, `Weakened`, `Broken`, `Unresolved`).
-  - Plain-English decision consequence impact excerpt.
+  - Plain-English decision consequence impact excerpt (`text-sm text-zinc-400 mt-2`).
   - Primary action: `"View Evidence & Sources →"` button opening the slide-over Evidence Drawer.
 
 ### Screen 4: Evidence & Source Audit Drawer
-- **Component:** Radix / shadcn `Sheet` slide-over from right edge (480px width, white background, border-l border-zinc-200).
+- **Component:** Radix / shadcn `Sheet` slide-over from right edge (480px width, `bg-zinc-900 border-l border-zinc-800`).
 - **Content Hierarchy (Top to Bottom):**
   1. **CLAIM:** Full `Claim.statement` + Verdict Badge.
   2. **WHY IT MATTERS:** Synthesized load-bearing statement (*"Core foundation. If false, the unit economics fail immediately."*).

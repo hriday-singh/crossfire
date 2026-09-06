@@ -189,3 +189,42 @@ def test_cli_execution(tmp_path: Path, monkeypatch, capsys):
     assert "[Dev A —" not in captured_b.out
     assert "- Dev A —" not in captured_b.out
 
+
+def test_resolved_and_active_blockers_formatting():
+    markdown = """# Test
+## Dev A — Track
+| Task | Status |
+| Task 1 | `[x]` |
+
+## Blockers / Flags
+- @Dev A — resolved. Fixed issue
+- @Dev B — active blocker here
+"""
+    summary = parse_progress_markdown(markdown)
+    assert len(summary.blockers) == 2
+
+    # Normal mode: shows active blocker with ! and hides resolved
+    output_normal = summary.format_summary(verbose=False)
+    assert "! @Dev B — active blocker here" in output_normal
+    assert "✓ @Dev A — resolved. Fixed issue" not in output_normal
+
+    # Verbose mode: shows active blocker and resolved note with ✓
+    output_verbose = summary.format_summary(verbose=True)
+    assert "! @Dev B — active blocker here" in output_verbose
+    assert "✓ @Dev A — resolved. Fixed issue" in output_verbose
+
+    # All resolved scenario
+    markdown_resolved = """# Test
+## Dev A — Track
+| Task | Status |
+| Task 1 | `[x]` |
+
+## Blockers / Flags
+- @Dev A — resolved. Fixed issue
+"""
+    summary_resolved = parse_progress_markdown(markdown_resolved)
+    output_clean = summary_resolved.format_summary(verbose=False)
+    assert "(No active blockers)" in output_clean
+    assert "✓" not in output_clean
+
+

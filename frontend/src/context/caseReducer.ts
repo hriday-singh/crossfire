@@ -20,10 +20,8 @@ export interface AppState {
   eventLog: SSEEventLogItem[];
   selectedClaimId: string | null;
   activeTests: Record<string, ActiveTestRow>;
-  isMockMode: boolean;
-  playbackSpeed: number; // 1 = normal, 2 = fast, 0 = instant
   caseHistory: Case[];
-  activeModal: "none" | "settings" | "history" | "reality_check";
+  activeModal: "none" | "history";
 }
 
 export const INITIAL_STATE: AppState = {
@@ -36,15 +34,11 @@ export const INITIAL_STATE: AppState = {
   eventLog: [],
   selectedClaimId: null,
   activeTests: {},
-  isMockMode: false,
-  playbackSpeed: 1,
   caseHistory: [],
   activeModal: "none",
 };
 
 export type AppAction =
-  | { type: "SET_MOCK_MODE"; payload: boolean }
-  | { type: "SET_PLAYBACK_SPEED"; payload: number }
   | { type: "SET_ACTIVE_MODAL"; payload: AppState["activeModal"] }
   | { type: "START_EXTRACTING"; payload: { rawInput: string; context?: string | null } }
   | { type: "EXTRACTING_SUCCESS"; payload: Case }
@@ -59,16 +53,11 @@ export type AppAction =
   | { type: "SET_STREAMING"; payload: boolean }
   | { type: "RESET_CASE" }
   | { type: "LOAD_CASE"; payload: Case }
+  | { type: "UPDATE_CASE"; payload: Case }
   | { type: "CLEAR_ERROR" };
 
 export function caseReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case "SET_MOCK_MODE":
-      return { ...state, isMockMode: action.payload };
-
-    case "SET_PLAYBACK_SPEED":
-      return { ...state, playbackSpeed: action.payload };
-
     case "SET_ACTIVE_MODAL":
       return { ...state, activeModal: action.payload };
 
@@ -207,6 +196,12 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         activeModal: "none",
       };
 
+    case "UPDATE_CASE":
+      return {
+        ...state,
+        currentCase: action.payload,
+      };
+
     case "SSE_EVENT": {
       const { event, data } = action.payload;
       const timestamp = new Date().toISOString();
@@ -244,13 +239,13 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         case "test_started": {
           const testId = (data.test_id as string) || "";
           const targetClaim = (data.target_claim_id as string) || "";
-          const evaluator = (data.evaluator as string) || "devils_advocate";
+          const failureMode = (data.failure_mode as string) || (data.evaluator as string) || "assumption";
 
           if (testId) {
             updatedTests[testId] = {
               test_id: testId,
               target_claim: targetClaim,
-              failure_mode: evaluator === "receipts" ? "evidence" : evaluator === "builder" ? "feasibility" : "assumption",
+              failure_mode: failureMode,
               objective: `Evaluating assumption against failure criteria`,
               state: "running",
             };
@@ -295,9 +290,29 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         case "verdict_ready": {
           const claimId = data.claim_id as string;
           const verdictStatus = data.status as Claim["status"];
+          const reasoning = (data.verdict_reasoning as string) || "";
           updatedCase.claims = updatedCase.claims.map((c) =>
             c.id === claimId ? { ...c, status: verdictStatus } : c
           );
+          if (reasoning) {
+            const existingConsequenceIdx = updatedCase.consequences.findIndex(
+              (c) => c.claim_id === claimId
+            );
+            if (existingConsequenceIdx >= 0) {
+              updatedCase.consequences[existingConsequenceIdx] = {
+                ...updatedCase.consequences[existingConsequenceIdx],
+                verdict_reasoning: reasoning,
+              };
+            } else {
+              updatedCase.consequences.push({
+                claim_id: claimId,
+                impact: "medium",
+                recommended_change: "",
+                next_validation: null,
+                verdict_reasoning: reasoning,
+              });
+            }
+          }
           break;
         }
 

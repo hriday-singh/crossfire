@@ -37,13 +37,13 @@ export const MorphingStatusIcon: React.FC<MorphingStatusIconProps> = ({
         );
       case "broken":
         return (
-          <span className={`inline-flex items-center text-red-400 transition-all duration-200 transform scale-100 ${className}`}>
+          <span className={`inline-flex items-center text-rose-400 transition-all duration-200 transform scale-100 ${className}`}>
             <IconCircleX size={size} />
           </span>
         );
       case "unresolved":
         return (
-          <span className={`inline-flex items-center text-purple-400 transition-all duration-200 transform scale-100 ${className}`}>
+          <span className={`inline-flex items-center text-indigo-400 transition-all duration-200 transform scale-100 ${className}`}>
             <IconCircleHelp size={size} />
           </span>
         );
