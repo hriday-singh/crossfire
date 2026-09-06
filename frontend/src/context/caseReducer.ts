@@ -482,13 +482,32 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
             claim_id: (data.claim_id as string) || null,
             action: (data.action as string) || null,
           };
-          const updatedActivities = [...state.activities, actItem];
+          const newActivities = [...state.activities, actItem];
+          // Cap at 100 to keep memory bounded
+          const updatedActivities = newActivities.length > 100
+            ? newActivities.slice(newActivities.length - 100)
+            : newActivities;
           const updatedActiveTestActivities = { ...state.activeTestActivities };
           if (data.claim_id) {
             updatedActiveTestActivities[data.claim_id as string] = actItem.text;
           }
           if (data.action) {
             updatedActiveTestActivities[data.action as string] = actItem.text;
+          }
+          // Map tag to failure_mode key so ClaimCard TestRow lookups match
+          const tagToFailureMode: Record<string, string> = {
+            "Evidence Test": "evidence",
+            "Feasibility Test": "feasibility",
+            "Assumption Test": "assumption",
+            "Edge-Case Test": "edge_case",
+          };
+          const tag = (data.tag as string) || "";
+          const failureKey = tagToFailureMode[tag];
+          if (failureKey) {
+            updatedActiveTestActivities[failureKey] = actItem.text;
+          }
+          if (tag) {
+            updatedActiveTestActivities[tag] = actItem.text;
           }
           return {
             ...state,
