@@ -444,6 +444,14 @@ describe("Screen Components", () => {
         screen.getByText("Accountants will accept automated reconciliation")
       ).toBeInTheDocument();
 
+      const addBtn = screen.getByRole("button", { name: /Add an assumption/i });
+      const agentsSection = screen.getByText(/Assigned Adversarial Agents/i);
+      expect(addBtn).toBeInTheDocument();
+      expect(agentsSection).toBeInTheDocument();
+      expect(
+        Boolean(addBtn.compareDocumentPosition(agentsSection) & Node.DOCUMENT_POSITION_FOLLOWING)
+      ).toBe(true);
+
       const runBtn = screen.getByRole("button", { name: /Confirm & Run Tests/i });
       fireEvent.click(runBtn);
       expect(mockConfirm).toHaveBeenCalledTimes(1);

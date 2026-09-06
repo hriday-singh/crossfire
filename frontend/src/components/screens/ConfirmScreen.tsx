@@ -121,6 +121,22 @@ export const ConfirmScreen: React.FC = () => {
             )}
           </div>
 
+          {/* Input Gate Advisory Banner (if needs_input returned a redirect guidance) */}
+          {currentCase.gate_message && (
+            <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-body-sm flex items-start gap-3">
+              <span className="material-symbols-outlined text-[20px] text-amber-500 shrink-0 mt-0.5">info</span>
+              <div className="space-y-1">
+                <p className="font-semibold text-on-surface">Specific Decision Guidance</p>
+                <p className="text-on-surface-variant leading-relaxed">{currentCase.gate_message}</p>
+                {currentCase.claims.length === 0 && (
+                  <p className="text-primary-container font-medium text-xs mt-1">
+                    Please use "+ Add an assumption" below to specify your hypothesis before running tests.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* SerpApi Live Evidence Verification Banner */}
           <PoweredBySerpApiBadge variant="banner" className="mb-6" />
 
@@ -256,6 +272,21 @@ export const ConfirmScreen: React.FC = () => {
             })}
           </div>
 
+          {/* Add Assumption Button */}
+          {!isAdding && (
+            <div className="mt-3">
+              <button
+                type="button"
+                id="add-claim-btn"
+                onClick={() => setIsAdding(true)}
+                className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface flex items-center gap-2 cursor-pointer py-2 px-3 rounded-lg hover:bg-surface-container transition-colors justify-center sm:justify-start border border-outline-variant/40 hover:border-outline-variant w-fit"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                <span>Add an assumption</span>
+              </button>
+            </div>
+          )}
+
           {/* Inline Add Claim Form */}
           {isAdding && (
             <form
@@ -304,28 +335,15 @@ export const ConfirmScreen: React.FC = () => {
           />
 
           {/* Bottom Actions Row */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/30">
-            {/* Left Action: Add Assumption */}
+          <div className="flex items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/30">
             <button
               type="button"
-              id="add-claim-btn"
-              onClick={() => setIsAdding(true)}
-              className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface flex items-center gap-2 cursor-pointer py-2 px-3 rounded-lg hover:bg-surface-container transition-colors justify-center sm:justify-start border border-outline-variant/40 hover:border-outline-variant"
+              onClick={() => navigateScreen("entry")}
+              className="font-body-sm text-body-sm text-outline hover:text-on-surface transition-colors flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-surface-container cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              <span>Add an assumption</span>
+              <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+              <span>Back</span>
             </button>
-
-            {/* Center & Right Actions Group */}
-            <div className="flex items-center justify-between sm:justify-end gap-4">
-              <button
-                type="button"
-                onClick={() => navigateScreen("entry")}
-                className="font-body-sm text-body-sm text-outline hover:text-on-surface transition-colors flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-surface-container cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">arrow_back</span>
-                <span>Back</span>
-              </button>
 
               <Button
                 type="button"
@@ -335,11 +353,13 @@ export const ConfirmScreen: React.FC = () => {
                 disabled={
                   currentCase.claims.length === 0 ||
                   state.isConfirming ||
+                  state.isStreaming ||
+                  currentCase.status === "testing" ||
                   (currentCase.selected_agents && currentCase.selected_agents.length === 0)
                 }
                 className="bg-primary-container hover:bg-blue-600 text-white font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg active:scale-[0.99] transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
               >
-                {state.isConfirming ? (
+                {state.isConfirming || state.isStreaming || currentCase.status === "testing" ? (
                   <>
                     <span className="material-symbols-outlined text-[18px] animate-spin">
                       progress_activity
@@ -354,7 +374,6 @@ export const ConfirmScreen: React.FC = () => {
                   </>
                 )}
               </Button>
-            </div>
           </div>
         </div>
       </div>

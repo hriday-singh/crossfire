@@ -676,6 +676,33 @@ def test_confirm_rejects_a_gated_case(client, fake_provider_factory):
     assert response.status_code == 400
 
 
+def test_confirm_accepts_needs_input_case_with_explicit_claims(client, monkeypatch):
+    import store
+    from core.models import Case
+
+    async def mock_handle_confirm(case_id):
+        pass
+
+    monkeypatch.setattr("api.routes.handle_confirm", mock_handle_confirm)
+
+    store.set(Case(id="gated-with-claims", raw_input="das", status="needs_input", gate_message="Be specific."))
+    response = client.post(
+        "/cases/gated-with-claims/confirm",
+        json={
+            "claims": [{"id": "claim-1", "statement": "das"}],
+            "selected_agents": ["devils_advocate"],
+        },
+    )
+    assert response.status_code == 202
+    assert response.json()["status"] == "testing"
+
+    updated = store.get("gated-with-claims")
+    assert updated.status == "testing"
+    assert len(updated.claims) == 1
+    assert updated.claims[0].statement == "das"
+
+
+
 def test_baseline_returns_a_plain_answer(client, fake_provider_factory):
     from api.routes import get_llm_provider
     from main import app

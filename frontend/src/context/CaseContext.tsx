@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from "react";
 import { AppAction, AppState, INITIAL_STATE, PreviewView, caseReducer } from "./caseReducer";
 import { DECISION_PRESETS } from "@/lib/presets";
 import { confirmCase, createCase, getCase, getHealth } from "@/lib/api";
@@ -157,8 +157,20 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isConfirmingRef = useRef(false);
+
   const confirmAndRun = async () => {
     if (!state.currentCase) return;
+    if (
+      isConfirmingRef.current ||
+      state.isConfirming ||
+      state.isStreaming ||
+      state.currentCase.status === "testing"
+    ) {
+      return;
+    }
+
+    isConfirmingRef.current = true;
     dispatch({ type: "START_CONFIRMING" });
 
     try {
@@ -172,7 +184,16 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         state.currentCase.selected_agents
       );
     } catch (err: unknown) {
-      const errorObj = err as { stage?: string; message?: string };
+      const errorObj = err as { stage?: string; message?: string; status?: number };
+      // If the case is already in 'testing' status on backend (e.g. race condition returned 400),
+      // treat it as confirmed and keep runner UI active
+      if (
+        errorObj?.status === 400 &&
+        (errorObj?.message?.includes("testing") || errorObj?.message?.includes("Cannot confirm"))
+      ) {
+        dispatch({ type: "CONFIRMING_SUCCESS" });
+        return;
+      }
       dispatch({
         type: "EXTRACTING_ERROR",
         payload: {
@@ -181,6 +202,8 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
           details: err,
         },
       });
+    } finally {
+      isConfirmingRef.current = false;
     }
   };
 

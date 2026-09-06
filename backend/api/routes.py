@@ -155,10 +155,12 @@ async def confirm_case(
         raise HTTPException(status_code=404, detail="Case not found")
 
     if case.status != "awaiting_confirmation":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot confirm case in status '{case.status}'. Must be 'awaiting_confirmation'.",
-        )
+        # Allow confirming a needs_input case if the user provides explicit claims to test
+        if not (case.status == "needs_input" and payload and payload.claims):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot confirm case in status '{case.status}'. Must be 'awaiting_confirmation'.",
+            )
 
     if payload and payload.claims is not None:
         if len(payload.claims) == 0:

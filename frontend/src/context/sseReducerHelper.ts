@@ -40,8 +40,15 @@ export function handleSSEEvent(
     }
 
     case "awaiting_confirmation": {
-      updatedCase.status = "awaiting_confirmation";
-      newActiveScreen = "confirm";
+      if (
+        state.activeScreen !== "runner" &&
+        state.activeScreen !== "dashboard" &&
+        updatedCase.status !== "testing" &&
+        updatedCase.status !== "done"
+      ) {
+        updatedCase.status = "awaiting_confirmation";
+        newActiveScreen = "confirm";
+      }
       break;
     }
 

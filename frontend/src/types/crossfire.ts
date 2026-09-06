@@ -15,6 +15,7 @@ export type ConsequenceImpact = "high" | "medium" | "low" | string;
 
 export type CaseStatus =
   | "extracting"
+  | "needs_input"
   | "awaiting_confirmation"
   | "testing"
   | "done"
@@ -93,6 +94,7 @@ export interface Case {
   consequences: DecisionConsequence[];
   case_verdict?: CaseVerdict | null;
   status: CaseStatus;
+  gate_message?: string | null;
   started_at?: number | null;
   completed_at?: number | null;
   agent_mode?: "auto" | "custom";
