@@ -37,12 +37,12 @@ Crossfire operates around a single central data object called a **`Case`**, pass
            ▼
 5. Parallel Adversarial Testing (`asyncio.gather`) ──► 4 Evaluators run in STRICT isolation
    ├── Devil's Advocate (Assumption Test)
-   ├── Receipts (Evidence Test + Live Web Search / Scraping)
+   ├── Researcher (Evidence Test + Live Web Search via SerpApi / Scrapling)
    ├── Builder (Feasibility Test)
-   └── Overthinker (Edge-Case Test)
+   └── Operator (Operational Friction Test)
            │
            ▼
-6. Judicial Reconciliation (Judge) ──► Reconciles findings (Survives, Weakens, Breaks, or Unresolved)
+6. Judicial Reconciliation & Re-Architecture (Steel Man) ──► Reconciles findings + Break to Rebuild protocol
            │
            ▼
 7. Strategic Consequence Synthesis ──► Tailored pivot recommendations + smallest next validation experiments
@@ -78,11 +78,14 @@ class Claim(BaseModel):
     statement: str
     load_bearing: bool | None = None  # Critical claim flagged by load-bearing classifier
     status: ClaimStatus | None = None
+    fatal_flaw: str | None = None              # Steel Man fatal flaw analysis
+    salvaged_claim: str | None = None          # Minimal viable re-architecture
+    tradeoff_acknowledged: str | None = None   # Explicit concession/trade-off
 
 class TestPlanItem(BaseModel):
     id: str
     target_claim: str                 # References Claim.id
-    failure_mode: str                 # "assumption" | "evidence" | "feasibility" | "edge-case"
+    failure_mode: str                 # "assumption" | "evidence" | "feasibility" | "operational_friction"
     objective: str
 
 class EvidenceItem(BaseModel):
@@ -94,9 +97,9 @@ class EvidenceItem(BaseModel):
 class Finding(BaseModel):
     claim_id: str
     test_id: str
-    evaluator: str                    # "devils_advocate" | "receipts" | "builder" | "overthinker"
+    evaluator: str                    # "devils_advocate" | "researcher" (legacy "receipts") | "builder" | "operator" (legacy "overthinker")
     result: str                       # One-sentence outcome summary
-    evidence: list[EvidenceItem] = [] # Empirical citations (Receipts only)
+    evidence: list[EvidenceItem] = [] # Empirical citations (Researcher only)
     reasoning: str                    # Detailed analytical critique
     confidence: float                 # 0.0 to 1.0
     contradiction: str | None = None  # Specific logical or empirical flaw surfaced
@@ -107,6 +110,9 @@ class DecisionConsequence(BaseModel):
     recommended_change: str           # Concrete, tailored strategic pivot or mitigation
     next_validation: str | None = None# Smallest, lowest-cost real-world experiment
     verdict_reasoning: str = ""       # Judicial reconciliation rationale
+    fatal_flaw: str | None = None
+    salvaged_claim: str | None = None
+    tradeoff_acknowledged: str | None = None
 
 class Case(BaseModel):
     id: str
@@ -125,7 +131,7 @@ class Case(BaseModel):
 
 The adversarial evaluation panel is built on the principle of **strict structural independence** (derived from multi-agent debate research such as *Free-MAD*): **no evaluator ever sees another evaluator's output during execution**. This prevents groupthink, consensus bias, and cascading hallucinations.
 
-> **Crucial UI Rule:** Internal persona code names (`devils_advocate`, `receipts`, `builder`, `overthinker`) are strictly **masked in the user interface** and presented as objective, CI-style test runners (*Assumption Test*, *Evidence Test*, *Feasibility Test*, *Edge-Case Test*).
+> **Crucial UI Rule:** Internal persona code names (`devils_advocate`, `researcher` / `receipts`, `builder`, `operator` / `overthinker`) are strictly **masked in the user interface** and presented as objective, CI-style test runners (*Assumption Test*, *Evidence Test*, *Feasibility Test*, *Operational Friction Test*).
 
 ---
 
@@ -147,14 +153,14 @@ The adversarial evaluation panel is built on the principle of **strict structura
 
 ---
 
-### Persona 2: Receipts
+### Persona 2: Researcher (formerly Receipts)
 * **UI Test Label:** `Evidence Test`
 * **Target Failure Mode:** `evidence` (empirical claims, pricing, market size, conversion, user behavior, benchmarks)
-* **Code Implementation:** `backend/core/evaluators/receipts.py`
+* **Code Implementation:** `backend/core/evaluators/receipts.py` (with bidirectional normalization to `researcher`)
 * **Operational Role & Objective:**
-  Receipts is the external verification investigator. It is the **only** evaluator connected to the web search and scraping pipeline. It tests whether real-world empirical data, industry benchmarks, market reports, or competitor realities support or refute the claim.
+  Researcher is the empirical verification investigator. It is connected to the live search and scraping pipeline via **SerpApi** (with DuckDuckGo Lite via Scrapling as fallback). It tests whether real-world empirical data, industry benchmarks, market reports, or competitor realities support or refute the claim.
 * **Adaptive Scrutiny & Deep Fetching:**
-  1. Executes a DuckDuckGo Lite search via Scrapling's `AsyncFetcher` (zero API key cost).
+  1. Executes real-time web search via **SerpApi** (or DuckDuckGo Lite via Scrapling's `AsyncFetcher` if SerpApi quota is depleted).
   2. If the claim is flagged as **`load_bearing`** and the snippet is thin (<150 characters or <2 sentences), it triggers an automated deep-page fetch using Scrapling to bypass anti-bot walls on primary competitor or documentation pages.
   3. Curates snippets into 1–3 dense sentences relevant to the claim.
 * **The "Zero-Evidence" Rule:**
@@ -185,28 +191,33 @@ The adversarial evaluation panel is built on the principle of **strict structura
 
 ---
 
-### Persona 4: Overthinker
-* **UI Test Label:** `Edge-Case Test`
-* **Target Failure Mode:** `edge-case`, `alternative` (catastrophic tail risks, boundary failures, abuse, adversarial exploitation, systemic feedback loops)
-* **Code Implementation:** `backend/core/evaluators/overthinker.py`
+### Persona 4: Operator (formerly Overthinker)
+* **UI Test Label:** `Operational Friction Test`
+* **Target Failure Mode:** `operational_friction`, `adoption`, `bureaucracy` (legacy: `edge-case`)
+* **Code Implementation:** `backend/core/evaluators/operator.py` (with bidirectional normalization to `overthinker`)
 * **Operational Role & Objective:**
-  Overthinker is the paranoid stress-tester. It explores boundary condition breakdowns, degenerate user behavior, adversarial attack vectors (e.g., prompt injection, abuse, fraud), second-order systemic feedback loops, and rare "black swan" tail risks that occur when a system scales.
+  Operator stress-tests the things that kill decisions *after* the tech is built: adoption inertia, enterprise gatekeeping, change management resistance, procurement friction, compliance/regulatory liability, and organizational drag.
 * **Key Analytical Questions:**
-  * *"What happens at extreme boundary conditions (e.g., 0% network, 100x traffic spike, hostile users)?"*
-  * *"How could bad actors game or weaponize this mechanism?"*
-  * *"What catastrophic cascading failure mode are the founders ignoring?"*
-* **Structured Output Schema (`OverthinkerOutput`):**
-  * `result`: Concise edge-case vulnerability summary.
-  * `reasoning`: Analytical walkthrough of boundary breakdowns and systemic risks.
+  * *"Who has the power to say 'no' even if the software works perfectly (CISO, compliance, procurement)?"*
+  * *"What operational behavior change is required from users, and why will they resist it?"*
+  * *"Where will red tape, audit trails, or liability concerns stall deployment?"*
+* **Structured Output Schema (`OperatorAssessment` / `Finding`):**
+  * `result`: Concise operational friction summary.
+  * `reasoning`: Analytical walkthrough of organizational barriers, adoption inertia, and regulatory bottlenecks.
   * `confidence`: Float (`0.0` to `1.0`).
-  * `contradiction`: Specific edge vulnerability or exploit dynamic identified.
+  * `contradiction`: Specific operational contradiction or deployment blocker identified.
 
 ---
 
-### The Judicial Reconciler (The "Judge")
-While not an isolated test runner, the **Judge** (`reconcile()` in `backend/core/loop.py`) is the central adjudicator that synthesizes findings:
+### The Judicial Reconciler: Steel Man ("Break to Rebuild")
+While not an isolated test runner, the **Steel Man** (`reconcile_claim()` in `backend/core/reconcile.py` / `steelman.py`) is the judicial adjudicator and solutions architect:
 * **Anti-Voting Principle:** Evaluators do not vote, and scores are never averaged.
-* **Synthesis Mechanism:** The Judge reviews all evaluator findings for a claim simultaneously. Evidence-backed findings from *Receipts* carry heavy weight; verified architectural blockers from *Builder* or fatal logical flaws from *Devil's Advocate* can break a claim even if search results look positive.
+* **Synthesis Mechanism:** The Steel Man reviews all evaluator findings for a claim simultaneously. Evidence-backed findings from *Researcher* carry heavy weight; verified architectural blockers from *Builder* or fatal logical flaws from *Devil's Advocate* can break a claim even if search results look positive.
+* **The Break to Rebuild Protocol:**
+  When a claim breaks or weakens, the Steel Man does not merely issue a rejection. It formulates:
+  1. `fatal_flaw`: The precise empirical, logical, or architectural reason the claim cannot stand as written.
+  2. `salvaged_claim`: The minimal viable re-architecture of the assumption that preserves the strategic upside while mitigating fatal risk.
+  3. `tradeoff_acknowledged`: The explicit concession made (e.g. trading full autonomy for 1-click human ratification).
 * **4 Reconciled Verdict States:**
   1. `survived` (Emerald `#34d399`): The claim withstood tests; supported by evidence and sound logic.
   2. `weakened` (Amber `#fbbf24`): The claim stands, but carries notable caveats, friction, or unmitigated risks.

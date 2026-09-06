@@ -23,6 +23,9 @@ class Claim(BaseModel):
     statement: str
     load_bearing: bool | None = None       # set after the load-bearing question runs
     status: ClaimStatus | None = None
+    fatal_flaw: str | None = None          # fatal flaw analysis (Steel Man)
+    salvaged_claim: str | None = None      # minimal viable re-architecture (Steel Man)
+    tradeoff_acknowledged: str | None = None # explicit strategic trade-off
 
 class TestPlanItem(BaseModel):
     id: str
@@ -39,7 +42,7 @@ class EvidenceItem(BaseModel):
 class Finding(BaseModel):
     claim_id: str
     test_id: str
-    evaluator: str                          # "devils_advocate" | "receipts" | "builder" | "overthinker"
+    evaluator: str                          # "devils_advocate" | "researcher" (alias "receipts") | "builder" | "operator" (alias "overthinker")
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str
@@ -51,8 +54,11 @@ class DecisionConsequence(BaseModel):
     impact: str                             # high | medium | low, or a short phrase
     recommended_change: str
     next_validation: str | None = None      # required when status is broken/unresolved and load-bearing
-    verdict_reasoning: str = ""             # why Judge reconciled to this status — persisted here,
+    verdict_reasoning: str = ""             # why Steel Man reconciled to this status — persisted here,
                                              # not just riding along on the SSE event
+    fatal_flaw: str | None = None
+    salvaged_claim: str | None = None
+    tradeoff_acknowledged: str | None = None
 
 class NextAction(BaseModel):
     action: str
@@ -136,7 +142,7 @@ POST /cases/{id}/confirm        -> validates claims, asyncio.create_task(run_pip
 run_pipeline() [background task] -> classify_load_bearing()
                                   -> build_test_plan()
                                   -> run_evaluators()  [asyncio.gather, independent]
-                                  -> reconcile()        [Judge, sees all findings at once]
+                                  -> reconcile()        [Steel Man: Break to Rebuild re-architecture]
                                   -> build_consequences()
                                   -> Case(status=done), queue closed and discarded
 
@@ -153,6 +159,6 @@ async def run_evaluators(case: Case, plan: list[TestPlanItem]) -> list[Finding]:
     return await asyncio.gather(*tasks, return_exceptions=True)
 ```
 
-`dispatch()` routes each `TestPlanItem` to an evaluator by `failure_mode` (assumption / evidence / feasibility / edge-case) — never by "which agent is free."
+`dispatch()` routes each `TestPlanItem` to an evaluator by `failure_mode` (assumption / evidence / feasibility / operational_friction) — never by "which agent is free."
 
-`reconcile()` is a single call that receives every `Finding` for a claim at once and returns the `ClaimStatus`. This is the **only** place a status gets decided — no evaluator sets its own claim's status. Resolution is evidence quality + how critical the claim is, never a vote.
+`reconcile()` / `reconcile_claim()` is a single call that receives every `Finding` for a claim at once and returns the `ClaimStatus`. The Steel Man reconciles verdicts, enforces the evidence gate, and re-architects broken/weakened claims under the Break to Rebuild protocol (`fatal_flaw`, `salvaged_claim`, `tradeoff_acknowledged`). Resolution is evidence quality + critical load-bearing impact, never a vote.

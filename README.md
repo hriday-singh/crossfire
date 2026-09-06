@@ -75,15 +75,16 @@ Load-bearing claims get the full active panel. Secondary claims get a single pas
 ### 5. Isolated test panel
 Tests run in parallel. To prevent groupthink, each executes in strict isolation: no evaluator sees what another evaluator found during the run. A test that fails outright becomes a low-confidence finding rather than taking down the run.
 
-* **Assumption Test:** Evaluates deductive logic, unstated premises, cognitive blind spots, and misaligned incentives without searching the web.
-* **Evidence Test:** Queries public sources and competitor documentation via SerpApi, falling back to DuckDuckGo Lite through Scrapling when no key is configured or the quota is exhausted. Results are ranked by source class (primary, institutional, press, community, blog). If initial snippets are thin on load-bearing claims, it deep-fetches candidate pages. If no public evidence exists, confidence is capped at 0.35 to avoid confident false negatives.
-* **Feasibility Test:** Evaluates technical and operational viability, including required APIs, data access, latency budgets, unit economics, threat model, and regulatory boundaries (GDPR, HIPAA, SOC2).
-* **Operational Friction Test:** Stress-tests the things that kill decisions after the tech works — adoption inertia, enterprise gatekeeping and procurement, regulatory liability, and process drag.
+* **Devil's Advocate (Assumption Test):** Evaluates deductive logic, unstated premises, cognitive blind spots, and misaligned incentives without searching the web.
+* **Researcher (Evidence Test):** Queries public sources and competitor documentation via SerpApi, falling back to DuckDuckGo Lite through Scrapling when no key is configured or the quota is exhausted. Results are ranked by source class (primary, institutional, press, community, blog). If initial snippets are thin on load-bearing claims, it deep-fetches candidate pages. If no public evidence exists, confidence is capped at 0.35 to avoid confident false negatives.
+* **Builder (Feasibility Test):** Evaluates technical and operational viability, including required APIs, data access, latency budgets, unit economics, threat model, and regulatory boundaries (GDPR, HIPAA, SOC2).
+* **Operator (Operational Friction Test):** Stress-tests the operational frictions that kill decisions after the tech works — adoption inertia, enterprise gatekeeping and procurement, regulatory liability, and process drag.
 
-### 6. Judicial reconciliation
-Evaluators do not vote, and scores are never averaged. A dedicated reconciliation step reviews the findings across all tests for each claim, running per claim in parallel.
+### 6. Judicial reconciliation & Steel Man Re-Architecture
+Evaluators do not vote, and scores are never averaged. The **Steel Man** acts as judicial reconciler and solutions architect, reviewing the findings across all tests for each claim in parallel:
 
-The gate that matters: a claim can only be marked **broken** if some finding carries both evidence and a contradiction traceable to a source. Reasoning alone can weaken a claim; it can never break one. An unsupported "broken" verdict is downgraded to "weakened" and the downgrade is written into the reasoning you see.
+* **The Evidence Gate:** A claim can only be marked **broken** if some finding carries both empirical evidence and a contradiction traceable to a source. Reasoning alone can weaken a claim; it can never break one. An unsupported "broken" verdict is downgraded to "weakened" and the downgrade is recorded in the reasoning.
+* **Break to Rebuild Protocol:** If a claim breaks or weakens, the Steel Man does not just reject the idea—it identifies the **Fatal Flaw**, constructs a **Salvaged Claim** (the minimal viable re-architecture of the assumption that preserves the core strategic upside while mitigating fatal exposure), and documents the **Trade-off Acknowledged**.
 
 ### 7. Strategic consequences
 For any claim that does not cleanly survive, Crossfire synthesizes concrete recommendations:
@@ -258,9 +259,9 @@ crossfire/
 ├── backend/
 │   ├── api/             # FastAPI routes, request models, and SSE endpoints
 │   ├── core/
-│   │   ├── evaluators/  # Assumption, Evidence, Feasibility, and Operational Friction runners
+│   │   ├── evaluators/  # Devil's Advocate, Researcher (SerpApi), Builder, and Operator runners
 │   │   ├── agent_panel.py # Agent catalog, failure-mode routing, and test-plan construction
-│   │   ├── reconcile.py # Judge: per-claim reconciliation, evidence gate, finding ranking
+│   │   ├── reconcile.py # Steel Man: per-claim reconciliation, evidence gate, Break to Rebuild re-architecture
 │   │   ├── baseline.py  # Single-prompt control answer for side-by-side comparison
 │   │   ├── loop.py      # Pipeline orchestrator: extraction, ranking, synthesis
 │   │   └── models.py    # Pydantic data contracts (Case, Claim, Finding, CaseVerdict)

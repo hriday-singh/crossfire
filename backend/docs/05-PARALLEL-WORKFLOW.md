@@ -9,8 +9,8 @@ The whole point of the file split in `docs/00-CONTRACTS.md` and the three `docs/
 | Dev | Owns |
 |---|---|
 | A (spine) | `providers/`, `core/models.py`, `core/loop.py`, `core/evaluators/builder.py`, `store.py`, `config.py` |
-| B (evidence) | `evidence/`, `core/evaluators/receipts.py`, `ingestion/` |
-| C (api) | `api/`, `core/evaluators/devils_advocate.py`, `core/evaluators/overthinker.py` |
+| B (evidence) | `evidence/`, `core/evaluators/receipts.py` (Researcher), `ingestion/` |
+| C (api) | `api/`, `core/evaluators/devils_advocate.py`, `core/evaluators/operator.py` (Operator, legacy overthinker) |
 
 That's every file in the repo except two, both handled specially below.
 
