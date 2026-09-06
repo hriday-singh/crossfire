@@ -1,12 +1,22 @@
 """FastAPI app + route wiring only — keep under ~20 lines. Shared file, see
 docs/05-PARALLEL-WORKFLOW.md."""
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import store
 from api.routes import router
 from config import get_settings
 
-app = FastAPI(title="Crossfire")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    store.recover_interrupted_cases()
+    yield
+
+
+app = FastAPI(title="Crossfire", lifespan=lifespan)
 
 settings = get_settings()
 

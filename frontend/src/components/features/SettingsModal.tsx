@@ -84,7 +84,7 @@ export const SettingsModal: React.FC = () => {
               </span>
             </div>
 
-            <div className="bg-surface-container border border-outline-variant/60 rounded-xl p-space-4 space-y-space-3">
+            <div className="bg-surface-container border border-outline-variant/60 rounded-lg p-space-4 space-y-space-3">
               <div className="flex items-center justify-between text-body-sm">
                 <span className="text-on-surface-variant">Active Model:</span>
                 <div className="text-right">
@@ -137,7 +137,7 @@ export const SettingsModal: React.FC = () => {
                       setSelectedNotice(`Switched active engine model to ${model.name}`);
                       setTimeout(() => setSelectedNotice(null), 3000);
                     }}
-                    className={`w-full text-left rounded-xl p-space-3 border transition-all cursor-pointer ${
+                    className={`w-full text-left rounded-lg p-space-3 border transition-all cursor-pointer ${
                       isActive
                         ? "bg-surface-container-high border-primary-container/60 ring-1 ring-primary-container/30 shadow-xs"
                         : "bg-surface-container border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container-high/60"
@@ -183,7 +183,7 @@ export const SettingsModal: React.FC = () => {
               Data &amp; Memory Management
             </h3>
 
-            <div className="bg-surface-container border border-outline-variant/60 rounded-xl p-space-4 space-y-space-3">
+            <div className="bg-surface-container border border-outline-variant/60 rounded-lg p-space-4 space-y-space-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-body-sm text-body-sm text-on-surface font-medium">
@@ -229,7 +229,7 @@ export const SettingsModal: React.FC = () => {
               Developer &amp; Debug
             </h3>
 
-            <div className="bg-surface-container border border-outline-variant/60 rounded-xl p-space-4 space-y-space-3">
+            <div className="bg-surface-container border border-outline-variant/60 rounded-lg p-space-4 space-y-space-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-body-sm text-body-sm text-on-surface font-medium">

@@ -21,7 +21,11 @@ class Claim(BaseModel):
     id: str
     statement: str
     load_bearing: bool | None = None       # set after the load-bearing question runs
+    load_bearing_reason: str | None = None # why this claim is load-bearing or secondary
     status: ClaimStatus | None = None
+    fatal_flaw: str | None = None          # isolated flaw if weakened/broken
+    salvaged_claim: str | None = None      # minimal viable re-architecture (Break to Rebuild)
+    tradeoff_acknowledged: str | None = None  # operational trade-off of the salvaged claim
 
 
 class TestPlanItem(BaseModel):
@@ -38,17 +42,25 @@ class EvidenceItem(BaseModel):
     retrieved_at: str
     stance: str = "context"                 # supports | contradicts | context — how it bears on the claim
     source_class: str = "unranked"          # primary | institutional | press | community | blog | unranked
+    provider: str = "duckduckgo"            # serpapi | duckduckgo | fixture
 
 
 class Finding(BaseModel):
     claim_id: str
     test_id: str
-    evaluator: str                          # "devils_advocate" | "receipts" | "builder" | "overthinker"
+    evaluator: str                          # "devils_advocate" | "receipts" | "builder" | "operator"
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str
     confidence: float
     contradiction: str | None = None
+
+
+class NextAction(BaseModel):
+    """An action anchored to the claims that forced it. Empty anchors are valid."""
+
+    action: str
+    claim_ids: list[str] = []               # Claim.id values this action answers
 
 
 class CaseVerdict(BaseModel):
@@ -59,7 +71,7 @@ class CaseVerdict(BaseModel):
     survived: list[str] = []                # claim ids
     broken: list[str] = []
     unproven: list[str] = []                # weakened + unresolved
-    next_actions: list[str] = []            # 2-3 merged, deduped
+    next_actions: list[NextAction] = []     # 2-3 merged, deduped, claim-anchored
 
 
 class DecisionConsequence(BaseModel):
@@ -67,8 +79,11 @@ class DecisionConsequence(BaseModel):
     impact: str                             # high | medium | low, or a short phrase
     recommended_change: str
     next_validation: str | None = None      # required when status is broken/unresolved and load-bearing
-    verdict_reasoning: str = ""             # why Judge reconciled to this status — persisted here,
+    verdict_reasoning: str = ""             # why Steelman reconciled to this status — persisted here,
                                              # not just riding along on the SSE event
+    fatal_flaw: str | None = None           # isolated flaw from Steel Man
+    salvaged_claim: str | None = None       # minimal viable fix from Steel Man
+    tradeoff_acknowledged: str | None = None  # operational trade-off from Steel Man
 
 
 class Case(BaseModel):
@@ -83,10 +98,10 @@ class Case(BaseModel):
     status: str = "extracting"              # extracting | needs_input | awaiting_confirmation | testing | done | error
     gate_message: str | None = None         # set when the input was too open-ended to test
     agent_mode: str = "auto"                # "auto" | "custom"
-    selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, overthinker
+    selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, operator
         "devils_advocate",
         "receipts",
         "builder",
-        "overthinker",
+        "operator",
     ]
     agent_rationales: dict[str, str] = {}   # rationales explaining why agents were auto-selected

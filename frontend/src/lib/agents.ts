@@ -1,11 +1,11 @@
 /**
  * Centralized agent catalog and UI presentation rules for Crossfire evaluators.
  * Adheres strictly to DESIGN.md Section 1.3:
- * Internal evaluator IDs ('devils_advocate', 'receipts', 'builder', 'overthinker')
+ * Internal evaluator IDs ('devils_advocate', 'receipts', 'builder', 'operator')
  * are masked to human test names in all user-facing views.
  */
 
-export type AgentId = "devils_advocate" | "receipts" | "builder" | "overthinker";
+export type AgentId = "devils_advocate" | "receipts" | "builder" | "operator" | "overthinker";
 
 export interface AgentDefinition {
   id: AgentId;
@@ -42,12 +42,12 @@ export const ALL_AGENTS: AgentDefinition[] = [
     icon: "construction",
   },
   {
-    id: "overthinker",
-    name: "Overthinker",
-    testName: "Edge-Case Test",
-    shortRole: "Tail risks & boundary failures",
-    description: "Explores worst-case user exploits, boundary conditions, edge vulnerabilities, and second-order failures.",
-    icon: "crisis_alert",
+    id: "operator",
+    name: "Operator",
+    testName: "Operational Friction Test",
+    shortRole: "Adoption & bureaucracy",
+    description: "Stress-tests organizational friction, human inertia, enterprise procurement red tape, regulatory liability, and process drag.",
+    icon: "policy",
   },
 ];
 
@@ -55,11 +55,12 @@ export const DEFAULT_AGENT_IDS: AgentId[] = [
   "devils_advocate",
   "receipts",
   "builder",
-  "overthinker",
+  "operator",
 ];
 
 export function getAgentById(id: string): AgentDefinition | undefined {
-  return ALL_AGENTS.find((agent) => agent.id === id);
+  const normalized = id === "overthinker" ? "operator" : id;
+  return ALL_AGENTS.find((agent) => agent.id === normalized);
 }
 
 export function getAgentTestName(id: string): string {

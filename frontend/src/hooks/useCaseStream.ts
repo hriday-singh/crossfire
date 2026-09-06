@@ -33,6 +33,7 @@ export function useCaseStream() {
     const eventTypes: SSEEventName[] = [
       "claim_map_ready",
       "awaiting_confirmation",
+      "load_bearing_ready",
       "test_started",
       "finding_ready",
       "verdict_ready",

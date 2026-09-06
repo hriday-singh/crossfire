@@ -114,11 +114,9 @@ describe("Debug Views Preview & View Catalog", () => {
     expect(screen.getByRole("region", { name: /Debug Views Preview Switcher/i })).toBeInTheDocument();
     expect(screen.getByText(/Preview Fixture/i)).toBeInTheDocument();
 
-    // Should display Decision Memo view by default with all 4 verdicts
-    expect(screen.getByText(/1 Broken/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 Weakened/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 Survived/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 Unresolved/i)).toBeInTheDocument();
+    // Should display Decision Memo view by default, led by the verdict
+    expect(screen.getByText("Don't proceed as written.")).toBeInTheDocument();
+    expect(screen.getByText("1 refuted · 2 unproven · 1 held")).toBeInTheDocument();
 
     // Verify ZERO backend API calls were made
     expect(createCaseSpy).not.toHaveBeenCalled();
@@ -152,17 +150,18 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // 4. Live Runner view
     fireEvent.click(screen.getByTestId("preview-btn-runner"));
-    expect(screen.getByText(/Adversarial Stress Test/i)).toBeInTheDocument();
+    expect(screen.getByText(/Testing your decision/i)).toBeInTheDocument();
     expect(screen.getByText(/Running live tests\.\.\./i)).toBeInTheDocument();
 
     // 5. Decision Memo view
     fireEvent.click(screen.getByTestId("preview-btn-dashboard"));
-    expect(screen.getByText(/Evaluation Summary/i)).toBeInTheDocument();
+    expect(screen.getByText("Don't proceed as written.")).toBeInTheDocument();
     expect(screen.getByText(/Run #CRX-/i)).toBeInTheDocument();
 
     // 6. Evidence Drawer view
     fireEvent.click(screen.getByTestId("preview-btn-evidence"));
-    expect(screen.getByText(/ABA Formal Opinion 512/i)).toBeInTheDocument();
+    // The drawer and the verdict block's source credit both name it.
+    expect(screen.getAllByText(/ABA Formal Opinion 512/i).length).toBeGreaterThan(0);
 
     // 7. Telemetry Logs view
     fireEvent.click(screen.getByTestId("preview-btn-logs"));
@@ -202,7 +201,7 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // Now in preview: shows preview fixture instead of real case
     expect(screen.getByRole("region", { name: /Debug Views Preview Switcher/i })).toBeInTheDocument();
-    expect(screen.getByText(/1 Broken/i)).toBeInTheDocument();
+    expect(screen.getByText("1 refuted · 2 unproven · 1 held")).toBeInTheDocument();
 
     // Click Exit Preview
     const exitBtn = screen.getByRole("button", { name: /Exit Debug Views Preview/i });

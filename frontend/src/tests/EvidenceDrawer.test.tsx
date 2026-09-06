@@ -73,7 +73,7 @@ describe("EvidenceDrawer", () => {
       <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
     );
 
-    expect(screen.getByText("Audit Trail & Evidence")).toBeInTheDocument();
+    expect(screen.getAllByText("Evidence").length).toBeGreaterThan(0);
     expect(
       screen.getByText(/Law firms will pay \$500\/month for document summaries/i)
     ).toBeInTheDocument();
@@ -94,11 +94,11 @@ describe("EvidenceDrawer", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders Judge Reconciled Verdict and evaluator badge", () => {
+  it("renders the judge's reasoning and evaluator badge", () => {
     render(
       <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
     );
-    expect(screen.getByText("Judge Reconciled Verdict")).toBeInTheDocument();
+    expect(screen.getByText("Why this call")).toBeInTheDocument();
     expect(
       screen.getByText("Clear price resistance found in benchmark studies.")
     ).toBeInTheDocument();

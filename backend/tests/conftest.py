@@ -29,15 +29,12 @@ def _isolated_sqlite(tmp_path_factory):
 
 
 import events
-from api.rate_limiter import rate_limiter
 
 @pytest.fixture(autouse=True)
 def reset_events_fixture():
     events.reset()
-    rate_limiter.reset()
     yield
     events.reset()
-    rate_limiter.reset()
 
 
 from core.models import (

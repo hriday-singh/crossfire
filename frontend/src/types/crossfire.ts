@@ -4,7 +4,12 @@
 
 export type ClaimStatus = "survived" | "weakened" | "broken" | "unresolved";
 
-export type FailureMode = "assumption" | "evidence" | "feasibility" | "edge-case";
+export type FailureMode =
+  | "assumption"
+  | "evidence"
+  | "feasibility"
+  | "operational_friction"
+  | "edge-case";
 
 export type ConsequenceImpact = "high" | "medium" | "low" | string;
 
@@ -19,6 +24,7 @@ export interface Claim {
   id: string;
   statement: string;
   load_bearing: boolean | null;
+  load_bearing_reason?: string | null;
   status: ClaimStatus | null;
 }
 
@@ -34,12 +40,14 @@ export interface EvidenceItem {
   title: string | null;
   snippet: string;
   retrieved_at: string;
+  provider?: string; // "serpapi" | "duckduckgo" | "fixture"
+  source_class?: string;
 }
 
 export interface Finding {
   claim_id: string;
   test_id: string;
-  evaluator: string; // "devils_advocate" | "receipts" | "builder" | "overthinker"
+  evaluator: string; // "devils_advocate" | "receipts" | "builder" | "operator" | "overthinker"
   result: string;
   evidence: EvidenceItem[];
   reasoning: string;
@@ -55,6 +63,20 @@ export interface DecisionConsequence {
   verdict_reasoning: string;
 }
 
+export interface NextAction {
+  action: string;
+  claim_ids: string[];
+}
+
+export interface CaseVerdict {
+  decision_state: "proceed" | "proceed_with_changes" | "hold" | "drop" | string;
+  summary: string;
+  survived: string[];
+  broken: string[];
+  unproven: string[];
+  next_actions: NextAction[];
+}
+
 export interface Case {
   id: string;
   raw_input: string;
@@ -63,6 +85,7 @@ export interface Case {
   test_plan: TestPlanItem[];
   findings: Finding[];
   consequences: DecisionConsequence[];
+  case_verdict?: CaseVerdict | null;
   status: CaseStatus;
   started_at?: number | null;
   completed_at?: number | null;
@@ -124,10 +147,12 @@ export interface ActivityItem {
 export type SSEEventName =
   | "claim_map_ready"
   | "awaiting_confirmation"
+  | "load_bearing_ready"
   | "test_started"
   | "finding_ready"
   | "verdict_ready"
   | "consequence_ready"
+  | "case_verdict"
   | "run_complete"
   | "error"
   | "activity";
@@ -138,6 +163,12 @@ export interface SSEActivityData {
   claim_id?: string | null;
   action?: string | null;
   timestamp: string;
+}
+
+export interface SSELoadBearingReadyData {
+  claim_id: string;
+  load_bearing: boolean;
+  reason: string;
 }
 
 export interface SSEClaimMapReadyData {
@@ -163,6 +194,10 @@ export interface SSEVerdictReadyData {
 
 export interface SSEConsequenceReadyData {
   consequence: DecisionConsequence;
+}
+
+export interface SSECaseVerdictData {
+  case_verdict: CaseVerdict;
 }
 
 export interface SSERunCompleteData {

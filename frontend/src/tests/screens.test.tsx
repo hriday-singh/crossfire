@@ -282,6 +282,102 @@ describe("Screen Components", () => {
         );
       });
     });
+
+    it("disables run test button when textarea has 0 to 5 characters and no attachments", () => {
+      render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      const runBtn = screen.getByRole("button", { name: /Test Decision/i });
+      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+
+      // Initially empty (0 characters)
+      expect(runBtn).toBeDisabled();
+
+      // 3 characters
+      fireEvent.change(textarea, { target: { value: "abc" } });
+      expect(runBtn).toBeDisabled();
+
+      // Exactly 5 characters
+      fireEvent.change(textarea, { target: { value: "abcde" } });
+      expect(runBtn).toBeDisabled();
+
+      // 5 characters with whitespace padding
+      fireEvent.change(textarea, { target: { value: "   hi   " } });
+      expect(runBtn).toBeDisabled();
+    });
+
+    it("enables run test button when textarea has more than 5 characters", () => {
+      render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      const runBtn = screen.getByRole("button", { name: /Test Decision/i });
+      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+
+      // 6 characters
+      fireEvent.change(textarea, { target: { value: "abcdef" } });
+      expect(runBtn).not.toBeDisabled();
+
+      // Valid proposal
+      fireEvent.change(textarea, { target: { value: "We should pivot to enterprise sales" } });
+      expect(runBtn).not.toBeDisabled();
+    });
+
+    it("enables run test button when a content block is attached even if textarea is empty", async () => {
+      const createCaseSpy = vi.spyOn(api, "createCase").mockResolvedValueOnce({
+        id: "case-blob-test",
+        raw_input: "Attached proposal document",
+        context: null,
+        status: "awaiting_confirmation",
+        claims: [],
+        test_plan: [],
+        findings: [],
+        consequences: [],
+      });
+
+      render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      const runBtn = screen.getByRole("button", { name: /Test Decision/i });
+      const textarea = screen.getByPlaceholderText(/unlimited free tier/i);
+
+      // Initially empty -> disabled
+      expect(runBtn).toBeDisabled();
+
+      // Paste a large text block exceeding 500 characters
+      const largeDoc = "Quarterly business review proposing automated sales. ".repeat(20);
+      await act(async () => {
+        fireEvent.paste(textarea, {
+          clipboardData: { getData: () => largeDoc },
+        });
+      });
+
+      // Textarea remains empty because it converted to a content block attachment
+      expect((textarea as HTMLTextAreaElement).value).toBe("");
+
+      // Content block pill is present
+      await waitFor(() => {
+        expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
+      });
+
+      // Button should now be ENABLED despite empty textarea
+      expect(runBtn).not.toBeDisabled();
+
+      // Submitting should invoke createCase with fallback text and the context
+      await act(async () => {
+        fireEvent.click(runBtn);
+      });
+
+      expect(createCaseSpy).toHaveBeenCalled();
+    });
   });
 
   describe("ConfirmScreen", () => {

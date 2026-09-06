@@ -113,8 +113,23 @@ describe("caseReducer", () => {
       isStreaming: true,
     };
 
-    // test_started
+    // load_bearing_ready
     let state = caseReducer(stateWithCase, {
+      type: "SSE_EVENT",
+      payload: {
+        event: "load_bearing_ready",
+        data: {
+          claim_id: "c1",
+          load_bearing: true,
+          reason: "Critical operational dependency",
+        },
+      },
+    });
+    expect(state.currentCase?.claims[0].load_bearing).toBe(true);
+    expect(state.currentCase?.claims[0].load_bearing_reason).toBe("Critical operational dependency");
+
+    // test_started
+    state = caseReducer(state, {
       type: "SSE_EVENT",
       payload: {
         event: "test_started",
@@ -158,6 +173,26 @@ describe("caseReducer", () => {
     });
     expect(state.currentCase?.claims[0].status).toBe("broken");
 
+    // case_verdict
+    state = caseReducer(state, {
+      type: "SSE_EVENT",
+      payload: {
+        event: "case_verdict",
+        data: {
+          case_verdict: {
+            decision_state: "drop",
+            summary: "The containment benchmark refutes the premise.",
+            survived: [],
+            broken: ["c1"],
+            unproven: [],
+            next_actions: [{ action: "Run a shadow test.", claim_ids: ["c1"] }],
+          },
+        },
+      },
+    });
+    expect(state.currentCase?.case_verdict?.decision_state).toBe("drop");
+    expect(state.currentCase?.case_verdict?.next_actions[0].claim_ids).toEqual(["c1"]);
+
     // run_complete
     state = caseReducer(state, {
       type: "SSE_EVENT",
@@ -167,6 +202,8 @@ describe("caseReducer", () => {
       },
     });
     expect(state.currentCase?.status).toBe("done");
+    // run_complete must not clobber the verdict that arrived just before it.
+    expect(state.currentCase?.case_verdict?.decision_state).toBe("drop");
     expect(state.activeScreen).toBe("dashboard");
     expect(state.isStreaming).toBe(false);
     expect(state.caseHistory).toHaveLength(1);
@@ -314,12 +351,12 @@ describe("caseReducer", () => {
     // Toggle in non-existing agent
     state = caseReducer(state, {
       type: "TOGGLE_AGENT_SELECTION",
-      payload: "overthinker",
+      payload: "operator",
     });
     expect(state.currentCase?.selected_agents).toEqual([
       "devils_advocate",
       "receipts",
-      "overthinker",
+      "operator",
     ]);
 
     // Explicitly set selected agents

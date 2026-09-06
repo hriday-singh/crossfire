@@ -82,7 +82,12 @@ def _apply_citations(items: list[EvidenceItem], cited: list[CitedSource]) -> lis
         stance = (citation.stance or "").strip().lower()
         item.stance = stance if stance in _STANCES else "context"
         kept.append(item)
-    return kept or items
+    if kept:
+        return kept
+    for item in items:
+        item.stance = "context"
+    return items
+
 
 
 async def run_receipts(
@@ -108,12 +113,16 @@ async def run_receipts(
     case_id = getattr(case, "id", None)
     if case_id:
         try:
+            from config import get_settings
             from core.activity import emit_activity
             from evidence.search import build_query
+            cfg = get_settings()
+            has_serp = bool(getattr(cfg, "SERPAPI_API_KEY", "") or getattr(cfg, "serpapi_api_key", ""))
+            provider_label = "SerpApi (Google)" if has_serp else "DuckDuckGo Lite"
             await emit_activity(
                 case_id,
                 tag="Evidence Test",
-                text=f'Querying DuckDuckGo: "{build_query(claim.statement)}"',
+                text=f'Querying {provider_label}: "{build_query(claim.statement)}"',
                 claim_id=claim.id,
                 action="search",
             )
@@ -126,11 +135,20 @@ async def run_receipts(
         try:
             import urllib.parse
             top_host = urllib.parse.urlparse(evidence_items[0].source_url).hostname or "external site"
+            provider_tag = getattr(evidence_items[0], "provider", "web")
+            if provider_tag == "serpapi":
+                provider_display = "SerpApi"
+            elif provider_tag == "duckduckgo":
+                provider_display = "DuckDuckGo Lite"
+            elif provider_tag == "fixture":
+                provider_display = "Verified Fixture"
+            else:
+                provider_display = "Web Search"
             from core.activity import emit_activity
             await emit_activity(
                 case_id,
                 tag="Evidence Test",
-                text=f"Found {len(evidence_items)} candidate sources (top: {top_host})",
+                text=f"Found {len(evidence_items)} candidate sources via {provider_display} (top: {top_host})",
                 claim_id=claim.id,
                 action="results",
             )
@@ -235,6 +253,9 @@ async def run_receipts(
 
     if isinstance(response, ReceiptsAssessment):
         evidence = _apply_citations(curated_items, response.cited)
+        has_valid_citations = bool(
+            response.cited and any(c.source_url in {e.source_url for e in evidence} for c in response.cited)
+        )
         # Without a source, a negative is an absence of evidence, not a refutation.
         return Finding(
             claim_id=claim.id,
@@ -244,7 +265,7 @@ async def run_receipts(
             evidence=evidence,
             reasoning=clamp_sentences(response.reasoning),
             confidence=response.confidence if evidence else min(response.confidence, 0.35),
-            contradiction=response.contradiction if evidence else None,
+            contradiction=response.contradiction if (evidence and has_valid_citations) else None,
         )
 
     return Finding(

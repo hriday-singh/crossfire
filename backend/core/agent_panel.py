@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from core.models import Case, TestPlanItem
 from core.textutil import one_line
 
-KNOWN_AGENTS: tuple[str, ...] = ("devils_advocate", "receipts", "builder", "overthinker")
+KNOWN_AGENTS: tuple[str, ...] = ("devils_advocate", "receipts", "builder", "operator")
 
 # One agent, one failure mode. The whole routing table — no keywords, because a
 # keyword table can only ever encode the scenarios someone thought of.
@@ -17,31 +17,37 @@ AGENT_FAILURE_MODE: dict[str, str] = {
     "devils_advocate": "assumption",
     "receipts": "evidence",
     "builder": "feasibility",
-    "overthinker": "edge-case",
+    "operator": "operational_friction",
 }
+
+FAILURE_MODE_TO_AGENT: dict[str, str] = {
+    v: k for k, v in AGENT_FAILURE_MODE.items()
+}
+FAILURE_MODE_TO_AGENT["edge-case"] = "operator"
+
 
 AGENT_OBJECTIVE: dict[str, str] = {
     "devils_advocate": "Stress-test the implicit premises and counter-incentives behind: {statement}",
     "receipts": "Check real-world evidence and sources that support or contradict: {statement}",
     "builder": "Assess what it concretely takes to make this true, and what blocks it: {statement}",
-    "overthinker": "Identify boundary conditions and tail failures that would falsify: {statement}",
+    "operator": "Stress-test adoption inertia, enterprise red tape, regulatory liability, and process drag: {statement}",
 }
 
 DEFAULT_RATIONALES: dict[str, str] = {
     "devils_advocate": "Stress-tests implicit premises, unstated assumptions, and logical contradictions.",
     "receipts": "Checks the claim against external sources and real-world evidence.",
     "builder": "Evaluates what execution actually requires and what blocks it in practice.",
-    "overthinker": "Identifies tail risks, boundary failures, and second-order consequences.",
+    "operator": "Stress-tests organizational friction, adoption inertia, enterprise gatekeeping, and regulatory liability.",
 }
 
 # Receipts is the single-pass default for secondary claims: it is the only
 # evaluator that can bring an outside source back, and a sourced contradiction
 # is the only thing that can break a claim (Stage 1a).
-SINGLE_PASS_PRIORITY: tuple[str, ...] = ("receipts", "devils_advocate", "builder", "overthinker")
+SINGLE_PASS_PRIORITY: tuple[str, ...] = ("receipts", "devils_advocate", "builder", "operator")
 
 
 class AgentPick(BaseModel):
-    agent: str = Field(description="One of: devils_advocate, receipts, builder, overthinker")
+    agent: str = Field(description="One of: devils_advocate, receipts, builder, operator")
     rationale: str = Field(description="One sentence on why this decision needs that test")
 
 
@@ -72,6 +78,8 @@ def normalize_agents(picks: list[AgentPick]) -> tuple[list[str], dict[str, str]]
     rationales: dict[str, str] = {}
     for pick in picks or []:
         agent = (pick.agent or "").strip().lower()
+        if agent == "overthinker":
+            agent = "operator"
         if agent in KNOWN_AGENTS and agent not in selected:
             selected.append(agent)
             rationales[agent] = one_line(pick.rationale) or DEFAULT_RATIONALES[agent]
@@ -105,7 +113,7 @@ EXTRACTION_SYSTEM_PROMPT = (
     "- devils_advocate: unstated premises, counter-incentives, motivated reasoning.\n"
     "- receipts: claims checkable against outside sources, prices, rules, records, precedent.\n"
     "- builder: whether execution is actually achievable with the time, money, skill or access available.\n"
-    "- overthinker: rare-but-costly outcomes, boundary conditions, second-order effects.\n"
+    "- operator: organizational friction, human inertia, enterprise procurement red tape, regulatory liability, process drag.\n"
     "Pick only the ones that earn their place for this decision."
 )
 

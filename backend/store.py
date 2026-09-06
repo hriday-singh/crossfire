@@ -103,3 +103,38 @@ def delete(case_id: str) -> None:
 
 def clear() -> None:
     _cases.clear()
+
+
+def recover_interrupted_cases() -> int:
+    """Find any cases still marked as 'testing' and mark them as 'error' on startup."""
+    recovered = 0
+    with _get_connection() as conn:
+        try:
+            cur = conn.execute(
+                "SELECT id, data FROM cases WHERE json_extract(data, '$.status') = 'testing'"
+            )
+            rows = cur.fetchall()
+        except Exception:
+            cur = conn.execute("SELECT id, data FROM cases")
+            rows = [
+                r
+                for r in cur.fetchall()
+                if '"status": "testing"' in r["data"] or '"status":"testing"' in r["data"]
+            ]
+
+        for row in rows:
+            case = Case.model_validate_json(row["data"])
+            if case.status == "testing":
+                case.status = "error"
+                _cases[case.id] = case
+                conn.execute(
+                    """
+                    UPDATE cases
+                    SET data = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (case.model_dump_json(), case.id),
+                )
+                recovered += 1
+    return recovered
+

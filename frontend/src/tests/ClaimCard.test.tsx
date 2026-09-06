@@ -20,7 +20,7 @@ describe("ClaimCard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Broken")).toBeInTheDocument();
     expect(
-      screen.getByTitle("Load-bearing assumption: if false, the entire plan fails")
+      screen.getByTitle("If this claim is wrong, the plan fails")
     ).toBeInTheDocument();
   });
 
@@ -143,7 +143,7 @@ describe("ClaimCard", () => {
     expect(screen.getByText("Queued")).toBeInTheDocument();
   });
 
-  it("renders Judge Reconciled Verdict when expanded", () => {
+  it("renders the judge's reasoning when expanded", () => {
     render(
       <ClaimCard
         claim={{
@@ -163,7 +163,7 @@ describe("ClaimCard", () => {
       />
     );
 
-    expect(screen.getByText("Judge Reconciled Verdict")).toBeInTheDocument();
+    expect(screen.getByText("Why this call")).toBeInTheDocument();
     expect(
       screen.getByText("High switching cost will prevent adoption.")
     ).toBeInTheDocument();

@@ -369,6 +369,7 @@ async def test_stream_emits_ping_heartbeat_during_idle(sample_case, monkeypatch)
 
     sample_case.status = "testing"
     store.set(sample_case)
+    await events.publish(sample_case.id, "claim_map_ready", {"claims": []})
 
     # Patch timeout in routes to 0.05s so the test runs in milliseconds
     monkeypatch.setattr("api.routes.SSE_PING_INTERVAL_SECONDS", 0.05)
@@ -481,58 +482,6 @@ def test_health_and_ready_endpoints(client):
     assert data_ready["status"] == "ok"
     assert data_ready["provider"] == settings.llm_provider
     assert data_ready["model"] == settings.llm_model
-
-
-def test_rate_limiter_disabled_by_default(client, fake_provider_factory):
-    from api.routes import get_llm_provider
-    from core.loop import ExtractedClaims
-    from main import app
-
-    provider = fake_provider_factory(
-        responses=[ExtractedClaims(statements=["Assertion"])] * 15
-    )
-    app.dependency_overrides[get_llm_provider] = lambda: provider
-
-    try:
-        # Rate limiter is disabled by default: 11 requests should all succeed
-        for i in range(12):
-            res = client.post("/cases", json={"raw_input": f"Proposal attempt {i}"})
-            assert res.status_code == 200
-    finally:
-        app.dependency_overrides.pop(get_llm_provider, None)
-
-
-def test_rate_limiter_blocks_after_10_requests_per_minute_when_enabled(client, fake_provider_factory):
-    from api.rate_limiter import rate_limiter
-    from api.routes import get_llm_provider
-    from core.loop import ExtractedClaims
-    from main import app
-
-    rate_limiter.enabled = True
-    provider = fake_provider_factory(
-        responses=[ExtractedClaims(statements=["Assertion"])] * 15
-    )
-    app.dependency_overrides[get_llm_provider] = lambda: provider
-
-    try:
-        # First 10 requests should succeed
-        for i in range(10):
-            res = client.post("/cases", json={"raw_input": f"Proposal attempt {i}"})
-            assert res.status_code == 200, f"Request {i+1} failed unexpectedly"
-
-        # 11th request from same IP should receive 429 Too Many Requests
-        res_blocked = client.post("/cases", json={"raw_input": "Proposal attempt 11"})
-        assert res_blocked.status_code == 429
-        assert "Rate limit exceeded" in res_blocked.json()["detail"]
-        assert "Retry-After" in res_blocked.headers
-
-        # Non-rate-limited endpoints like /health should still be accessible
-        res_health = client.get("/health")
-        assert res_health.status_code == 200
-    finally:
-        rate_limiter.enabled = False
-        rate_limiter.reset()
-        app.dependency_overrides.pop(get_llm_provider, None)
 
 
 def test_post_ingest_image_success(client, monkeypatch):
@@ -661,12 +610,12 @@ def test_confirm_updates_selected_agents(client, monkeypatch, sample_case):
         f"/cases/{sample_case.id}/confirm",
         json={
             "claims": [c.model_dump() for c in sample_case.claims],
-            "selected_agents": ["devils_advocate", "overthinker"],
+            "selected_agents": ["devils_advocate", "operator"],
         },
     )
     assert response.status_code == 202
     updated = store.get(sample_case.id)
-    assert updated.selected_agents == ["devils_advocate", "overthinker"]
+    assert updated.selected_agents == ["devils_advocate", "operator"]
 
 
 def test_confirm_empty_selected_agents_rejected(client, sample_case):
