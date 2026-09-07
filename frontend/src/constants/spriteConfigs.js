@@ -121,7 +121,33 @@ export const BOT_SPRITE_CONFIGS = {
     ],
   },
   steelman: {
-    assetUrl: '/steelman_thing.webp',
+    assetUrl: '/judge_thing.webp',
+    scale: 0.5,
+    walkBounds: [
+      { x: 50, y: 66, w: 165, h: 202 },
+      { x: 250, y: 66, w: 165, h: 202 },
+      { x: 440, y: 66, w: 165, h: 202 },
+      { x: 635, y: 66, w: 165, h: 202 },
+      { x: 860, y: 66, w: 160, h: 202 },
+      { x: 45, y: 354, w: 160, h: 202 },
+      { x: 200, y: 354, w: 160, h: 202 },
+      { x: 365, y: 354, w: 160, h: 202 },
+      { x: 525, y: 354, w: 160, h: 202 },
+      { x: 665, y: 354, w: 160, h: 202 },
+    ],
+    turnBounds: [
+      { x: 25, y: 687, w: 120, h: 198 },
+      { x: 150, y: 687, w: 115, h: 198 },
+      { x: 275, y: 687, w: 115, h: 198 },
+      { x: 405, y: 687, w: 110, h: 198 },
+      { x: 520, y: 687, w: 115, h: 198 }, // 4: Back View
+      { x: 645, y: 687, w: 110, h: 198 },
+      { x: 760, y: 687, w: 115, h: 198 },
+      { x: 885, y: 687, w: 120, h: 198 },
+    ],
+  },
+  judge: {
+    assetUrl: '/judge_thing.webp',
     scale: 0.5,
     walkBounds: [
       { x: 50, y: 66, w: 165, h: 202 },
@@ -151,6 +177,7 @@ export const BOT_SPRITE_CONFIGS = {
 // Aliases
 BOT_SPRITE_CONFIGS.researcher = BOT_SPRITE_CONFIGS.researcher;
 BOT_SPRITE_CONFIGS.arbiter = BOT_SPRITE_CONFIGS.steelman;
+BOT_SPRITE_CONFIGS.judge = BOT_SPRITE_CONFIGS.steelman;
 BOT_SPRITE_CONFIGS.agent_1 = BOT_SPRITE_CONFIGS.devils_advocate;
 BOT_SPRITE_CONFIGS.agent_2 = BOT_SPRITE_CONFIGS.researcher;
 BOT_SPRITE_CONFIGS.agent_3 = BOT_SPRITE_CONFIGS.builder;

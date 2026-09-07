@@ -119,7 +119,7 @@ export const STEELMAN_CONFIG = {
 const baseAgentMap = {
   steelman: STEELMAN_CONFIG,
   arbiter: STEELMAN_CONFIG,
-  steelman: STEELMAN_CONFIG,
+  judge: STEELMAN_CONFIG,
 };
 
 // Comprehensive AGENT_MAP supporting both evaluator IDs and legacy agent_1..4 IDs
