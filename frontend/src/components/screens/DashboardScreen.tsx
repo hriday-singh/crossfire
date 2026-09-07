@@ -8,6 +8,7 @@ import { PromptFixerWorkbench } from "@/components/features/PromptFixerWorkbench
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 import { SelectDropdown, DropdownOption } from "@/components/ui/dropdown-menu";
 import { getSalvageableClaims, generateImprovedPrompt } from "@/lib/promptFixer";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export type ClaimSortOption =
   | "criticality"
@@ -188,11 +189,96 @@ export const DashboardScreen: React.FC = () => {
   const survivedCount = currentCase.claims.filter((c) => c.status === "survived").length;
   const needsAttentionCount = brokenCount + weakenedCount + unresolvedCount;
 
-  const handleExportMemo = async () => {
+  const handleCopy = async () => {
     const brief = formatDecisionMemoMarkdown(currentCase);
     await copyToClipboard(brief);
     setCopiedMemo(true);
     setTimeout(() => setCopiedMemo(false), 2000);
+  };
+
+  const handleDownloadMD = () => {
+    const brief = formatDecisionMemoMarkdown(currentCase);
+    const blob = new Blob([brief], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Crossfire_Decision_Memo.md";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePrintPDF = () => {
+    const brief = formatDecisionMemoMarkdown(currentCase);
+    
+    // Very basic markdown to HTML for printing
+    const lines = brief.split('\n');
+    let formattedHtml = '';
+    let inList = false;
+
+    lines.forEach(line => {
+      // Bold, Italic, Code, Links
+      let formattedLine = line
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code style="background:#eee;padding:2px 4px;border-radius:3px;">$1</code>')
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" style="color:#0056b3;text-decoration:none;">$1</a>');
+
+      if (formattedLine.startsWith('### ')) {
+        formattedHtml += `<h3>${formattedLine.substring(4)}</h3>\n`;
+      } else if (formattedLine.startsWith('## ')) {
+        formattedHtml += `<h2>${formattedLine.substring(3)}</h2>\n`;
+      } else if (formattedLine.startsWith('# ')) {
+        formattedHtml += `<h1>${formattedLine.substring(2)}</h1>\n`;
+      } else if (formattedLine.startsWith('> ')) {
+        formattedHtml += `<blockquote style="border-left: 4px solid #ccc; margin: 10px 0; padding: 10px 20px; background: #f9f9f9; color: #555;">${formattedLine.substring(2)}</blockquote>\n`;
+      } else if (formattedLine.startsWith('- ')) {
+        if (!inList) { formattedHtml += '<ul>\n'; inList = true; }
+        formattedHtml += `<li>${formattedLine.substring(2)}</li>\n`;
+      } else if (formattedLine.startsWith('---')) {
+        formattedHtml += '<hr style="border:0; border-top:1px solid #ddd; margin:20px 0;" />\n';
+      } else {
+        if (inList && !formattedLine.trim()) return; // skip empty lines right after list
+        if (inList && formattedLine.trim()) { formattedHtml += '</ul>\n'; inList = false; }
+        if (formattedLine.trim() !== '') {
+          formattedHtml += `<p>${formattedLine}</p>\n`;
+        }
+      }
+    });
+    if (inList) formattedHtml += '</ul>\n';
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Decision Memo</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; padding: 40px; color: #111; max-width: 800px; margin: 0 auto; }
+            h1, h2, h3 { color: #222; margin-top: 1.5em; margin-bottom: 0.5em; }
+            h1 { font-size: 2em; border-bottom: 2px solid #eaeaea; padding-bottom: 0.3em; }
+            h2 { font-size: 1.5em; border-bottom: 1px solid #eaeaea; padding-bottom: 0.3em; }
+            h3 { font-size: 1.17em; }
+            p { margin: 0.5em 0; }
+            ul { margin: 0.5em 0; padding-left: 20px; }
+            li { margin: 0.3em 0; }
+            blockquote p { margin: 0; }
+            @media print {
+              body { padding: 0; max-width: 100%; }
+            }
+          </style>
+        </head>
+        <body>
+          ${formattedHtml}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   return (
@@ -206,17 +292,6 @@ export const DashboardScreen: React.FC = () => {
                 <span className="font-headline-lg text-headline-lg text-on-surface font-semibold">
                   {isTesting ? "Testing your decision" : "Result"}
                 </span>
-                <button
-                  type="button"
-                  onClick={handleExportMemo}
-                  className="font-code-sm text-code-sm px-2.5 py-0.5 rounded bg-surface-container hover:bg-surface-container-high border border-outline-variant text-primary-container transition-colors flex items-center gap-1 cursor-pointer"
-                  title="Copy full Decision Memo as Markdown"
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {copiedMemo ? "check" : "file_download"}
-                  </span>
-                  <span>{copiedMemo ? "Copied Memo!" : "Export Memo"}</span>
-                </button>
               </div>
               <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
                 {isTesting ? (
@@ -234,6 +309,46 @@ export const DashboardScreen: React.FC = () => {
               </p>
             </div>
 
+            <div className="flex items-center">
+               <Dialog>
+                 <DialogTrigger asChild>
+                   <button
+                     className="px-6 py-3 rounded-lg bg-on-surface hover:bg-on-surface/90 text-surface font-body-sm text-sm font-medium transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-sm active:scale-[0.98] whitespace-nowrap"
+                   >
+                     <span className="material-symbols-outlined text-[18px]">file_download</span>
+                     Export Memo
+                   </button>
+                 </DialogTrigger>
+                 <DialogContent className="sm:max-w-md bg-surface-container-lowest border-outline-variant shadow-lg rounded-2xl p-6">
+                   <DialogHeader className="mb-4">
+                     <DialogTitle className="font-headline-sm text-headline-sm font-semibold text-on-surface">Export Memo</DialogTitle>
+                   </DialogHeader>
+                   <div className="flex flex-col gap-3">
+                     <button onClick={handleCopy} className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:border-outline-variant hover:bg-surface-container transition-all cursor-pointer w-full text-left">
+                       <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">{copiedMemo ? "check" : "content_copy"}</span>
+                       <div>
+                         <div className="font-title-sm text-title-sm text-on-surface font-semibold">{copiedMemo ? "Copied!" : "Copy to Clipboard"}</div>
+                         <div className="font-body-sm text-[13px] text-on-surface-variant">Copy the full markdown to your clipboard</div>
+                       </div>
+                     </button>
+                     <button onClick={handleDownloadMD} className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:border-outline-variant hover:bg-surface-container transition-all cursor-pointer w-full text-left">
+                       <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">article</span>
+                       <div>
+                         <div className="font-title-sm text-title-sm text-on-surface font-semibold">Export as .MD</div>
+                         <div className="font-body-sm text-[13px] text-on-surface-variant">Save as a Markdown file</div>
+                       </div>
+                     </button>
+                     <button onClick={handlePrintPDF} className="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/60 bg-surface-container-low hover:border-outline-variant hover:bg-surface-container transition-all cursor-pointer w-full text-left">
+                       <span className="material-symbols-outlined text-[20px] text-on-surface-variant shrink-0">picture_as_pdf</span>
+                       <div>
+                         <div className="font-title-sm text-title-sm text-on-surface font-semibold">Export to PDF</div>
+                         <div className="font-body-sm text-[13px] text-on-surface-variant">Print or save as a PDF document</div>
+                       </div>
+                     </button>
+                   </div>
+                 </DialogContent>
+               </Dialog>
+            </div>
           </div>
 
           <VerdictBlock
@@ -250,112 +365,115 @@ export const DashboardScreen: React.FC = () => {
             />
           )}
 
-          {/* Every claim, in full - collapsed once the verdict is in. */}
-          {!isTesting && (
-            <button
-              type="button"
-              onClick={() => setClaimsOpen((open) => !open)}
-              className="w-full flex items-center justify-between pt-space-6 pb-space-2 border-t border-outline-variant font-title-sm text-title-sm text-on-surface hover:text-primary-container transition-colors cursor-pointer"
-            >
-              <span>
-                {claimsOpen
-                  ? "Hide all claims"
-                  : `Show All ${totalClaims} Claims`}
-              </span>
-              <span 
-                className="material-symbols-outlined text-[20px] transition-transform duration-200"
-                style={{ transform: claimsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-              >
-                expand_more
-              </span>
-            </button>
-          )}
-
-          {(isTesting || claimsOpen) && (
-            <>
-          {/* Claims in Detail Header */}
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-              Claims in Detail
-            </h3>
-          </div>
-          {/* Filter & Sort Bar */}
-          <div className="flex items-center justify-between gap-space-4">
-            <div className="flex items-center gap-space-2">
+          {/* Claims in Detail Section */}
+          <div className="rounded-xl border border-outline-variant bg-surface-container-lowest overflow-hidden">
+            {/* Claims in Detail Header - Toggle Button */}
+            {!isTesting && (
               <button
                 type="button"
-                onClick={() => setFilterStatus("all")}
-                className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
-                  filterStatus === "all"
-                    ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
-                    : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
-                }`}
+                onClick={() => setClaimsOpen((open) => !open)}
+                className="w-full flex items-center justify-between px-space-6 py-space-5 text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
               >
-                All ({totalClaims})
+                <h3 className="font-headline-sm text-headline-sm font-semibold">
+                  Claims in Detail
+                </h3>
+                <span 
+                  className="material-symbols-outlined text-[24px] transition-transform duration-200"
+                  style={{ transform: claimsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                >
+                  expand_more
+                </span>
               </button>
+            )}
 
-              <button
-                type="button"
-                onClick={() => setFilterStatus("needs_attention")}
-                className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
-                  filterStatus === "needs_attention"
-                    ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
-                    : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
-                }`}
-              >
-                Didn&apos;t hold ({needsAttentionCount})
-              </button>
+            {(isTesting || claimsOpen) && (
+              <div className={`px-space-6 pb-space-6 ${!isTesting ? "pt-space-2" : "pt-space-6"}`}>
+                {isTesting && (
+                  <div className="flex items-center justify-between mb-space-5">
+                    <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                      Claims in Detail
+                    </h3>
+                  </div>
+                )}
 
-              <button
-                type="button"
-                onClick={() => setFilterStatus("passed")}
-                className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
-                  filterStatus === "passed"
-                    ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
-                    : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
-                }`}
-              >
-                Held up ({survivedCount})
-              </button>
-            </div>
+                {/* Filter & Sort Bar */}
+                <div className="flex items-center justify-between gap-space-4 mb-space-5">
+                  <div className="flex items-center gap-space-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setFilterStatus("all")}
+                      className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
+                        filterStatus === "all"
+                          ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
+                          : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
+                      }`}
+                    >
+                      All ({totalClaims})
+                    </button>
 
-            <SelectDropdown
-              value={sortBy}
-              options={SORT_OPTIONS}
-              onChange={(newSort) => setSortBy(newSort)}
-              labelPrefix="Sorted by:"
-              ariaLabel="Sort claims"
-            />
+                    <button
+                      type="button"
+                      onClick={() => setFilterStatus("needs_attention")}
+                      className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
+                        filterStatus === "needs_attention"
+                          ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
+                          : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
+                      }`}
+                    >
+                      Didn&apos;t hold ({needsAttentionCount})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFilterStatus("passed")}
+                      className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
+                        filterStatus === "passed"
+                          ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
+                          : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
+                      }`}
+                    >
+                      Held up ({survivedCount})
+                    </button>
+                  </div>
+
+                  <SelectDropdown
+                    value={sortBy}
+                    options={SORT_OPTIONS}
+                    onChange={(newSort) => setSortBy(newSort)}
+                    labelPrefix="Sorted by:"
+                    ariaLabel="Sort claims"
+                  />
+                </div>
+
+                {/* Claims Dossier Stack */}
+                <div className="space-y-space-5">
+                  {filteredClaims.map((claim, idx) => {
+                    const relevantFindings = currentCase.findings.filter((f) => f.claim_id === claim.id);
+                    const relevantConsequence = currentCase.consequences.find((c) => c.claim_id === claim.id);
+                    const claimActiveTests = Object.values(state.activeTests).filter(
+                      (t) => t.target_claim === claim.id
+                    );
+
+                    return (
+                      <ClaimCard
+                        key={claim.id}
+                        index={idx}
+                        claim={claim}
+                        tests={claimActiveTests}
+                        findings={relevantFindings}
+                        consequence={relevantConsequence}
+                        isTestingMode={state.isStreaming || currentCase.status === "testing"}
+                        activeActivities={state.activeTestActivities}
+                        isSelectedForPromptFix={selectedFixClaimIds.has(claim.id)}
+                        onTogglePromptFix={() => handleToggleClaimFix(claim.id)}
+                        onClick={() => selectClaim(claim.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Claims Dossier Stack */}
-          <div className="space-y-space-5">
-            {filteredClaims.map((claim, idx) => {
-              const relevantFindings = currentCase.findings.filter((f) => f.claim_id === claim.id);
-              const relevantConsequence = currentCase.consequences.find((c) => c.claim_id === claim.id);
-              const claimActiveTests = Object.values(state.activeTests).filter(
-                (t) => t.target_claim === claim.id
-              );
-
-              return (
-                <ClaimCard
-                  key={claim.id}
-                  index={idx}
-                  claim={claim}
-                  tests={claimActiveTests}
-                  findings={relevantFindings}
-                  consequence={relevantConsequence}
-                  isTestingMode={state.isStreaming || currentCase.status === "testing"}
-                  activeActivities={state.activeTestActivities}
-                  isSelectedForPromptFix={selectedFixClaimIds.has(claim.id)}
-                  onTogglePromptFix={() => handleToggleClaimFix(claim.id)}
-                  onClick={() => selectClaim(claim.id)}
-                />
-              );
-            })}
-          </div>
-            </>
-          )}
 
           {/* Steel Man Prompt Fixer Workbench (Visible post-test when failed claims exist) */}
           {!isTesting && (

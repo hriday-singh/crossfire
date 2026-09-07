@@ -51,22 +51,11 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
     >
       {/* Header */}
       <div 
-        className={cn(
-          "flex flex-col md:flex-row md:items-center justify-between gap-space-4 p-space-6 pb-space-2"
-        )}
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-space-4 px-space-6 py-space-5 hover:bg-surface-container transition-colors cursor-pointer select-none"
       >
         <div className="space-y-2 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1 -ml-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer flex items-center justify-center"
-              title={isExpanded ? "Minimize" : "Maximize"}
-            >
-              <span className="material-symbols-outlined text-[24px]">
-                {isExpanded ? "keyboard_arrow_down" : "chevron_right"}
-              </span>
-            </button>
             <h2 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
               Revise Proposal
             </h2>
@@ -81,17 +70,28 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
           {isExpanded && (
             <button
               type="button"
-              onClick={isAllSelected ? onClearAll : onSelectAll}
-              className="px-4 py-2 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-low hover:bg-surface-container text-xs font-code-sm text-on-surface font-medium transition-colors cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                isAllSelected ? onClearAll() : onSelectAll();
+              }}
+              className="px-4 py-2 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-low hover:bg-surface-container-high text-xs font-code-sm text-on-surface font-medium transition-colors cursor-pointer"
             >
               {isAllSelected ? "Deselect All" : "Select All"}
             </button>
           )}
+          <div className="p-1 text-on-surface flex items-center justify-center pointer-events-none">
+            <span 
+              className="material-symbols-outlined text-[24px] transition-transform duration-200"
+              style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            >
+              expand_more
+            </span>
+          </div>
         </div>
       </div>
 
       {isExpanded && (
-        <div className="p-space-8 pt-space-6 space-y-space-8">
+        <div className="p-space-8 pt-space-6 space-y-space-8 border-t border-outline-variant/60">
 
       {/* Failed Claims Checklist */}
       <div className="space-y-space-4">

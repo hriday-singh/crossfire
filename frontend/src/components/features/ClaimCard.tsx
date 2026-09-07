@@ -236,12 +236,12 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             )}>
               {isSelectedForPromptFix && <span className="material-symbols-outlined text-[14px] font-bold">check</span>}
             </div>
-            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-              <span className="font-code-sm text-sm font-semibold text-primary-container shrink-0 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[16px]">auto_fix_high</span>
-                <span>Apply Fix:</span>
-              </span>
-              <div className="font-body-md text-[15px] text-on-surface leading-relaxed font-medium">
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <div className="font-body-md text-[15px] text-on-surface leading-snug font-medium">
+                <span className="font-code-sm text-[15px] font-semibold text-primary-container inline-flex items-center gap-1 mr-2 align-middle">
+                  <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                  <span>Apply Fix:</span>
+                </span>
                 &ldquo;{cleanUiText(claim.salvaged_claim || consequence?.salvaged_claim || "")}&rdquo;
               </div>
             </div>
@@ -280,29 +280,29 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 
       {/* Details Box */}
       {!isExpanded && !isTestingMode && (relevantFinding?.result || relevantFinding?.contradiction || relevantFinding?.reasoning || consequence?.verdict_reasoning) && (
-        <div className="bg-surface-container-low p-space-4 rounded space-y-space-2 border border-outline-variant">
+        <div className="bg-surface-container-low p-space-5 rounded-lg space-y-space-3 border border-outline-variant mt-2">
           <div
-            className={`font-label-mono text-label-mono uppercase tracking-wider font-semibold flex items-center gap-1.5 ${findingHeadline.classes}`}
+            className={`font-label-mono text-[13px] uppercase tracking-wider font-bold flex items-center gap-1.5 ${findingHeadline.classes}`}
           >
-            <span className="material-symbols-outlined text-[14px]">{findingHeadline.icon}</span>
+            <span className="material-symbols-outlined text-[16px]">{findingHeadline.icon}</span>
             <span>{findingHeadline.label}</span>
           </div>
 
-          <p className="font-body-md text-body-md text-on-surface leading-relaxed">
+          <p className="font-body-md text-[15px] text-on-surface leading-relaxed">
             <SerpApiText text={cleanUiText(relevantFinding?.result || relevantFinding?.contradiction || consequence?.verdict_reasoning)} />
           </p>
 
           {consequence?.verdict_reasoning && (
-            <div className="font-body-sm text-body-sm text-on-surface-variant flex items-start gap-1.5 pt-1">
-              <span className="material-symbols-outlined text-[15px] text-primary-container shrink-0">gavel</span>
-              <span><strong>Steel Man Verdict:</strong> <SerpApiText text={cleanUiText(consequence.verdict_reasoning)} /></span>
+            <div className="font-body-sm text-[15px] text-on-surface-variant flex items-start gap-1.5 pt-2">
+              <span className="material-symbols-outlined text-[18px] text-primary-container shrink-0 mt-0.5">gavel</span>
+              <span><strong className="text-[15px]">Steel Man Verdict:</strong> <SerpApiText text={cleanUiText(consequence.verdict_reasoning)} /></span>
             </div>
           )}
 
-          <div className="flex items-center gap-space-4 text-outline font-code-sm text-code-sm pt-1 flex-wrap">
+          <div className="flex items-center gap-space-4 text-outline font-code-sm text-[13px] pt-1 flex-wrap">
             {relevantFinding?.reasoning && !consequence?.verdict_reasoning && (
               <span className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">database</span>
+                <span className="material-symbols-outlined text-[15px]">database</span>
                 <span><SerpApiText text={cleanUiText(relevantFinding.reasoning)} /></span>
               </span>
             )}
@@ -316,12 +316,12 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
       )}
 
       {/* Recommendation & Evidence Action Row */}
-      <div className="bg-surface-container-high p-space-4 rounded flex flex-col md:flex-row md:items-center justify-between gap-space-3">
-        <div className="flex items-center gap-space-2 flex-1 min-w-0">
-          <span className="font-code-sm text-code-sm font-semibold text-primary uppercase shrink-0">
+      <div className="bg-surface-container-high p-space-5 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-space-4 mt-space-3">
+        <div className="flex flex-col md:flex-row md:items-center gap-space-2 flex-1 min-w-0">
+          <span className="font-code-sm text-[15px] font-bold text-primary uppercase shrink-0">
             Recommended Change:
           </span>
-          <span className="font-body-md text-body-md text-on-surface-variant truncate">
+          <span className="font-body-md text-[15px] text-on-surface-variant">
             {!isExpanded
               ? (consequence?.recommended_change
                   ? cleanUiText(consequence.recommended_change)

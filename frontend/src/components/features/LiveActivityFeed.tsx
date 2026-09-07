@@ -14,9 +14,13 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   isStreaming,
   className = "",
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(isStreaming);
   const [autoScroll, setAutoScroll] = useState(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setIsExpanded(isStreaming);
+  }, [isStreaming]);
 
   // Auto-scroll to bottom of container when streaming and autoScroll is active
   useEffect(() => {
@@ -76,7 +80,10 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
       )}
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between px-space-4 py-space-3 bg-surface-container border-b border-outline-variant/60 select-none">
+      <div 
+        className="flex items-center justify-between px-space-4 py-space-3 bg-surface-container border-b border-outline-variant/60 select-none cursor-pointer"
+        onClick={() => setIsExpanded((prev) => !prev)}
+      >
         <div className="flex items-center gap-space-2.5">
           {isStreaming ? (
             <span className="relative flex h-2.5 w-2.5">
@@ -106,13 +113,14 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
           )}
           <button
             type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            className="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container-high transition-colors cursor-pointer flex items-center gap-1 text-xs font-code-sm"
+            className="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container-high transition-colors flex items-center justify-center pointer-events-none"
             aria-label={isExpanded ? "Collapse activity feed" : "Expand activity feed"}
           >
-            <span>{isExpanded ? "Collapse" : "Expand"}</span>
-            <span className="material-symbols-outlined text-[16px]">
-              {isExpanded ? "expand_less" : "expand_more"}
+            <span 
+              className="material-symbols-outlined text-[20px] transition-transform duration-200"
+              style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            >
+              expand_more
             </span>
           </button>
         </div>
