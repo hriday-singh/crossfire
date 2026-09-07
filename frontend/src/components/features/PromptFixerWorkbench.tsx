@@ -187,6 +187,13 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
             Updated Proposal
           </label>
           <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={onResetPrompt}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              Reset
+            </button>
             <span className="font-code-sm text-xs text-outline font-medium">
               {improvedPrompt.length} chars
             </span>

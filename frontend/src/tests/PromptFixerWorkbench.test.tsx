@@ -60,6 +60,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
+        onResetPrompt={vi.fn()}
 
         improvedPrompt="We will launch with trial. Architecture uses Solana."
         onChangeImprovedPrompt={vi.fn()}
@@ -85,6 +86,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={handleToggle}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
+        onResetPrompt={vi.fn()}
 
         improvedPrompt={originalPrompt}
         onChangeImprovedPrompt={vi.fn()}
@@ -107,7 +109,8 @@ describe("PromptFixerWorkbench", () => {
         selectedClaimIds={new Set(["c1"])}
         onToggleClaim={vi.fn()}
         onSelectAll={handleSelectAll}
-        onClearAll={handleClearAll}
+        onClearAll={vi.fn()}
+        onResetPrompt={vi.fn()}
 
         improvedPrompt={originalPrompt}
         onChangeImprovedPrompt={vi.fn()}
@@ -127,6 +130,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={handleSelectAll}
         onClearAll={handleClearAll}
+        onResetPrompt={vi.fn()}
 
         improvedPrompt={originalPrompt}
         onChangeImprovedPrompt={vi.fn()}
@@ -148,6 +152,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
+        onResetPrompt={vi.fn()}
 
         improvedPrompt="Improved prompt content"
         onChangeImprovedPrompt={vi.fn()}
@@ -171,6 +176,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
+        onResetPrompt={vi.fn()}
 
         improvedPrompt="Draft text"
         onChangeImprovedPrompt={handleChange}

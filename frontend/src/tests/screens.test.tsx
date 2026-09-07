@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   render,
   screen,
@@ -582,7 +582,6 @@ describe("Screen Components", () => {
         selectModel: vi.fn(),
         cancelExtraction: vi.fn(),
         confirmAndRun: vi.fn(),
-        loadPromptIntoEntry: vi.fn(),
       });
 
       render(<EntryScreen />);
@@ -744,7 +743,6 @@ describe("Screen Components", () => {
         setSelectedAgents: vi.fn(),
         selectModel: vi.fn(),
         cancelExtraction: vi.fn(),
-        confirmAndRun: vi.fn(),
         loadPromptIntoEntry: vi.fn(),
       });
 
@@ -812,7 +810,6 @@ describe("Screen Components", () => {
         setSelectedAgents: vi.fn(),
         selectModel: vi.fn(),
         cancelExtraction: vi.fn(),
-        confirmAndRun: vi.fn(),
         loadPromptIntoEntry: vi.fn(),
       });
 
