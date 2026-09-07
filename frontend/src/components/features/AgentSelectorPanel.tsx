@@ -171,14 +171,13 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
           </div>
 
           {agentMode === "custom" && selectedAgents.length === 0 && (
-            <p className="font-code-sm text-code-sm text-error flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[14px]">
-                warning
-              </span>
-              <span>
-                Please select at least 1 agent to run the stress test.
-              </span>
-            </p>
+            <div
+              role="alert"
+              className="bg-error-container/20 border border-error/40 text-error px-3 py-2 rounded-lg text-body-sm flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">error</span>
+              <span>Please select at least 1 agent to run the stress test.</span>
+            </div>
           )}
         </div>
       )}

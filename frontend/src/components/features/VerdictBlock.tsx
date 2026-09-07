@@ -65,6 +65,12 @@ const severityRank: Record<string, number> = {
   survived: 4,
 };
 
+const getOrdinal = (n: number) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+
 function rankClaims(claims: Claim[]): Claim[] {
   return [...claims].sort((a, b) => {
     if (a.load_bearing && !b.load_bearing) return -1;
@@ -226,12 +232,16 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
     ? currentCase.claims.filter((c) => c.status === "survived").length
     : verdict.survived.length;
 
-  const counts = [
-    brokenCount ? `${brokenCount} refuted` : "",
-    weakenedCount ? `${weakenedCount} weakened` : "",
-    unresolvedCount ? `${unresolvedCount} unproven` : "",
-    survivedCount ? `${survivedCount} held` : "",
-  ].filter(Boolean);
+  const countElements: React.ReactNode[] = [];
+  if (brokenCount) countElements.push(<span key="broken" className="text-error">{brokenCount} refuted</span>);
+  if (weakenedCount) countElements.push(<span key="weakened" className="text-tertiary">{weakenedCount} weakened</span>);
+  if (unresolvedCount) countElements.push(<span key="unresolved" className="text-secondary">{unresolvedCount} unproven</span>);
+  if (survivedCount) countElements.push(<span key="survived" className="text-primary-container">{survivedCount} held</span>);
+
+  const separatedCounts = countElements.reduce((acc: React.ReactNode[], el, idx) => {
+    if (idx === 0) return [el];
+    return [...acc, <span key={`sep-${idx}`} className="text-outline">·</span>, el];
+  }, []);
 
   return (
     <section
@@ -239,145 +249,156 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
       className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-6 space-y-space-8"
     >
       {/* The call */}
-      <div className="space-y-space-3">
+      <div className="space-y-space-4">
         <h2
           className={`font-headline-lg text-headline-lg font-semibold leading-tight ${headlineColor}`}
         >
           <SerpApiText text={headline} />
         </h2>
-        <p className="font-body-md text-body-md text-on-surface leading-relaxed">
+        <p className="font-body-md text-[16px] leading-[1.7] text-on-surface">
           <SerpApiText text={displaySummary} />
         </p>
-        {counts.length > 0 && (
-          <p className="font-title-sm text-title-sm text-on-surface-variant font-medium">{counts.join(" · ")}</p>
+        {separatedCounts.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap font-title-sm text-title-sm font-medium">
+            {separatedCounts}
+          </div>
         )}
       </div>
 
       {/* What decided it — one finding, resolved server-side */}
       {deciding && (
-        <div className="space-y-space-3">
-          <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
-            What decided it
-          </h3>
-          <button
-            type="button"
-            onClick={() => onSelectClaim(deciding.claim_id)}
-            className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
-          >
-            <div className="flex items-start justify-between gap-space-3">
-              <span className="font-body-md text-body-md text-on-surface">
-                <SerpApiText text={cleanUiText(deciding.the_fact)} />
-              </span>
-              {decidingClaim?.status && (
-                <span
-                  className={`font-code-sm text-code-sm font-semibold shrink-0 ${
-                    STATUS_COLORS[decidingClaim.status] || "text-outline"
-                  }`}
-                >
-                  {STATUS_WORDS[decidingClaim.status] || "Untested"}
+        <>
+          <hr className="border-t border-outline-variant" />
+          <div className="space-y-space-3">
+            <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
+              What decided it
+            </h3>
+            <button
+              type="button"
+              onClick={() => onSelectClaim(deciding.claim_id)}
+              className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
+            >
+              <div className="flex items-start justify-between gap-space-3">
+                <span className="font-body-md text-[15px] leading-[1.6] text-on-surface">
+                  <SerpApiText text={cleanUiText(deciding.the_fact)} />
                 </span>
-              )}
-            </div>
-            <p className="mt-1 font-code-sm text-code-sm text-outline">
-              {EVALUATOR_NAMES[deciding.evaluator] || deciding.evaluator}
-              {deciding.source_title ? (
-                <>
-                  {" · "}
-                  <SerpApiText text={cleanUiText(deciding.source_title)} />
-                </>
-              ) : null}
-            </p>
-            {/* Where the panel attacked but nobody could cite it. Showing the
-                refusal is the point: it is the opposite of a model that agrees. */}
-            {deciding.gate_fired && (
-              <p className="mt-1 font-code-sm text-code-sm text-secondary">
-                Not refuted — the panel attacked this but no source backed it.
+                {decidingClaim?.status && (
+                  <span
+                    className={`font-body-sm text-[14px] font-semibold shrink-0 pt-0.5 ${
+                      STATUS_COLORS[decidingClaim.status] || "text-outline"
+                    }`}
+                  >
+                    {STATUS_WORDS[decidingClaim.status] || "Untested"}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 font-code-sm text-code-sm text-outline">
+                {EVALUATOR_NAMES[deciding.evaluator] || deciding.evaluator}
+                {deciding.source_title ? (
+                  <>
+                    {" · "}
+                    <SerpApiText text={cleanUiText(deciding.source_title)} />
+                  </>
+                ) : null}
               </p>
-            )}
-          </button>
-        </div>
+              {/* Where the panel attacked but nobody could cite it. Showing the
+                  refusal is the point: it is the opposite of a model that agrees. */}
+              {deciding.gate_fired && (
+                <p className="mt-1 font-code-sm text-code-sm text-secondary">
+                  Not refuted — the panel attacked this but no source backed it.
+                </p>
+              )}
+            </button>
+          </div>
+        </>
       )}
 
       {/* What to do about it */}
       {verdict.next_actions.length > 0 && (
-        <div className="space-y-space-3">
-          <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
-            Before you commit
-          </h3>
-          <ul className="space-y-space-3">
-            {verdict.next_actions.map((next, idx) => {
-              return (
-                <li
-                  key={`${idx}-${next.action.slice(0, 24)}`}
-                  className="flex flex-col gap-space-2 md:flex-row md:items-start md:justify-between"
-                >
-                  <span className="font-body-md text-body-md text-on-surface leading-relaxed flex-1">
-                    <SerpApiText text={cleanUiText(next.action)} />
-                  </span>
-                  {next.claim_ids && next.claim_ids.length > 0 && (
-                    <div className="flex flex-wrap gap-2 shrink-0 mt-2 md:mt-0 md:ml-4">
-                      {next.claim_ids.map((cid) => {
-                        const cIdx = currentCase.claims.findIndex(c => c.id === cid);
-                        return (
-                          <button
-                            key={cid}
-                            type="button"
-                            onClick={() => onSelectClaim(cid)}
-                            className="font-code-sm text-code-sm px-2.5 py-0.5 rounded border border-outline-variant text-primary-container hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center gap-1"
-                          >
-                            <span>Claim {cIdx >= 0 ? cIdx + 1 : "?"}</span>
-                            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <>
+          <hr className="border-t border-outline-variant" />
+          <div className="space-y-space-3">
+            <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
+              Before you commit
+            </h3>
+            <ul className="space-y-space-3">
+              {verdict.next_actions.map((next, idx) => {
+                return (
+                  <li
+                    key={`${idx}-${next.action.slice(0, 24)}`}
+                    className="flex flex-col gap-space-2 md:flex-row md:items-center md:justify-between"
+                  >
+                    <span className="font-body-md text-[15px] leading-[1.6] text-on-surface flex-1">
+                      <SerpApiText text={cleanUiText(next.action)} />
+                    </span>
+                    {next.claim_ids && next.claim_ids.length > 0 && (
+                      <div className="flex flex-wrap gap-2 shrink-0 mt-2 md:mt-0 md:ml-4">
+                        {next.claim_ids.map((cid) => {
+                          const cIdx = currentCase.claims.findIndex(c => c.id === cid);
+                          return (
+                            <button
+                              key={cid}
+                              type="button"
+                              onClick={() => onSelectClaim(cid)}
+                              className="w-[105px] justify-between font-body-sm text-[13px] font-medium px-2.5 py-1 rounded border border-outline-variant text-primary-container hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <span>{cIdx >= 0 ? `${getOrdinal(cIdx + 1)} Claim` : "Claim"}</span>
+                              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
       )}
 
       {/* Other failed claims shown openly with brief 1-sentence notes */}
       {otherFailedClaims.length > 0 && (
-        <div className="space-y-space-3">
-          <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
-            {otherFailedClaims.length} more claim{otherFailedClaims.length > 1 ? "s" : ""} didn't hold
-          </h3>
-          <ul className="space-y-space-3">
-            {otherFailedClaims.map((claim) => {
-              const briefReason = getBriefFailureReason(claim);
-              return (
-                <li key={claim.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectClaim(claim.id)}
-                    className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-4 py-space-4 hover:bg-surface-container-high transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between gap-space-3">
-                      <span className="font-body-md text-body-md text-on-surface">
-                        <SerpApiText text={cleanUiText(claim.statement)} />
-                      </span>
-                      <span
-                        className={`font-code-sm text-code-sm font-semibold shrink-0 ${
-                          STATUS_COLORS[claim.status || ""] || "text-outline"
-                        }`}
-                      >
-                        {STATUS_WORDS[claim.status || ""] || "Untested"}
-                      </span>
-                    </div>
-                    {briefReason && (
-                      <p className="mt-2 font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-                        <SerpApiText text={cleanUiText(briefReason)} />
-                      </p>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        <>
+          <hr className="border-t border-outline-variant" />
+          <div className="space-y-space-3">
+            <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
+              {otherFailedClaims.length} more claim{otherFailedClaims.length > 1 ? "s" : ""} didn't hold
+            </h3>
+            <ul className="space-y-space-3">
+              {otherFailedClaims.map((claim) => {
+                const briefReason = getBriefFailureReason(claim);
+                return (
+                  <li key={claim.id}>
+                    <button
+                      type="button"
+                      onClick={() => onSelectClaim(claim.id)}
+                      className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-4 py-space-4 hover:bg-surface-container-high transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between gap-space-3">
+                        <span className="font-body-md text-[15px] leading-[1.6] text-on-surface">
+                          <SerpApiText text={cleanUiText(claim.statement)} />
+                        </span>
+                        <span
+                          className={`font-body-sm text-[14px] font-semibold shrink-0 pt-0.5 ${
+                            STATUS_COLORS[claim.status || ""] || "text-outline"
+                          }`}
+                        >
+                          {STATUS_WORDS[claim.status || ""] || "Untested"}
+                        </span>
+                      </div>
+                      {briefReason && (
+                        <p className="mt-2 font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                          <SerpApiText text={cleanUiText(briefReason)} />
+                        </p>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </>
       )}
     </section>
   );

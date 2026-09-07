@@ -27,7 +27,7 @@ export const DashboardScreen: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<"all" | "needs_attention" | "passed">("all");
   const [sortBy, setSortBy] = useState<ClaimSortOption>("criticality");
   const [copiedMemo, setCopiedMemo] = useState(false);
-  const [claimsOpen, setClaimsOpen] = useState(false);
+  const [claimsOpen, setClaimsOpen] = useState(true);
 
   const currentCase = state.currentCase;
   const isTesting = state.isStreaming || currentCase?.status === "testing";
@@ -181,15 +181,18 @@ export const DashboardScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setClaimsOpen((open) => !open)}
-              className="w-full flex items-center gap-space-2 pt-space-4 border-t border-outline-variant font-code-sm text-code-sm text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+              className="w-full flex items-center justify-between pt-space-6 pb-space-2 border-t border-outline-variant font-title-sm text-title-sm text-on-surface hover:text-primary-container transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[16px]">
-                {claimsOpen ? "expand_less" : "expand_more"}
-              </span>
               <span>
                 {claimsOpen
                   ? "Hide all claims"
                   : `All ${totalClaims} claims (${survivedCount} held up)`}
+              </span>
+              <span 
+                className="material-symbols-outlined text-[20px] transition-transform duration-200"
+                style={{ transform: claimsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+              >
+                expand_more
               </span>
             </button>
           )}
