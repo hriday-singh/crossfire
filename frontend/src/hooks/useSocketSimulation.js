@@ -232,6 +232,7 @@ const B2B_COPILOT_SCENARIO = {
       verdict: 'weakened',
       dialogue: 'Crucible Magistrate Verdict: Decision is WEAKENED. 1 claim survived, 2 weakened, 1 broken.',
       audio_url: null,
+      isSynthesisDone: true,
     },
     {
       speaker_id: 'steelman',
@@ -242,6 +243,7 @@ const B2B_COPILOT_SCENARIO = {
       verdict: null,
       dialogue: null,
       audio_url: null,
+      isSynthesisDone: true,
     },
   ],
 };
@@ -428,6 +430,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
       verdict: 'survived',
       dialogue: 'Crucible Magistrate Verdict: Pipeline Feasibility SURVIVED. 3 claims survived, 1 weakened.',
       audio_url: null,
+      isSynthesisDone: true,
     },
     {
       speaker_id: 'steelman',
@@ -438,6 +441,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
       verdict: null,
       dialogue: null,
       audio_url: null,
+      isSynthesisDone: true,
     },
   ],
 };
@@ -455,7 +459,11 @@ export const MOCK_SCENARIOS = {
  * Supports dual mode: live WebSocket connection via socket.io-client
  * and rich mock playback simulation with step, auto-play, custom packets, and scenario switching.
  */
-export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http://localhost:4000' } = {}) {
+export function useSocketSimulation({
+  onEventReceived,
+  initialSocketUrl = 'http://localhost:4000',
+  selectedAgentIds = null,
+} = {}) {
   const [socketUrl, setSocketUrl] = useState(initialSocketUrl);
   const [connectionStatus, setConnectionStatus] = useState('mock_mode'); // 'mock_mode' | 'connecting' | 'connected' | 'error'
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
@@ -484,6 +492,17 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
     setEventHistory((prev) => [enriched, ...prev.slice(0, 49)]); // Keep last 50 events
     onEventReceivedRef.current?.(enriched);
   }, []);
+
+  // Filter scenario events by selected agents
+  const getFilteredEvents = useCallback(() => {
+    const scenario = MOCK_SCENARIOS[currentScenarioKey];
+    if (!scenario || !scenario.events) return [];
+    if (!selectedAgentIds || selectedAgentIds.length === 0) return scenario.events;
+    return scenario.events.filter((packet) => {
+      if (packet.speaker_id === 'steelman') return true;
+      return selectedAgentIds.includes(packet.speaker_id);
+    });
+  }, [currentScenarioKey, selectedAgentIds]);
 
   // Connect to live WebSocket server if requested
   const connectSocket = useCallback((url) => {
@@ -542,16 +561,16 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
 
   // Step forward in current scenario
   const stepForward = useCallback(() => {
-    const scenario = MOCK_SCENARIOS[currentScenarioKey];
-    if (!scenario || scenario.events.length === 0) return;
+    const events = getFilteredEvents();
+    if (!events || events.length === 0) return;
 
     setEventIndex((prevIndex) => {
-      const nextIndex = (prevIndex + 1) % scenario.events.length;
-      const packet = scenario.events[prevIndex];
+      const nextIndex = (prevIndex + 1) % events.length;
+      const packet = events[prevIndex % events.length];
       dispatchEvent(packet);
       return nextIndex;
     });
-  }, [currentScenarioKey, dispatchEvent]);
+  }, [getFilteredEvents, dispatchEvent]);
 
   // Restart scenario
   const resetScenario = useCallback(() => {
@@ -565,20 +584,22 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
       { speaker_id: 'steelman', target: 'steelman_chair' },
     ];
     homeBots.forEach((b) => {
-      dispatchEvent({
-        speaker_id: b.speaker_id,
-        action: 'sit',
-        target: b.target,
-        gesture: 'idle',
-      });
+      if (b.speaker_id === 'steelman' || !selectedAgentIds || selectedAgentIds.includes(b.speaker_id)) {
+        dispatchEvent({
+          speaker_id: b.speaker_id,
+          action: 'sit',
+          target: b.target,
+          gesture: 'idle',
+        });
+      }
     });
 
-    const scenario = MOCK_SCENARIOS[currentScenarioKey];
-    if (scenario && scenario.events.length > 0) {
-      dispatchEvent(scenario.events[0]);
+    const events = getFilteredEvents();
+    if (events && events.length > 0) {
+      dispatchEvent(events[0]);
       setEventIndex(1);
     }
-  }, [currentScenarioKey, dispatchEvent]);
+  }, [getFilteredEvents, dispatchEvent, selectedAgentIds]);
 
   // Handle auto-play loop for mock simulation
   useEffect(() => {
@@ -590,11 +611,11 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
       return;
     }
 
-    const scenario = MOCK_SCENARIOS[currentScenarioKey];
-    if (!scenario || scenario.events.length === 0) return;
+    const events = getFilteredEvents();
+    if (!events || events.length === 0) return;
 
     // Delay varies based on action type (walk takes longer than quick gesture)
-    const currentPacket = scenario.events[eventIndex % scenario.events.length];
+    const currentPacket = events[eventIndex % events.length];
     let baseDelay = 900;
     if (currentPacket.action === 'walk_to') {
       baseDelay = 1100;
@@ -616,16 +637,19 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
         timerRef.current = null;
       }
     };
-  }, [connectionStatus, isAutoPlaying, eventIndex, currentScenarioKey, playbackSpeed, stepForward]);
+  }, [connectionStatus, isAutoPlaying, eventIndex, playbackSpeed, stepForward, getFilteredEvents]);
 
   // Trigger initial event on mount if in mock mode
   useEffect(() => {
     if (connectionStatus === 'mock_mode' && eventHistory.length === 0) {
-      const initialPacket = MOCK_SCENARIOS.safety_review.events[0];
-      dispatchEvent(initialPacket);
-      setEventIndex(1);
+      const events = getFilteredEvents();
+      const initialPacket = events[0] || MOCK_SCENARIOS.safety_review.events[0];
+      if (initialPacket) {
+        dispatchEvent(initialPacket);
+        setEventIndex(1);
+      }
     }
-  }, [connectionStatus, eventHistory.length, dispatchEvent]);
+  }, [connectionStatus, eventHistory.length, dispatchEvent, getFilteredEvents]);
 
   // Trigger a custom or manual event directly
   const triggerManualEvent = useCallback((customPacket) => {

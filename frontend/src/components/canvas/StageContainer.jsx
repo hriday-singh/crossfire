@@ -31,6 +31,8 @@ const hasWebGL = typeof window !== 'undefined' && (() => {
  */
 export function StageContainer({
   agents = [],
+  selectedAgentIds = null,
+  isSynthesisDone = false,
   characterPositions = {},
   currentActionPacket = null,
   activeSpeakerId = null,
@@ -72,12 +74,15 @@ export function StageContainer({
               activeSpeakerId={activeSpeakerId}
               hoveredAgentId={hoveredAgentId}
               isSteelmanExiting={isSteelmanExiting}
+              selectedAgentIds={selectedAgentIds}
             />
 
             {/* Crucible Arbiter (Steelman) presiding at the center bench */}
             <DevilBotSprite
               key="steelman"
               agent={STEELMAN_CONFIG}
+              isSelected={true}
+              isSynthesisDone={isSynthesisDone}
               characterPositions={characterPositions}
               currentActionPacket={currentActionPacket?.speaker_id === 'steelman' ? currentActionPacket : null}
               isSpeaking={activeSpeakerId === 'steelman'}
@@ -88,19 +93,23 @@ export function StageContainer({
             />
 
             {/* Dynamic AI Evaluator Avatars at their dedicated cubicles */}
-            {agents.map((agent) => (
-              <DevilBotSprite
-                key={agent.id}
-                agent={agent}
-                characterPositions={characterPositions}
-                currentActionPacket={currentActionPacket}
-                isSpeaking={activeSpeakerId === agent.id}
-                isHovered={hoveredAgentId === agent.id}
-                onHover={onHoverAgent}
-                onPositionUpdate={onPositionUpdate}
-                playSfx={playSfx}
-              />
-            ))}
+            {agents.map((agent) => {
+              const isSelected = selectedAgentIds ? selectedAgentIds.includes(agent.id) : true;
+              return (
+                <DevilBotSprite
+                  key={agent.id}
+                  agent={agent}
+                  isSelected={isSelected}
+                  characterPositions={characterPositions}
+                  currentActionPacket={isSelected ? currentActionPacket : null}
+                  isSpeaking={isSelected && activeSpeakerId === agent.id}
+                  isHovered={hoveredAgentId === agent.id}
+                  onHover={onHoverAgent}
+                  onPositionUpdate={onPositionUpdate}
+                  playSfx={playSfx}
+                />
+              );
+            })}
           </pixiContainer>
         </Application>
       ) : (

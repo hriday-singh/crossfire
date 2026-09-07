@@ -290,4 +290,84 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
     // Should not dispatch additional actions while paused
     expect(onDispatchPacket).not.toHaveBeenCalled();
   });
+
+  it('filters out events for evaluators that are not in selectedAgentIds so they stay stationary', () => {
+    const onDispatchPacket = vi.fn();
+    const caseData: Case = {
+      id: 'case_unselected_test',
+      raw_input: 'Self-driving delivery bots',
+      context: null,
+      claims: [{ id: 'claim_1', statement: 'Autonomous navigation in snow', load_bearing: true, status: null }],
+      test_plan: [],
+      findings: [
+        {
+          claim_id: 'claim_1',
+          test_id: 'test_1',
+          evaluator: 'builder',
+          result: 'LiDAR sensors freeze in blizzards.',
+          evidence: [],
+          reasoning: 'Hardware limitation',
+          confidence: 0.9,
+          contradiction: null,
+        },
+        {
+          claim_id: 'claim_1',
+          test_id: 'test_2',
+          evaluator: 'operator',
+          result: 'City municipal bans on snow sidewalk bots.',
+          evidence: [],
+          reasoning: 'Governance friction',
+          confidence: 0.85,
+          contradiction: null,
+        },
+      ],
+      consequences: [],
+      case_verdict: {
+        decision_state: 'drop',
+        summary: 'Cannot operate in winter snow without heated LiDAR and city permits.',
+        survived: [],
+        broken: ['claim_1'],
+        unproven: [],
+        next_actions: [],
+      },
+      status: 'done',
+      selected_agents: ['builder'], // Only builder selected; operator is NOT selected
+    };
+
+    const { result } = renderHook(
+      () => useBackendLiveBridge({ onDispatchPacket, selectedAgentIds: ['builder'] }),
+      {
+        wrapper: ({ children }) => (
+          <CaseProvider>
+            <LoadCase caseData={caseData} />
+            {children}
+          </CaseProvider>
+        ),
+      }
+    );
+
+    // Replay findings in bullpen
+    act(() => {
+      result.current.replayCaseInBullpen();
+    });
+
+    // Advance time for builder actions
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    // Builder was dispatched
+    expect(onDispatchPacket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        speaker_id: 'builder',
+      })
+    );
+
+    // Operator was NOT selected, so operator was NOT dispatched
+    expect(onDispatchPacket).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        speaker_id: 'operator',
+      })
+    );
+  });
 });

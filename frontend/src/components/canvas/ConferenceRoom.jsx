@@ -11,7 +11,7 @@ import {
  * Renders the high-resolution isometric floor plan from public/flplan.webp
  * and provides interactive station illumination when an evaluator or Steelman is active or hovered.
  */
-export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isSteelmanExiting = false }) {
+export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isSteelmanExiting = false, selectedAgentIds = null }) {
   const [floorTexture, setFloorTexture] = useState(() => {
     try {
       return Texture.from('/bg.png');
@@ -41,10 +41,11 @@ export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isSteelmanExit
 
       // 1. Cubicle highlights on hover or when actively testing
       CUBICLE_LAYOUTS.forEach((c) => {
+        const isSelected = selectedAgentIds ? selectedAgentIds.includes(c.agentId) : true;
         const isHovered = hoveredAgentId === c.agentId;
         const isActive = activeSpeakerId === c.agentId;
 
-        if (isHovered || isActive) {
+        if (isSelected && (isHovered || isActive)) {
           const { x, y, width, height } = c.bounds;
           // Outer subtle aura
           g.roundRect(x - 4, y - 4, width + 8, height + 8, 12).stroke({

@@ -274,6 +274,8 @@ export function getPathPoints(startX, startY, targetWp) {
 
 export function DevilBotSprite({
   agent,
+  isSelected = true,
+  isSynthesisDone = false,
   characterPositions = {},
   currentActionPacket = null,
   isSpeaking = false,
@@ -351,11 +353,37 @@ export function DevilBotSprite({
 
   // Handle incoming AI Action Packets
   useEffect(() => {
+    // If agent is not selected, remain completely stationary at initial desk position
+    if (!isSelected) {
+      if (walkTweenRef.current) walkTweenRef.current.kill();
+      posRef.current.x = initialWp.x;
+      posRef.current.y = initialWp.y;
+      posRef.current.facing = initialFacing;
+      setPos({
+        x: initialWp.x,
+        y: initialWp.y,
+        facing: initialFacing,
+        state: 'idle',
+      });
+      return;
+    }
+
     if (!currentActionPacket || currentActionPacket.speaker_id !== agent.id) return;
     if (currentActionPacket.id && currentActionPacket.id === lastProcessedPacketIdRef.current) return;
     lastProcessedPacketIdRef.current = currentActionPacket.id;
 
     const { action, target } = currentActionPacket;
+
+    // Restriction: Only let Steelman continue with exit animation when synthesis is done
+    if (agent.id === 'steelman' && action === 'walk_to' && (target === 'right_door' || target === 'right_door_exit')) {
+      const packetHasSynthesisDone =
+        currentActionPacket.isSynthesisDone ||
+        currentActionPacket.stage?.includes('Synthesis') ||
+        currentActionPacket.stage?.includes('Synthesis Complete');
+      if (!isSynthesisDone && !packetHasSynthesisDone) {
+        return; // Retain seated posture at crucible chair until synthesis is delivered
+      }
+    }
 
     // Actions that move the bot
     if (action === 'walk_to' && target) {
@@ -572,10 +600,11 @@ export function DevilBotSprite({
       x={pos.x}
       y={pos.y}
       zIndex={zIndex}
-      eventMode="static"
-      cursor="pointer"
-      onpointerenter={() => onHover?.(agent.id)}
-      onpointerleave={() => onHover?.(null)}
+      alpha={isSelected ? 1 : 0.35}
+      eventMode={isSelected ? 'static' : 'none'}
+      cursor={isSelected ? 'pointer' : 'default'}
+      onpointerenter={() => isSelected && onHover?.(agent.id)}
+      onpointerleave={() => isSelected && onHover?.(null)}
     >
       <pixiGraphics ref={graphicsRef} />
       <pixiAnimatedSprite

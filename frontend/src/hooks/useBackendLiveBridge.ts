@@ -36,12 +36,14 @@ interface UseBackendLiveBridgeProps {
   onDispatchPacket?: (packet: any) => void;
   isPaused?: boolean;
   playbackSpeed?: number;
+  selectedAgentIds?: string[] | null;
 }
 
 export function useBackendLiveBridge({
   onDispatchPacket,
   isPaused = false,
   playbackSpeed = 1.5,
+  selectedAgentIds = null,
 }: UseBackendLiveBridgeProps = {}) {
   const { state } = useCase();
   const currentCase = state.currentCase;
@@ -51,6 +53,14 @@ export function useBackendLiveBridge({
   const processedEventIdsRef = useRef<Set<string>>(new Set());
   const lastCaseIdRef = useRef<string | null>(null);
   const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
+
+  const isAgentSelected = useCallback((agentId: string) => {
+    if (agentId === 'steelman') return true;
+    const list = selectedAgentIds || currentCase?.selected_agents || null;
+    if (!list || list.length === 0) return true;
+    const norm = normalizeEvaluatorId(agentId);
+    return list.some((id) => normalizeEvaluatorId(id) === norm);
+  }, [selectedAgentIds, currentCase?.selected_agents]);
 
   const dispatchPacket = useCallback((packet: any) => {
     onDispatchPacket?.(packet);
@@ -102,6 +112,7 @@ export function useBackendLiveBridge({
         if (event === 'test_started') {
           // 1. test_started: Fired when an evaluator begins testing a specific claim
           const agentId = normalizeEvaluatorId(String(data.evaluator || data.failure_mode || ''));
+          if (!isAgentSelected(agentId)) return;
           const desk = AGENT_HOME_DESKS[agentId] || 'cubicle_1_desk';
           const targetClaimId = data.target_claim_id || data.claim_id;
           const claimStatement =
@@ -138,6 +149,7 @@ export function useBackendLiveBridge({
             : data.tag
             ? normalizeEvaluatorId(String(data.tag))
             : 'devils_advocate';
+          if (agentId !== 'steelman' && !isAgentSelected(agentId)) return;
           const desk = AGENT_HOME_DESKS[agentId] || 'cubicle_1_desk';
           const cognitiveTag = data.tag || getCognitiveTag(agentId);
 
@@ -169,6 +181,7 @@ export function useBackendLiveBridge({
           // 4. finding_ready: Evaluator completes LLM evaluation and walks to steelman table
           const finding: any = data.finding || data;
           const agentId = normalizeEvaluatorId(String(finding.evaluator || data.evaluator || ''));
+          if (!isAgentSelected(agentId)) return;
           const desk = AGENT_HOME_DESKS[agentId] || 'cubicle_1_desk';
 
           const confidenceVal = typeof finding.confidence === 'number' ? finding.confidence : 0.5;
@@ -271,9 +284,10 @@ export function useBackendLiveBridge({
             stage: `Crucible Synthesis: ${String(decisionState).toUpperCase()}`,
             verdict: decisionState,
             dialogue: verdict.summary || verdict.headline || 'Crucible synthesis verdict delivered.',
+            isSynthesisDone: true,
           });
 
-          // Steelman leaves the judge room when live investigation reaches synthesis
+          // Steelman leaves the judge room ONLY when synthesis is completed
           addTimer(() => {
             dispatchPacket({
               speaker_id: 'steelman',
@@ -281,6 +295,7 @@ export function useBackendLiveBridge({
               target: 'right_door',
               stage: 'Synthesis Complete // Exiting Chamber',
               thought: 'Adjudication synthesis completed. Exiting chamber...',
+              isSynthesisDone: true,
             });
           }, Math.round(2500 * speedMultiplier));
         } else if (event === 'run_complete') {
@@ -332,6 +347,7 @@ export function useBackendLiveBridge({
 
     findings.forEach((finding: any, idx) => {
       const agentId = normalizeEvaluatorId(finding.evaluator);
+      if (!isAgentSelected(agentId)) return;
       const desk = AGENT_HOME_DESKS[agentId] || 'cubicle_1_desk';
       const targetClaim = claims.find((c: any) => c.id === finding.claim_id);
       const claimText = targetClaim?.statement || 'Target Claim';
@@ -434,6 +450,7 @@ export function useBackendLiveBridge({
           stage: `Crucible Synthesis: ${String(verdict.decision_state || 'proceed').toUpperCase()}`,
           verdict: verdict.decision_state || 'drop',
           dialogue: verdict.summary || verdict.headline || 'All findings reconciled.',
+          isSynthesisDone: true,
         });
 
         addTimer(() => {
@@ -443,6 +460,7 @@ export function useBackendLiveBridge({
             target: 'right_door',
             stage: 'Synthesis Complete // Exiting Chamber',
             thought: 'All findings reconciled. Exiting chamber...',
+            isSynthesisDone: true,
           });
           setIsReplaying(false);
         }, Math.round(2500 * speedMultiplier));
@@ -450,7 +468,7 @@ export function useBackendLiveBridge({
     } else {
       addTimer(() => setIsReplaying(false), totalOffset);
     }
-  }, [currentCase, dispatchPacket, playbackSpeed, addTimer, clearAllTimers]);
+  }, [currentCase, dispatchPacket, playbackSpeed, addTimer, clearAllTimers, isAgentSelected]);
 
   return {
     isLiveBackendActive: isStreaming || currentCase?.status === 'testing',

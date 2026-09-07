@@ -98,4 +98,72 @@ describe('DevilBotSprite', () => {
       expect(sprite?.getAttribute('initialframe') || sprite?.getAttribute('initialFrame')).toBe('4');
     });
   });
+
+  it('keeps agent stationary at desk and ignores walk actions when isSelected is false', async () => {
+    const onPositionUpdate = vi.fn();
+    const mockWalkPacket = {
+      id: 'packet_walk_1',
+      speaker_id: 'builder',
+      action: 'walk_to',
+      target: 'steelman_approach',
+    };
+
+    const { rerender } = render(
+      <DevilBotSprite
+        agent={{ id: 'builder', initialWaypoint: 'cubicle_1_desk' }}
+        isSelected={false}
+        currentActionPacket={mockWalkPacket}
+        onPositionUpdate={onPositionUpdate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onPositionUpdate).toHaveBeenCalledWith('builder', expect.any(Number), expect.any(Number));
+    });
+
+    // Rerender with incoming walk packet while unselected
+    rerender(
+      <DevilBotSprite
+        agent={{ id: 'builder', initialWaypoint: 'cubicle_1_desk' }}
+        isSelected={false}
+        currentActionPacket={{ ...mockWalkPacket, id: 'packet_walk_2' }}
+        onPositionUpdate={onPositionUpdate}
+      />
+    );
+
+    // Initial position was called, but no walk tween to steelman_approach occurred
+    const calls = onPositionUpdate.mock.calls;
+    expect(calls[0][0]).toBe('builder');
+  });
+
+  it('only allows Steelman to exit chamber when isSynthesisDone is true', async () => {
+    const mockExitPacket = {
+      id: 'steelman_exit_1',
+      speaker_id: 'steelman',
+      action: 'walk_to',
+      target: 'right_door',
+    };
+
+    // When isSynthesisDone is false
+    const { rerender } = render(
+      <DevilBotSprite
+        agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }}
+        isSynthesisDone={false}
+        currentActionPacket={mockExitPacket}
+      />
+    );
+
+    await waitFor(() => {
+      expect(PIXI.Assets.load).toHaveBeenCalledWith('/judge_thing.webp');
+    });
+
+    // When isSynthesisDone is true
+    rerender(
+      <DevilBotSprite
+        agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }}
+        isSynthesisDone={true}
+        currentActionPacket={{ ...mockExitPacket, id: 'steelman_exit_2', isSynthesisDone: true }}
+      />
+    );
+  });
 });

@@ -62,6 +62,8 @@ export function DiscussionApp() {
     playSfx,
   } = useAudioPlayback();
 
+  const selectedAgentIds = currentCase?.selected_agents || null;
+
   // Position update callback from CharacterSprite GSAP tweens
   const handlePositionUpdate = useCallback((agentId, x, y) => {
     setCharacterPositions((prev) => ({
@@ -69,20 +71,30 @@ export function DiscussionApp() {
       [agentId]: { x, y },
     }));
 
-    // If Steelman reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation
+    // If Steelman reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation ONLY when synthesis is done
     if (agentId === 'steelman' && x >= 840 && !exitTriggeredRef.current) {
-      exitTriggeredRef.current = true;
-      setIsPageTransitionActive(true);
+      const isDone = currentCase?.status === 'done' || !!currentCase?.case_verdict;
+      if (isDone) {
+        exitTriggeredRef.current = true;
+        setIsPageTransitionActive(true);
+      }
     }
-  }, []);
+  }, [currentCase?.status, currentCase?.case_verdict]);
 
   // Event received handler from Socket or Mock simulation runner
   const handleEventReceived = useCallback((eventPacket) => {
     const speakerId = eventPacket.speaker_id;
 
-    // Detect Steelman exit event
+    // Detect Steelman exit event - strictly when synthesis is done
     if (speakerId === 'steelman' && eventPacket.target === 'right_door') {
-      setIsSteelmanExiting(true);
+      const isDone =
+        currentCase?.status === 'done' ||
+        !!currentCase?.case_verdict ||
+        eventPacket.isSynthesisDone ||
+        eventPacket.stage?.includes('Synthesis');
+      if (isDone) {
+        setIsSteelmanExiting(true);
+      }
     }
 
     // Cache latest telemetry, thought & finding per evaluator for real-time thought bubbles and hover inspection
@@ -115,7 +127,7 @@ export function DiscussionApp() {
       setActiveSpeakerId(speakerId);
       setTimeout(() => setActiveSpeakerId(null), 800);
     }
-  }, [playSpeech]);
+  }, [playSpeech, currentCase?.status, currentCase?.case_verdict]);
 
   // Socket & Mock Simulation Engine
   const {
@@ -138,6 +150,7 @@ export function DiscussionApp() {
     triggerManualEvent,
   } = useSocketSimulation({
     onEventReceived: handleEventReceived,
+    selectedAgentIds: selectedAgentIds,
   });
 
   // GSAP Playback Speed scaling across all sprite animations
@@ -163,6 +176,7 @@ export function DiscussionApp() {
     onDispatchPacket: triggerManualEvent,
     isPaused: !isAutoPlaying,
     playbackSpeed: playbackSpeed || 1.5,
+    selectedAgentIds: selectedAgentIds,
   });
 
   // Handle transition completion to navigate to the Decision Memo / Dashboard screen
@@ -180,6 +194,13 @@ export function DiscussionApp() {
   const caseStatus = currentCase?.status;
   const isFinished = caseStatus === 'done' && !isLiveBackendActive;
   const isTesting = isLiveBackendActive || caseStatus === 'testing';
+  const isSynthesisDone =
+    isFinished ||
+    !!currentCase?.case_verdict ||
+    lastEvent?.isSynthesisDone ||
+    lastEvent?.stage?.includes('Crucible Synthesis') ||
+    lastEvent?.stage?.includes('Synthesis Complete') ||
+    false;
 
   const claimsCount = currentCase?.claims?.length || 0;
   const findingsCount = currentCase?.findings?.length || 0;
@@ -346,6 +367,8 @@ export function DiscussionApp() {
 
           <StageContainer
             agents={AGENT_CONFIGS}
+            selectedAgentIds={selectedAgentIds}
+            isSynthesisDone={isSynthesisDone}
             characterPositions={characterPositions}
             currentActionPacket={lastEvent}
             activeSpeakerId={activeSpeakerId}
