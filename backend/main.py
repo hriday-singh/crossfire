@@ -88,6 +88,24 @@ async def http_status_exception_handler(request: Request, exc: httpx.HTTPStatusE
 
 
 
+@app.get("/")
+def root():
+    active = keyring.get_active_provider()
+    config = keyring.get_config(active)
+    return {
+        "status": "live",
+        "service": "Crossfire API",
+        "provider": active,
+        "model": config.model,
+        "endpoints": {
+            "health": "/health",
+            "ready": "/ready",
+            "docs": "/docs",
+            "cases": "/cases",
+        },
+    }
+
+
 @app.get("/health")
 @app.get("/ready")
 def health_check():
