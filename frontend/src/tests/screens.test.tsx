@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from "@testing-library/react";
 import { EntryScreen } from "@/components/screens/EntryScreen";
 import { ConfirmScreen } from "@/components/screens/ConfirmScreen";
 import { DashboardScreen } from "@/components/screens/DashboardScreen";
@@ -14,26 +20,35 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      expect(screen.getByPlaceholderText(/customer support to a fine tuned LLM/i)).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText(/customer support to a fine tuned LLM/i),
+      ).toBeInTheDocument();
       const submitBtn = screen.getByRole("button", { name: /Test Decision/i });
       expect(submitBtn).toBeInTheDocument();
-      expect(submitBtn).toHaveClass("bg-primary-container", "hover:bg-blue-600", "text-white");
+      expect(submitBtn).toHaveClass(
+        "bg-primary-container",
+        "hover:bg-blue-600",
+        "text-white",
+      );
+      expect(screen.getByText("(Optional)")).toBeInTheDocument();
     });
 
     it("populates textarea when clicking a preset button", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       const edTechPreset = screen.getByText("College Admissions AI Agent");
       fireEvent.click(edTechPreset);
 
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i) as HTMLTextAreaElement;
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      ) as HTMLTextAreaElement;
       expect(textarea.value).toContain("apply to college");
     });
 
@@ -41,15 +56,17 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       const codeReviewPreset = screen.getByText("AI code review gating PRs");
       fireEvent.click(codeReviewPreset);
 
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i) as HTMLTextAreaElement;
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      ) as HTMLTextAreaElement;
       expect(textarea.value).toBe(
-        "Require automated LLM code reviews to block pull requests before human review."
+        "Require automated LLM code reviews to block pull requests before human review.",
       );
     });
 
@@ -57,18 +74,22 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       expect(
-        screen.getByRole("heading", { name: /What decision are you testing\?/i })
+        screen.getByRole("heading", {
+          name: /What decision are you testing\?/i,
+        }),
       ).toBeInTheDocument();
       expect(screen.queryByText("Decision Proposal")).not.toBeInTheDocument();
       expect(
-        screen.queryByText(/Describe your proposal or strategic assumption/i)
+        screen.queryByText(/Describe your proposal or strategic assumption/i),
       ).not.toBeInTheDocument();
       expect(screen.getByText("Grounded by SerpAPI")).toBeInTheDocument();
-      expect(screen.queryByText("Real-time Web Grounding")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Real-time Web Grounding"),
+      ).not.toBeInTheDocument();
     });
 
     it("handles PDF document upload and displays attachment pill", async () => {
@@ -80,13 +101,17 @@ describe("Screen Components", () => {
       const { container } = render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+      const fileInput = container.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
       expect(fileInput).toBeInTheDocument();
 
-      const file = new File(["dummy binary pdf"], "memo.pdf", { type: "application/pdf" });
+      const file = new File(["dummy binary pdf"], "memo.pdf", {
+        type: "application/pdf",
+      });
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [file] } });
       });
@@ -105,17 +130,23 @@ describe("Screen Components", () => {
 
     it("displays error alert when PDF ingestion fails", async () => {
       vi.spyOn(api, "ingestPdf").mockRejectedValueOnce(
-        new Error("Scanned or image-only PDF detected: no extractable text found. OCR is not supported.")
+        new Error(
+          "Scanned or image-only PDF detected: no extractable text found. OCR is not supported.",
+        ),
       );
 
       const { container } = render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
-      const file = new File(["scanned image"], "scanned.pdf", { type: "application/pdf" });
+      const fileInput = container.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
+      const file = new File(["scanned image"], "scanned.pdf", {
+        type: "application/pdf",
+      });
 
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [file] } });
@@ -123,27 +154,35 @@ describe("Screen Components", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
-          /Unable to read text from "scanned\.pdf"/i
+          /Unable to read text from "scanned\.pdf"/i,
         );
       });
     });
 
     it("handles image screenshot upload via ingestImage and displays pill", async () => {
-      const ingestImageSpy = vi.spyOn(api, "ingestImage").mockResolvedValueOnce({
-        context: "Extracted screenshot analytics from chart",
-        character_count: 820,
-      });
+      const ingestImageSpy = vi
+        .spyOn(api, "ingestImage")
+        .mockResolvedValueOnce({
+          context: "Extracted screenshot analytics from chart",
+          character_count: 820,
+        });
 
       const { container } = render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+      const fileInput = container.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
       expect(fileInput).toBeInTheDocument();
 
-      const file = new File(["dummy image png bytes"], "dashboard_metrics.png", { type: "image/png" });
+      const file = new File(
+        ["dummy image png bytes"],
+        "dashboard_metrics.png",
+        { type: "image/png" },
+      );
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [file] } });
       });
@@ -151,31 +190,45 @@ describe("Screen Components", () => {
       expect(ingestImageSpy).toHaveBeenCalledWith(file);
       await waitFor(() => {
         expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByText(/Screenshot: dashboard_metrics\.png/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/Screenshot: dashboard_metrics\.png/i),
+        ).toBeInTheDocument();
       });
 
       // Remove attachment
-      const removeBtn = screen.getByLabelText(/Remove attachment Screenshot: dashboard_metrics\.png/i);
+      const removeBtn = screen.getByLabelText(
+        /Remove attachment Screenshot: dashboard_metrics\.png/i,
+      );
       fireEvent.click(removeBtn);
-      expect(screen.queryByText(/Screenshot: dashboard_metrics\.png/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Screenshot: dashboard_metrics\.png/i),
+      ).not.toBeInTheDocument();
     });
 
     it("handles Markdown file upload via ingestMarkdown and displays pill", async () => {
-      const ingestMdSpy = vi.spyOn(api, "ingestMarkdown").mockResolvedValueOnce({
-        context: "Extracted strategy notes from PRD markdown file",
-        character_count: 540,
-      });
+      const ingestMdSpy = vi
+        .spyOn(api, "ingestMarkdown")
+        .mockResolvedValueOnce({
+          context: "Extracted strategy notes from PRD markdown file",
+          character_count: 540,
+        });
 
       const { container } = render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+      const fileInput = container.querySelector(
+        'input[type="file"]',
+      ) as HTMLInputElement;
       expect(fileInput).toBeInTheDocument();
 
-      const file = new File(["# Product Spec\n\nGoal: Scale auth service"], "spec.md", { type: "text/markdown" });
+      const file = new File(
+        ["# Product Spec\n\nGoal: Scale auth service"],
+        "spec.md",
+        { type: "text/markdown" },
+      );
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [file] } });
       });
@@ -187,7 +240,9 @@ describe("Screen Components", () => {
       });
 
       // Remove attachment
-      const removeBtn = screen.getByLabelText(/Remove attachment Notes: spec\.md/i);
+      const removeBtn = screen.getByLabelText(
+        /Remove attachment Notes: spec\.md/i,
+      );
       fireEvent.click(removeBtn);
       expect(screen.queryByText(/Notes: spec\.md/i)).not.toBeInTheDocument();
     });
@@ -196,13 +251,15 @@ describe("Screen Components", () => {
       const { container } = render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       const dropzone = container.querySelector("#dropzone") as HTMLElement;
       expect(dropzone).toBeInTheDocument();
 
-      const invalidFile = new File(["binary"], "program.exe", { type: "application/octet-stream" });
+      const invalidFile = new File(["binary"], "program.exe", {
+        type: "application/octet-stream",
+      });
       fireEvent.drop(dropzone, {
         dataTransfer: {
           files: [invalidFile],
@@ -211,7 +268,7 @@ describe("Screen Components", () => {
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
-          /Supported formats: PDF documents, screenshots\/images, or text files/i
+          /Supported formats: PDF documents, screenshots\/images, or text files/i,
         );
       });
     });
@@ -220,7 +277,7 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       // Click + Web URL button
@@ -228,7 +285,9 @@ describe("Screen Components", () => {
       fireEvent.click(webUrlToggle);
 
       const urlInput = screen.getByPlaceholderText(/example\.com/i);
-      fireEvent.change(urlInput, { target: { value: "https://techcrunch.com/article" } });
+      fireEvent.change(urlInput, {
+        target: { value: "https://techcrunch.com/article" },
+      });
 
       const attachBtn = screen.getByText("Attach URL");
       await act(async () => {
@@ -246,10 +305,12 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
       await act(async () => {
         fireEvent.paste(textarea, {
           clipboardData: {
@@ -269,15 +330,20 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
 
       // Type proposal containing a web URL followed by space
       await act(async () => {
         fireEvent.change(textarea, {
-          target: { value: "We should adopt this strategy: https://techcrunch.com/article/plg " },
+          target: {
+            value:
+              "We should adopt this strategy: https://techcrunch.com/article/plg ",
+          },
         });
       });
 
@@ -289,7 +355,7 @@ describe("Screen Components", () => {
         expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
         expect(screen.getByText("techcrunch.com")).toBeInTheDocument();
         expect(screen.getByRole("status")).toHaveTextContent(
-          /Web URL techcrunch\.com/i
+          /Web URL techcrunch\.com/i,
         );
       });
     });
@@ -298,10 +364,12 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
 
       // Type standalone web URL followed by space
       await act(async () => {
@@ -324,13 +392,16 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
 
       // Paste text that exceeds 500 characters
-      const longText = "Strategic memo detailing enterprise adoption trends. ".repeat(20);
+      const longText =
+        "Strategic memo detailing enterprise adoption trends. ".repeat(20);
       await act(async () => {
         fireEvent.paste(textarea, {
           clipboardData: {
@@ -340,14 +411,18 @@ describe("Screen Components", () => {
       });
 
       // Verify proposal input receives first 500 characters
-      expect((textarea as HTMLTextAreaElement).value).toBe(longText.slice(0, 500));
+      expect((textarea as HTMLTextAreaElement).value).toBe(
+        longText.slice(0, 500),
+      );
 
       // Verify the ENTIRE pasted text became a context block attachment
       await waitFor(() => {
         expect(screen.getByTestId("attachment-bar")).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: /^Context Block #1$/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: /^Context Block #1$/i }),
+        ).toBeInTheDocument();
         expect(screen.getByRole("status")).toHaveTextContent(
-          /First 500 characters placed in proposal.*attached as context block/i
+          /First 500 characters placed in proposal.*attached as context block/i,
         );
       });
     });
@@ -356,11 +431,13 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       const runBtn = screen.getByRole("button", { name: /Test Decision/i });
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
 
       // Initially empty (0 characters)
       expect(runBtn).toBeDisabled();
@@ -382,18 +459,22 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       const runBtn = screen.getByRole("button", { name: /Test Decision/i });
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
 
       // 6 characters
       fireEvent.change(textarea, { target: { value: "abcdef" } });
       expect(runBtn).not.toBeDisabled();
 
       // Valid proposal
-      fireEvent.change(textarea, { target: { value: "We should pivot to enterprise sales" } });
+      fireEvent.change(textarea, {
+        target: { value: "We should pivot to enterprise sales" },
+      });
       expect(runBtn).not.toBeDisabled();
     });
 
@@ -401,10 +482,12 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
 
       // Initially empty: should say "0 characters", NOT "0 / 500 characters"
       expect(screen.getByText("0 characters")).toBeInTheDocument();
@@ -431,17 +514,20 @@ describe("Screen Components", () => {
       render(
         <CaseProvider>
           <EntryScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       const runBtn = screen.getByRole("button", { name: /Test Decision/i });
-      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i);
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      );
 
       // Initially empty -> disabled
       expect(runBtn).toBeDisabled();
 
       // Paste a large text block exceeding 500 characters
-      const largeDoc = "Quarterly business review proposing automated sales. ".repeat(20);
+      const largeDoc =
+        "Quarterly business review proposing automated sales. ".repeat(20);
       await act(async () => {
         fireEvent.paste(textarea, {
           clipboardData: { getData: () => largeDoc },
@@ -474,7 +560,7 @@ describe("Screen Components", () => {
       const { container } = render(
         <CaseProvider>
           <ConfirmScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
 
       // In initial state currentCase is null
@@ -485,52 +571,56 @@ describe("Screen Components", () => {
       const mockConfirm = vi.fn();
       const mockDispatch = vi.fn();
 
-      const useCaseSpy = vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
-        state: {
-          ...INITIAL_STATE,
-          activeScreen: "confirm",
-          currentCase: {
-            id: "case-confirm-1",
-            raw_input: "Launch B2B invoice matching",
-            context: "EU enterprise market",
-            status: "awaiting_confirmation",
-            claims: [
-              {
-                id: "c-1",
-                statement: "Accountants will accept automated reconciliation",
-                load_bearing: true,
-                status: null,
-              },
-            ],
-            test_plan: [],
-            findings: [],
-            consequences: [],
+      const useCaseSpy = vi
+        .spyOn(CaseContextModule, "useCase")
+        .mockReturnValue({
+          state: {
+            ...INITIAL_STATE,
+            activeScreen: "confirm",
+            currentCase: {
+              id: "case-confirm-1",
+              raw_input: "Launch B2B invoice matching",
+              context: "EU enterprise market",
+              status: "awaiting_confirmation",
+              claims: [
+                {
+                  id: "c-1",
+                  statement: "Accountants will accept automated reconciliation",
+                  load_bearing: true,
+                  status: null,
+                },
+              ],
+              test_plan: [],
+              findings: [],
+              consequences: [],
+            },
           },
-        },
-        dispatch: mockDispatch,
-        confirmAndRun: mockConfirm,
-        startExtracting: vi.fn(),
-        selectClaim: vi.fn(),
-        resetCase: vi.fn(),
-        loadPreset: vi.fn(),
-        navigateScreen: vi.fn(),
-        setActiveModal: vi.fn(),
-        refreshCurrentCase: vi.fn(),
-        setDebugMode: vi.fn(),
-        enterPreview: vi.fn(),
-        setPreviewView: vi.fn(),
-        exitPreview: vi.fn(),
-        toggleAgentSelection: vi.fn(),
-        setAgentMode: vi.fn(),
-        setSelectedAgents: vi.fn(),
-        selectModel: vi.fn(),
-      });
+          dispatch: mockDispatch,
+          confirmAndRun: mockConfirm,
+          startExtracting: vi.fn(),
+          selectClaim: vi.fn(),
+          resetCase: vi.fn(),
+          loadPreset: vi.fn(),
+          navigateScreen: vi.fn(),
+          setActiveModal: vi.fn(),
+          refreshCurrentCase: vi.fn(),
+          setDebugMode: vi.fn(),
+          enterPreview: vi.fn(),
+          setPreviewView: vi.fn(),
+          exitPreview: vi.fn(),
+          toggleAgentSelection: vi.fn(),
+          setAgentMode: vi.fn(),
+          setSelectedAgents: vi.fn(),
+          selectModel: vi.fn(),
+        });
 
       render(<ConfirmScreen />);
 
-      expect(screen.getByText(/Launch B2B invoice matching/i)).toBeInTheDocument();
       expect(
-        screen.getByText("Accountants will accept automated reconciliation")
+        screen.getByText(/Launch B2B invoice matching/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Accountants will accept automated reconciliation"),
       ).toBeInTheDocument();
 
       const addBtn = screen.getByRole("button", { name: /Add an assumption/i });
@@ -538,10 +628,15 @@ describe("Screen Components", () => {
       expect(addBtn).toBeInTheDocument();
       expect(agentsSection).toBeInTheDocument();
       expect(
-        Boolean(addBtn.compareDocumentPosition(agentsSection) & Node.DOCUMENT_POSITION_FOLLOWING)
+        Boolean(
+          addBtn.compareDocumentPosition(agentsSection) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+        ),
       ).toBe(true);
 
-      const runBtn = screen.getByRole("button", { name: /Confirm & Run Tests/i });
+      const runBtn = screen.getByRole("button", {
+        name: /Confirm & Run Tests/i,
+      });
       fireEvent.click(runBtn);
       expect(mockConfirm).toHaveBeenCalledTimes(1);
 
@@ -554,7 +649,7 @@ describe("Screen Components", () => {
       const { container } = render(
         <CaseProvider>
           <DashboardScreen />
-        </CaseProvider>
+        </CaseProvider>,
       );
       expect(container).toBeEmptyDOMElement();
     });
@@ -607,7 +702,7 @@ describe("Screen Components", () => {
       render(<DashboardScreen />);
 
       expect(scrollToSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ top: 0 })
+        expect.objectContaining({ top: 0 }),
       );
 
       vi.restoreAllMocks();
@@ -672,7 +767,9 @@ describe("Screen Components", () => {
       render(<DashboardScreen />);
 
       // Expand all claims if collapsed
-      const expandClaimsBtn = screen.queryByRole("button", { name: /all 3 claims/i });
+      const expandClaimsBtn = screen.queryByRole("button", {
+        name: /all 3 claims/i,
+      });
       if (expandClaimsBtn) {
         fireEvent.click(expandClaimsBtn);
       }
@@ -689,7 +786,9 @@ describe("Screen Components", () => {
       expect(screen.getByRole("menu")).toBeInTheDocument();
 
       // Select "Outcome Severity"
-      const severityOption = screen.getByRole("menuitem", { name: /outcome severity/i });
+      const severityOption = screen.getByRole("menuitem", {
+        name: /outcome severity/i,
+      });
       fireEvent.click(severityOption);
 
       // Verify dropdown closed and value updated
@@ -702,7 +801,9 @@ describe("Screen Components", () => {
 
       // Now switch to "Held Up First"
       fireEvent.click(sortTrigger);
-      const passedFirstOption = screen.getByRole("menuitem", { name: /held up first/i });
+      const passedFirstOption = screen.getByRole("menuitem", {
+        name: /held up first/i,
+      });
       fireEvent.click(passedFirstOption);
 
       expect(sortTrigger).toHaveTextContent("Held Up First");
