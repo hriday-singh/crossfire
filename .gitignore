@@ -106,6 +106,7 @@ lerna-debug.log*
 playwright-report/
 test-results/
 downloads/
+calibration/
 
 # ------------------------------------------------------------------------------
 # 5. IDEs, Editors & Developer Tools

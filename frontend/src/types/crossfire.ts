@@ -113,6 +113,29 @@ export interface Case {
   agent_mode?: "auto" | "custom";
   selected_agents?: string[];
   agent_rationales?: Record<string, string>;
+  telemetry?: CaseTelemetry | null;
+}
+
+export interface AgentTokenUsage {
+  agent: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+}
+
+export interface CaseTelemetry {
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+  total_estimated_cost_usd: number;
+  agent_breakdown: AgentTokenUsage[];
+  duration_ms: number;
+}
+
+export interface RetestClaimRequest {
+  action?: "test_salvaged" | "counter_evidence";
+  counter_evidence?: string | null;
 }
 
 // API schema types
@@ -180,6 +203,7 @@ export type SSEEventName =
   | "verdict_ready"
   | "consequence_ready"
   | "case_verdict"
+  | "telemetry_ready"
   | "run_complete"
   | "error"
   | "activity";

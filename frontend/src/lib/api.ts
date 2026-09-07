@@ -322,3 +322,36 @@ export async function getHealth(baseUrl: string = DEFAULT_API_BASE): Promise<Hea
   return (await res.json()) as HealthStatus;
 }
 
+export async function retestClaim(
+  caseId: string,
+  claimId: string,
+  action: "test_salvaged" | "counter_evidence" = "test_salvaged",
+  counterEvidence?: string | null,
+  baseUrl: string = DEFAULT_API_BASE
+): Promise<Case> {
+  const url = `${baseUrl}/cases/${encodeURIComponent(caseId)}/claims/${encodeURIComponent(claimId)}/retest`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action,
+      counter_evidence: counterEvidence || null,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorBody =
+      typeof res.json === "function" ? await res.json().catch(() => null) : null;
+    throw new CrossfireApiError(
+      errorBody?.detail || `Failed to retest claim (${res.status})`,
+      res.status,
+      errorBody
+    );
+  }
+
+  return (await res.json()) as Case;
+}
+
+

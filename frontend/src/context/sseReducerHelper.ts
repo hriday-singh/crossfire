@@ -1,5 +1,6 @@
 import {
   ActivityItem,
+  CaseTelemetry,
   CaseVerdict,
   Claim,
   DecisionConsequence,
@@ -271,6 +272,14 @@ export function handleSSEEvent(
       const verdict = data.case_verdict as CaseVerdict | undefined;
       if (verdict) {
         updatedCase.case_verdict = verdict;
+      }
+      break;
+    }
+
+    case "telemetry_ready": {
+      const telemetry = data.telemetry as CaseTelemetry | undefined;
+      if (telemetry) {
+        updatedCase.telemetry = telemetry;
       }
       break;
     }

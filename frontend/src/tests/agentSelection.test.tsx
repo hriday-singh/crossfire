@@ -43,7 +43,49 @@ describe("AgentSelectorPanel Component", () => {
     expect(handleExpand).toHaveBeenCalledTimes(1);
   });
 
-  it("renders mode choices and masked agent cards when expanded", () => {
+  it("renders all four agents enabled by default in auto mode and jumps to custom on click", () => {
+    const handleModeChange = vi.fn();
+    const handleToggle = vi.fn();
+
+    render(
+      <AgentSelectorPanel
+        agentMode="auto"
+        onAgentModeChange={handleModeChange}
+        selectedAgents={["devils_advocate", "receipts", "builder", "operator"]}
+        onToggleAgent={handleToggle}
+        isExpanded={true}
+        onToggleExpand={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /^Auto \(Recommended\)$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Custom Selection$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Crossfire analyzes your extracted assumption. Automatically select the most relevant test agents.",
+      ),
+    ).toBeInTheDocument();
+
+    // Verify all 4 agents are rendered and checked by default
+    expect(screen.getByText("Devil's Advocate")).toBeInTheDocument();
+    expect(screen.getByText("Researcher")).toBeInTheDocument();
+    expect(screen.getByText("Builder")).toBeInTheDocument();
+    expect(screen.getByText("Operator")).toBeInTheDocument();
+
+    const builderCheckbox = screen.getByRole("checkbox", { name: /Builder/i });
+    expect(builderCheckbox).toBeChecked();
+
+    // Clicking an agent in auto mode directly switches to custom selection and toggles it
+    fireEvent.click(builderCheckbox);
+    expect(handleModeChange).toHaveBeenCalledWith("custom");
+    expect(handleToggle).toHaveBeenCalledWith("builder");
+  });
+
+  it("renders mode choices and interactive agent cards when expanded in custom mode", () => {
     const handleModeChange = vi.fn();
     const handleToggle = vi.fn();
 

@@ -18,7 +18,14 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
   isExpanded,
   onToggleExpand,
 }) => {
-  const isCustom = agentMode === "custom";
+  const handleAgentClick = (agentId: string) => {
+    if (agentMode === "auto") {
+      onAgentModeChange("custom");
+      onToggleAgent(agentId);
+    } else {
+      onToggleAgent(agentId);
+    }
+  };
 
   return (
     <div
@@ -97,32 +104,32 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
           {/* Mode Description */}
           <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
             {agentMode === "auto"
-              ? "Crossfire will analyze your extracted assumptions and automatically select the most rigorous test agents (e.g., Researcher for Empirical Evidence, Builder for Feasibility, Operator for Operational Friction) with transparent rationales."
+              ? "Crossfire analyzes your extracted assumption. Automatically select the most relevant test agents."
               : "Choose which specialized adversarial agents will stress-test your proposal. Each agent corresponds to a specific test."}
           </p>
 
-          {/* Agent Selection Grid (Active in Custom mode, or preview in Auto mode) */}
+          {/* Agent Selection Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-2.5">
             {ALL_AGENTS.map((agent) => {
-              const isSelected = selectedAgents.some(
-                (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === agent.id
-              );
-              const isDisabled = agentMode === "auto";
+              const isSelected =
+                agentMode === "auto" ||
+                selectedAgents.some(
+                  (id) =>
+                    (id === "receipts"
+                      ? "researcher"
+                      : id === "overthinker"
+                        ? "operator"
+                        : id) === agent.id,
+                );
 
               return (
                 <div
                   key={agent.id}
-                  onClick={() => {
-                    if (!isDisabled) {
-                      onToggleAgent(agent.id);
-                    }
-                  }}
+                  onClick={() => handleAgentClick(agent.id)}
                   className={`rounded-lg p-3 border transition-all select-none outline-none ${
-                    isDisabled
-                      ? "bg-surface-container/50 border-outline-variant/30 opacity-70 cursor-default"
-                      : isSelected
-                        ? "bg-surface-container border-primary-container/60 cursor-pointer shadow-xs"
-                        : "bg-surface-container/30 border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container cursor-pointer opacity-80"
+                    isSelected
+                      ? "bg-surface-container border-primary-container/60 cursor-pointer shadow-xs hover:border-primary-container"
+                      : "bg-surface-container/30 border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container cursor-pointer opacity-80"
                   }`}
                 >
                   <div className="flex items-start gap-2.5">
@@ -131,12 +138,9 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                       id={`agent-checkbox-${agent.id}`}
                       aria-label={agent.name}
                       checked={isSelected}
-                      disabled={isDisabled}
                       onChange={(e) => {
                         e.stopPropagation();
-                        if (!isDisabled) {
-                          onToggleAgent(agent.id);
-                        }
+                        handleAgentClick(agent.id);
                       }}
                       onClick={(e) => e.stopPropagation()}
                       className="mt-0.5 accent-primary cursor-pointer outline-none focus:outline-none"
@@ -166,7 +170,7 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
             })}
           </div>
 
-          {isCustom && selectedAgents.length === 0 && (
+          {agentMode === "custom" && selectedAgents.length === 0 && (
             <p className="font-code-sm text-code-sm text-error flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[14px]">
                 warning

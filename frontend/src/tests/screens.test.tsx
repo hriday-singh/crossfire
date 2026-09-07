@@ -37,6 +37,40 @@ describe("Screen Components", () => {
       expect(textarea.value).toContain("apply to college");
     });
 
+    it("populates textarea when clicking the AI code review PR gate preset", () => {
+      render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      const codeReviewPreset = screen.getByText("AI code review gating PRs");
+      fireEvent.click(codeReviewPreset);
+
+      const textarea = screen.getByPlaceholderText(/customer support to a fine tuned LLM/i) as HTMLTextAreaElement;
+      expect(textarea.value).toBe(
+        "Require automated LLM code reviews to block pull requests before human review."
+      );
+    });
+
+    it("renders simplified header without Decision Proposal kicker or subtitle", () => {
+      render(
+        <CaseProvider>
+          <EntryScreen />
+        </CaseProvider>
+      );
+
+      expect(
+        screen.getByRole("heading", { name: /What decision are you testing\?/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Decision Proposal")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Describe your proposal or strategic assumption/i)
+      ).not.toBeInTheDocument();
+      expect(screen.getByText("Grounded by SerpAPI")).toBeInTheDocument();
+      expect(screen.queryByText("Real-time Web Grounding")).not.toBeInTheDocument();
+    });
+
     it("handles PDF document upload and displays attachment pill", async () => {
       const ingestSpy = vi.spyOn(api, "ingestPdf").mockResolvedValueOnce({
         context: "Extracted strategic memo contents",

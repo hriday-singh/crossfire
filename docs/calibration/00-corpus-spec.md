@@ -26,6 +26,31 @@ The corpus is designed so that each band **would produce a different
 distribution if the system were correctly calibrated**. If all five bands
 produce the same status mix, the defects are confirmed.
 
+### Status of the three defects at the time of writing
+
+Defects 1 and 3 have had a **first fix applied**, so this corpus measures
+whether that fix worked — it is not a clean pre-fix baseline:
+
+- All four evaluators now score `confidence` on one scale, defined in
+  `textutil.OBJECTION_SCALE`: strength of the objection *against* the claim, not
+  the evaluator's certainty. Supporting evidence now scores near zero.
+- That scale opens with a `0.0-0.1` "no objection" band, and every persona is
+  told to use it. Operator, which previously returned a hardcoded `0.7`, now has
+  a rubric and a `friction_type == "none"` guard.
+- Steel Man no longer receives raw confidence floats — it sees a band word
+  (`no objection` / `minor` / `substantive` / `severe` / `fatal`), since Axiom 1
+  forbids averaging numbers the prompt then hands it anyway.
+
+Defect 2, the `weakened` attractor, has **not** been touched. The evidence gate
+and the Receipts caps are unchanged.
+
+So the live question this corpus answers is narrower and sharper: **did removing
+the forced-objection floor actually let sound claims through, or did it just
+move the pile-up somewhere else?** Report the numbers either way. A fix that
+overshoots — Band B claims now surviving because nobody objects hard enough — is
+a worse outcome than the original harshness, and is the specific regression to
+watch for.
+
 ---
 
 ## 1. How to run
@@ -60,16 +85,21 @@ different proposition.
 
 ### 1.3 The control run (do not skip)
 
-For every one of the 15 cases, also ask **plain Gemini** — same model as
-`LLM_MODEL`, one turn, no Crossfire — this exact prompt:
+The pipeline already ships this: `POST /baseline` makes one plain,
+un-engineered call on the same input through the same provider and model
+(`core/baseline.py`). Use it rather than prompting Gemini by hand — a control
+that differs from the run in model, temperature or phrasing measures the
+difference between two prompts, not the difference Crossfire makes.
 
 ```
-I'm considering this decision. Give me your honest assessment.
-
-<raw_input verbatim>
+POST /baseline  {"raw_input": "<raw_input verbatim>"}
 ```
 
-Save the reply to `../docs/calibration/runs/<case_id>.control.md`.
+Save each reply to `../docs/calibration/runs/<case_id>.control.md`.
+
+Note that `BASELINE_SYSTEM_PROMPT` is deliberately not sandbagged — it asks for
+a genuinely good single-prompt answer. Do not weaken it to make the comparison
+flattering; a rigged control tells us nothing we can act on.
 
 This control is the whole point of the exercise. The product thesis is that
 Crossfire is distinguishable from asking a frontier model directly. If the
@@ -489,7 +519,15 @@ From `<case_id>.json`:
 | wall-clock runtime | timeouts confound everything else |
 
 Also record, once for the whole run: `LLM_MODEL`, whether SerpApi or DuckDuckGo
-served search, `USE_LLM_CURATION`, and the date.
+served search, `USE_LLM_CURATION`, the date, and **`git rev-parse HEAD` plus
+`git status --short`**.
+
+The version matters more than usual here. The evaluator confidence rubrics were
+rewritten to a single objection-strength scale with an explicit "no objection"
+band shortly before this corpus was written, so a run against an older checkout
+is measuring a different system and its numbers are not comparable. If the
+working tree is dirty, say so — that is normal in this repo, several agents work
+in it concurrently.
 
 ---
 

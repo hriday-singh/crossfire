@@ -57,6 +57,14 @@ export const DECISION_PRESETS: DecisionPreset[] = [
       "A niche vertical AI agent that crawls local dental clinic websites, auto-generates localized patient education blogs, and posts them via WordPress.",
     contextHint: "Targeting $99/mo per clinic, self-serve onboarding with automated schema markup.",
   },
+  {
+    id: "code-review-gate",
+    title: "Automated Code Review PR Gate",
+    category: "DevOps / Engineering",
+    rawInput:
+      "Require automated LLM code reviews to block pull requests before human review.",
+    contextHint: "Gating pull requests behind automated LLM code review verification.",
+  },
 ];
 
 export const DEFAULT_COLLEGE_AI_CASE: Case = {

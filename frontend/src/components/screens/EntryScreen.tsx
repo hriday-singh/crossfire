@@ -18,7 +18,7 @@ import {
   normalizeWebUrl,
   DetectedWebUrl,
 } from "@/lib/urlUtils";
-import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
+import { SerpApiIcon } from "@/components/ui/serpapi";
 
 const MAX_PROPOSAL_CHARS = 500;
 
@@ -47,6 +47,13 @@ export const EntryScreen: React.FC = () => {
   ]);
   const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  const handleAgentModeChange = (mode: "auto" | "custom") => {
+    setAgentMode(mode);
+    if (mode === "auto") {
+      setSelectedAgents([...DEFAULT_AGENT_IDS]);
+    }
+  };
 
   const handleToggleAgent = (agentId: string) => {
     setSelectedAgents((prev) =>
@@ -449,27 +456,16 @@ export const EntryScreen: React.FC = () => {
 
   return (
     <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
-      <div className="flex flex-col w-full items-center justify-center pt-8 pb-12 px-space-4">
+      <div className="flex-1 flex flex-col items-center justify-center py-space-6 px-space-4 w-full my-auto">
         {/* Subtle Ambient Glow */}
         <div className="relative w-full max-w-[640px]">
           <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-40 bg-gradient-to-b from-primary-container/10 via-primary-container/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
           {/* Header Module */}
-          <div className="flex flex-col items-start mb-space-5">
-            <div className="flex items-center justify-between w-full gap-2 mb-space-2 flex-wrap">
-              <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider">
-                Decision Proposal
-              </span>
-              <PoweredBySerpApiBadge variant="hero" />
-            </div>
-            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight mb-space-2">
+          <div className="flex flex-col items-center text-center mb-space-5">
+            <h1 className="font-headline-lg text-2xl sm:text-3xl md:text-[34px] font-bold text-on-surface tracking-tight leading-tight">
               What decision are you testing?
             </h1>
-            <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-              Describe your proposal or strategic assumption. Crossfire
-              identifies the core load-bearing claims and tests them against
-              real-world evidence.
-            </p>
           </div>
 
           {/* Form Container */}
@@ -621,7 +617,7 @@ export const EntryScreen: React.FC = () => {
             {/* Agent Suite Selection Panel (Auto vs Custom) */}
             <AgentSelectorPanel
               agentMode={agentMode}
-              onAgentModeChange={setAgentMode}
+              onAgentModeChange={handleAgentModeChange}
               selectedAgents={selectedAgents}
               onToggleAgent={handleToggleAgent}
               isExpanded={isAgentPanelExpanded}
@@ -647,7 +643,19 @@ export const EntryScreen: React.FC = () => {
                   <span>to analyze</span>
                 </div>
                 <span className="text-outline-variant hidden md:inline">·</span>
-                <span className="hidden md:inline-flex items-center gap-1.5 text-outline font-code-sm text-xs"></span>
+                <a
+                  href="https://serpapi.com?utm_source=crossfire&utm_medium=entry_grounding"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hidden md:inline-flex items-center gap-1.5 text-outline hover:text-primary transition-colors font-code-sm text-xs group cursor-pointer"
+                  title="Search & web grounding powered by SerpAPI"
+                >
+                  <SerpApiIcon size={12} className="transition-transform group-hover:scale-110" />
+                  <span className="hover:underline">Grounded by SerpAPI</span>
+                  <span className="material-symbols-outlined text-[12px] opacity-70 group-hover:opacity-100">
+                    open_in_new
+                  </span>
+                </a>
               </div>
 
               {/* Primary CTA Trigger */}

@@ -54,20 +54,32 @@ export const EntryPresetsBar: React.FC<EntryPresetsBarProps> = ({
           >
             SEO automation for local practices
           </button>
+          <span className="text-outline-variant">·</span>
+          <button
+            type="button"
+            onClick={() =>
+              onSelectPreset(
+                "Require automated LLM code reviews to block pull requests before human review."
+              )
+            }
+            className="text-on-surface-variant hover:text-primary-container transition-colors underline decoration-outline-variant underline-offset-4 cursor-pointer"
+          >
+            AI code review gating PRs
+          </button>
         </div>
       </div>
 
       {/* FAQ Discovery Quick-Link */}
-      <div className="mt-space-4 flex items-center justify-end">
+      <div className="mt-space-8 pt-space-2 flex items-center justify-end">
         <button
           type="button"
           onClick={onOpenFaq}
-          className="flex items-center gap-1.5 text-outline hover:text-on-surface font-code-sm text-code-sm transition-colors cursor-pointer group"
+          className="inline-flex items-center gap-2 text-outline hover:text-on-surface font-code-sm text-code-sm transition-colors cursor-pointer group py-1.5 px-3.5 rounded-full hover:bg-surface-container/60 border border-transparent hover:border-outline-variant/40"
         >
-          <span className="material-symbols-outlined text-[15px] text-outline group-hover:text-primary-container">
+          <span className="material-symbols-outlined text-[16px] text-outline group-hover:text-primary-container transition-colors">
             help_outline
           </span>
-          <span>How does Crossfire work? View FAQ</span>
+          <span className="group-hover:underline underline-offset-4">How does Crossfire work? View FAQ</span>
         </button>
       </div>
     </>

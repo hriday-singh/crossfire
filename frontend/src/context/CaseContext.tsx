@@ -30,7 +30,7 @@ interface CaseContextValue {
   exitPreview: () => void;
 }
 
-const CaseContext = createContext<CaseContextValue | null>(null);
+export const CaseContext = createContext<CaseContextValue | null>(null);
 
 const STORAGE_KEY_HISTORY = "crossfire_case_history";
 const STORAGE_KEY_DEBUG = "crossfire_debug";
@@ -290,3 +290,8 @@ export function useCase() {
   }
   return context;
 }
+
+export function useOptionalCase() {
+  return useContext(CaseContext);
+}
+

@@ -184,6 +184,51 @@ export const DashboardScreen: React.FC = () => {
             />
           )}
 
+          {/* Pipeline Telemetry & Token Breakdown */}
+          {currentCase.telemetry && (
+            <div className="bg-surface-container-low border border-outline-variant rounded p-space-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-2 mb-space-3">
+                <div className="flex items-center gap-space-2">
+                  <span className="material-symbols-outlined text-primary text-[18px]">data_usage</span>
+                  <span className="font-code-sm text-code-sm uppercase tracking-wider text-on-surface font-semibold">
+                    Agent Token Breakdown & Cost Telemetry
+                  </span>
+                </div>
+                <div className="flex items-center gap-space-3 font-code-sm text-code-sm flex-wrap">
+                  <span className="text-outline">
+                    Total: <strong className="text-on-surface font-mono">{currentCase.telemetry.total_tokens.toLocaleString()}</strong> tokens
+                  </span>
+                  <span className="text-outline border-l border-outline-variant pl-space-3">
+                    Est. Cost: <strong className="text-primary-container font-mono">${currentCase.telemetry.total_estimated_cost_usd.toFixed(4)}</strong>
+                  </span>
+                  {currentCase.telemetry.duration_ms > 0 && (
+                    <span className="text-outline border-l border-outline-variant pl-space-3">
+                      Duration: <strong className="text-on-surface font-mono">{(currentCase.telemetry.duration_ms / 1000).toFixed(1)}s</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-outline-variant/40">
+                {currentCase.telemetry.agent_breakdown.map((item) => (
+                  <div
+                    key={item.agent}
+                    className="bg-surface-container-lowest p-2 rounded border border-outline-variant/30 text-xs font-mono flex flex-col justify-between"
+                  >
+                    <span className="text-on-surface-variant capitalize truncate font-semibold">
+                      {item.agent.replace(/_/g, " ")}
+                    </span>
+                    <div className="flex items-center justify-between text-outline mt-1">
+                      <span>{item.total_tokens.toLocaleString()} tok</span>
+                      <span className="text-primary-container font-semibold">
+                        ${item.estimated_cost_usd.toFixed(4)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Every claim, in full - collapsed once the verdict is in. */}
           {!isTesting && (
             <button
