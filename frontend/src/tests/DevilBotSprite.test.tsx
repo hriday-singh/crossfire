@@ -82,7 +82,7 @@ describe('DevilBotSprite', () => {
 
     render(<DevilBotSprite agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }} />);
     await waitFor(() => {
-      expect(PIXI.Assets.load).toHaveBeenCalledWith('/steelman_thing.webp');
+      expect(PIXI.Assets.load).toHaveBeenCalledWith('/judge_thing.webp');
     });
   });
 

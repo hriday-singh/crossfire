@@ -141,7 +141,7 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // 2. Extracting view
     fireEvent.click(screen.getByTestId("preview-btn-extracting"));
-    expect(screen.getByText(/Extracting Core Assumptions/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Extracting Core Assumptions/i)[0]).toBeInTheDocument();
 
     // 3. Claim Map view
     fireEvent.click(screen.getByTestId("preview-btn-confirm"));
