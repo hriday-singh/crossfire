@@ -52,11 +52,11 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
 
   it('resolves each AI to their dedicated spot every time when approaching judge', () => {
     const characterPositions = {
-      builder: { x: 284, y: 159 },
-      devils_advocate: { x: 236, y: 421 },
-      receipts: { x: 718, y: 159 },
-      operator: { x: 766, y: 421 },
-      judge: { x: 500, y: 215 },
+      builder: { x: 284, y: 195 },
+      devils_advocate: { x: 245, y: 410 },
+      receipts: { x: 715, y: 195 },
+      operator: { x: 755, y: 410 },
+      judge: { x: 500, y: 250 },
     };
 
     expect(resolveApproachSpot('builder', characterPositions, 'judge_approach')).toBe('judge_spot_builder');
@@ -67,7 +67,7 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
   });
 
   it('computes shortest collision-free path for Builder to NW clearance spot and back', () => {
-    const toSpot = getPathPoints(284, 159, WAYPOINTS.judge_spot_builder);
+    const toSpot = getPathPoints(284, 195, WAYPOINTS.judge_spot_builder);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(395);
     expect(toSpot[toSpot.length - 1].y).toBe(245);
@@ -75,47 +75,47 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
     const toDesk = getPathPoints(395, 245, WAYPOINTS.cubicle_1_desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
     expect(toDesk[toDesk.length - 1].x).toBe(284);
-    expect(toDesk[toDesk.length - 1].y).toBe(159);
+    expect(toDesk[toDesk.length - 1].y).toBe(195);
   });
 
   it('computes shortest collision-free path for Devil\'s Advocate to SW clearance spot and back', () => {
-    const toSpot = getPathPoints(236, 421, WAYPOINTS.judge_spot_devils_advocate);
+    const toSpot = getPathPoints(245, 410, WAYPOINTS.judge_spot_devils_advocate);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(415);
     expect(toSpot[toSpot.length - 1].y).toBe(335);
 
     const toDesk = getPathPoints(415, 335, WAYPOINTS.cubicle_2_desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
-    expect(toDesk[toDesk.length - 1].x).toBe(236);
-    expect(toDesk[toDesk.length - 1].y).toBe(421);
+    expect(toDesk[toDesk.length - 1].x).toBe(245);
+    expect(toDesk[toDesk.length - 1].y).toBe(410);
   });
 
   it('computes shortest collision-free path for Receipts to NE clearance spot and back', () => {
-    const toSpot = getPathPoints(718, 159, WAYPOINTS.judge_spot_receipts);
+    const toSpot = getPathPoints(715, 195, WAYPOINTS.judge_spot_receipts);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(605);
     expect(toSpot[toSpot.length - 1].y).toBe(245);
 
     const toDesk = getPathPoints(605, 245, WAYPOINTS.cubicle_3_desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
-    expect(toDesk[toDesk.length - 1].x).toBe(718);
-    expect(toDesk[toDesk.length - 1].y).toBe(159);
+    expect(toDesk[toDesk.length - 1].x).toBe(715);
+    expect(toDesk[toDesk.length - 1].y).toBe(195);
   });
 
   it('computes shortest collision-free path for Operator to SE clearance spot and back', () => {
-    const toSpot = getPathPoints(766, 421, WAYPOINTS.judge_spot_operator);
+    const toSpot = getPathPoints(755, 410, WAYPOINTS.judge_spot_operator);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(585);
     expect(toSpot[toSpot.length - 1].y).toBe(335);
 
     const toDesk = getPathPoints(585, 335, WAYPOINTS.cubicle_4_desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
-    expect(toDesk[toDesk.length - 1].x).toBe(766);
-    expect(toDesk[toDesk.length - 1].y).toBe(421);
+    expect(toDesk[toDesk.length - 1].x).toBe(755);
+    expect(toDesk[toDesk.length - 1].y).toBe(410);
   });
 
   it('computes shortest path for Judge to walk to right chamber door', () => {
-    const judgeExitPath = getPathPoints(500, 215, WAYPOINTS.right_door);
+    const judgeExitPath = getPathPoints(500, 250, WAYPOINTS.right_door);
     expect(judgeExitPath.length).toBeGreaterThanOrEqual(2);
     expect(judgeExitPath[judgeExitPath.length - 1].x).toBe(897);
     expect(judgeExitPath[judgeExitPath.length - 1].y).toBe(246);
@@ -124,7 +124,7 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
 });
 
 describe('AI 1: Crucible Page Transition Animation', () => {
-  it('renders transition HUD and calls onComplete on user bypass click', () => {
+  it('renders seamless transition overlay without popup modals and calls onComplete', () => {
     const handleComplete = vi.fn();
 
     render(
@@ -136,13 +136,12 @@ describe('AI 1: Crucible Page Transition Animation', () => {
       />
     );
 
-    expect(screen.getByTestId('crucible-page-transition')).toBeInTheDocument();
-    expect(screen.getByText(/Judge Adjudication Concluded/i)).toBeInTheDocument();
-    expect(screen.getByText(/Transitioning to Decision Memo/i)).toBeInTheDocument();
-    expect(screen.getByText(/Autonomous Copilot Test Survived/i)).toBeInTheDocument();
+    const transitionOverlay = screen.getByTestId('crucible-page-transition');
+    expect(transitionOverlay).toBeInTheDocument();
+    expect(screen.getByText(/Entering Decision Memo/i)).toBeInTheDocument();
 
-    const bypassBtn = screen.getByRole('button', { name: /Open Decision Memo Now/i });
-    fireEvent.click(bypassBtn);
+    // Clicking anywhere on transition overlay skips smoothly
+    fireEvent.click(transitionOverlay);
     expect(handleComplete).toHaveBeenCalledTimes(1);
   });
 });

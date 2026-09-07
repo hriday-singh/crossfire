@@ -63,7 +63,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
     processedEventCountRef.current = state.eventLog.length;
 
     unprocessed.forEach((item, idx) => {
-      const delay = idx * 600;
+      const delay = idx * 40;
       setTimeout(() => {
         const { event, data } = item;
 
@@ -205,9 +205,9 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
                   thought: null,
                   dialogue: null,
                 });
-              }, 2000);
-            }, 3800);
-          }, 2200);
+              }, 350);
+            }, 700);
+          }, 400);
         } else if (event === 'verdict_ready') {
           // 5. verdict_ready: Judge reconciles findings for a single claim
           const status = data.status || 'survived';
@@ -250,7 +250,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
               stage: 'Exiting Bullpen to Decision Memo',
               dialogue: null,
             });
-          }, 3500);
+          }, 600);
         } else if (event === 'run_complete') {
           // 7. run_complete: All evaluators return to seated workstations in standby
           Object.entries(AGENT_HOME_DESKS).forEach(([agentId, desk]) => {
@@ -374,13 +374,13 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
                   thought: null,
                   dialogue: null,
                 });
-              }, 1800);
-            }, 3200);
-          }, 2200);
-        }, 1200);
+              }, 300);
+            }, 600);
+          }, 350);
+        }, 250);
       }, totalOffset);
 
-      totalOffset += 8800;
+      totalOffset += 1600;
     });
 
     // After all findings, Judge summarizes and walks to right door
@@ -403,10 +403,10 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             stage: 'Exiting Bullpen to Decision Memo',
             dialogue: null,
           });
-        }, 3200);
+        }, 600);
 
         setIsReplaying(false);
-      }, totalOffset + 500);
+      }, totalOffset + 150);
     } else {
       setTimeout(() => setIsReplaying(false), totalOffset);
     }

@@ -55,7 +55,6 @@ export const CursorLighting: React.FC = () => {
 
   const [isVisible, setIsVisible] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [isClicking, setIsClicking] = useState(false);
   const [activeTheme, setActiveTheme] = useState<string>("default");
 
   // DOM Refs for high performance transform updates (avoiding React re-renders)
@@ -158,7 +157,6 @@ export const CursorLighting: React.FC = () => {
     };
 
     const handlePointerDown = (e: MouseEvent | PointerEvent) => {
-      setIsClicking(true);
       if (shockwaveRef.current) {
         shockwaveRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) scale(0.4)`;
         shockwaveRef.current.style.opacity = "0.9";
@@ -169,9 +167,7 @@ export const CursorLighting: React.FC = () => {
       }
     };
 
-    const handlePointerUp = () => {
-      setIsClicking(false);
-    };
+    const handlePointerUp = () => {};
 
     const handleMouseLeave = () => {
       setIsVisible(false);
@@ -226,7 +222,7 @@ export const CursorLighting: React.FC = () => {
         }}
       />
 
-      {/* 2. Light Core (No Crossfire Reticle) */}
+      {/* 2. Light Core - Clean, dot-free reticle anchor */}
       <div
         ref={reticleRef}
         data-testid="cursor-reticle"
@@ -234,19 +230,7 @@ export const CursorLighting: React.FC = () => {
         style={{
           transform: `translate3d(${reticlePos.current.x}px, ${reticlePos.current.y}px, 0)`,
         }}
-      >
-        {/* Soft Emissive Point Core */}
-        <div
-          className="w-[5px] h-[5px] rounded-full flex items-center justify-center shadow-xs transition-transform duration-150"
-          style={{
-            backgroundColor: colorConfig.primary,
-            boxShadow: `0 0 8px ${colorConfig.primary}`,
-            transform: isClicking ? "scale(1.4)" : "scale(1)",
-          }}
-        >
-          <div className="w-[1.5px] h-[1.5px] rounded-full bg-white" />
-        </div>
-      </div>
+      />
 
       {/* 3. Crucible Ignition Shockwave (Click Pulse) */}
       <div

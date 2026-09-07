@@ -595,16 +595,16 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
 
     // Delay varies based on action type (walk takes longer than quick gesture)
     const currentPacket = scenario.events[eventIndex % scenario.events.length];
-    let baseDelay = 4200;
+    let baseDelay = 900;
     if (currentPacket.action === 'walk_to') {
-      baseDelay = 5500;
+      baseDelay = 1100;
     } else if (currentPacket.action === 'sit') {
-      baseDelay = 3200;
+      baseDelay = 700;
     } else if (currentPacket.dialogue && currentPacket.dialogue.length > 60) {
-      baseDelay = 5800;
+      baseDelay = 1300;
     }
 
-    const interval = Math.max(1200, baseDelay / playbackSpeed);
+    const interval = Math.max(300, baseDelay / playbackSpeed);
 
     timerRef.current = setTimeout(() => {
       stepForward();
