@@ -400,4 +400,27 @@ describe("caseReducer", () => {
     expect(state.caseHistory[0].case_verdict?.decision_state).toBe("drop");
   });
 
+  it("handles LOAD_PROMPT_INTO_ENTRY by switching to entry screen and setting draftPrompt", () => {
+    const existingCase: Case = {
+      id: "case-999",
+      raw_input: "Original prompt that failed",
+      context: null,
+      status: "done",
+      claims: [],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+
+    const state = caseReducer(
+      { ...INITIAL_STATE, currentCase: existingCase, activeScreen: "results", isStreaming: true },
+      { type: "LOAD_PROMPT_INTO_ENTRY", payload: { rawInput: "Improved prompt with steelman salvage" } }
+    );
+
+    expect(state.activeScreen).toBe("entry");
+    expect(state.draftPrompt).toBe("Improved prompt with steelman salvage");
+    expect(state.currentCase?.raw_input).toBe("Improved prompt with steelman salvage");
+    expect(state.isStreaming).toBe(false);
+    expect(state.isExtracting).toBe(false);
+  });
 });

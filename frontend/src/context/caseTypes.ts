@@ -57,6 +57,7 @@ export interface AppState {
   isDebugMode: boolean;
   previewView: PreviewView;
   savedRealState: SavedRealState | null;
+  draftPrompt?: string | null;
 }
 
 export const INITIAL_STATE: AppState = {
@@ -79,6 +80,7 @@ export const INITIAL_STATE: AppState = {
   isDebugMode: false,
   previewView: null,
   savedRealState: null,
+  draftPrompt: null,
 };
 
 export type AppAction =
@@ -113,8 +115,10 @@ export type AppAction =
   | { type: "LOAD_CASE"; payload: Case }
   | { type: "UPDATE_CASE"; payload: Case }
   | { type: "NAVIGATE_SCREEN"; payload: ScreenView }
+  | { type: "LOAD_PROMPT_INTO_ENTRY"; payload: { rawInput: string } }
   | { type: "CLEAR_ERROR" }
   | { type: "SET_DEBUG_MODE"; payload: boolean }
   | { type: "ENTER_PREVIEW_MODE"; payload?: PreviewView }
   | { type: "SET_PREVIEW_VIEW"; payload: PreviewView }
   | { type: "EXIT_PREVIEW_MODE" };
+

@@ -553,6 +553,44 @@ describe("Screen Components", () => {
 
       expect(createCaseSpy).toHaveBeenCalled();
     });
+
+    it("loads draftPrompt into textarea when provided in context", () => {
+      vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+        state: {
+          ...INITIAL_STATE,
+          draftPrompt: "Draft prompt from Steel Man fix",
+        },
+        dispatch: vi.fn(),
+        loadPromptIntoEntry: vi.fn(),
+        startExtracting: vi.fn(),
+        selectClaim: vi.fn(),
+        resetCase: vi.fn(),
+        loadPreset: vi.fn(),
+        navigateScreen: vi.fn(),
+        setActiveModal: vi.fn(),
+        refreshCurrentCase: vi.fn(),
+        setDebugMode: vi.fn(),
+        enterPreview: vi.fn(),
+        setPreviewView: vi.fn(),
+        exitPreview: vi.fn(),
+        toggleAgentSelection: vi.fn(),
+        setAgentMode: vi.fn(),
+        setSelectedAgents: vi.fn(),
+        selectModel: vi.fn(),
+      });
+
+      render(<EntryScreen />);
+
+      const textarea = screen.getByPlaceholderText(
+        /customer support to a fine tuned LLM/i,
+      ) as HTMLTextAreaElement;
+      expect(textarea.value).toBe("Draft prompt from Steel Man fix");
+      expect(
+        screen.getByText(/Improved prompt loaded with Steel Man solutions applied/i)
+      ).toBeInTheDocument();
+
+      vi.restoreAllMocks();
+    });
   });
 
   describe("ConfirmScreen", () => {
@@ -809,6 +847,86 @@ describe("Screen Components", () => {
       expect(sortTrigger).toHaveTextContent("Held Up First");
       const reorderedCards = screen.getAllByText(/claim that/i);
       expect(reorderedCards[0]).toHaveTextContent("Passed claim that held up");
+
+      vi.restoreAllMocks();
+    });
+
+    it("renders PromptFixerWorkbench when failed claims have salvage and handles put into starting screen", () => {
+      const mockLoadPromptIntoEntry = vi.fn();
+      const caseWithSalvage = {
+        id: "case-fix-test",
+        raw_input: "We will charge $50 without free trial.",
+        context: null,
+        status: "done" as const,
+        claims: [
+          {
+            id: "c-salvage-1",
+            statement: "We will charge $50 without free trial",
+            load_bearing: true,
+            status: "broken" as const,
+            salvaged_claim: "Charge $29 with 14-day trial",
+          },
+        ],
+        test_plan: [],
+        findings: [],
+        consequences: [
+          {
+            claim_id: "c-salvage-1",
+            impact: "fatal",
+            recommended_change: "Add trial",
+            next_validation: "User tests",
+            salvaged_claim: "Charge $29 with 14-day trial",
+          },
+        ],
+      };
+
+      vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+        state: {
+          ...INITIAL_STATE,
+          activeScreen: "results",
+          currentCase: caseWithSalvage,
+        },
+        dispatch: vi.fn(),
+        loadPromptIntoEntry: mockLoadPromptIntoEntry,
+        startExtracting: vi.fn(),
+        selectClaim: vi.fn(),
+        resetCase: vi.fn(),
+        loadPreset: vi.fn(),
+        navigateScreen: vi.fn(),
+        setActiveModal: vi.fn(),
+        refreshCurrentCase: vi.fn(),
+        setDebugMode: vi.fn(),
+        enterPreview: vi.fn(),
+        setPreviewView: vi.fn(),
+        exitPreview: vi.fn(),
+        toggleAgentSelection: vi.fn(),
+        setAgentMode: vi.fn(),
+        setSelectedAgents: vi.fn(),
+        selectModel: vi.fn(),
+      });
+
+      render(<DashboardScreen />);
+
+      // Verify PromptFixerWorkbench is rendered
+      expect(
+        screen.getByText(/Fix Original Prompt with Steel Man Solutions/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getAllByText("We will charge $50 without free trial").length
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        screen.getAllByText(/Charge \$29 with 14-day trial/i).length
+      ).toBeGreaterThanOrEqual(1);
+
+      // Click "Put Improved Prompt into Starting Screen"
+      const putIntoEntryBtn = screen.getByRole("button", {
+        name: /Put Improved Prompt into Starting Screen/i,
+      });
+      fireEvent.click(putIntoEntryBtn);
+
+      expect(mockLoadPromptIntoEntry).toHaveBeenCalledWith(
+        "Charge $29 with 14-day trial."
+      );
 
       vi.restoreAllMocks();
     });

@@ -363,4 +363,46 @@ export async function retestClaim(
   return (await res.json()) as Case;
 }
 
+export interface ImprovePromptResponse {
+  case_id: string;
+  original_prompt: string;
+  improved_prompt: string;
+  applied_salvages: Array<{
+    claim_id: string;
+    original_statement: string;
+    salvaged_claim: string;
+  }>;
+}
+
+export async function improvePrompt(
+  caseId: string,
+  selectedClaimIds: string[],
+  customInstructions?: string | null,
+  baseUrl: string = DEFAULT_API_BASE
+): Promise<ImprovePromptResponse> {
+  const url = `${baseUrl}/cases/${encodeURIComponent(caseId)}/improve_prompt`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      selected_claim_ids: selectedClaimIds,
+      custom_instructions: customInstructions || null,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorBody =
+      typeof res.json === "function" ? await res.json().catch(() => null) : null;
+    throw new CrossfireApiError(
+      errorBody?.detail || `Failed to improve prompt (${res.status})`,
+      res.status,
+      errorBody
+    );
+  }
+
+  return (await res.json()) as ImprovePromptResponse;
+}
+
 

@@ -33,25 +33,67 @@ $ReportedExitedPids = [System.Collections.Generic.HashSet[int]]::new()
 
 function Test-PortOpen {
     param (
-        [string]$HostName = "127.0.0.1",
+        [string]$HostName = "localhost",
         [int]$Port,
         [int]$TimeoutMs = 400
     )
-    $tcp = New-Object System.Net.Sockets.TcpClient
     try {
-        $asyncResult = $tcp.BeginConnect($HostName, $Port, $null, $null)
-        $wait = $asyncResult.AsyncWaitHandle.WaitOne($TimeoutMs, $false)
-        if (-not $wait) {
-            $tcp.Close()
-            return $false
-        }
-        $tcp.EndConnect($asyncResult)
-        $tcp.Close()
-        return $true
+        $addresses = [System.Net.Dns]::GetHostAddresses($HostName)
     } catch {
+        $addresses = @()
+    }
+
+    # If checking localhost or loopback, test both IPv4 (127.0.0.1) and IPv6 (::1)
+    # Modern dev servers (e.g. Vite on Node.js) often bind to IPv6 loopback by default on Windows
+    if ($HostName -in @("localhost", "127.0.0.1", "::1")) {
+        $loopbacks = @([System.Net.IPAddress]::Loopback)
+        if ([System.Net.Sockets.Socket]::OSSupportsIPv6) {
+            $loopbacks += [System.Net.IPAddress]::IPv6Loopback
+        }
+        $addresses = @($addresses + $loopbacks) | Select-Object -Unique
+    }
+
+    $clients = [System.Collections.Generic.List[System.Net.Sockets.TcpClient]]::new()
+    $waitHandles = [System.Collections.Generic.List[System.Threading.WaitHandle]]::new()
+    $asyncResults = [System.Collections.Generic.List[System.IAsyncResult]]::new()
+
+    try {
+        foreach ($ip in $addresses) {
+            try {
+                $tcp = New-Object System.Net.Sockets.TcpClient($ip.AddressFamily)
+                $clients.Add($tcp)
+                $ar = $tcp.BeginConnect($ip, $Port, $null, $null)
+                $asyncResults.Add($ar)
+                $waitHandles.Add($ar.AsyncWaitHandle)
+            } catch {}
+        }
+
+        if ($waitHandles.Count -eq 0) { return $false }
+
+        $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        while ($waitHandles.Count -gt 0 -and $stopwatch.ElapsedMilliseconds -lt $TimeoutMs) {
+            $remaining = [Math]::Max(1, [int]($TimeoutMs - $stopwatch.ElapsedMilliseconds))
+            $idx = [System.Threading.WaitHandle]::WaitAny($waitHandles.ToArray(), $remaining)
+            if ($idx -ge 0 -and $idx -lt $waitHandles.Count) {
+                $tcp = $clients[$idx]
+                $ar = $asyncResults[$idx]
+                try {
+                    $tcp.EndConnect($ar)
+                    if ($tcp.Connected) { return $true }
+                } catch {
+                    $waitHandles.RemoveAt($idx)
+                    $clients.RemoveAt($idx)
+                    $asyncResults.RemoveAt($idx)
+                }
+            } else {
+                break
+            }
+        }
         return $false
     } finally {
-        $tcp.Dispose()
+        foreach ($c in $clients) {
+            try { $c.Close(); $c.Dispose() } catch {}
+        }
     }
 }
 

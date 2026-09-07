@@ -16,6 +16,8 @@ interface ClaimCardProps {
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   activeActivities?: Record<string, string>;
+  isSelectedForPromptFix?: boolean;
+  onTogglePromptFix?: () => void;
   className?: string;
 }
 
@@ -30,6 +32,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   isExpanded: controlledExpanded,
   onToggleExpand,
   activeActivities,
+  isSelectedForPromptFix,
+  onTogglePromptFix,
   className = "",
 }) => {
   const [localExpanded, setLocalExpanded] = useState(false);
@@ -208,6 +212,51 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
       <h2 className="font-headline-md text-headline-md text-on-surface font-medium leading-tight">
         <SerpApiText text={cleanUiText(claim.statement)} />
       </h2>
+
+      {/* Steel Man Prompt Fix Checkbox & Toggle */}
+      {!isTestingMode && (claim.salvaged_claim || consequence?.salvaged_claim) && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "p-space-3 rounded-lg border transition-all flex items-start sm:items-center justify-between gap-space-3",
+            isSelectedForPromptFix
+              ? "bg-primary-container/10 border-primary-container/50 text-on-surface"
+              : "bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:border-outline"
+          )}
+        >
+          <label className="flex items-start sm:items-center gap-2.5 cursor-pointer select-none flex-1 min-w-0">
+            <input
+              type="checkbox"
+              checked={Boolean(isSelectedForPromptFix)}
+              onChange={() => onTogglePromptFix?.()}
+              aria-label={`Apply Steel Man solution for claim ${index !== undefined ? index + 1 : claim.id}`}
+              className="mt-0.5 sm:mt-0 w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container accent-blue-600 shrink-0 cursor-pointer"
+            />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+              <span className="font-code-sm text-xs font-semibold text-primary-container shrink-0 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[15px]">auto_fix_high</span>
+                <span>Apply Steel Man Fix to Prompt:</span>
+              </span>
+              <span className="font-body-sm text-xs text-on-surface truncate font-medium">
+                &ldquo;{cleanUiText(claim.salvaged_claim || consequence?.salvaged_claim || "")}&rdquo;
+              </span>
+            </div>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => onTogglePromptFix?.()}
+            className={cn(
+              "px-2.5 py-1 rounded text-xs font-code-sm font-semibold transition-colors shrink-0 cursor-pointer",
+              isSelectedForPromptFix
+                ? "bg-primary-container text-on-primary-container hover:bg-blue-600"
+                : "bg-surface-container-high hover:bg-surface-container-highest text-on-surface border border-outline-variant/60"
+            )}
+          >
+            {isSelectedForPromptFix ? "Fix Added" : "Add Fix"}
+          </button>
+        </div>
+      )}
 
       {/* Live Adversarial Test Stream (Visible during active testing) */}
       {isTestingMode && tests.length > 0 && !isExpanded && (
@@ -388,6 +437,28 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                   <span>{cleanUiText(claim.tradeoff_acknowledged || consequence?.tradeoff_acknowledged || "")}</span>
                 </div>
               )}
+
+              {/* Toggle to adopt in starting prompt */}
+              <div className="pt-2 flex items-center justify-between border-t border-primary-container/20">
+                <span className="text-xs font-code-sm text-outline">
+                  {isSelectedForPromptFix ? "Included in revised prompt" : "Include this solution in prompt revision"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onTogglePromptFix?.()}
+                  className={cn(
+                    "px-3 py-1 rounded text-xs font-code-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer",
+                    isSelectedForPromptFix
+                      ? "bg-primary-container text-white"
+                      : "bg-surface-container-high hover:bg-surface-container-highest text-primary-container border border-primary-container/40"
+                  )}
+                >
+                  <span className="material-symbols-outlined text-[14px]">
+                    {isSelectedForPromptFix ? "check_box" : "check_box_outline_blank"}
+                  </span>
+                  <span>{isSelectedForPromptFix ? "Applied to Starting Prompt" : "Apply to Starting Prompt"}</span>
+                </button>
+              </div>
             </div>
           )}
 

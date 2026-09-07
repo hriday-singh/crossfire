@@ -30,7 +30,10 @@ from api.schemas import (
     IngestResponse,
     IngestUrlRequest,
     RetestClaimRequest,
+    ImprovePromptRequest,
+    ImprovePromptResponse,
 )
+from core.reformulate import reformulate_prompt_with_steelman
 from core.loop import extract_claims, handle_confirm, run_baseline
 from core.models import Case
 from core.retest import retest_single_claim
@@ -488,6 +491,43 @@ async def handle_retest_claim(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Retest failed: {exc}",
         )
+
+
+@router.post(
+    "/cases/{case_id}/improve_prompt",
+    response_model=ImprovePromptResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def handle_improve_prompt(
+    case_id: str,
+    payload: ImprovePromptRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> ImprovePromptResponse:
+    """
+    POST /cases/{case_id}/improve_prompt: Reformulate original prompt by integrating
+    Steel Man minimal viable solutions (salvaged claims) for failed claims.
+    """
+    case = store.get(case_id)
+    if not case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Case '{case_id}' not found",
+        )
+
+    improved_prompt, applied_salvages = await reformulate_prompt_with_steelman(
+        case=case,
+        selected_claim_ids=payload.selected_claim_ids,
+        provider=provider,
+        custom_instructions=payload.custom_instructions,
+    )
+
+    return ImprovePromptResponse(
+        case_id=case.id,
+        original_prompt=case.raw_input,
+        improved_prompt=improved_prompt,
+        applied_salvages=applied_salvages,
+    )
+
 
 
 
