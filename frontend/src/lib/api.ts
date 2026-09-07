@@ -18,9 +18,7 @@ const getApiBase = () => {
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     return "";
   }
-  // 2. Production automatically calls the correct API subdomain
-  // Changed from api.crossfire.stratizone.com because Cloudflare Universal SSL doesn't cover 4th-level subdomains.
-  return (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "https://crossfire-api.stratizone.com";
+  return (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "https://api.crossfire.stratizone.com";
 };
 
 const DEFAULT_API_BASE = getApiBase();
