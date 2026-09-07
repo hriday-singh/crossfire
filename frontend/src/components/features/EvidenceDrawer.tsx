@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Case } from "@/types/crossfire";
-import { useOptionalCase } from "@/context/CaseContext";
 import { cleanUiText, formatTestName, truncateUrl, clampSentences } from "@/lib/formatters";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
@@ -67,8 +66,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   isSelectedForPromptFix = false,
   onTogglePromptFix,
 }) => {
-  const caseContext = useOptionalCase();
-  const dispatch = caseContext?.dispatch;
+
   const [isQueued, setIsQueued] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
 

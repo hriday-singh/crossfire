@@ -31,14 +31,12 @@ from api.schemas import (
     IngestPdfRequest,
     IngestResponse,
     IngestUrlRequest,
-    RetestClaimRequest,
     ImprovePromptRequest,
     ImprovePromptResponse,
 )
 from core.reformulate import reformulate_prompt_with_steelman
 from core.loop import extract_claims, handle_confirm, run_baseline
 from core.models import Case
-from core.retest import retest_single_claim
 from ingestion import ingest_image, ingest_markdown, ingest_pdf, ingest_url
 from providers import get_provider
 from providers.base import LLMProvider
@@ -526,39 +524,7 @@ async def handle_ingest_markdown(
         )
 
 
-@router.post(
-    "/cases/{case_id}/claims/{claim_id}/retest",
-    response_model=Case,
-    status_code=status.HTTP_200_OK,
-)
-async def handle_retest_claim(
-    case_id: str,
-    claim_id: str,
-    payload: RetestClaimRequest,
-    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
-) -> Case:
-    """
-    POST /cases/{case_id}/claims/{claim_id}/retest: Retest a salvaged claim or submit counter-evidence.
-    """
-    try:
-        updated_case = await retest_single_claim(
-            case_id=case_id,
-            claim_id=claim_id,
-            action=payload.action,
-            counter_evidence=payload.counter_evidence,
-            provider=provider,
-        )
-        return updated_case
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Retest failed: {exc}",
-        )
+
 
 
 @router.post(

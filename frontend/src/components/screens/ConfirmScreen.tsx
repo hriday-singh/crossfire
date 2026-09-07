@@ -12,6 +12,7 @@ export const ConfirmScreen: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [newClaimText, setNewClaimText] = useState("");
   const [clarifyText, setClarifyText] = useState("");
+  const [isSubmittingDetail, setIsSubmittingDetail] = useState(false);
   const { clarify } = useCase();
 
   const currentCase = state.currentCase;
@@ -55,10 +56,15 @@ export const ConfirmScreen: React.FC = () => {
     confirmAndRun();
   };
 
-  const handleClarifySubmit = (e: React.FormEvent) => {
+  const handleClarifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clarifyText.trim()) return;
-    clarify(clarifyText.trim());
+    setIsSubmittingDetail(true);
+    try {
+      await clarify(clarifyText.trim());
+    } finally {
+      setIsSubmittingDetail(false);
+    }
   };
 
   return (

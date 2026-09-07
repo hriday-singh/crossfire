@@ -142,10 +142,6 @@ export interface CaseTelemetry {
   duration_ms: number;
 }
 
-export interface RetestClaimRequest {
-  action?: "test_salvaged" | "counter_evidence";
-  counter_evidence?: string | null;
-}
 
 // API schema types
 export interface CreateCaseRequest {

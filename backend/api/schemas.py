@@ -84,16 +84,7 @@ class BaselineResponse(BaseModel):
     answer: str
 
 
-class RetestClaimRequest(BaseModel):
-    action: str = Field(default="test_salvaged", description="'test_salvaged' or 'counter_evidence'")
-    counter_evidence: str | None = Field(default=None, description="Optional counter-evidence or context to challenge findings")
 
-
-class RetestClaimResponse(BaseModel):
-    case_id: str
-    claim_id: str
-    status: str = "done"
-    message: str = "Claim retest completed"
 
 
 class AppliedSalvage(BaseModel):
