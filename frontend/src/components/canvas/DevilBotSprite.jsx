@@ -37,8 +37,8 @@ export function getPathPoints(startX, startY, targetWp) {
 
   // --- 1. Right Chamber Door Exit (Judge Exit Sequence) ---
   if (targetId === 'right_door') {
-    if (startY < 235) {
-      // From Judge Chair (500, 215) -> move around right of table towards door
+    if (startY <= 270) {
+      // From Judge Chair (500, 250) -> move around right of table towards door
       return [
         { x: 620, y: 246 },
         { x: targetX, y: targetY, facing: 'east' },
@@ -59,14 +59,14 @@ export function getPathPoints(startX, startY, targetWp) {
   // Builder: Cubicle 1 (NW) <-> NW Table Spot (395, 245)
   if (targetId === 'judge_spot_builder') {
     return [
-      { x: 329, y: 200 },
+      { x: 330, y: 210 },
       { x: targetX, y: targetY, facing: 'east' },
     ];
   }
   const isStartingFromBuilderSpot = Math.hypot(startX - 395, startY - 245) < 40;
   if (isStartingFromBuilderSpot && (targetId === 'cubicle_1_desk' || targetId === 'cubicle_1_stand')) {
     return [
-      { x: 329, y: 200 },
+      { x: 330, y: 210 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
     ];
   }
@@ -74,14 +74,14 @@ export function getPathPoints(startX, startY, targetWp) {
   // Devil's Advocate: Cubicle 2 (SW) <-> SW Table Spot (415, 335)
   if (targetId === 'judge_spot_devils_advocate') {
     return [
-      { x: 329, y: 381 },
+      { x: 330, y: 390 },
       { x: targetX, y: targetY, facing: 'east' },
     ];
   }
   const isStartingFromDevilSpot = Math.hypot(startX - 415, startY - 335) < 40;
   if (isStartingFromDevilSpot && (targetId === 'cubicle_2_desk' || targetId === 'cubicle_2_stand')) {
     return [
-      { x: 329, y: 381 },
+      { x: 330, y: 390 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
     ];
   }
@@ -89,14 +89,14 @@ export function getPathPoints(startX, startY, targetWp) {
   // Receipts / Researcher: Cubicle 3 (NE) <-> NE Table Spot (605, 245)
   if (targetId === 'judge_spot_receipts') {
     return [
-      { x: 670, y: 200 },
+      { x: 670, y: 210 },
       { x: targetX, y: targetY, facing: 'west' },
     ];
   }
   const isStartingFromReceiptsSpot = Math.hypot(startX - 605, startY - 245) < 40;
   if (isStartingFromReceiptsSpot && (targetId === 'cubicle_3_desk' || targetId === 'cubicle_3_stand')) {
     return [
-      { x: 670, y: 200 },
+      { x: 670, y: 210 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
     ];
   }
@@ -104,14 +104,14 @@ export function getPathPoints(startX, startY, targetWp) {
   // Operator: Cubicle 4 (SE) <-> SE Table Spot (585, 335)
   if (targetId === 'judge_spot_operator') {
     return [
-      { x: 670, y: 381 },
+      { x: 670, y: 390 },
       { x: targetX, y: targetY, facing: 'west' },
     ];
   }
   const isStartingFromOperatorSpot = Math.hypot(startX - 585, startY - 335) < 40;
   if (isStartingFromOperatorSpot && (targetId === 'cubicle_4_desk' || targetId === 'cubicle_4_stand')) {
     return [
-      { x: 670, y: 381 },
+      { x: 670, y: 390 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
     ];
   }
