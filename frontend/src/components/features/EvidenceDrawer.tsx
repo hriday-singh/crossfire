@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Case } from "@/types/crossfire";
 import { useOptionalCase } from "@/context/CaseContext";
-import { retestClaim } from "@/lib/api";
 import { cleanUiText, formatTestName, truncateUrl, clampSentences } from "@/lib/formatters";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
@@ -72,10 +71,6 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   const dispatch = caseContext?.dispatch;
   const [isQueued, setIsQueued] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
-  const [isRetesting, setIsRetesting] = useState(false);
-  const [counterEvidenceText, setCounterEvidenceText] = useState("");
-  const [showCounterInput, setShowCounterInput] = useState(false);
-  const [retestError, setRetestError] = useState<string | null>(null);
 
   const [openTests, setOpenTests] = useState<Record<string, boolean>>(
     defaultOpenTests || {
@@ -196,40 +191,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
     }
   };
 
-  const handleTestSalvaged = async () => {
-    if (!currentCase || !claim) return;
-    setIsRetesting(true);
-    setRetestError(null);
-    try {
-      const updated = await retestClaim(currentCase.id, claim.id, "test_salvaged");
-      dispatch?.({ type: "UPDATE_CASE", payload: updated });
-    } catch (err: unknown) {
-      setRetestError((err as Error).message || "Failed to retest salvaged claim.");
-    } finally {
-      setIsRetesting(false);
-    }
-  };
 
-  const handleSubmitCounterEvidence = async () => {
-    if (!currentCase || !claim || !counterEvidenceText.trim()) return;
-    setIsRetesting(true);
-    setRetestError(null);
-    try {
-      const updated = await retestClaim(
-        currentCase.id,
-        claim.id,
-        "counter_evidence",
-        counterEvidenceText.trim()
-      );
-      dispatch?.({ type: "UPDATE_CASE", payload: updated });
-      setCounterEvidenceText("");
-      setShowCounterInput(false);
-    } catch (err: unknown) {
-      setRetestError((err as Error).message || "Failed to submit counter-evidence.");
-    } finally {
-      setIsRetesting(false);
-    }
-  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -381,62 +343,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  disabled={isRetesting}
-                  onClick={handleTestSalvaged}
-                  className="w-full px-3 py-2 bg-primary-container text-on-primary-container font-mono text-xs font-semibold rounded hover:bg-primary-container/90 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[16px]">
-                    {isRetesting ? "progress_activity" : "autorenew"}
-                  </span>
-                  <span>{isRetesting ? "Retesting Salvaged Claim..." : "Test Salvaged Claim"}</span>
-                </button>
 
-                {/* Challenge with counter-evidence toggle */}
-                <div className="pt-1">
-                  {!showCounterInput ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowCounterInput(true)}
-                      className="text-xs font-mono text-on-surface-variant hover:text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">add_circle</span>
-                      <span>Challenge finding with counter-evidence</span>
-                    </button>
-                  ) : (
-                    <div className="space-y-2 pt-1">
-                      <textarea
-                        value={counterEvidenceText}
-                        onChange={(e) => setCounterEvidenceText(e.target.value)}
-                        placeholder="Paste citation URL, statute, or factual proof challenging this finding..."
-                        className="w-full text-xs font-mono p-2.5 rounded bg-surface-container border border-outline-variant text-on-surface placeholder:text-outline focus:outline-none focus:border-primary resize-none"
-                        rows={3}
-                      />
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowCounterInput(false)}
-                          className="px-2.5 py-1 text-xs font-mono text-outline hover:text-on-surface"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isRetesting || !counterEvidenceText.trim()}
-                          onClick={handleSubmitCounterEvidence}
-                          className="px-3 py-1 bg-surface-container-highest hover:bg-surface-container-high text-on-surface text-xs font-mono rounded font-semibold border border-outline-variant disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">send</span>
-                          <span>Submit Counter-Evidence</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {retestError && (
-                    <p className="mt-1 text-xs font-mono text-error">{retestError}</p>
-                  )}
-                </div>
               </div>
             </div>
           )}
