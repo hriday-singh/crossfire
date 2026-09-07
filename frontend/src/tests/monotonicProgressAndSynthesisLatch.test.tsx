@@ -141,7 +141,11 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
       claims: [{ id: 'c1', text: 'claim 1', status: null }],
     });
 
-    rerender(<DiscussionApp />);
+    rerender(
+      <SubsequentWrapper>
+        <DiscussionApp />
+      </SubsequentWrapper>
+    );
 
     expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
     expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
@@ -176,7 +180,11 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
       findings: [],
     });
 
-    rerender(<DiscussionApp />);
+    rerender(
+      <WrapperResetFindings>
+        <DiscussionApp />
+      </WrapperResetFindings>
+    );
     const progressText = screen.getByText(/% Completed/i).textContent;
     const progressNum = parseInt(progressText?.replace(/\D/g, '') || '0', 10);
     expect(progressNum).toBeGreaterThanOrEqual(25);
