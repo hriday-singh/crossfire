@@ -62,7 +62,7 @@ describe("Page 3 Live View Integration", () => {
     vi.clearAllMocks();
   });
 
-  it("renders pure Live View (DiscussionApp) when activeScreen is 'runner'", async () => {
+  it("renders DashboardScreen when activeScreen is 'runner' and not in preview mode", async () => {
     render(
       <CaseProvider>
         <SetupRunnerScreen />
@@ -71,18 +71,36 @@ describe("Page 3 Live View Integration", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("live-view-page3")).toBeInTheDocument();
-      expect(screen.getByTestId("live-view-title")).toHaveTextContent("2.5D Live View Bullpen");
+      expect(screen.getByText(/Testing your decision/i)).toBeInTheDocument();
+      expect(screen.queryByTestId("live-view-page3")).not.toBeInTheDocument();
     });
-
-    // Ensure no legacy dashboard claims or sort elements are present on Page 3
-    expect(screen.queryByRole("button", { name: /sort claims/i })).not.toBeInTheDocument();
   });
 
-  it("renders pure Live View (DiscussionApp) when activeScreen is 'dashboard'", async () => {
+  it("renders DashboardScreen when activeScreen is 'dashboard' and not in preview mode", async () => {
     render(
       <CaseProvider>
         <SetupDashboardScreen />
+        <AppContent />
+      </CaseProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Result/i)).toBeInTheDocument();
+      expect(screen.queryByTestId("live-view-page3")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders pure Live View (DiscussionApp) when activeScreen is 'runner' AND in preview mode", async () => {
+    const SetupPreviewScreen: React.FC = () => {
+      const { dispatch } = useCase();
+      React.useEffect(() => {
+        dispatch({ type: "SET_PREVIEW_VIEW", payload: "runner" });
+      }, [dispatch]);
+      return null;
+    };
+    render(
+      <CaseProvider>
+        <SetupPreviewScreen />
         <AppContent />
       </CaseProvider>
     );
@@ -116,10 +134,7 @@ describe("Page 3 Live View Integration", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("live-view-page3")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /03 Live View/i })).not.toBeInTheDocument();
     });
-
-    // On Page 3 (runner/dashboard), the floating shortcut to Page 3 is hidden
-    expect(screen.queryByRole("button", { name: /03 Live View/i })).not.toBeInTheDocument();
   });
 });
