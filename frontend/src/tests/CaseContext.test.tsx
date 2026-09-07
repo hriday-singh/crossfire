@@ -102,7 +102,9 @@ describe("CaseContext", () => {
       "Test proposal",
       undefined,
       undefined,
-      undefined
+      undefined,
+      undefined,
+      expect.anything()
     );
     expect(screen.getByTestId("active-screen")).toHaveTextContent("confirm");
   });

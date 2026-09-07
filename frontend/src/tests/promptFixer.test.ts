@@ -159,7 +159,6 @@ describe("promptFixer utility", () => {
         mockCase
       );
       expect(res).toContain("Completely unrelated prompt text here.");
-      expect(res).toContain("[Steel Man Adjustments]:");
       expect(res).toContain("Users will pay $29/mo with a 14-day reverse trial");
     });
   });

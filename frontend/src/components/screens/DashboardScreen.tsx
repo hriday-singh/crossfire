@@ -8,7 +8,6 @@ import { PromptFixerWorkbench } from "@/components/features/PromptFixerWorkbench
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 import { SelectDropdown, DropdownOption } from "@/components/ui/dropdown-menu";
 import { getSalvageableClaims, generateImprovedPrompt } from "@/lib/promptFixer";
-import { improvePrompt } from "@/lib/api";
 
 export type ClaimSortOption =
   | "criticality"
@@ -42,9 +41,6 @@ export const DashboardScreen: React.FC = () => {
     return currentCase?.raw_input || "";
   });
 
-  const [isRefiningAi, setIsRefiningAi] = useState(false);
-  const [refineError, setRefineError] = useState<string | null>(null);
-
   // Sync when case changes
   useEffect(() => {
     if (currentCase) {
@@ -68,7 +64,6 @@ export const DashboardScreen: React.FC = () => {
         );
         return next;
       });
-      setRefineError(null);
     },
     [currentCase]
   );
@@ -81,46 +76,19 @@ export const DashboardScreen: React.FC = () => {
     setImprovedPrompt(
       generateImprovedPrompt(currentCase.raw_input, currentCase.claims, allIds, currentCase)
     );
-    setRefineError(null);
   }, [currentCase]);
 
   const handleClearAllFixes = useCallback(() => {
     if (!currentCase) return;
     setSelectedFixClaimIds(new Set());
     setImprovedPrompt(currentCase.raw_input);
-    setRefineError(null);
   }, [currentCase]);
 
   const handleResetPrompt = useCallback(() => {
     if (!currentCase) return;
     setSelectedFixClaimIds(new Set());
     setImprovedPrompt(currentCase.raw_input);
-    setRefineError(null);
   }, [currentCase]);
-
-  const handleRefineWithAi = useCallback(async () => {
-    if (!currentCase || selectedFixClaimIds.size === 0) return;
-    setIsRefiningAi(true);
-    setRefineError(null);
-    try {
-      if (currentCase.id.startsWith("case-preview-")) {
-        // Mock the AI polishing delay for preview cases
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        // We just keep the locally generated prompt as the "polished" one for the demo
-        setImprovedPrompt((prev) => prev);
-        return;
-      }
-
-      const res = await improvePrompt(currentCase.id, Array.from(selectedFixClaimIds));
-      if (res.improved_prompt) {
-        setImprovedPrompt(res.improved_prompt);
-      }
-    } catch (err: unknown) {
-      setRefineError((err as Error).message || "Failed to polish prompt with AI.");
-    } finally {
-      setIsRefiningAi(false);
-    }
-  }, [currentCase, selectedFixClaimIds]);
 
   const handlePutIntoStartingScreen = useCallback(() => {
     if (!improvedPrompt.trim()) return;
@@ -263,24 +231,6 @@ export const DashboardScreen: React.FC = () => {
             isTesting={isTesting}
           />
 
-          {/* Steel Man Prompt Fixer Workbench (Visible post-test when failed claims exist) */}
-          {!isTesting && (
-            <PromptFixerWorkbench
-              currentCase={currentCase}
-              selectedClaimIds={selectedFixClaimIds}
-              onToggleClaim={handleToggleClaimFix}
-              onSelectAll={handleSelectAllFixes}
-              onClearAll={handleClearAllFixes}
-              onResetPrompt={handleResetPrompt}
-              improvedPrompt={improvedPrompt}
-              onChangeImprovedPrompt={setImprovedPrompt}
-              onPutIntoStartingScreen={handlePutIntoStartingScreen}
-              onRefineWithAi={handleRefineWithAi}
-              isRefiningAi={isRefiningAi}
-              refineError={refineError}
-            />
-          )}
-
           {/* Live Activity Feed during testing or when activities exist */}
           {(isTesting || state.activities.length > 0) && (
             <LiveActivityFeed
@@ -299,7 +249,7 @@ export const DashboardScreen: React.FC = () => {
               <span>
                 {claimsOpen
                   ? "Hide all claims"
-                  : `All ${totalClaims} claims (${survivedCount} held up)`}
+                  : `Show All ${totalClaims} Claims`}
               </span>
               <span 
                 className="material-symbols-outlined text-[20px] transition-transform duration-200"
@@ -312,6 +262,12 @@ export const DashboardScreen: React.FC = () => {
 
           {(isTesting || claimsOpen) && (
             <>
+          {/* Claims in Detail Header */}
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+              Claims in Detail
+            </h3>
+          </div>
           {/* Filter & Sort Bar */}
           <div className="flex items-center justify-between gap-space-4">
             <div className="flex items-center gap-space-2">
@@ -388,6 +344,23 @@ export const DashboardScreen: React.FC = () => {
             })}
           </div>
             </>
+          )}
+
+          {/* Steel Man Prompt Fixer Workbench (Visible post-test when failed claims exist) */}
+          {!isTesting && (
+            <div id="quick-fix-section">
+              <PromptFixerWorkbench
+                currentCase={currentCase}
+                selectedClaimIds={selectedFixClaimIds}
+                onToggleClaim={handleToggleClaimFix}
+                onSelectAll={handleSelectAllFixes}
+                onClearAll={handleClearAllFixes}
+                onResetPrompt={handleResetPrompt}
+                improvedPrompt={improvedPrompt}
+                onChangeImprovedPrompt={setImprovedPrompt}
+                onPutIntoStartingScreen={handlePutIntoStartingScreen}
+              />
+            </div>
           )}
         </div>
       </div>

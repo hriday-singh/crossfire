@@ -109,7 +109,7 @@ export function generateImprovedPrompt(
 
   if (unmatched.length > 0) {
     const notes = unmatched.map((u) => `- ${u.salvage}`).join("\n");
-    improved = `${improved.trim()}\n\n[Steel Man Adjustments]:\n${notes}`;
+    improved = `${improved.trim()}\n\n${notes}`;
   }
 
   return improved.trim();

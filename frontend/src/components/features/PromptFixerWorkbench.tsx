@@ -15,9 +15,6 @@ interface PromptFixerWorkbenchProps {
   improvedPrompt: string;
   onChangeImprovedPrompt: (newPrompt: string) => void;
   onPutIntoStartingScreen: () => void;
-  onRefineWithAi?: () => Promise<void>;
-  isRefiningAi?: boolean;
-  refineError?: string | null;
   className?: string;
 }
 
@@ -31,9 +28,6 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
   improvedPrompt,
   onChangeImprovedPrompt,
   onPutIntoStartingScreen,
-  onRefineWithAi,
-  isRefiningAi = false,
-  refineError,
   className = "",
 }) => {
   const salvageableClaims = getSalvageableClaims(currentCase);
@@ -181,20 +175,6 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
             Updated Proposal
           </label>
           <div className="flex items-center gap-4">
-            {onRefineWithAi && (
-              <button
-                type="button"
-                disabled={isRefiningAi || selectedCount === 0}
-                onClick={onRefineWithAi}
-                className="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container border border-outline-variant text-xs font-code-sm text-on-surface-variant hover:text-on-surface font-medium flex items-center gap-2 cursor-pointer disabled:opacity-40 transition-colors"
-                title="Smooth the prose flow"
-              >
-                <span className="material-symbols-outlined text-[16px]">
-                  {isRefiningAi ? "progress_activity" : "edit_document"}
-                </span>
-                <span>{isRefiningAi ? "Polishing..." : "Smooth Prose"}</span>
-              </button>
-            )}
             <span className="font-code-sm text-xs text-outline font-medium">
               {improvedPrompt.length} chars
             </span>
@@ -209,10 +189,6 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
           className="w-full bg-surface-container-lowest text-on-surface p-5 font-body-md text-sm rounded-xl border border-outline-variant focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none leading-relaxed transition-all resize-y shadow-sm"
           placeholder="Your revised decision proposal..."
         />
-
-        {refineError && (
-          <p className="text-xs font-code-sm text-error">{refineError}</p>
-        )}
       </div>
 
       {/* Action Row */}

@@ -416,6 +416,25 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
           </div>
         </>
       )}
+
+      {/* Jump to Quick Fix button */}
+      {!isTesting && failedClaims.length > 0 && (
+        <div className="pt-2 flex justify-start">
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById("quick-fix-section");
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
+            className="inline-flex items-center gap-1.5 font-body-sm text-body-sm font-medium px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant text-primary-container transition-colors cursor-pointer"
+          >
+            <span>Jump to Quick Fix</span>
+            <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+          </button>
+        </div>
+      )}
     </section>
   );
 };
