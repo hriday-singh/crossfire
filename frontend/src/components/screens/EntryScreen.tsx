@@ -509,7 +509,7 @@ export const EntryScreen: React.FC = () => {
           >
             {isDragging && (
               <div className="absolute inset-0 bg-surface-container/90 border-2 border-dashed border-primary-container rounded-xl flex flex-col items-center justify-center z-20 pointer-events-none backdrop-blur-xs">
-                <span className="material-symbols-outlined text-[36px] text-primary-container animate-bounce">
+                <span className="material-symbols-outlined text-[36px] text-primary-container">
                   upload_file
                 </span>
                 <span className="font-headline-sm text-headline-sm text-on-surface font-semibold mt-2">
@@ -695,7 +695,7 @@ export const EntryScreen: React.FC = () => {
                 id="submit-run-btn"
                 variant="primary"
                 disabled={!canRunTest || state.isStreaming || state.currentCase?.status === "testing"}
-                className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:bg-blue-600 text-white font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:brightness-110 text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[18px]">
                   {state.isStreaming || state.currentCase?.status === "testing" ? "progress_activity" : "play_arrow"}

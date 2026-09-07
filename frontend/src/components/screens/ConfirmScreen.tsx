@@ -161,7 +161,7 @@ export const ConfirmScreen: React.FC = () => {
                               size="sm"
                               variant="primary"
                               onClick={() => handleSaveEdit(claim.id)}
-                              className="h-7 text-xs bg-primary-container hover:bg-blue-600 text-white transition-colors"
+                              className="h-7 text-xs bg-primary-container hover:brightness-110 text-on-primary-container transition-colors"
                             >
                               Save
                             </Button>
@@ -271,7 +271,7 @@ export const ConfirmScreen: React.FC = () => {
                   type="submit"
                   size="sm"
                   variant="primary"
-                  className="bg-primary-container hover:bg-blue-600 text-white transition-colors"
+                  className="bg-primary-container hover:brightness-110 text-on-primary-container transition-colors"
                 >
                   Save Hypothesis
                 </Button>
@@ -319,7 +319,7 @@ export const ConfirmScreen: React.FC = () => {
                   currentCase.status === "testing" ||
                   (currentCase.selected_agents && currentCase.selected_agents.length === 0)
                 }
-                className="bg-primary-container hover:bg-blue-600 text-white font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg active:scale-[0.99] transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                className="bg-primary-container hover:brightness-110 text-on-primary-container font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg active:scale-[0.99] transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 {state.isConfirming || state.isStreaming || currentCase.status === "testing" ? (
                   <>

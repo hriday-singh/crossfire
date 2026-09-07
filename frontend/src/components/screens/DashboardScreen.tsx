@@ -30,7 +30,7 @@ export const DashboardScreen: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<"all" | "needs_attention" | "passed">("all");
   const [sortBy, setSortBy] = useState<ClaimSortOption>("criticality");
   const [copiedMemo, setCopiedMemo] = useState(false);
-  const [claimsOpen, setClaimsOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<"overview" | "audit">("overview");
 
   const currentCase = state.currentCase;
   const isTesting = state.isStreaming || currentCase?.status === "testing";
@@ -351,144 +351,157 @@ export const DashboardScreen: React.FC = () => {
             </div>
           </div>
 
-          <VerdictBlock
-            currentCase={currentCase}
-            onSelectClaim={(id) => selectClaim(id)}
-            isTesting={isTesting}
-          />
-
-          {/* Live Activity Feed during testing or when activities exist */}
-          {(isTesting || state.activities.length > 0 || (currentCase?.activities && currentCase.activities.length > 0)) && (
-            <LiveActivityFeed
-              activities={state.activities.length > 0 ? state.activities : (currentCase?.activities || [])}
-              isStreaming={isTesting}
-            />
-          )}
-
-          {/* Claims in Detail Section */}
-          <div className="rounded-xl border border-outline-variant bg-surface-container-lowest overflow-hidden">
-            {/* Claims in Detail Header - Toggle Button */}
-            {!isTesting && (
+          {/* Post-Test Tabs */}
+          {!isTesting && (
+            <div className="flex items-center gap-2 p-1 bg-surface-container-lowest rounded-lg border border-outline-variant/40 w-full sm:w-fit mb-space-2">
               <button
                 type="button"
-                onClick={() => setClaimsOpen((open) => !open)}
-                className="w-full flex items-center justify-between px-space-6 py-space-5 text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+                onClick={() => setActiveTab("overview")}
+                className={`px-4 py-2 rounded-md font-body-sm text-body-sm transition-all cursor-pointer font-medium ${
+                  activeTab === "overview"
+                    ? "bg-primary-container text-on-primary-container shadow-xs"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
               >
-                <h3 className="font-headline-sm text-headline-sm font-semibold">
-                  Claims in Detail
-                </h3>
-                <span 
-                  className="material-symbols-outlined text-[24px] transition-transform duration-200"
-                  style={{ transform: claimsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
-                >
-                  expand_more
-                </span>
+                Verdict & Fixes
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => setActiveTab("audit")}
+                className={`px-4 py-2 rounded-md font-body-sm text-body-sm transition-all cursor-pointer font-medium ${
+                  activeTab === "audit"
+                    ? "bg-primary-container text-on-primary-container shadow-xs"
+                    : "text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                Full Audit Trail
+              </button>
+            </div>
+          )}
 
-            {(isTesting || claimsOpen) && (
-              <div className={`px-space-6 pb-space-6 ${!isTesting ? "pt-space-2" : "pt-space-6"}`}>
-                {isTesting && (
+          {(isTesting || activeTab === "overview") && (
+            <>
+              <VerdictBlock
+                currentCase={currentCase}
+                onSelectClaim={(id) => selectClaim(id)}
+                isTesting={isTesting}
+              />
+              
+              {/* Steel Man Prompt Fixer Workbench */}
+              {!isTesting && (
+                <div id="quick-fix-section" className="mt-space-6">
+                  <PromptFixerWorkbench
+                    currentCase={currentCase}
+                    selectedClaimIds={selectedFixClaimIds}
+                    onToggleClaim={handleToggleClaimFix}
+                    onSelectAll={handleSelectAllFixes}
+                    onClearAll={handleClearAllFixes}
+                    onResetPrompt={handleResetPrompt}
+                    improvedPrompt={improvedPrompt}
+                    onChangeImprovedPrompt={setImprovedPrompt}
+                    onPutIntoStartingScreen={handlePutIntoStartingScreen}
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {(isTesting || activeTab === "audit") && (
+            <div className="space-y-space-6 mt-space-6">
+              {/* Live Activity Feed */}
+              {(isTesting || state.activities.length > 0 || (currentCase?.activities && currentCase.activities.length > 0)) && (
+                <LiveActivityFeed
+                  activities={state.activities.length > 0 ? state.activities : (currentCase?.activities || [])}
+                  isStreaming={isTesting}
+                />
+              )}
+
+              {/* Claims in Detail Section */}
+              <div className="rounded-xl border border-outline-variant bg-surface-container-lowest overflow-hidden">
+                <div className={`px-space-6 pb-space-6 pt-space-6`}>
                   <div className="flex items-center justify-between mb-space-5">
                     <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
                       Claims in Detail
                     </h3>
                   </div>
-                )}
 
-                {/* Filter & Sort Bar */}
-                <div className="flex items-center justify-between gap-space-4 mb-space-5">
-                  <div className="flex items-center gap-space-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setFilterStatus("all")}
-                      className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
-                        filterStatus === "all"
-                          ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
-                          : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
-                      }`}
-                    >
-                      All ({totalClaims})
-                    </button>
+                  {/* Filter & Sort Bar */}
+                  <div className="flex items-center justify-between gap-space-4 mb-space-5">
+                    <div className="flex items-center gap-space-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setFilterStatus("all")}
+                        className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
+                          filterStatus === "all"
+                            ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
+                            : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        All ({totalClaims})
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setFilterStatus("needs_attention")}
-                      className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
-                        filterStatus === "needs_attention"
-                          ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
-                          : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
-                      }`}
-                    >
-                      Didn&apos;t hold ({needsAttentionCount})
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterStatus("needs_attention")}
+                        className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
+                          filterStatus === "needs_attention"
+                            ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
+                            : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        Didn&apos;t hold ({needsAttentionCount})
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setFilterStatus("passed")}
-                      className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
-                        filterStatus === "passed"
-                          ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
-                          : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
-                      }`}
-                    >
-                      Held up ({survivedCount})
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setFilterStatus("passed")}
+                        className={`px-space-3 py-1.5 font-code-sm text-code-sm rounded border transition-colors cursor-pointer ${
+                          filterStatus === "passed"
+                            ? "bg-surface-container-highest text-on-surface font-medium border-outline-variant"
+                            : "bg-surface-container-low text-on-surface-variant border-transparent hover:text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        Held up ({survivedCount})
+                      </button>
+                    </div>
+
+                    <SelectDropdown
+                      value={sortBy}
+                      options={SORT_OPTIONS}
+                      onChange={(newSort) => setSortBy(newSort)}
+                      labelPrefix="Sorted by:"
+                      ariaLabel="Sort claims"
+                    />
                   </div>
 
-                  <SelectDropdown
-                    value={sortBy}
-                    options={SORT_OPTIONS}
-                    onChange={(newSort) => setSortBy(newSort)}
-                    labelPrefix="Sorted by:"
-                    ariaLabel="Sort claims"
-                  />
-                </div>
+                  {/* Claims Dossier Stack */}
+                  <div className="space-y-space-5">
+                    {filteredClaims.map((claim, idx) => {
+                      const relevantFindings = currentCase.findings.filter((f) => f.claim_id === claim.id);
+                      const relevantConsequence = currentCase.consequences.find((c) => c.claim_id === claim.id);
+                      const claimActiveTests = Object.values(state.activeTests).filter(
+                        (t) => t.target_claim === claim.id
+                      );
 
-                {/* Claims Dossier Stack */}
-                <div className="space-y-space-5">
-                  {filteredClaims.map((claim, idx) => {
-                    const relevantFindings = currentCase.findings.filter((f) => f.claim_id === claim.id);
-                    const relevantConsequence = currentCase.consequences.find((c) => c.claim_id === claim.id);
-                    const claimActiveTests = Object.values(state.activeTests).filter(
-                      (t) => t.target_claim === claim.id
-                    );
-
-                    return (
-                      <ClaimCard
-                        key={claim.id}
-                        index={idx}
-                        claim={claim}
-                        tests={claimActiveTests}
-                        findings={relevantFindings}
-                        consequence={relevantConsequence}
-                        isTestingMode={state.isStreaming || currentCase.status === "testing"}
-                        activeActivities={state.activeTestActivities}
-                        isSelectedForPromptFix={selectedFixClaimIds.has(claim.id)}
-                        onTogglePromptFix={() => handleToggleClaimFix(claim.id)}
-                        onClick={() => selectClaim(claim.id)}
-                      />
-                    );
-                  })}
+                      return (
+                        <ClaimCard
+                          key={claim.id}
+                          index={idx}
+                          claim={claim}
+                          tests={claimActiveTests}
+                          findings={relevantFindings}
+                          consequence={relevantConsequence}
+                          isTestingMode={state.isStreaming || currentCase.status === "testing"}
+                          activeActivities={state.activeTestActivities}
+                          isSelectedForPromptFix={selectedFixClaimIds.has(claim.id)}
+                          onTogglePromptFix={() => handleToggleClaimFix(claim.id)}
+                          onClick={() => selectClaim(claim.id)}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* Steel Man Prompt Fixer Workbench (Visible post-test when failed claims exist) */}
-          {!isTesting && (
-            <div id="quick-fix-section">
-              <PromptFixerWorkbench
-                currentCase={currentCase}
-                selectedClaimIds={selectedFixClaimIds}
-                onToggleClaim={handleToggleClaimFix}
-                onSelectAll={handleSelectAllFixes}
-                onClearAll={handleClearAllFixes}
-                onResetPrompt={handleResetPrompt}
-                improvedPrompt={improvedPrompt}
-                onChangeImprovedPrompt={setImprovedPrompt}
-                onPutIntoStartingScreen={handlePutIntoStartingScreen}
-              />
             </div>
           )}
         </div>

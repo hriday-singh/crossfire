@@ -215,13 +215,14 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
 
       {/* Steel Man Prompt Fix Checkbox & Toggle */}
       {!isTestingMode && (claim.salvaged_claim || consequence?.salvaged_claim) && (
-        <div
+        <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onTogglePromptFix?.();
           }}
           className={cn(
-            "p-space-4 rounded-lg border transition-all flex items-start justify-between gap-space-3 cursor-pointer",
+            "p-space-4 w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg border transition-all flex items-start justify-between gap-space-3 cursor-pointer",
             isSelectedForPromptFix
               ? "bg-primary-container/10 border-primary-container/50 text-on-surface ring-1 ring-primary-container/20"
               : "bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:border-outline hover:bg-surface-container"
@@ -246,7 +247,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </button>
       )}
 
       {/* Live Adversarial Test Stream (Visible during active testing) */}
@@ -391,7 +392,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                 <span className="material-symbols-outlined text-[15px]">gavel</span>
                 <span>Why this call</span>
               </span>
-              <div className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface space-y-1">
+              <div className="border border-outline-variant bg-surface-container-low p-3 rounded text-body-sm text-on-surface space-y-1">
                 <p className="font-medium text-on-surface">{cleanUiText(consequence.verdict_reasoning)}</p>
                 {consequence.impact && (
                   <span className="inline-block font-mono text-xs uppercase px-2 py-0.5 rounded bg-surface-container-high text-outline">
@@ -550,7 +551,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               {allContradictions.map((contra, idx) => (
                 <p
                   key={idx}
-                  className="font-body-sm text-body-sm text-on-surface bg-error-container/20 border-l-2 border-error p-3 rounded-r"
+                  className="font-body-sm text-body-sm text-on-surface bg-error-container/20 border border-error/50 p-3 rounded"
                 >
                   {cleanUiText(contra)}
                 </p>
@@ -564,7 +565,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
                 What to change
               </span>
-              <blockquote className="border-l-2 border-primary-container bg-surface-container-low p-3 rounded-r text-body-sm text-on-surface">
+              <blockquote className="border border-primary-container/30 bg-surface-container-low p-3 rounded text-body-sm text-on-surface">
                 "{cleanUiText(consequence.recommended_change)}"
               </blockquote>
             </div>
