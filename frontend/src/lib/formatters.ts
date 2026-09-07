@@ -170,3 +170,15 @@ export function cleanUiText(text: string | null | undefined): string {
     .trim();
 }
 
+/**
+ * Limits text to a maximum number of sentences.
+ */
+export function clampSentences(text: string | null | undefined, maxSentences: number = 1): string {
+  if (!text) return "";
+  const cleaned = cleanUiText(text);
+  const sentences = cleaned.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length <= maxSentences) return cleaned;
+  return sentences.slice(0, maxSentences).join(" ");
+}
+
+

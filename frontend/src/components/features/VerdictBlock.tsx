@@ -1,6 +1,6 @@
 import React from "react";
 import { Case, Claim } from "@/types/crossfire";
-import { cleanUiText } from "@/lib/formatters";
+import { cleanUiText, clampSentences } from "@/lib/formatters";
 import { SerpApiText } from "@/components/ui/serpapi";
 
 /**
@@ -96,10 +96,40 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
 
   // Generated per case; the static map is only the floor for older runs and for
   // synthesis failures. Four fixed strings read identically across unrelated
-  // decisions, which is exactly what this replaces.
+  // decisions, which is what made every verdict look the same regardless of what the panel actually found.
+  const rawHeadline = cleanUiText(verdict.headline || "");
+  const headlineWords = rawHeadline ? rawHeadline.split(/\s+/).filter(Boolean) : [];
+  // Keep headline punchy (generally 3-6 words, up to 9 max; avoid big lines)
   const headline =
-    cleanUiText(verdict.headline || "") || HEADLINES[verdict.decision_state] || "Result";
+    (rawHeadline && headlineWords.length <= 9 ? rawHeadline : null) ||
+    HEADLINES[verdict.decision_state] ||
+    "Result";
   const headlineColor = HEADLINE_COLORS[verdict.decision_state] ?? "text-on-surface";
+
+  const summaryText = cleanUiText(verdict.summary || "");
+  const displaySummary = React.useMemo(() => {
+    if (summaryText) return summaryText;
+    const total = currentCase.claims.length;
+    const broken = currentCase.claims.filter((c) => c.status === "broken");
+    const weakened = currentCase.claims.filter((c) => c.status === "weakened");
+    const unproven = currentCase.claims.filter((c) => c.status === "unresolved");
+    const survived = currentCase.claims.filter((c) => c.status === "survived");
+
+    const keyFlaws: string[] = [];
+    [...broken, ...weakened, ...unproven].forEach((c) => {
+      if (c.fatal_flaw) keyFlaws.push(c.fatal_flaw);
+      else {
+        const topFinding = currentCase.findings.find((f) => f.claim_id === c.id && f.contradiction);
+        if (topFinding?.contradiction) keyFlaws.push(topFinding.contradiction);
+      }
+    });
+
+    const flawsStr = keyFlaws.length > 0 ? ` Key errors identified: ${keyFlaws.slice(0, 2).join("; ")}.` : "";
+    if (survived.length === total && total > 0) {
+      return `After evaluation, all ${total} core assumption${total > 1 ? "s" : ""} held up with verified outside evidence. No critical errors were identified.`;
+    }
+    return `After evaluation, we found that ${survived.length} assumption${survived.length !== 1 ? "s" : ""} held up, ${broken.length} refuted, and ${unproven.length} unproven.${flawsStr}`;
+  }, [summaryText, currentCase]);
 
   const deciding = verdict.deciding_factor ?? null;
 
@@ -114,8 +144,28 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
     ? currentCase.claims.find((c) => c.id === deciding.claim_id)
     : undefined;
 
-  const decidingSentence = (claimId: string) =>
-    currentCase.consequences.find((c) => c.claim_id === claimId)?.verdict_reasoning || "";
+  const getBriefFailureReason = (claim: Claim): string => {
+    if (claim.fatal_flaw) {
+      return clampSentences(claim.fatal_flaw, 1);
+    }
+    const topContradiction = currentCase.findings?.find(
+      (f) => f.claim_id === claim.id && f.contradiction
+    )?.contradiction;
+    if (topContradiction) {
+      return clampSentences(topContradiction, 1);
+    }
+    const consequence = currentCase.consequences?.find((c) => c.claim_id === claim.id);
+    if (consequence?.verdict_reasoning) {
+      return clampSentences(consequence.verdict_reasoning, 1);
+    }
+    const topResult = currentCase.findings?.find(
+      (f) => f.claim_id === claim.id && f.result && f.result.toLowerCase() !== "survived"
+    )?.result;
+    if (topResult) {
+      return clampSentences(topResult, 1);
+    }
+    return "";
+  };
 
   const claimsWithStatus = currentCase.claims.filter((c) => c.status);
   const hasClaimStatuses = claimsWithStatus.length > 0;
@@ -156,7 +206,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
           <SerpApiText text={headline} />
         </h2>
         <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-          <SerpApiText text={cleanUiText(verdict.summary)} />
+          <SerpApiText text={displaySummary} />
         </p>
         {counts.length > 0 && (
           <p className="font-code-sm text-code-sm text-outline">{counts.join(" · ")}</p>
@@ -242,19 +292,15 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
         </div>
       )}
 
-      {/* Everything else that failed. Native disclosure: keyboard and screen
-          reader support for free, and no open/closed state to keep in sync. */}
+      {/* Other failed claims shown openly with brief 1-sentence notes */}
       {otherFailedClaims.length > 0 && (
-        <details className="group">
-          <summary className="font-code-sm text-code-sm text-on-surface-variant font-semibold cursor-pointer list-none inline-flex items-center gap-1 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[16px] transition-transform group-open:rotate-90">
-              chevron_right
-            </span>
+        <div className="space-y-space-2">
+          <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">
             {otherFailedClaims.length} more claim{otherFailedClaims.length > 1 ? "s" : ""} didn't hold
-          </summary>
-          <ul className="mt-space-2 space-y-space-2">
+          </h3>
+          <ul className="space-y-space-2">
             {otherFailedClaims.map((claim) => {
-              const reasoning = decidingSentence(claim.id);
+              const briefReason = getBriefFailureReason(claim);
               return (
                 <li key={claim.id}>
                   <button
@@ -274,9 +320,9 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                         {STATUS_WORDS[claim.status || ""] || "Untested"}
                       </span>
                     </div>
-                    {reasoning && (
-                      <p className="mt-1 font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                        <SerpApiText text={cleanUiText(reasoning)} />
+                    {briefReason && (
+                      <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                        <SerpApiText text={cleanUiText(briefReason)} />
                       </p>
                     )}
                   </button>
@@ -284,7 +330,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
               );
             })}
           </ul>
-        </details>
+        </div>
       )}
     </section>
   );

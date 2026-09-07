@@ -89,6 +89,10 @@ def test_collapses_whitespace():
         ("Verdict: hold.", "label prefix"),
         ("Short", "under the floor"),
         (
+            "one two three four five six seven eight nine ten words.",
+            "over 9 words / big line",
+        ),
+        (
             "The eleven hour federal driving cap directly contradicts the fourteen "
             "hour shift this plan is built on, so it cannot run as written.",
             "over the 70-char cap",
@@ -99,6 +103,17 @@ def test_falls_back_on_junk(raw, why):
     """Every rejection returns the static line rather than a repaired string —
     a headline truncated mid-clause reads as a bug."""
     assert sanitize_headline(raw, "hold") == FALLBACK_HEADLINES["hold"], why
+
+
+def test_accepts_concise_three_to_six_word_headlines():
+    assert sanitize_headline("Requires human legal review.", "drop") == "Requires human legal review."
+    assert sanitize_headline("Severe compliance bottleneck.", "hold") == "Severe compliance bottleneck."
+    assert sanitize_headline("Holds up cleanly as planned.", "proceed") == "Holds up cleanly as planned."
+
+
+def test_rejects_ten_word_big_line_headline():
+    big_line = "This is a ten word headline that is quite big."
+    assert sanitize_headline(big_line, "drop") == FALLBACK_HEADLINES["drop"]
 
 
 def test_fallback_is_empty_for_an_unknown_state():
@@ -300,3 +315,52 @@ async def test_synthesis_attaches_the_deciding_factor():
     verdict = await synthesize_case_verdict(case, StubProvider())
     assert verdict.deciding_factor is not None
     assert verdict.deciding_factor.the_fact == "cited"
+
+
+@pytest.mark.asyncio
+async def test_synthesis_fallback_summary_contains_scope_outcome_and_errors():
+    class DeadProvider:
+        async def generate(self, *args, **kwargs):
+            raise RuntimeError("LLM unavailable")
+
+    c1 = Claim(
+        id="c1",
+        statement="100% autonomous support containment",
+        status=ClaimStatus.BROKEN,
+        load_bearing=True,
+        fatal_flaw="Human escalation required for billing and security",
+    )
+    c2 = Claim(
+        id="c2",
+        statement="Infrastructure costs beat human salaries",
+        status=ClaimStatus.SURVIVED,
+        load_bearing=True,
+    )
+    case = Case(
+        id="case-test",
+        raw_input="Replace support team with AI agent",
+        claims=[c1, c2],
+    )
+
+    verdict = await synthesize_case_verdict(case, DeadProvider())
+    assert "After evaluation, we found that" in verdict.summary
+    assert "1 assumption held up" in verdict.summary
+    assert "1 refuted" in verdict.summary
+    assert "Key errors identified:" in verdict.summary
+    assert "Human escalation required for billing and security" in verdict.summary
+    assert "Replace support team" not in verdict.summary  # does not rewrite the question
+
+
+@pytest.mark.asyncio
+async def test_synthesis_fallback_summary_all_survived():
+    class DeadProvider:
+        async def generate(self, *args, **kwargs):
+            raise RuntimeError("LLM unavailable")
+
+    c1 = Claim(id="c1", statement="Valid claim", status=ClaimStatus.SURVIVED, load_bearing=True)
+    case = Case(id="case-ok", raw_input="Sound proposal", claims=[c1])
+
+    verdict = await synthesize_case_verdict(case, DeadProvider())
+    assert "After evaluation, all 1 core assumption held up with verified outside evidence" in verdict.summary
+    assert "No critical errors were identified" in verdict.summary
+    assert "Sound proposal" not in verdict.summary

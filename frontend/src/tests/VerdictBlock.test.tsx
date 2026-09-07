@@ -122,12 +122,12 @@ describe("VerdictBlock", () => {
     expect(screen.queryByText("Ticket volume stays flat")).not.toBeInTheDocument();
   });
 
-  it("keeps the deciding claim out of the collapsed list so it is not shown twice", () => {
+  it("keeps the deciding claim out of the remaining failed claims list so it is not shown twice", () => {
     render(
       <VerdictBlock currentCase={baseCase(verdict)} onSelectClaim={vi.fn()} isTesting={false} />
     );
 
-    // c1 is the deciding claim and is already rendered above the disclosure.
+    // c1 is the deciding claim and is already rendered above the remaining failed claims.
     expect(screen.getByText("1 more claim didn't hold")).toBeInTheDocument();
     expect(
       screen.queryByText("The agent handles 100% of tier-1 without escalation")
@@ -149,7 +149,7 @@ describe("VerdictBlock", () => {
     expect(onSelectClaim).toHaveBeenCalledWith("c1");
   });
 
-  it("opens the drawer on a claim inside the collapsed list", () => {
+  it("opens the drawer on a claim inside the remaining failed claims list", () => {
     const onSelectClaim = vi.fn();
     render(
       <VerdictBlock
@@ -259,5 +259,130 @@ describe("VerdictBlock", () => {
     expect(screen.getByText("3 weakened")).toBeInTheDocument();
     expect(screen.queryByText(/unproven/i)).not.toBeInTheDocument();
   });
+
+  it("rejects oversized big-line headlines in favor of static fallback headline", () => {
+    const longHeadline = "This is an excessively long headline that exceeds nine words and is definitely a big line";
+    render(
+      <VerdictBlock
+        currentCase={baseCase({ ...verdict, headline: longHeadline, decision_state: "drop" })}
+        onSelectClaim={vi.fn()}
+        isTesting={false}
+      />
+    );
+    expect(screen.getByText("Don't proceed as written.")).toBeInTheDocument();
+    expect(screen.queryByText(longHeadline)).not.toBeInTheDocument();
+  });
+
+  it("renders 3-6 word headlines directly", () => {
+    const punchyHeadline = "Requires human legal review.";
+    render(
+      <VerdictBlock
+        currentCase={baseCase({ ...verdict, headline: punchyHeadline, decision_state: "drop" })}
+        onSelectClaim={vi.fn()}
+        isTesting={false}
+      />
+    );
+    expect(screen.getByText(punchyHeadline)).toBeInTheDocument();
+  });
+
+  it("generates fallback summary with what was audited and key errors when summary is empty", () => {
+    const caseWithFlaw: Case = {
+      ...baseCase({ ...verdict, summary: "" }),
+      claims: [
+        {
+          id: "c1",
+          statement: "Autonomous contract review replaces legal team",
+          status: "broken",
+          fatal_flaw: "State bar ethics rules prohibit autonomous legal delegation",
+          load_bearing: true,
+        },
+        {
+          id: "c2",
+          statement: "Parsing speed beats manual review",
+          status: "survived",
+          load_bearing: false,
+        },
+      ],
+    };
+
+    render(
+      <VerdictBlock currentCase={caseWithFlaw} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    expect(screen.getByText(/After evaluation, we found that 1 assumption held up, 1 refuted, and 0 unproven/)).toBeInTheDocument();
+    expect(screen.getByText(/Key errors identified: State bar ethics rules prohibit autonomous legal delegation/)).toBeInTheDocument();
+  });
+
+  it("generates fallback summary when all claims survive", () => {
+    const allSurvivedCase: Case = {
+      ...baseCase({ ...verdict, summary: "", decision_state: "proceed" }),
+      claims: [
+        {
+          id: "c1",
+          statement: "Standard MSAs allow deterministic parsing",
+          status: "survived",
+          load_bearing: true,
+        },
+        {
+          id: "c2",
+          statement: "Parsing speed beats manual review",
+          status: "survived",
+          load_bearing: false,
+        },
+      ],
+    };
+
+    render(
+      <VerdictBlock currentCase={allSurvivedCase} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    expect(screen.getByText(/After evaluation, all 2 core assumptions held up with verified outside evidence/)).toBeInTheDocument();
+  });
+
+  it("shows failed claims openly without details/summary disclosure and clamps failure note to 1 sentence", () => {
+    const caseWithLongReason: Case = {
+      ...baseCase(verdict),
+      claims: [
+        {
+          id: "c1",
+          statement: "The agent handles 100% of tier-1 without escalation",
+          load_bearing: true,
+          status: "broken",
+        },
+        {
+          id: "c2",
+          statement: "Token cost beats support salaries",
+          load_bearing: true,
+          status: "broken",
+        },
+      ],
+      consequences: [
+        {
+          claim_id: "c2",
+          impact: "high",
+          recommended_change: "Reduce scope.",
+          next_validation: "Audit costs.",
+          verdict_reasoning: "Token costs exceed salaries by 40% when retry volume spikes. Secondary paragraph that should be stripped away. Third paragraph that must not show.",
+        },
+      ],
+    };
+
+    const { container } = render(
+      <VerdictBlock currentCase={caseWithLongReason} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    // Must NOT use HTML details/summary element
+    expect(container.querySelector("details")).toBeNull();
+    expect(container.querySelector("summary")).toBeNull();
+
+    // Must render the failed claim statement openly
+    expect(screen.getByText("Token cost beats support salaries")).toBeInTheDocument();
+
+    // Must show only 1 brief sentence, omitting secondary and third sentences
+    expect(screen.getByText("Token costs exceed salaries by 40% when retry volume spikes.")).toBeInTheDocument();
+    expect(screen.queryByText(/Secondary paragraph/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Third paragraph/)).not.toBeInTheDocument();
+  });
 });
+
 

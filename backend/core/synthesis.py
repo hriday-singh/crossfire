@@ -195,11 +195,16 @@ class CaseVerdictOutput(BaseModel):
     headline: str = Field(
         default="",
         description=(
-            "The call in ONE sentence, at most 70 characters, naming the specific thing "
-            "that decided it. Not a category label."
+            "The call in a short, punchy heading of generally 3 to 6 words (at most 8 words). "
+            "Never a big line or rambling sentence."
         ),
     )
-    summary: str = Field(description="At most 3 sentences: where the decision stands and why.")
+    summary: str = Field(
+        description=(
+            "At most 3 sentences: brief executive summary of what was evaluated, "
+            "what happened overall, and what key errors or flawed assumptions were identified."
+        )
+    )
     next_actions: list[NextActionOutput] = Field(
         default_factory=list,
         description="2 to 3 merged actions covering everything that failed. No near-duplicates.",
@@ -209,6 +214,7 @@ class CaseVerdictOutput(BaseModel):
 _DECISION_STATES = ("proceed", "proceed_with_changes", "hold", "drop")
 
 HEADLINE_MAX_CHARS = 70
+HEADLINE_MAX_WORDS = 9
 
 # The strings the UI used to pick from `decision_state` alone. Kept as the floor
 # when generation fails, never as the first choice: four fixed lines read
@@ -241,8 +247,9 @@ _HEADLINE_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def sanitize_headline(raw: str, decision_state: str) -> str:
-    """One sentence, under the cap, or fall back to the static line.
+    """One sentence, under the character and word cap, or fall back to the static line.
 
+    Generally 3-6 words (up to 9 words max). Avoids multi-clause rambling lines.
     Every rejection returns the fallback rather than a repaired string: a headline
     truncated mid-clause reads as a bug, and the static line is at least correct."""
     text = " ".join((raw or "").split()).strip(" \"'")
@@ -257,7 +264,8 @@ def sanitize_headline(raw: str, decision_state: str) -> str:
     if len(sentences) > 1:
         text = sentences[0]
 
-    if not 8 <= len(text) <= HEADLINE_MAX_CHARS:
+    words = text.split()
+    if not (8 <= len(text) <= HEADLINE_MAX_CHARS and len(words) <= HEADLINE_MAX_WORDS):
         return FALLBACK_HEADLINES.get(decision_state, "")
     return text
 
@@ -349,21 +357,20 @@ CASE_VERDICT_SYSTEM_PROMPT = (
     "- 'decision_state': 'proceed' (nothing load-bearing failed), 'proceed_with_changes' "
     "(it survives with named modifications), 'hold' (a load-bearing claim is unproven and "
     "must be settled first), 'drop' (a load-bearing claim was refuted by a source).\n"
-    "- 'headline': the call itself, in ONE sentence under 70 characters. It must name "
-    "the specific thing that decided it — the number, the rule, the cost, the object of "
-    "the decision — in the vocabulary of the decision itself. It is not a category "
-    "label: 'Survives, but only with changes' and 'Not decidable yet' say nothing a "
-    "reader could not have guessed, and would read identically for a different case. "
-    "Write what you would say to the person in one breath. Examples of the right shape: "
-    "'The federal cap is 11 hours. The shift is 14.' / 'The yield gap is real and the "
-    "risk isn't.' / 'Nothing here settles it but your own usage curve.' No hedging, no "
-    "opening with 'Consider', 'Overall', 'The proposal' or 'This decision'.\n"
-    "- 'summary': at most 3 sentences, and it is an adjudication, not a recap. "
-    "Sentence 1 names the SINGLE specific thing that decided it — a number, a source, "
-    "a rule, a cost, a contradiction — in the vocabulary of the decision itself. Not a "
-    "count of claims, not a restatement of a claim. Sentence 2 says what the decision "
-    "looks like if it survives at all, or what must be settled first. Never list claims, "
-    "never enumerate, never write 'in summary', 'overall' or 'key takeaways'.\n"
+    "- 'headline': the call itself, as a short, punchy heading of generally 3 to 6 words "
+    "(it can be slightly more, up to 7-8 words max, but never a big line). Deliver the core call "
+    "or decisive factor in one brief phrase (e.g., 'Don't proceed as written', 'Requires human legal review', "
+    "'Severe compliance bottleneck', 'Holds up as planned', 'Key cost premise refuted'). "
+    "No rambling, no opening with 'Consider', 'Overall', 'The proposal' or 'This decision'.\n"
+    "- 'summary': at most 2 to 3 sentences. Do NOT rewrite, restate, or quote the original "
+    "decision, proposal, or question. Do NOT open with 'We evaluated the proposal to...' or "
+    "'We examined whether...'. Open directly with 'After evaluation, we found that...' or "
+    "'After evaluation, we got...' (or similar direct phrasing) stating the outcome across claims. "
+    "Sentence 1 states the overall outcome across claims (how many held, how many failed). "
+    "Sentences 2-3 briefly identify the key errors, empirical contradictions, or fatal flaws "
+    "that caused claims to break or weaken. Keep it brief, punchy, and grounded in the concrete "
+    "vocabulary of the decision itself so the reader immediately grasps what happened and what errors "
+    "were uncovered without reading the entire report.\n"
     "- 'next_actions': 2 to 3 actions total, merged across claims. If several claims "
     "failed for the same underlying reason, that is ONE action. Each must be concrete "
     "enough to start this week. No near-duplicates. Set 'claim_ids' to the ids of the "
@@ -393,11 +400,25 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         next_actions=[],
     )
 
-    claim_lines = "\n".join(
-        f"- {c.id} [{c.status.value if c.status else 'untested'}]"
-        f"{' (load-bearing)' if c.load_bearing else ''} {c.statement}"
-        for c in case.claims
-    )
+    claim_details = []
+    for c in case.claims:
+        status_str = c.status.value if c.status else "untested"
+        lb_str = " (load-bearing)" if c.load_bearing else ""
+        detail = f"- {c.id} [{status_str}]{lb_str} {c.statement}"
+        flaws = []
+        if c.fatal_flaw:
+            flaws.append(f"fatal flaw: {c.fatal_flaw}")
+        claim_findings = [f for f in case.findings if f.claim_id == c.id]
+        if claim_findings:
+            top_f = rank_findings(claim_findings)[0]
+            if top_f.contradiction:
+                flaws.append(f"contradiction: {top_f.contradiction}")
+            elif top_f.result and top_f.result.lower() not in ("survived", "held up"):
+                flaws.append(f"finding: {top_f.result}")
+        if flaws:
+            detail += f" | Errors/Issues: {'; '.join(flaws)}"
+        claim_details.append(detail)
+    claim_lines = "\n".join(claim_details)
     consequence_lines = "\n".join(
         f"- {cons.recommended_change}"
         + (f" | check: {cons.next_validation}" if cons.next_validation else "")
@@ -448,9 +469,31 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         verdict.headline = FALLBACK_HEADLINES.get(verdict.decision_state, "")
     verdict.deciding_factor = build_deciding_factor(case)
     if not verdict.summary:
-        verdict.summary = (
-            f"{len(survived)} claim(s) held, {len(broken)} refuted, {len(unproven)} unproven."
-        )
+        total = len(case.claims)
+        key_flaws = []
+        for c in case.claims:
+            if c.status in (ClaimStatus.BROKEN, ClaimStatus.WEAKENED, ClaimStatus.UNRESOLVED):
+                if c.fatal_flaw:
+                    key_flaws.append(c.fatal_flaw)
+                else:
+                    claim_findings = [f for f in case.findings if f.claim_id == c.id]
+                    if claim_findings:
+                        top_f = rank_findings(claim_findings)[0]
+                        if top_f.contradiction:
+                            key_flaws.append(top_f.contradiction)
+                        elif top_f.result and top_f.result.lower() not in ("survived", "held up"):
+                            key_flaws.append(top_f.result)
+        flaws_str = f" Key errors identified: {'; '.join(key_flaws[:2])}." if key_flaws else ""
+        if len(survived) == total and total > 0:
+            verdict.summary = (
+                f"After evaluation, all {total} core assumption{'s' if total > 1 else ''} held up "
+                f"with verified outside evidence. No critical errors were identified."
+            )
+        else:
+            verdict.summary = (
+                f"After evaluation, we found that {len(survived)} assumption{'s' if len(survived) != 1 else ''} held up, "
+                f"{len(broken)} refuted, and {len(unproven)} unproven.{flaws_str}"
+            )
     if not verdict.next_actions:
         verdict.next_actions = [
             NextAction(action=cons.next_validation, claim_ids=[cons.claim_id])

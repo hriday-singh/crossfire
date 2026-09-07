@@ -222,8 +222,9 @@ export const MOCK_PREVIEW_CASE: Case = {
   ],
   case_verdict: {
     decision_state: "drop",
+    headline: "Don't proceed as written.",
     summary:
-      "Bar guidance and professional-indemnity cover both require an attorney to sign the redline, so \"replacing external legal review\" cannot ship as written. It survives only as a copilot that drafts redlines an attorney ratifies.",
+      "After evaluation, we found that 1 assumption held up, 1 was refuted, 1 weakened, and 1 remains unproven. Key errors identified: corporate legal liability prevents replacing attorneys with autonomous AI, and workflow verification bottlenecks cut projected turnaround gains in half.",
     survived: ["c-preview-3"],
     broken: ["c-preview-1"],
     weakened: ["c-preview-2"],
