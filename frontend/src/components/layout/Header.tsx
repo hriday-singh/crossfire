@@ -55,16 +55,24 @@ export const Header: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveModal("settings")}
-            className="hidden sm:flex items-center gap-2 h-8 px-2.5 border border-outline-variant hover:border-primary-container/60 rounded-md select-none font-code-sm text-xs bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer max-w-[170px]"
+            className="flex items-center gap-2 h-8 px-2.5 border border-outline-variant hover:border-primary-container/60 rounded-md select-none font-code-sm text-xs bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer max-w-[210px]"
             title={`Active Engine: ${formatModelName(state.engineInfo?.model)} (${formatProviderName(state.engineInfo?.provider)}) · Click to open Settings`}
           >
             <span
               className={`inline-block w-2 h-2 rounded-full shrink-0 ${
-                state.engineInfo ? "bg-verdict-survived" : "bg-outline animate-pulse"
+                state.engineInfo ? "bg-verdict-survived shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-outline animate-pulse"
               }`}
             />
-            <span className="text-on-surface font-medium truncate">
-              {formatModelName(state.engineInfo?.model)}
+            <span className="text-on-surface font-medium truncate flex items-center gap-1.5">
+              {state.engineInfo && (
+                <span className="text-[10px] font-bold text-verdict-survived uppercase tracking-wider">
+                  LIVE
+                </span>
+              )}
+              {state.engineInfo && <span className="text-outline/40">·</span>}
+              <span className="truncate">
+                {formatModelName(state.engineInfo?.model)}
+              </span>
             </span>
           </button>
 
