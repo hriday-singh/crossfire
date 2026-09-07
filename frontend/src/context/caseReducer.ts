@@ -100,6 +100,22 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
 
     case "NAVIGATE_SCREEN":
       return { ...state, activeScreen: action.payload };
+    case "LOAD_PROMPT_INTO_ENTRY":
+      return {
+        ...state,
+        activeScreen: "entry",
+        draftPrompt: action.payload.rawInput,
+        selectedClaimId: null,
+        isStreaming: false,
+        isExtracting: false,
+        isConfirming: false,
+        currentCase: state.currentCase
+          ? {
+              ...state.currentCase,
+              raw_input: action.payload.rawInput,
+            }
+          : null,
+      };
     case "SET_ACTIVE_MODAL":
       return { ...state, activeModal: action.payload };
 
@@ -122,6 +138,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         isExtracting: true,
+        draftPrompt: null,
         error: null,
         eventLog: [],
         activities: [],
@@ -299,6 +316,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         currentCase: null,
+        draftPrompt: null,
         activeScreen: "entry",
         isExtracting: false,
         isConfirming: false,

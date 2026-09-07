@@ -12,6 +12,8 @@ interface EvidenceDrawerProps {
   currentCase: Case | null;
   onClose: () => void;
   defaultOpenTests?: Record<string, boolean>;
+  isSelectedForPromptFix?: boolean;
+  onTogglePromptFix?: (claimId: string) => void;
 }
 
 interface TestSuiteMeta {
@@ -63,6 +65,8 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   currentCase,
   onClose,
   defaultOpenTests,
+  isSelectedForPromptFix = false,
+  onTogglePromptFix,
 }) => {
   const caseContext = useOptionalCase();
   const dispatch = caseContext?.dispatch;
@@ -356,6 +360,27 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
 
               {/* Interactive Retest / Break to Rebuild Action */}
               <div className="pt-2 border-t border-primary-container/20 space-y-2">
+                {onTogglePromptFix && (
+                  <button
+                    type="button"
+                    onClick={() => onTogglePromptFix(claim.id)}
+                    className={`w-full px-3 py-2 rounded font-mono text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                      isSelectedForPromptFix
+                        ? "bg-primary text-on-primary border-primary shadow-sm"
+                        : "bg-surface-container hover:bg-surface-container-high text-on-surface border-outline-variant"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      {isSelectedForPromptFix ? "check_box" : "check_box_outline_blank"}
+                    </span>
+                    <span>
+                      {isSelectedForPromptFix
+                        ? "Selected to Fix Original Prompt"
+                        : "Select Solution to Fix Original Prompt"}
+                    </span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   disabled={isRetesting}

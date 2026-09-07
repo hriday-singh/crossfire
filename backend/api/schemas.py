@@ -86,3 +86,27 @@ class RetestClaimResponse(BaseModel):
     status: str = "done"
     message: str = "Claim retest completed"
 
+
+class AppliedSalvage(BaseModel):
+    claim_id: str
+    original_statement: str
+    salvaged_claim: str
+
+
+class ImprovePromptRequest(BaseModel):
+    selected_claim_ids: list[str] = Field(
+        default_factory=list,
+        description="List of claim IDs whose Steel Man salvages should replace failed premises",
+    )
+    custom_instructions: str | None = Field(
+        default=None,
+        description="Optional guidance for prompt reformulation",
+    )
+
+
+class ImprovePromptResponse(BaseModel):
+    case_id: str
+    original_prompt: str
+    improved_prompt: str
+    applied_salvages: list[AppliedSalvage]
+

@@ -281,5 +281,59 @@ describe("ClaimCard", () => {
     // Drawer shows objection strength for finding
     expect(screen.getByText(/Objection Strength: 5%/i)).toBeInTheDocument();
   });
+
+  it("renders prompt fix checkbox and calls onTogglePromptFix when clicked", () => {
+    const handleToggle = vi.fn();
+    render(
+      <ClaimCard
+        claim={{
+          id: "claim-fix-1",
+          statement: "Failed pricing assumption",
+          load_bearing: true,
+          status: "broken",
+          salvaged_claim: "Adopt tiered usage pricing",
+        }}
+        isSelectedForPromptFix={false}
+        onTogglePromptFix={handleToggle}
+      />
+    );
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: /Apply Steel Man solution for claim claim-fix-1/i,
+    });
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+    expect(handleToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders Adopt for prompt fix button in expanded Steel Man box", () => {
+    const handleToggle = vi.fn();
+    render(
+      <ClaimCard
+        claim={{
+          id: "claim-fix-2",
+          statement: "Another broken assumption",
+          load_bearing: true,
+          status: "broken",
+          salvaged_claim: "Salvaged replacement text",
+        }}
+        isSelectedForPromptFix={true}
+        onTogglePromptFix={handleToggle}
+      />
+    );
+
+    // Expand
+    const toggleBtn = screen.getByRole("button", { name: /View Evidence & Sources/i });
+    fireEvent.click(toggleBtn);
+
+    const adoptBtn = screen.getByRole("button", {
+      name: /Applied to Starting Prompt/i,
+    });
+    expect(adoptBtn).toBeInTheDocument();
+    fireEvent.click(adoptBtn);
+    expect(handleToggle).toHaveBeenCalledTimes(1);
+  });
 });
 

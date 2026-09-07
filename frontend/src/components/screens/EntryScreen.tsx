@@ -58,6 +58,14 @@ export const EntryScreen: React.FC = () => {
     }
   }, [state.currentCase]);
 
+  // Sync when an improved prompt is loaded back into starting screen
+  useEffect(() => {
+    if (state.draftPrompt) {
+      setRawInput(state.draftPrompt);
+      setSmartNotice("Improved prompt loaded with Steel Man solutions applied. Ready to test.");
+    }
+  }, [state.draftPrompt]);
+
   const handleAgentModeChange = (mode: "auto" | "custom") => {
     setAgentMode(mode);
     if (mode === "auto") {

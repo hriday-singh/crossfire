@@ -1,11 +1,14 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useCase } from "@/context/CaseContext";
 import { ClaimCard } from "@/components/features/ClaimCard";
 import { LiveActivityFeed } from "@/components/features/LiveActivityFeed";
 import { EvidenceDrawer } from "@/components/features/EvidenceDrawer";
 import { VerdictBlock } from "@/components/features/VerdictBlock";
+import { PromptFixerWorkbench } from "@/components/features/PromptFixerWorkbench";
 import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 import { SelectDropdown, DropdownOption } from "@/components/ui/dropdown-menu";
+import { getSalvageableClaims, generateImprovedPrompt } from "@/lib/promptFixer";
+import { improvePrompt } from "@/lib/api";
 
 export type ClaimSortOption =
   | "criticality"
@@ -23,7 +26,7 @@ const SORT_OPTIONS: DropdownOption<ClaimSortOption>[] = [
 ];
 
 export const DashboardScreen: React.FC = () => {
-  const { state, selectClaim } = useCase();
+  const { state, selectClaim, loadPromptIntoEntry } = useCase();
   const [filterStatus, setFilterStatus] = useState<"all" | "needs_attention" | "passed">("all");
   const [sortBy, setSortBy] = useState<ClaimSortOption>("criticality");
   const [copiedMemo, setCopiedMemo] = useState(false);
@@ -31,6 +34,101 @@ export const DashboardScreen: React.FC = () => {
 
   const currentCase = state.currentCase;
   const isTesting = state.isStreaming || currentCase?.status === "testing";
+
+  // Steel Man prompt fixer state
+  const [selectedFixClaimIds, setSelectedFixClaimIds] = useState<Set<string>>(() => {
+    if (!currentCase) return new Set();
+    const salvageable = getSalvageableClaims(currentCase);
+    return new Set(salvageable.map((c) => c.id));
+  });
+
+  const [improvedPrompt, setImprovedPrompt] = useState<string>(() => {
+    if (!currentCase) return "";
+    const salvageable = getSalvageableClaims(currentCase);
+    const ids = new Set(salvageable.map((c) => c.id));
+    return generateImprovedPrompt(currentCase.raw_input, currentCase.claims, ids, currentCase);
+  });
+
+  const [isRefiningAi, setIsRefiningAi] = useState(false);
+  const [refineError, setRefineError] = useState<string | null>(null);
+
+  // Sync when case changes
+  useEffect(() => {
+    if (currentCase) {
+      const salvageable = getSalvageableClaims(currentCase);
+      const ids = new Set(salvageable.map((c) => c.id));
+      setSelectedFixClaimIds(ids);
+      setImprovedPrompt(
+        generateImprovedPrompt(currentCase.raw_input, currentCase.claims, ids, currentCase)
+      );
+    }
+  }, [currentCase?.id]);
+
+  const handleToggleClaimFix = useCallback(
+    (claimId: string) => {
+      if (!currentCase) return;
+      setSelectedFixClaimIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(claimId)) {
+          next.delete(claimId);
+        } else {
+          next.add(claimId);
+        }
+        setImprovedPrompt(
+          generateImprovedPrompt(currentCase.raw_input, currentCase.claims, next, currentCase)
+        );
+        return next;
+      });
+      setRefineError(null);
+    },
+    [currentCase]
+  );
+
+  const handleSelectAllFixes = useCallback(() => {
+    if (!currentCase) return;
+    const salvageable = getSalvageableClaims(currentCase);
+    const allIds = new Set(salvageable.map((c) => c.id));
+    setSelectedFixClaimIds(allIds);
+    setImprovedPrompt(
+      generateImprovedPrompt(currentCase.raw_input, currentCase.claims, allIds, currentCase)
+    );
+    setRefineError(null);
+  }, [currentCase]);
+
+  const handleClearAllFixes = useCallback(() => {
+    if (!currentCase) return;
+    setSelectedFixClaimIds(new Set());
+    setImprovedPrompt(currentCase.raw_input);
+    setRefineError(null);
+  }, [currentCase]);
+
+  const handleResetPrompt = useCallback(() => {
+    if (!currentCase) return;
+    setSelectedFixClaimIds(new Set());
+    setImprovedPrompt(currentCase.raw_input);
+    setRefineError(null);
+  }, [currentCase]);
+
+  const handleRefineWithAi = useCallback(async () => {
+    if (!currentCase || selectedFixClaimIds.size === 0) return;
+    setIsRefiningAi(true);
+    setRefineError(null);
+    try {
+      const res = await improvePrompt(currentCase.id, Array.from(selectedFixClaimIds));
+      if (res.improved_prompt) {
+        setImprovedPrompt(res.improved_prompt);
+      }
+    } catch (err: unknown) {
+      setRefineError((err as Error).message || "Failed to polish prompt with AI.");
+    } finally {
+      setIsRefiningAi(false);
+    }
+  }, [currentCase, selectedFixClaimIds]);
+
+  const handlePutIntoStartingScreen = useCallback(() => {
+    if (!improvedPrompt.trim()) return;
+    loadPromptIntoEntry(improvedPrompt.trim());
+  }, [improvedPrompt, loadPromptIntoEntry]);
 
   // Scroll to top on mount or when testing begins so live intelligence and verdict block are visible
   useEffect(() => {
@@ -168,6 +266,24 @@ export const DashboardScreen: React.FC = () => {
             isTesting={isTesting}
           />
 
+          {/* Steel Man Prompt Fixer Workbench (Visible post-test when failed claims exist) */}
+          {!isTesting && (
+            <PromptFixerWorkbench
+              currentCase={currentCase}
+              selectedClaimIds={selectedFixClaimIds}
+              onToggleClaim={handleToggleClaimFix}
+              onSelectAll={handleSelectAllFixes}
+              onClearAll={handleClearAllFixes}
+              onResetPrompt={handleResetPrompt}
+              improvedPrompt={improvedPrompt}
+              onChangeImprovedPrompt={setImprovedPrompt}
+              onPutIntoStartingScreen={handlePutIntoStartingScreen}
+              onRefineWithAi={handleRefineWithAi}
+              isRefiningAi={isRefiningAi}
+              refineError={refineError}
+            />
+          )}
+
           {/* Live Activity Feed during testing or when activities exist */}
           {(isTesting || state.activities.length > 0) && (
             <LiveActivityFeed
@@ -267,6 +383,8 @@ export const DashboardScreen: React.FC = () => {
                   consequence={relevantConsequence}
                   isTestingMode={state.isStreaming || currentCase.status === "testing"}
                   activeActivities={state.activeTestActivities}
+                  isSelectedForPromptFix={selectedFixClaimIds.has(claim.id)}
+                  onTogglePromptFix={() => handleToggleClaimFix(claim.id)}
                   onClick={() => selectClaim(claim.id)}
                 />
               );
@@ -277,11 +395,38 @@ export const DashboardScreen: React.FC = () => {
         </div>
       </div>
 
+      {/* Floating Sticky Action Bar for Prompt Improvement */}
+      {!isTesting && selectedFixClaimIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[92%] sm:w-auto">
+          <div className="bg-surface-container-high/95 backdrop-blur-md border border-primary-container/60 rounded-full px-4 py-2.5 shadow-2xl flex items-center justify-between gap-4 text-on-surface">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="material-symbols-outlined text-primary-container text-[20px] shrink-0">
+                auto_fix_high
+              </span>
+              <span className="font-code-sm text-xs font-semibold text-on-surface truncate">
+                {selectedFixClaimIds.size} Steel Man fix{selectedFixClaimIds.size > 1 ? "es" : ""} selected
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handlePutIntoStartingScreen}
+              className="px-4 py-1.5 rounded-full bg-primary-container hover:bg-blue-600 text-white font-code-sm text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+            >
+              <span>Put into Starting Screen</span>
+              <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Slide-over Evidence Drawer */}
       <EvidenceDrawer
         claimId={state.selectedClaimId}
         currentCase={currentCase}
         onClose={() => selectClaim(null)}
+        isSelectedForPromptFix={state.selectedClaimId ? selectedFixClaimIds.has(state.selectedClaimId) : false}
+        onTogglePromptFix={handleToggleClaimFix}
       />
 
       {/* Footer */}

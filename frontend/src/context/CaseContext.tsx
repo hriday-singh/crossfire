@@ -21,6 +21,7 @@ interface CaseContextValue {
   resetCase: () => void;
   loadPreset: (presetId: string) => void;
   navigateScreen: (screen: AppState["activeScreen"]) => void;
+  loadPromptIntoEntry: (improvedPrompt: string) => void;
   setActiveModal: (modal: AppState["activeModal"]) => void;
   refreshCurrentCase: () => Promise<void>;
   selectModel?: (modelId: string) => void;
@@ -229,6 +230,10 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: "NAVIGATE_SCREEN", payload: screen });
   };
 
+  const loadPromptIntoEntry = (improvedPrompt: string) => {
+    dispatch({ type: "LOAD_PROMPT_INTO_ENTRY", payload: { rawInput: improvedPrompt } });
+  };
+
   const loadPreset = (presetId: string) => {
     const preset = DECISION_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
@@ -269,6 +274,7 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         resetCase,
         loadPreset,
         navigateScreen,
+        loadPromptIntoEntry,
         setActiveModal,
         refreshCurrentCase,
         selectModel,
