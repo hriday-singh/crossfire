@@ -97,11 +97,12 @@ def extract_critical_blocker(findings: list[Finding]) -> str | None:
         for f in findings
         if (f.contradiction or "").strip()
         and not f.evidence
+        and f.confidence is not None
         and f.confidence >= _PROBE_FLOOR.get(f.evaluator, 1.1)
     ]
     if not eligible:
         return None
-    eligible.sort(key=lambda f: (not is_statutory_blocker(f.contradiction), -f.confidence))
+    eligible.sort(key=lambda f: (not is_statutory_blocker(f.contradiction), -(f.confidence if f.confidence is not None else 0.0)))
     return eligible[0].contradiction.strip()
 
 

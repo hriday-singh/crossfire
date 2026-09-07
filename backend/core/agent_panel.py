@@ -128,14 +128,17 @@ def build_test_plan(
     panel: bool = True,
     active_agents: list[str] | None = None,
 ) -> list[TestPlanItem]:
-    """Load-bearing claims get the full active panel; the rest get one pass.
+    """Routes claims to adversarial evaluators.
 
-    That difference is the entire adaptive-scrutiny mechanism, and it is why a
-    run costs more than a single prompt. `panel=False` forces the cheap path for
-    every claim.
+    All claims (load-bearing and secondary) receive multi-persona scrutiny:
+    - Empirical claims: route to Researcher (receipts), Builder (builder), Operator (operator),
+      and Devil's Advocate (devils_advocate).
+    - Non-empirical claims: omit Researcher (receipts), routing to Builder (builder),
+      Operator (operator), and Devil's Advocate (devils_advocate).
 
-    Selective Evaluator Dispatch: Non-empirical claims omit `receipts` (Researcher),
-    dispatching only reasoning evaluators (Builder, Operator, Devil's Advocate).
+    Single-pass single-evaluator routing has been eliminated to prevent routing blindspots.
+    Claims are never routed to a single persona unless explicitly restricted by a single-element
+    `active_agents` configuration.
     """
     if active_agents is None:
         active_agents = list(getattr(case, "selected_agents", None) or KNOWN_AGENTS)
@@ -143,19 +146,12 @@ def build_test_plan(
 
     items: list[TestPlanItem] = []
     for claim in case.claims:
-        # load_bearing is None before the ranking runs — treat unranked as full panel.
-        full = panel and claim.load_bearing is not False
-
         # Selective Evaluator Dispatch: omit receipts if claim is not empirical
         claim_agents = [a for a in agents if a != "receipts" or is_empirical_claim(claim.statement)]
         if not claim_agents:
             claim_agents = list(agents)
 
-        if full:
-            target_agents = claim_agents
-        else:
-            single = next((a for a in SINGLE_PASS_PRIORITY if a in claim_agents), claim_agents[0])
-            target_agents = [single]
+        target_agents = claim_agents
 
         for agent in target_agents:
             items.append(

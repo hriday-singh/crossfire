@@ -134,10 +134,11 @@ async def test_failed_evaluator_becomes_a_degraded_finding(monkeypatch, sample_c
     findings = await loop.run_evaluators(sample_case, plan, provider=None)
 
     assert len(findings) == len(plan)  # nothing dropped
-    degraded = [f for f in findings if f.confidence == 0.0]
+    degraded = [f for f in findings if f.confidence is None]
     assert degraded, "a failed evaluator must still produce a finding"
     assert degraded[0].evaluator == "receipts"
-    assert "RuntimeError" in degraded[0].result
+    assert degraded[0].result == "System Error / Timeout"
+    assert "RuntimeError" in degraded[0].reasoning
     assert degraded[0].evidence == []  # and so it can never break a claim
 
 
@@ -160,7 +161,7 @@ async def test_evaluator_timeout_degrades_instead_of_hanging(monkeypatch, sample
     findings = await loop.run_evaluators(sample_case, plan, provider=None)
 
     assert len(findings) == len(plan)
-    assert all(f.confidence == 0.0 for f in findings)
+    assert all(f.confidence is None and f.result == "System Error / Timeout" for f in findings)
 
 
 @pytest.mark.asyncio

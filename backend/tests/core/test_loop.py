@@ -242,8 +242,8 @@ async def test_rank_load_bearing_dynamic_count_and_reasons(fake_provider_factory
 
 @pytest.mark.asyncio
 async def test_build_test_plan_differentiates_by_load_bearing_not_keywords(sample_case):
-    """Adaptive scrutiny: a load-bearing claim gets the full panel, a secondary
-    claim gets one pass (evidence if empirical, assumption fallback if non-empirical)."""
+    """Adaptive scrutiny: empirical claims receive the full 4-evaluator panel,
+    while non-empirical claims receive 3 reasoning evaluators without single-evaluator blindspots."""
     from core.loop import build_test_plan
 
     plan = build_test_plan(sample_case)  # claim-1 load_bearing=True (empirical), claim-2 False (non-empirical)
@@ -251,8 +251,8 @@ async def test_build_test_plan_differentiates_by_load_bearing_not_keywords(sampl
     secondary_modes = [i.failure_mode for i in plan if i.target_claim == "claim-2"]
 
     assert set(lb_modes) == {"assumption", "evidence", "feasibility", "operational_friction"}
-    # Non-empirical secondary claim routes to assumption fallback under selective dispatch
-    assert secondary_modes == ["assumption"]
+    # Non-empirical secondary claim routes to 3 reasoning evaluators (no receipts)
+    assert set(secondary_modes) == {"assumption", "feasibility", "operational_friction"}
 
 
 def test_build_test_plan_routing_ignores_wording():
@@ -279,13 +279,16 @@ def test_build_test_plan_routing_ignores_wording():
 
 @pytest.mark.asyncio
 async def test_build_test_plan_single_pass_mode(sample_case):
-    """panel=False forces the cheap single-pass path for every claim."""
+    """Single-pass single-evaluator routing has been eliminated; all claims receive multi-persona scrutiny."""
     from core.loop import build_test_plan
 
     plan = build_test_plan(sample_case, panel=False)
-    assert len(plan) == len(sample_case.claims)
-    # claim-1 is empirical (evidence), claim-2 is non-empirical (routes to assumption)
-    assert [item.failure_mode for item in plan] == ["evidence", "assumption"]
+    # claim-1 is empirical (4 evaluators), claim-2 is non-empirical (3 reasoning evaluators)
+    assert len(plan) == 7
+    c1_modes = {item.failure_mode for item in plan if item.target_claim == "claim-1"}
+    c2_modes = {item.failure_mode for item in plan if item.target_claim == "claim-2"}
+    assert c1_modes == {"assumption", "evidence", "feasibility", "operational_friction"}
+    assert c2_modes == {"assumption", "feasibility", "operational_friction"}
     assert {i.target_claim for i in plan} == {c.id for c in sample_case.claims}
 
 
@@ -294,7 +297,11 @@ async def test_build_test_plan_single_pass_falls_back_when_receipts_is_off(sampl
     from core.loop import build_test_plan
 
     plan = build_test_plan(sample_case, panel=False, active_agents=["operator", "builder"])
-    assert all(item.failure_mode == "feasibility" for item in plan)
+    assert len(plan) == 4
+    assert {item.failure_mode for item in plan} == {"feasibility", "operational_friction"}
+    for claim in sample_case.claims:
+        modes = {item.failure_mode for item in plan if item.target_claim == claim.id}
+        assert modes == {"feasibility", "operational_friction"}
 
 
 @pytest.mark.asyncio
