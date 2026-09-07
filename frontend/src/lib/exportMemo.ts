@@ -1,5 +1,4 @@
 import { Case } from "@/types/crossfire";
-import { formatTestName } from "./formatters";
 
 /**
  * Generates an authoritative Markdown Decision Memorandum from a completed or in-progress Case.
@@ -24,24 +23,6 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
   const weakenedCount = currentCase.claims.filter((c) => c.status === "weakened").length;
   const brokenCount = currentCase.claims.filter((c) => c.status === "broken").length;
   const unresolvedCount = currentCase.claims.filter((c) => c.status === "unresolved").length;
-  const loadBearingBroken = currentCase.claims.filter(
-    (c) => c.load_bearing && (c.status === "broken" || c.status === "weakened")
-  ).length;
-
-  // Strategic Executive Assessment
-  let strategicVerdict = "VALIDATED STRATEGY: FOUNDATIONAL ASSUMPTIONS HOLD";
-  let executiveSummary =
-    "All tested foundational assumptions survived adversarial stress-testing. Proceed with execution.";
-  if (brokenCount > 0 && loadBearingBroken > 0) {
-    strategicVerdict = "HIGH STRATEGIC RISK: CRITICAL ASSUMPTIONS BROKEN";
-    executiveSummary = `${loadBearingBroken} core load-bearing assumption(s) failed adversarial verification. Fundamental plan revision required before committing resources.`;
-  } else if (brokenCount > 0 || weakenedCount > 0) {
-    strategicVerdict = "MODERATE STRATEGIC RISK: ASSUMPTIONS WEAKENED";
-    executiveSummary = `${brokenCount + weakenedCount} assumption(s) challenged by empirical counterarguments. Targeted tactical adjustments advised.`;
-  } else if (unresolvedCount > 0) {
-    strategicVerdict = "INCONCLUSIVE: EMPIRICAL EVIDENCE GAPS";
-    executiveSummary = `${unresolvedCount} assumption(s) remain unresolved due to limited empirical data. Run targeted validation experiments.`;
-  }
 
   let md = `# EXECUTIVE DECISION MEMO\n`;
   md += `**Date:** ${dateStr}  \n`;
@@ -52,12 +33,44 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
   md += `\n---\n\n`;
 
   md += `## 1. Executive Summary & Verdict\n\n`;
-  // The backend's own adjudication when it exists; the count-derived text is only a fallback.
+  
   const verdict = currentCase.case_verdict;
   if (verdict) {
-    md += `> **${VERDICT_HEADLINES[verdict.decision_state] || "Result"}**  \n`;
-    md += `> ${verdict.summary}\n\n`;
-    if (verdict.next_actions.length > 0) {
+    const rawHeadline = verdict.headline || "";
+    const headlineWords = rawHeadline ? rawHeadline.split(/\s+/).filter(Boolean) : [];
+    const headline = (rawHeadline && headlineWords.length <= 9 ? rawHeadline : null) || VERDICT_HEADLINES[verdict.decision_state] || "Result";
+    
+    md += `> **${headline}**  \n`;
+
+    let summaryText = verdict.summary || "";
+    if (!summaryText) {
+      const broken = currentCase.claims.filter((c) => c.status === "broken");
+      const weakened = currentCase.claims.filter((c) => c.status === "weakened");
+      const unproven = currentCase.claims.filter((c) => c.status === "unresolved");
+      const survived = currentCase.claims.filter((c) => c.status === "survived");
+      const keyFlaws: string[] = [];
+      [...broken, ...weakened, ...unproven].forEach((c) => {
+        if (c.fatal_flaw) keyFlaws.push(c.fatal_flaw);
+        else {
+          const topFinding = currentCase.findings.find((f) => f.claim_id === c.id && f.contradiction);
+          if (topFinding?.contradiction) keyFlaws.push(topFinding.contradiction);
+        }
+      });
+      const flawsStr = keyFlaws.length > 0 ? ` Key errors identified: ${keyFlaws.slice(0, 2).join("; ")}.` : "";
+      if (survived.length === totalClaims && totalClaims > 0) {
+        summaryText = `After evaluation, all ${totalClaims} core assumption${totalClaims > 1 ? "s" : ""} held up with verified outside evidence. No critical errors were identified.`;
+      } else {
+        summaryText = `After evaluation, we found that ${survived.length} assumption${survived.length !== 1 ? "s" : ""} held up, ${broken.length} refuted, and ${unproven.length} unproven.${flawsStr}`;
+      }
+    }
+    md += `> ${summaryText}\n\n`;
+
+    if (verdict.deciding_factor) {
+      md += `### What decided it\n`;
+      md += `- ${verdict.deciding_factor.the_fact}\n\n`;
+    }
+
+    if (verdict.next_actions && verdict.next_actions.length > 0) {
       md += `### Before you commit\n`;
       verdict.next_actions.forEach((next) => {
         const anchors = next.claim_ids
@@ -69,6 +82,22 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
       md += `\n`;
     }
   } else {
+    // Fallback if no verdict object
+    let strategicVerdict = "VALIDATED STRATEGY: FOUNDATIONAL ASSUMPTIONS HOLD";
+    let executiveSummary = "All tested foundational assumptions survived adversarial stress-testing. Proceed with execution.";
+    const loadBearingBroken = currentCase.claims.filter((c) => c.load_bearing && (c.status === "broken" || c.status === "weakened")).length;
+    
+    if (brokenCount > 0 && loadBearingBroken > 0) {
+      strategicVerdict = "HIGH STRATEGIC RISK: CRITICAL ASSUMPTIONS BROKEN";
+      executiveSummary = `${loadBearingBroken} core load-bearing assumption(s) failed adversarial verification. Fundamental plan revision required before committing resources.`;
+    } else if (brokenCount > 0 || weakenedCount > 0) {
+      strategicVerdict = "MODERATE STRATEGIC RISK: ASSUMPTIONS WEAKENED";
+      executiveSummary = `${brokenCount + weakenedCount} assumption(s) challenged by empirical counterarguments. Targeted tactical adjustments advised.`;
+    } else if (unresolvedCount > 0) {
+      strategicVerdict = "INCONCLUSIVE: EMPIRICAL EVIDENCE GAPS";
+      executiveSummary = `${unresolvedCount} assumption(s) remain unresolved due to limited empirical data. Run targeted validation experiments.`;
+    }
+
     md += `> **Strategic Verdict:** \`${strategicVerdict}\`  \n`;
     md += `> ${executiveSummary}\n\n`;
   }
@@ -88,9 +117,8 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
     const tag = claim.load_bearing ? "CORE FOUNDATION" : "SUPPORTING ASSUMPTION";
     const findings = currentCase.findings.filter((f) => f.claim_id === claim.id);
     const consequence = currentCase.consequences.find((c) => c.claim_id === claim.id);
-    const tests = currentCase.test_plan.filter((t) => t.target_claim === claim.id);
 
-    md += `### ${idx + 1}. [${statusUpper}] ${claim.statement}\n`;
+    md += `### Claim ${idx + 1}. [${statusUpper}] ${claim.statement}\n`;
     md += `- **Type:** ${tag}\n`;
     if (consequence?.impact) {
       md += `- **Impact Level:** ${consequence.impact.toUpperCase()}\n`;
@@ -102,14 +130,6 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
       md += `This assumption is load-bearing. If invalidated, the core economic or distribution model of the proposal fails.\n`;
     } else {
       md += `Supporting assumption. If invalidated, friction increases but core model can adapt.\n`;
-    }
-
-    // Tests executed
-    if (tests.length > 0) {
-      md += `\n**Tests run:**  \n`;
-      tests.forEach((t) => {
-        md += `- \`[${formatTestName(t.failure_mode).toUpperCase()}]\` ${t.objective}\n`;
-      });
     }
 
     // Evidence & Citations
@@ -153,18 +173,6 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
       if (tradeoff) {
         md += `> **Trade-off Acknowledged:** ${tradeoff}  \n`;
       }
-    }
-
-    // Steel Man Adjudication
-    if (consequence?.verdict_reasoning) {
-      md += `\n**Steel Man Verdict Reasoning:**  \n`;
-      md += `> ${consequence.verdict_reasoning}\n`;
-    }
-
-    // Next validation experiment
-    if (consequence?.next_validation) {
-      md += `\n**Next Validation Experiment (Smallest Real-World Test):**  \n`;
-      md += `> **Next validation:** ${consequence.next_validation}\n`;
     }
 
     md += `\n---\n\n`;

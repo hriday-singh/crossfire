@@ -48,6 +48,16 @@ export const EntryScreen: React.FC = () => {
   const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Sync with global state when starting a new case
+  useEffect(() => {
+    if (!state.currentCase) {
+      setRawInput("");
+      setAttachments([]);
+      setAgentMode("auto");
+      setSelectedAgents([...DEFAULT_AGENT_IDS]);
+    }
+  }, [state.currentCase]);
+
   const handleAgentModeChange = (mode: "auto" | "custom") => {
     setAgentMode(mode);
     if (mode === "auto") {
@@ -56,11 +66,18 @@ export const EntryScreen: React.FC = () => {
   };
 
   const handleToggleAgent = (agentId: string) => {
-    setSelectedAgents((prev) =>
-      prev.includes(agentId)
-        ? prev.filter((id) => id !== agentId)
-        : [...prev, agentId],
-    );
+    const backendIdMap: Record<string, string> = {
+      researcher: "receipts",
+      operator: "overthinker"
+    };
+    const mappedId = backendIdMap[agentId] || agentId;
+
+    setSelectedAgents((prev) => {
+      const isSelected = prev.includes(agentId) || prev.includes(mappedId);
+      return isSelected
+        ? prev.filter((id) => id !== agentId && id !== mappedId)
+        : [...prev, mappedId];
+    });
   };
 
   const isMac =

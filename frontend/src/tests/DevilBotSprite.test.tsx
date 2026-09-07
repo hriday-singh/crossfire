@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import DevilBotSprite from '../components/canvas/DevilBotSprite';
@@ -25,18 +24,25 @@ vi.mock('gsap', () => ({
 
 describe('DevilBotSprite', () => {
   const mockAgent = { id: 'agent_1', initialWaypoint: 'cubicle_1_desk' };
+  const baseProps = {
+    agent: mockAgent,
+    currentActionPacket: null,
+    isSpeaking: false,
+    onPositionUpdate: vi.fn(),
+    playSfx: vi.fn()
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('initially renders nothing while textures are loading', () => {
-    const { container } = render(<DevilBotSprite agent={mockAgent} />);
+    const { container } = render(<DevilBotSprite {...baseProps} />);
     expect(container.firstChild).toBeNull();
   });
 
   it('loads textures and renders pixi elements', async () => {
-    const { container } = render(<DevilBotSprite agent={mockAgent} />);
+    const { container } = render(<DevilBotSprite {...baseProps} />);
     
     // Wait for the PIXI.Assets.load promise to resolve and state to update
     await waitFor(() => {
@@ -50,7 +56,7 @@ describe('DevilBotSprite', () => {
 
   it('calls onPositionUpdate with initial coordinates', async () => {
     const onPositionUpdate = vi.fn();
-    render(<DevilBotSprite agent={mockAgent} onPositionUpdate={onPositionUpdate} />);
+    render(<DevilBotSprite {...baseProps} onPositionUpdate={onPositionUpdate} />);
     
     await waitFor(() => {
       expect(onPositionUpdate).toHaveBeenCalled();

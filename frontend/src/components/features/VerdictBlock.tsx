@@ -236,10 +236,10 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
   return (
     <section
       aria-label="Verdict"
-      className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-5 space-y-space-5"
+      className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-6 space-y-space-8"
     >
       {/* The call */}
-      <div className="space-y-space-2">
+      <div className="space-y-space-3">
         <h2
           className={`font-headline-lg text-headline-lg font-semibold leading-tight ${headlineColor}`}
         >
@@ -249,14 +249,14 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
           <SerpApiText text={displaySummary} />
         </p>
         {counts.length > 0 && (
-          <p className="font-code-sm text-code-sm text-outline">{counts.join(" · ")}</p>
+          <p className="font-title-sm text-title-sm text-on-surface-variant font-medium">{counts.join(" · ")}</p>
         )}
       </div>
 
       {/* What decided it — one finding, resolved server-side */}
       {deciding && (
-        <div className="space-y-space-2">
-          <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">
+        <div className="space-y-space-3">
+          <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
             What decided it
           </h3>
           <button
@@ -300,30 +300,37 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
 
       {/* What to do about it */}
       {verdict.next_actions.length > 0 && (
-        <div className="space-y-space-2">
-          <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">
+        <div className="space-y-space-3">
+          <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
             Before you commit
           </h3>
-          <ul className="space-y-space-2">
+          <ul className="space-y-space-3">
             {verdict.next_actions.map((next, idx) => {
-              const anchor = next.claim_ids[0];
               return (
                 <li
                   key={`${idx}-${next.action.slice(0, 24)}`}
-                  className="flex items-start justify-between gap-space-3"
+                  className="flex flex-col gap-space-2 md:flex-row md:items-start md:justify-between"
                 >
-                  <span className="font-body-md text-body-md text-on-surface leading-relaxed">
+                  <span className="font-body-md text-body-md text-on-surface leading-relaxed flex-1">
                     <SerpApiText text={cleanUiText(next.action)} />
                   </span>
-                  {anchor && (
-                    <button
-                      type="button"
-                      onClick={() => onSelectClaim(anchor)}
-                      className="shrink-0 font-code-sm text-code-sm px-2.5 py-0.5 rounded border border-outline-variant text-primary-container hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center gap-1"
-                    >
-                      <span>{next.claim_ids.length} claim{next.claim_ids.length > 1 ? "s" : ""}</span>
-                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                    </button>
+                  {next.claim_ids && next.claim_ids.length > 0 && (
+                    <div className="flex flex-wrap gap-2 shrink-0 mt-2 md:mt-0 md:ml-4">
+                      {next.claim_ids.map((cid) => {
+                        const cIdx = currentCase.claims.findIndex(c => c.id === cid);
+                        return (
+                          <button
+                            key={cid}
+                            type="button"
+                            onClick={() => onSelectClaim(cid)}
+                            className="font-code-sm text-code-sm px-2.5 py-0.5 rounded border border-outline-variant text-primary-container hover:bg-surface-container-high transition-colors cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <span>Claim {cIdx >= 0 ? cIdx + 1 : "?"}</span>
+                            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </li>
               );
@@ -334,11 +341,11 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
 
       {/* Other failed claims shown openly with brief 1-sentence notes */}
       {otherFailedClaims.length > 0 && (
-        <div className="space-y-space-2">
-          <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">
+        <div className="space-y-space-3">
+          <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
             {otherFailedClaims.length} more claim{otherFailedClaims.length > 1 ? "s" : ""} didn't hold
           </h3>
-          <ul className="space-y-space-2">
+          <ul className="space-y-space-3">
             {otherFailedClaims.map((claim) => {
               const briefReason = getBriefFailureReason(claim);
               return (
@@ -346,7 +353,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                   <button
                     type="button"
                     onClick={() => onSelectClaim(claim.id)}
-                    className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
+                    className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-4 py-space-4 hover:bg-surface-container-high transition-colors cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-space-3">
                       <span className="font-body-md text-body-md text-on-surface">
@@ -361,7 +368,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                       </span>
                     </div>
                     {briefReason && (
-                      <p className="mt-1 font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                      <p className="mt-2 font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
                         <SerpApiText text={cleanUiText(briefReason)} />
                       </p>
                     )}

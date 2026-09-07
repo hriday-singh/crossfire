@@ -106,11 +106,6 @@ export const DashboardScreen: React.FC = () => {
 
   if (!currentCase) return null;
 
-  // Dynamic Case ID
-  const formattedCaseId = currentCase.id.startsWith("CRX-")
-    ? currentCase.id
-    : `CRX-${currentCase.id.replace(/-/g, "").slice(0, 6).toUpperCase() || "MEMO"}`;
-
   // Counts
   const totalClaims = currentCase.claims.length;
   const brokenCount = currentCase.claims.filter((c) => c.status === "broken").length;
@@ -136,9 +131,6 @@ export const DashboardScreen: React.FC = () => {
               <div className="flex items-center gap-space-2 flex-wrap">
                 <span className="font-headline-lg text-headline-lg text-on-surface font-semibold">
                   {isTesting ? "Testing your decision" : "Result"}
-                </span>
-                <span className="font-code-sm text-code-sm px-space-2 py-0.5 rounded bg-surface-container-high text-outline">
-                  Run #{formattedCaseId}
                 </span>
                 <button
                   type="button"
