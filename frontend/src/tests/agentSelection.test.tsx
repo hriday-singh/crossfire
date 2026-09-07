@@ -240,6 +240,40 @@ describe("AssignedAgentsCard Component", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("never renders 'Why selected' for excluded agents even if operator or other keys exist in rationales", () => {
+    const handleToggle = vi.fn();
+    const rationales: Record<string, string> = {
+      builder: "Architecture requires substantial API integration work.",
+      operator: "Stress-tests operational friction and red tape.",
+      overthinker: "Stress-tests edge cases and failure modes.",
+    };
+
+    // Only 'builder' is selected; 'operator' is excluded
+    render(
+      <AssignedAgentsCard
+        agentMode="auto"
+        selectedAgents={["builder"]}
+        agentRationales={rationales}
+        onToggleAgent={handleToggle}
+      />,
+    );
+
+    // Builder should show 'Why selected'
+    const builderCard = screen.getByTestId("agent-card-builder");
+    expect(builderCard).toHaveTextContent("Why selected:");
+    expect(builderCard).toHaveTextContent(
+      "Architecture requires substantial API integration work.",
+    );
+
+    // Operator is excluded: must NOT have 'Why selected:'
+    const operatorCard = screen.getByTestId("agent-card-operator");
+    expect(operatorCard).toHaveTextContent("Excluded");
+    expect(operatorCard).not.toHaveTextContent("Why selected:");
+    expect(operatorCard).not.toHaveTextContent(
+      "Stress-tests operational friction and red tape.",
+    );
+  });
+
   it("allows selecting and deselecting agents", () => {
     const handleToggle = vi.fn();
 

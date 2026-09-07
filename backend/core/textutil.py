@@ -79,8 +79,8 @@ def one_line(text: str, max_chars: int = 140) -> str:
     return (head or text[:max_chars]).rstrip(",;:") + "…"
 
 
-def format_concise_rationale(text: str, max_chars: int = 120) -> str:
-    """Format an agent recommendation rationale into exactly one concise, clear sentence."""
+def format_concise_rationale(text: str, max_chars: int = 60) -> str:
+    """Format an agent recommendation rationale into an ultra-short sentence (1-2 lines)."""
     text = " ".join((text or "").split()).strip()
     if not text:
         return ""
@@ -100,4 +100,5 @@ def format_concise_rationale(text: str, max_chars: int = 120) -> str:
     elif not first_sentence.endswith((".", "!", "?", "…")):
         first_sentence += "."
     return first_sentence
+
 

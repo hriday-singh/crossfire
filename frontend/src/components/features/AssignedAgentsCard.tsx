@@ -8,7 +8,7 @@ interface AssignedAgentsCardProps {
   onToggleAgent: (agentId: string) => void;
 }
 
-export function formatConciseRationale(text?: string): string {
+export function formatConciseRationale(text?: string, maxChars: number = 60): string {
   if (!text) return "";
   const cleaned = text.trim().replace(/\s+/g, " ");
   const stripped = cleaned.replace(
@@ -16,7 +16,18 @@ export function formatConciseRationale(text?: string): string {
     "",
   );
   const match = stripped.match(/^.*?[.!?](?:\s|$)/);
-  return match ? match[0].trim() : stripped;
+  let sentence = match ? match[0].trim() : stripped;
+  if (sentence.length > maxChars) {
+    const lastSpace = sentence.lastIndexOf(" ", maxChars);
+    sentence =
+      (lastSpace > 0 ? sentence.slice(0, lastSpace) : sentence.slice(0, maxChars)).replace(
+        /[,;:]$/,
+        "",
+      ) + "…";
+  } else if (!/[.!?…]$/.test(sentence)) {
+    sentence += ".";
+  }
+  return sentence;
 }
 
 export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
@@ -49,14 +60,13 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
           const isSelected = selectedAgents.some(
             (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === agent.id
           );
-          const rawRationale =
-            agentRationales[agent.id] ||
-            (agent.id === "researcher" ? agentRationales["receipts"] : undefined) ||
-            (agent.id === "operator"
-              ? agentRationales["overthinker"] ||
-                "Stress-tests operational friction, adoption inertia, and regulatory hurdles."
-              : undefined);
-          const rationale = rawRationale ? formatConciseRationale(rawRationale) : undefined;
+          // ONLY lookup rationale when agent is actually selected/active!
+          const rawRationale = isSelected
+            ? agentRationales[agent.id] ||
+              (agent.id === "researcher" ? agentRationales["receipts"] : undefined) ||
+              (agent.id === "operator" ? agentRationales["overthinker"] : undefined)
+            : undefined;
+          const rationale = isSelected && rawRationale ? formatConciseRationale(rawRationale) : undefined;
 
           return (
             <div
@@ -114,13 +124,13 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
                   <span>{agent.shortRole}</span>
                 </p>
 
-                {/* Show auto rationale if available, otherwise agent general description */}
-                {isAuto && rationale ? (
+                {/* Show auto rationale ONLY for active/selected agents */}
+                {isAuto && isSelected && rationale ? (
                   <p
                     title={rationale}
-                    className="font-body-xs text-body-xs text-primary-container bg-primary-container/10 border border-primary-container/20 rounded p-1.5 leading-snug line-clamp-2"
+                    className="font-body-xs text-body-xs text-primary-container bg-primary-container/10 border border-primary-container/20 rounded px-2 py-1 leading-snug line-clamp-2"
                   >
-                    <span className="font-medium">Why selected: </span>
+                    <span className="font-semibold">Why selected: </span>
                     {rationale}
                   </p>
                 ) : (

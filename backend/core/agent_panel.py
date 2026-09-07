@@ -34,10 +34,10 @@ AGENT_OBJECTIVE: dict[str, str] = {
 }
 
 DEFAULT_RATIONALES: dict[str, str] = {
-    "devils_advocate": "Stress-tests implicit premises, unstated assumptions, and logical contradictions.",
-    "receipts": "Checks the claim against external sources and real-world evidence.",
-    "builder": "Evaluates what execution actually requires and what blocks it in practice.",
-    "operator": "Stress-tests operational friction, adoption inertia, and regulatory hurdles.",
+    "devils_advocate": "Tests unstated premises and counter-incentives.",
+    "receipts": "Verifies facts against external evidence.",
+    "builder": "Evaluates feasibility and technical blockers.",
+    "operator": "Stress-tests operational friction and red tape.",
 }
 
 # Receipts is the single-pass default for secondary claims: it is the only
@@ -49,7 +49,7 @@ SINGLE_PASS_PRIORITY: tuple[str, ...] = ("receipts", "devils_advocate", "builder
 class AgentPick(BaseModel):
     agent: str = Field(description="One of: devils_advocate, receipts, builder, operator")
     rationale: str = Field(
-        description="Exactly one concise sentence (crisp, clear, under 100 characters) explaining why this decision needs this test."
+        description="Ultra-short rationale (under 45 characters, 5-8 words) explaining why this test is needed."
     )
 
 
@@ -113,8 +113,8 @@ EXTRACTION_SYSTEM_PROMPT = (
     "user asserted outright AND the unstated assumptions the proposal silently depends "
     "on. Write each claim so it stands on its own without the original wording.\n\n"
     "Then pick which adversarial tests this specific decision needs. For each chosen agent, "
-    "provide exactly ONE concise sentence (under 100 characters) that is crisp, clear, and "
-    "explains why this decision needs that test. Avoid run-on sentences, generic filler, or fluff:\n"
+    "provide an ultra-short rationale of 5 to 8 words (under 45 characters) clearly explaining "
+    "why. Must be exactly 1 short sentence that fits on 1-2 lines. No fluff or filler:\n"
     "- devils_advocate: unstated premises, counter-incentives, motivated reasoning.\n"
     "- receipts: claims checkable against outside sources, prices, rules, records, precedent.\n"
     "- builder: whether execution is actually achievable with the time, money, skill or access available.\n"
