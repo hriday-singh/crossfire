@@ -3,6 +3,7 @@ import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { copyToClipboard } from "@/lib/exportMemo";
 import { SSEEventLogItem } from "@/types/crossfire";
+import { SerpApiText } from "@/components/ui/serpapi";
 
 export const LiveLogsDrawer: React.FC = () => {
   const { state, setActiveModal } = useCase();
@@ -140,7 +141,7 @@ export const LiveLogsDrawer: React.FC = () => {
                 </div>
 
                 <pre className="text-[11px] text-on-surface-variant bg-surface-container-low p-2 rounded overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">
-                  {JSON.stringify(item.data, null, 2)}
+                  <SerpApiText text={JSON.stringify(item.data, null, 2)} />
                 </pre>
               </div>
             ))

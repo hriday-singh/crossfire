@@ -177,8 +177,8 @@ export const SerpApiInlinePill: React.FC<SerpApiInlinePillProps> = ({
   );
 };
 
-const SERPAPI_REGEX = /(\b(?:serp\s*api|serpapi|serp)\b)/gi;
-const SERPAPI_CHECK = /\b(?:serp\s*api|serpapi|serp)\b/i;
+const SERPAPI_REGEX = /(\b(?:serp\s*api|serpapi|serp|duckduckgo\s*lite|duckduckgo|duck\s*duck\s*go)\b)/gi;
+const SERPAPI_CHECK = /\b(?:serp\s*api|serpapi|serp|duckduckgo\s*lite|duckduckgo|duck\s*duck\s*go)\b/i;
 
 /**
  * Replaces case-insensitive occurrences of "serp", "serpapi", or "serp api"

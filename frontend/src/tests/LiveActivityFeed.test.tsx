@@ -53,7 +53,7 @@ describe("LiveActivityFeed", () => {
 
     expect(screen.getByText(/evidence test/i)).toBeInTheDocument();
     expect(
-      screen.getByText('Querying DuckDuckGo: "uscis bot submission terms"')
+      screen.getByText(/uscis bot submission terms/)
     ).toBeInTheDocument();
 
     expect(screen.getByText(/feasibility test/i)).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("LiveActivityFeed", () => {
     render(<LiveActivityFeed activities={sampleActivities} isStreaming={false} />);
 
     expect(
-      screen.getByText('Querying DuckDuckGo: "uscis bot submission terms"')
+      screen.getByText(/uscis bot submission terms/)
     ).toBeInTheDocument();
 
     const collapseButton = screen.getByRole("button", { name: /collapse activity feed/i });
@@ -79,7 +79,7 @@ describe("LiveActivityFeed", () => {
 
     // Collapsed: items not in document
     expect(
-      screen.queryByText('Querying DuckDuckGo: "uscis bot submission terms"')
+      screen.queryByText(/uscis bot submission terms/)
     ).not.toBeInTheDocument();
 
     // Expand again
@@ -87,7 +87,7 @@ describe("LiveActivityFeed", () => {
     fireEvent.click(expandButton);
 
     expect(
-      screen.getByText('Querying DuckDuckGo: "uscis bot submission terms"')
+      screen.getByText(/uscis bot submission terms/)
     ).toBeInTheDocument();
   });
 
