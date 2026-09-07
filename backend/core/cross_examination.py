@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -15,7 +16,7 @@ from core.activity import emit_activity
 from core.models import Case, Claim, EvidenceItem, Finding
 from core.textutil import OBJECTION_SCALE, clamp_sentences, one_line
 from evidence.curate import curate_snippet
-from evidence.search import build_query, search_evidence
+from evidence.search import build_authority_query, build_query, search_evidence
 from providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
@@ -58,20 +59,50 @@ PROBE_SYSTEM_PROMPT = (
 )
 
 
-def extract_critical_blocker(findings: list[Finding]) -> str | None:
-    """Scans findings for high-impact blockers or unstated premises that lack empirical evidence.
+# A blocker naming a statute, regulator or ordinance is the one kind whose source
+# is reliably retrievable, and it is the kind the panel gets right and the pipeline
+# then loses: in b1-phi-google-drive and b2-14-hour-shifts (2026-09-07 corpus) the
+# panel named 45 CFR 164.312 and 49 CFR 395.3 correctly, no finding carried both
+# evidence and a contradiction, and `apply_evidence_gate` demoted a statutory wall
+# to `weakened`. Probing these first is what converts the panel's citation into the
+# sourced contradiction the gate requires.
+_STATUTORY_BLOCKER = re.compile(
+    r"(\d+\s*(?:CFR|C\.F\.R\.|U\.?S\.?C\.?)|§|section\s+\d|"
+    r"(?:statut\w+|regulat\w+|ordinance|licen[cs]\w+|unlicensed|unregistered|"
+    r"illegal|unlawful|prohibited|non-compliant|noncompliance|felony|misdemeanor)|"
+    r"(?:HIPAA|FMCSA|FMCSR|GDPR|CCPA|OSHA|SEC|FDA|FINRA|FinCEN|DOT|EEOC|FTC|"
+    r"PCI[- ]DSS|SOX|COPPA|Howey)|municipal code|federal law)",
+    re.IGNORECASE,
+)
 
-    Prioritizes:
-    1. Builder's explicit contradiction or blocker with confidence >= 0.6
-    2. Devil's Advocate's logical contradiction with confidence >= 0.7
-    """
-    for f in findings:
-        if f.evaluator == "builder" and (f.contradiction or "").strip() and f.confidence >= 0.6:
-            return f.contradiction.strip()
-    for f in findings:
-        if f.evaluator == "devils_advocate" and (f.contradiction or "").strip() and f.confidence >= 0.7:
-            return f.contradiction.strip()
-    return None
+# Per-persona objection strength at which a theoretical blocker is worth a search.
+# Operator was absent from this map entirely, which is why regulatory blockers —
+# the ones it raises under friction_type='regulatory_liability' — were never probed.
+_PROBE_FLOOR = {"builder": 0.6, "operator": 0.6, "devils_advocate": 0.7}
+
+
+def is_statutory_blocker(text: str | None) -> bool:
+    """Whether a blocker asserts a rule an authority actually publishes."""
+    return bool(_STATUTORY_BLOCKER.search(text or ""))
+
+
+def extract_critical_blocker(findings: list[Finding]) -> str | None:
+    """The one unverified blocker on this claim most worth spending a search on.
+
+    Statutory blockers outrank everything else regardless of persona; within each
+    group the hardest objection wins. Only reasoning-only findings qualify — a
+    finding that already carries its own sources needs no cross-examination."""
+    eligible = [
+        f
+        for f in findings
+        if (f.contradiction or "").strip()
+        and not f.evidence
+        and f.confidence >= _PROBE_FLOOR.get(f.evaluator, 1.1)
+    ]
+    if not eligible:
+        return None
+    eligible.sort(key=lambda f: (not is_statutory_blocker(f.contradiction), -f.confidence))
+    return eligible[0].contradiction.strip()
 
 
 async def probe_blocker(
@@ -82,7 +113,11 @@ async def probe_blocker(
 ) -> Finding | None:
     """Executes a focused empirical search probe targeting a specific theoretical blocker."""
     case_id = getattr(case, "id", None)
-    probe_query = build_query(f"{claim.statement} {blocker_text}")
+    # A statutory blocker is answered by the body that publishes the rule, not by
+    # the ordinary web results `build_query` returns — in b1 those were Google Drive
+    # setup guides, which is how a HIPAA violation reached the gate unsourced.
+    build = build_authority_query if is_statutory_blocker(blocker_text) else build_query
+    probe_query = build(f"{claim.statement} {blocker_text}")
 
     if case_id:
         try:
