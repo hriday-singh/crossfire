@@ -38,7 +38,7 @@ const TestConsumer: React.FC = () => {
       <button onClick={confirmAndRun}>Confirm and Run</button>
       <button onClick={() => toggleAgentSelection("builder")}>Toggle Builder</button>
       <button onClick={() => setAgentMode("custom")}>Set Custom Mode</button>
-      <button onClick={() => setSelectedAgents(["receipts", "builder"])}>Set Receipts Builder</button>
+      <button onClick={() => setSelectedAgents(["researcher", "builder"])}>Set Researcher Builder</button>
     </div>
   );
 };
@@ -145,7 +145,7 @@ describe("CaseContext", () => {
       context: null,
       status: "awaiting_confirmation",
       agent_mode: "auto",
-      selected_agents: ["devils_advocate", "receipts"],
+      selected_agents: ["devils_advocate", "researcher"],
       claims: [
         { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
       ],
@@ -181,7 +181,7 @@ describe("CaseContext", () => {
       expect(api.confirmCase).toHaveBeenCalledWith(
         "case-confirm-test",
         [{ id: "c-1", statement: "Claim 1", load_bearing: true, status: null }],
-        ["devils_advocate", "receipts"]
+        ["devils_advocate", "researcher"]
       );
     });
   });
@@ -193,7 +193,7 @@ describe("CaseContext", () => {
       context: null,
       status: "awaiting_confirmation",
       agent_mode: "auto",
-      selected_agents: ["devils_advocate", "receipts", "builder", "operator"],
+      selected_agents: ["devils_advocate", "researcher", "builder", "operator"],
       claims: [
         { id: "c-1", statement: "Claim 1", load_bearing: true, status: null },
       ],
@@ -214,7 +214,7 @@ describe("CaseContext", () => {
 
     expect(screen.getByTestId("agent-mode")).toHaveTextContent("auto");
     expect(screen.getByTestId("selected-agents")).toHaveTextContent(
-      "devils_advocate,receipts,builder,operator"
+      "devils_advocate,researcher,builder,operator"
     );
 
     // Toggle builder
@@ -222,7 +222,7 @@ describe("CaseContext", () => {
       fireEvent.click(screen.getByText("Toggle Builder"));
     });
     expect(screen.getByTestId("selected-agents")).toHaveTextContent(
-      "devils_advocate,receipts,operator"
+      "devils_advocate,researcher,operator"
     );
 
     // Set custom mode
@@ -233,8 +233,8 @@ describe("CaseContext", () => {
 
     // Set specific agents
     act(() => {
-      fireEvent.click(screen.getByText("Set Receipts Builder"));
+      fireEvent.click(screen.getByText("Set Researcher Builder"));
     });
-    expect(screen.getByTestId("selected-agents")).toHaveTextContent("receipts,builder");
+    expect(screen.getByTestId("selected-agents")).toHaveTextContent("researcher,builder");
   });
 });

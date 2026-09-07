@@ -30,6 +30,10 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      "/providers": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
       "/ready": {
         target: "http://localhost:8000",
         changeOrigin: true,
@@ -48,6 +52,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/health": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/providers": {
         target: "http://localhost:8000",
         changeOrigin: true,
       },

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, renderHook, act } from "@testing-library/react";
-import { AGENT_CONFIGS, AGENT_MAP, JUDGE_CONFIG } from "../constants/agentConfigs";
+import { AGENT_CONFIGS, AGENT_MAP, STEELMAN_CONFIG } from "../constants/agentConfigs";
 import {
   ROOM_DIMENSIONS,
-  JUDGE_TABLE_CONFIG,
+  STEELMAN_TABLE_CONFIG,
   CUBICLE_LAYOUTS,
   WAYPOINTS,
 } from "../constants/roomLayout";
@@ -48,47 +48,47 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(AGENT_CONFIGS).toHaveLength(4);
 
       const devilsAdvocate = AGENT_MAP["devils_advocate"];
-      const receipts = AGENT_MAP["receipts"];
+      const researcher = AGENT_MAP["researcher"];
       const builder = AGENT_MAP["builder"];
       const operator = AGENT_MAP["operator"];
 
       expect(devilsAdvocate).toBeDefined();
-      expect(receipts).toBeDefined();
+      expect(researcher).toBeDefined();
       expect(builder).toBeDefined();
       expect(operator).toBeDefined();
 
       expect(devilsAdvocate.cubicle).toBe("Cubicle 02 (SW)");
-      expect(receipts.cubicle).toBe("Cubicle 03 (NE)");
+      expect(researcher.cubicle).toBe("Cubicle 03 (NE)");
       expect(builder.cubicle).toBe("Cubicle 01 (NW)");
       expect(operator.cubicle).toBe("Cubicle 04 (SE)");
 
       expect(devilsAdvocate.initialWaypoint).toBe("cubicle_2_desk");
-      expect(receipts.initialWaypoint).toBe("cubicle_3_desk");
+      expect(researcher.initialWaypoint).toBe("cubicle_3_desk");
       expect(builder.initialWaypoint).toBe("cubicle_1_desk");
       expect(operator.initialWaypoint).toBe("cubicle_4_desk");
 
       expect(devilsAdvocate.color).toBe("#818cf8");
-      expect(receipts.color).toBe("#34d399");
+      expect(researcher.color).toBe("#34d399");
       expect(builder.color).toBe("#fbbf24");
       expect(operator.color).toBe("#60a5fa");
     });
 
-    it("exports JUDGE_CONFIG for Steelman presiding at central bench", () => {
-      expect(JUDGE_CONFIG).toBeDefined();
-      expect(JUDGE_CONFIG.id).toBe("judge");
-      expect(JUDGE_CONFIG.name).toBe("Steelman");
-      expect(JUDGE_CONFIG.initialWaypoint).toBe("judge_chair");
-      expect(JUDGE_CONFIG.color).toBe("#e4e1e6");
+    it("exports STEELMAN_CONFIG for Steelman presiding at central bench", () => {
+      expect(STEELMAN_CONFIG).toBeDefined();
+      expect(STEELMAN_CONFIG.id).toBe("steelman");
+      expect(STEELMAN_CONFIG.name).toBe("Steelman");
+      expect(STEELMAN_CONFIG.initialWaypoint).toBe("steelman_chair");
+      expect(STEELMAN_CONFIG.color).toBe("#e4e1e6");
     });
 
     it("provides backward compatibility aliases in AGENT_MAP for legacy agent IDs", () => {
       expect(AGENT_MAP["agent_1"]).toBe(AGENT_MAP["builder"]);
       expect(AGENT_MAP["agent_2"]).toBe(AGENT_MAP["devils_advocate"]);
-      expect(AGENT_MAP["agent_3"]).toBe(AGENT_MAP["receipts"]);
+      expect(AGENT_MAP["agent_3"]).toBe(AGENT_MAP["researcher"]);
       expect(AGENT_MAP["agent_4"]).toBe(AGENT_MAP["operator"]);
-      expect(AGENT_MAP["judge"]).toBe(JUDGE_CONFIG);
-      expect(AGENT_MAP["arbiter"]).toBe(JUDGE_CONFIG);
-      expect(AGENT_MAP["steelman"]).toBe(JUDGE_CONFIG);
+      expect(AGENT_MAP["steelman"]).toBe(STEELMAN_CONFIG);
+      expect(AGENT_MAP["arbiter"]).toBe(STEELMAN_CONFIG);
+      expect(AGENT_MAP["steelman"]).toBe(STEELMAN_CONFIG);
     });
   });
 
@@ -98,15 +98,15 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(ROOM_DIMENSIONS.height).toBe(587);
     });
 
-    it("places Judge Table in the upper-center position", () => {
-      expect(JUDGE_TABLE_CONFIG).toBeDefined();
-      expect(JUDGE_TABLE_CONFIG.x).toBe(500);
-      expect(JUDGE_TABLE_CONFIG.y).toBe(281);
-      expect(JUDGE_TABLE_CONFIG.width).toBe(240);
-      expect(JUDGE_TABLE_CONFIG.height).toBe(120);
+    it("places Steelman Table in the upper-center position", () => {
+      expect(STEELMAN_TABLE_CONFIG).toBeDefined();
+      expect(STEELMAN_TABLE_CONFIG.x).toBe(500);
+      expect(STEELMAN_TABLE_CONFIG.y).toBe(281);
+      expect(STEELMAN_TABLE_CONFIG.width).toBe(240);
+      expect(STEELMAN_TABLE_CONFIG.height).toBe(120);
     });
 
-    it("positions 2 cubicles on the left and 2 cubicles on the right of the judge table", () => {
+    it("positions 2 cubicles on the left and 2 cubicles on the right of the steelman table", () => {
       expect(CUBICLE_LAYOUTS).toHaveLength(4);
 
       const leftCubicles = CUBICLE_LAYOUTS.filter((c) => c.side === "left");
@@ -115,20 +115,20 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(leftCubicles).toHaveLength(2);
       expect(rightCubicles).toHaveLength(2);
 
-      // Left cubicles must have bounds.x to the left of the judge table (x < 500)
+      // Left cubicles must have bounds.x to the left of the steelman table (x < 500)
       leftCubicles.forEach((c) => {
-        expect(c.bounds.x).toBeLessThan(JUDGE_TABLE_CONFIG.x);
+        expect(c.bounds.x).toBeLessThan(STEELMAN_TABLE_CONFIG.x);
       });
 
-      // Right cubicles must have bounds.x to the right of the judge table (x > 500)
+      // Right cubicles must have bounds.x to the right of the steelman table (x > 500)
       rightCubicles.forEach((c) => {
-        expect(c.bounds.x).toBeGreaterThan(JUDGE_TABLE_CONFIG.x);
+        expect(c.bounds.x).toBeGreaterThan(STEELMAN_TABLE_CONFIG.x);
       });
     });
 
-    it("provides sit and stand waypoints for each cubicle and the judge bench", () => {
-      expect(WAYPOINTS.judge_chair).toBeDefined();
-      expect(WAYPOINTS.judge_desk).toBeDefined();
+    it("provides sit and stand waypoints for each cubicle and the steelman bench", () => {
+      expect(WAYPOINTS.steelman_chair).toBeDefined();
+      expect(WAYPOINTS.steelman_desk).toBeDefined();
 
       expect(WAYPOINTS.cubicle_1_desk).toBeDefined();
       expect(WAYPOINTS.cubicle_1_stand).toBeDefined();
@@ -145,7 +145,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     });
   });
 
-  describe("Audio Playback & Exclusive Judge Voice TTS", () => {
+  describe("Audio Playback & Exclusive Steelman Voice TTS", () => {
     it("does NOT speak voice audio for AI evaluators", () => {
       const { result } = renderHook(() => useAudioPlayback());
       const onEndMock = vi.fn();
@@ -163,19 +163,19 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(onEndMock).toHaveBeenCalledTimes(1);
     });
 
-    it("strictly speaks voice audio ONLY for the Judge (Crucible Arbiter)", () => {
+    it("strictly speaks voice audio ONLY for the Steelman (Crucible Arbiter)", () => {
       const { result } = renderHook(() => useAudioPlayback());
       const onEndMock = vi.fn();
 
       act(() => {
         result.current.playSpeech({
-          speakerId: "judge",
+          speakerId: "steelman",
           dialogue: "Crucible Magistrate Verdict: Decision is WEAKENED.",
           onEnd: onEndMock,
         });
       });
 
-      // The Judge speaks with voice synthesis
+      // The Steelman speaks with voice synthesis
       expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
     });
   });
@@ -233,20 +233,20 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(screen.getByText("BROKEN")).toBeInTheDocument();
     });
 
-    it("renders the Judge bubble when the user hovers over the Judge", () => {
+    it("renders the Steelman bubble when the user hovers over the Steelman", () => {
       render(
         <DialogueOverlay
           activeDialogue={{
-            speaker_id: "judge",
+            speaker_id: "steelman",
             dialogue: "Crucible Magistrate Verdict: Decision is WEAKENED.",
             action: "inspect",
             stage: "Crucible Synthesis",
             verdict: "weakened",
           }}
           characterPositions={{
-            judge: { x: 500, y: 330 },
+            steelman: { x: 500, y: 330 },
           }}
-          hoveredAgentId="judge"
+          hoveredAgentId="steelman"
         />
       );
 
@@ -266,16 +266,16 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       );
 
       const devilsAdvocateZone = screen.getByTestId("hover-zone-devils_advocate");
-      const receiptsZone = screen.getByTestId("hover-zone-receipts");
+      const researcherZone = screen.getByTestId("hover-zone-researcher");
       const builderZone = screen.getByTestId("hover-zone-builder");
       const operatorZone = screen.getByTestId("hover-zone-operator");
-      const judgeZone = screen.getByTestId("hover-zone-judge");
+      const steelmanZone = screen.getByTestId("hover-zone-steelman");
 
       expect(devilsAdvocateZone).toBeInTheDocument();
-      expect(receiptsZone).toBeInTheDocument();
+      expect(researcherZone).toBeInTheDocument();
       expect(builderZone).toBeInTheDocument();
       expect(operatorZone).toBeInTheDocument();
-      expect(judgeZone).toBeInTheDocument();
+      expect(steelmanZone).toBeInTheDocument();
 
       fireEvent.mouseEnter(devilsAdvocateZone);
       expect(mockOnHoverAgent).toHaveBeenCalledWith("devils_advocate");
@@ -286,7 +286,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
   });
 
   describe("SideControlPanel Controls & Audio Toggle", () => {
-    it("renders Judge Voice Readout toggle button and responds to toggle", () => {
+    it("renders Steelman Voice Readout toggle button and responds to toggle", () => {
       const mockToggleAudio = vi.fn();
       const mockSetAutoPlaying = vi.fn();
       const mockSetSpeed = vi.fn();
@@ -321,8 +321,8 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
         />
       );
 
-      // Check Judge Voice label and toggle button
-      expect(screen.getByText("Judge Voice")).toBeInTheDocument();
+      // Check Steelman Voice label and toggle button
+      expect(screen.getByText("Steelman Voice")).toBeInTheDocument();
       const voiceButton = screen.getByRole("button", {
         name: /Voice Readout: ENABLED/i,
       });

@@ -35,7 +35,7 @@ describe("exportMemo", () => {
         {
           claim_id: "claim-1",
           test_id: "test-1",
-          evaluator: "receipts",
+          evaluator: "researcher",
           result: "fail",
           reasoning: "Contradicts past empirical cases",
           confidence: 0.9,

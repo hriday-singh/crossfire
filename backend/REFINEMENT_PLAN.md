@@ -39,7 +39,7 @@ Touches: `store.py`, `tests/conftest.py`. No contract change.
 ### 1a. Evidence gate on `broken`
 Direction doc §13: *a claim's status should only move because of evidence traceable to
 an actual source.* Today 3 of 4 evaluators emit `evidence=[]` by design, and the college
-run went 5/5 `broken` while every Receipts finding said "unsupported" — absence of
+run went 5/5 `broken` while every Researcher finding said "unsupported" — absence of
 evidence read as refutation.
 
 Deterministic post-reconcile gate: `broken` requires at least one finding carrying both
@@ -58,7 +58,7 @@ evidence pass. That is the real answer to "why wait longer than a prompt".
 
 ### 1c. No silent evaluator loss
 `run_evaluators` drops exceptions with `isinstance(r, Finding)` — no log, no event.
-Observed live: the PII claim emitted `test_started` for Receipts and no finding ever
+Observed live: the PII claim emitted `test_started` for Researcher and no finding ever
 arrived; the frontend row stays pinned open forever.
 
 Emit a degraded `Finding` (confidence 0, result names the failure) instead of dropping it,
@@ -72,15 +72,15 @@ Touches: `core/loop.py`, tests. No contract change.
 ## Stage 2 — Make the evidence worth reading
 
 - **Query construction.** `search_evidence` posts `claim.statement` verbatim. Full-sentence
-  predictions are poor search queries; this is why Receipts lands on "inconclusive" so often.
+  predictions are poor search queries; this is why Researcher lands on "inconclusive" so often.
   Derive a short keyword query per claim.
 - **Source quality.** `ryter.pro`, `oreateai.com`, `spiderhunts.com` currently sit next to
   `docs.stripe.com` and `commonapp.org` at equal weight. Rank by domain class
   (primary/official > institutional/press > blog) and surface the class in the drawer.
 - **Cite what was used.** All four search hits are attached to the finding whether the
-  evaluator referenced them or not. Have Receipts name the sources it relied on; keep those.
+  evaluator referenced them or not. Have Researcher name the sources it relied on; keep those.
 
-Touches: `evidence/search.py`, `core/evaluators/receipts.py`, tests.
+Touches: `evidence/search.py`, `core/evaluators/researcher.py`, tests.
 
 ---
 
@@ -124,7 +124,7 @@ Touches: `core/loop.py`, `core/models.py`, `api/routes.py`, frontend. **Contract
   silently turned into invented claims. Currently unimplemented.
 - **Dead code:** `_FAILURE_MODE_WEIGHTS` in `core/loop.py` — 85 lines computed and then
   discarded in panel mode; the real routing lives in two hardcoded keyword lists below it.
-- **Signature drift:** `receipts`, `devils_advocate` and `overthinker` each `isinstance`-sniff
+- **Signature drift:** `researcher`, `devils_advocate` and `overthinker` each `isinstance`-sniff
   three different argument orders, violating frozen contract §4, and `dispatch()` carries a
   compensating branch for it. Collapse to the one contract signature.
 - **Runaway fan-out:** ~35 LLM calls dispatch at once with a 120s per-call httpx timeout.

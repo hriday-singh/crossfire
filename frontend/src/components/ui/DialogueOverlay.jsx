@@ -1,8 +1,8 @@
 import React from 'react';
-import { AGENT_CONFIGS, AGENT_MAP, JUDGE_CONFIG } from '../../constants/agentConfigs';
+import { AGENT_CONFIGS, AGENT_MAP, STEELMAN_CONFIG } from '../../constants/agentConfigs';
 import {
   CUBICLE_LAYOUTS,
-  JUDGE_TABLE_CONFIG,
+  STEELMAN_TABLE_CONFIG,
   ROOM_DIMENSIONS,
 } from '../../constants/roomLayout';
 import {
@@ -21,13 +21,13 @@ function getAgentCognitiveTag(agentId) {
   switch (agentId) {
     case 'devils_advocate':
       return '[Assumption Pre-Mortem]';
-    case 'receipts':
+    case 'researcher':
       return '[Citation Audit]';
     case 'builder':
       return '[Feasibility Test]';
     case 'operator':
       return '[Friction Test]';
-    case 'judge':
+    case 'steelman':
       return '[Steelman]';
     default:
       return '[Audit Task]';
@@ -41,13 +41,13 @@ function getAgentDefaultStatus(agentId) {
   switch (agentId) {
     case 'devils_advocate':
       return 'Auditing Assumptions';
-    case 'receipts':
+    case 'researcher':
       return 'Verifying Citations & Benchmarks';
     case 'builder':
       return 'Testing System Feasibility';
     case 'operator':
       return 'Assessing Operational Friction';
-    case 'judge':
+    case 'steelman':
       return 'Monitoring Stations';
     default:
       return 'Workstation Standby';
@@ -281,23 +281,23 @@ export function DialogueOverlay({
     );
   };
 
-  // 1. Resolve Judge Bubble State (Hover-only)
-  const isJudgeHovered = hoveredAgentId === 'judge';
-  const judgePos = characterPositions['judge'] || {
-    x: JUDGE_TABLE_CONFIG.x,
-    y: JUDGE_TABLE_CONFIG.y - 18,
+  // 1. Resolve Steelman Bubble State (Hover-only)
+  const isSteelmanHovered = hoveredAgentId === 'steelman';
+  const steelmanPos = characterPositions['steelman'] || {
+    x: STEELMAN_TABLE_CONFIG.x,
+    y: STEELMAN_TABLE_CONFIG.y - 18,
   };
 
-  let judgeFinding = evaluatorFindings['judge'] || (
-    activeDialogue?.speaker_id === 'judge' ||
+  let steelmanFinding = evaluatorFindings['steelman'] || (
+    activeDialogue?.speaker_id === 'steelman' ||
     activeDialogue?.speaker_id === 'arbiter' ||
     activeDialogue?.speaker_id === 'moderator'
       ? activeDialogue
       : null
   );
 
-  let judgeStatusText = formatConciseThought(judgeFinding, 'judge');
-  let judgeVerdict = judgeFinding?.verdict || null;
+  let steelmanStatusText = formatConciseThought(steelmanFinding, 'steelman');
+  let steelmanVerdict = steelmanFinding?.verdict || null;
 
   // 2. Resolve AI Evaluator Bubbles (Hover-only)
   const evaluatorBubbles = AGENT_CONFIGS.map((agent) => {
@@ -363,32 +363,32 @@ export function DialogueOverlay({
           );
         })}
 
-        {/* Judge Table Hover Zone */}
+        {/* Steelman Table Hover Zone */}
         <div
-          data-testid="hover-zone-judge"
-          onMouseEnter={() => onHoverAgent?.('judge')}
+          data-testid="hover-zone-steelman"
+          onMouseEnter={() => onHoverAgent?.('steelman')}
           onMouseLeave={() => onHoverAgent?.(null)}
           className="absolute pointer-events-auto cursor-pointer rounded-xl transition-all duration-150 hover:bg-white/[0.04]"
           style={{
-            left: `${((JUDGE_TABLE_CONFIG.x - JUDGE_TABLE_CONFIG.width / 2) / roomW) * 100}%`,
-            top: `${((JUDGE_TABLE_CONFIG.y - JUDGE_TABLE_CONFIG.height / 2) / roomH) * 100}%`,
-            width: `${(JUDGE_TABLE_CONFIG.width / roomW) * 100}%`,
-            height: `${(JUDGE_TABLE_CONFIG.height / roomH) * 100}%`,
+            left: `${((STEELMAN_TABLE_CONFIG.x - STEELMAN_TABLE_CONFIG.width / 2) / roomW) * 100}%`,
+            top: `${((STEELMAN_TABLE_CONFIG.y - STEELMAN_TABLE_CONFIG.height / 2) / roomH) * 100}%`,
+            width: `${(STEELMAN_TABLE_CONFIG.width / roomW) * 100}%`,
+            height: `${(STEELMAN_TABLE_CONFIG.height / roomH) * 100}%`,
           }}
           title="Steelman Magistrate Bench"
         />
       </div>
 
-      {/* Hover-Only Judge Bubble */}
-      {isJudgeHovered &&
+      {/* Hover-Only Steelman Bubble */}
+      {isSteelmanHovered &&
         renderAgentPill({
-          agent: JUDGE_CONFIG,
-          pos: judgePos,
-          statusText: judgeStatusText,
+          agent: STEELMAN_CONFIG,
+          pos: steelmanPos,
+          statusText: steelmanStatusText,
           cognitiveTag: '[Steelman]',
-          verdict: judgeVerdict,
-          isHovered: isJudgeHovered,
-          testId: 'bubble-judge',
+          verdict: steelmanVerdict,
+          isHovered: isSteelmanHovered,
+          testId: 'bubble-steelman',
         })}
 
       {/* Hover-Only Evaluator Bubbles */}

@@ -31,24 +31,24 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
   it('normalizes evaluator tags and names to correct sprite IDs, desks, and cognitive tags', () => {
     expect(normalizeEvaluatorId("Devil's Advocate")).toBe('devils_advocate');
     expect(normalizeEvaluatorId('devils_advocate')).toBe('devils_advocate');
-    expect(normalizeEvaluatorId('Receipts')).toBe('receipts');
-    expect(normalizeEvaluatorId('Researcher')).toBe('receipts');
+    expect(normalizeEvaluatorId('Researcher')).toBe('researcher');
+    expect(normalizeEvaluatorId('Researcher')).toBe('researcher');
     expect(normalizeEvaluatorId('Builder')).toBe('builder');
     expect(normalizeEvaluatorId('Operator')).toBe('operator');
-    expect(normalizeEvaluatorId('Steelman')).toBe('judge');
-    expect(normalizeEvaluatorId('Crucible Arbiter')).toBe('judge');
+    expect(normalizeEvaluatorId('Steelman')).toBe('steelman');
+    expect(normalizeEvaluatorId('Crucible Arbiter')).toBe('steelman');
 
     expect(AGENT_HOME_DESKS['devils_advocate']).toBe('cubicle_2_desk');
-    expect(AGENT_HOME_DESKS['receipts']).toBe('cubicle_3_desk');
+    expect(AGENT_HOME_DESKS['researcher']).toBe('cubicle_3_desk');
     expect(AGENT_HOME_DESKS['builder']).toBe('cubicle_1_desk');
     expect(AGENT_HOME_DESKS['operator']).toBe('cubicle_4_desk');
-    expect(AGENT_HOME_DESKS['judge']).toBe('judge_chair');
+    expect(AGENT_HOME_DESKS['steelman']).toBe('steelman_chair');
 
     expect(getCognitiveTag('devils_advocate')).toBe('[Assumption Pre-Mortem]');
-    expect(getCognitiveTag('receipts')).toBe('[Citation Audit]');
+    expect(getCognitiveTag('researcher')).toBe('[Citation Audit]');
     expect(getCognitiveTag('builder')).toBe('[Feasibility Test]');
     expect(getCognitiveTag('operator')).toBe('[Friction Test]');
-    expect(getCognitiveTag('judge')).toBe('[Steelman]');
+    expect(getCognitiveTag('steelman')).toBe('[Steelman]');
   });
 
   it('translates test_started event to active typing and cognitive thought at workstation desk', () => {
@@ -100,7 +100,7 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
     // Activity event
     act(() => {
       onDispatchPacket({
-        speaker_id: 'receipts',
+        speaker_id: 'researcher',
         action: 'type',
         target: 'cubicle_3_desk',
         cognitive_tag: '[Citation Audit]',
@@ -111,18 +111,18 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
 
     expect(onDispatchPacket).toHaveBeenCalledWith(
       expect.objectContaining({
-        speaker_id: 'receipts',
+        speaker_id: 'researcher',
         action: 'type',
         thought: 'Querying SerpApi: "LLM tier 1 support benchmarks"',
       })
     );
 
-    // Load-bearing ready event for Judge
+    // Load-bearing ready event for Steelman
     act(() => {
       onDispatchPacket({
-        speaker_id: 'judge',
+        speaker_id: 'steelman',
         action: 'inspect',
-        target: 'judge_chair',
+        target: 'steelman_chair',
         stage: 'Assessing Load-Bearing: Critical Core Assumption',
         thought: 'Core assumption required for viable deployment',
       });
@@ -130,15 +130,15 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
 
     expect(onDispatchPacket).toHaveBeenCalledWith(
       expect.objectContaining({
-        speaker_id: 'judge',
+        speaker_id: 'steelman',
         action: 'inspect',
-        target: 'judge_chair',
+        target: 'steelman_chair',
         stage: 'Assessing Load-Bearing: Critical Core Assumption',
       })
     );
   });
 
-  it('replays a completed case findings through active desk thinking, table presentation, and Judge synthesis', () => {
+  it('replays a completed case findings through active desk thinking, table presentation, and Steelman synthesis', () => {
     const onDispatchPacket = vi.fn();
 
     const mockCase: Case = {
@@ -204,7 +204,7 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
 
     expect(onDispatchPacket).toHaveBeenCalledWith(
       expect.objectContaining({
-        speaker_id: 'receipts',
+        speaker_id: 'researcher',
         action: 'type',
         target: 'cubicle_3_desk',
         cognitive_tag: '[Citation Audit]',
@@ -218,9 +218,9 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
 
     expect(onDispatchPacket).toHaveBeenCalledWith(
       expect.objectContaining({
-        speaker_id: 'receipts',
+        speaker_id: 'researcher',
         action: 'walk_to',
-        target: 'judge_approach',
+        target: 'steelman_approach',
       })
     );
 
@@ -231,7 +231,7 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
 
     expect(onDispatchPacket).toHaveBeenCalledWith(
       expect.objectContaining({
-        speaker_id: 'receipts',
+        speaker_id: 'researcher',
         action: 'inspect',
         gesture: 'point',
         verdict: 'broken',
@@ -241,14 +241,14 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
       })
     );
 
-    // Advance time to allow return and final Judge adjudication
+    // Advance time to allow return and final Steelman adjudication
     act(() => {
       vi.advanceTimersByTime(6000);
     });
 
     expect(onDispatchPacket).toHaveBeenCalledWith(
       expect.objectContaining({
-        speaker_id: 'judge',
+        speaker_id: 'steelman',
         action: 'inspect',
         verdict: 'drop',
         dialogue: 'Real tier-1 containment tops out at 45-65%.',

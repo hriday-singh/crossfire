@@ -42,7 +42,7 @@ class EvidenceItem(BaseModel):
 class Finding(BaseModel):
     claim_id: str
     test_id: str
-    evaluator: str                          # "devils_advocate" | "researcher" (alias "receipts") | "builder" | "operator" (alias "overthinker")
+    evaluator: str                          # "devils_advocate" | "researcher" (alias "researcher") | "builder" | "operator" (alias "overthinker")
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str

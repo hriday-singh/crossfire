@@ -215,7 +215,7 @@ def test_prefers_the_evidenced_contradiction_over_the_louder_one():
             _finding("c1", "devils_advocate", 0.95, contradiction="Drivers will quit"),
             _finding(
                 "c1",
-                "receipts",
+                "researcher",
                 0.8,
                 contradiction="FMCSA caps driving at 11 hours",
                 evidence=[_evidence()],
@@ -224,7 +224,7 @@ def test_prefers_the_evidenced_contradiction_over_the_louder_one():
     )
 
     factor = build_deciding_factor(case)
-    assert factor.evaluator == "receipts"
+    assert factor.evaluator == "researcher"
     assert factor.the_fact == "FMCSA caps driving at 11 hours"
     assert factor.source_url == "https://fmcsa.dot.gov/395"
     assert factor.source_title == "FMCSA 395.3"
@@ -291,7 +291,7 @@ def test_gate_not_reported_when_it_did_not_fire():
         id="c",
         raw_input="x",
         claims=[c1],
-        findings=[_finding("c1", "receipts", 0.6, contradiction="cited", evidence=[_evidence()])],
+        findings=[_finding("c1", "researcher", 0.6, contradiction="cited", evidence=[_evidence()])],
         consequences=[
             DecisionConsequence(
                 claim_id="c1", impact="high", recommended_change="rework",
@@ -309,7 +309,7 @@ async def test_synthesis_attaches_the_deciding_factor():
         id="c",
         raw_input="x",
         claims=[c1],
-        findings=[_finding("c1", "receipts", 0.6, contradiction="cited", evidence=[_evidence()])],
+        findings=[_finding("c1", "researcher", 0.6, contradiction="cited", evidence=[_evidence()])],
     )
 
     verdict = await synthesize_case_verdict(case, StubProvider())

@@ -58,12 +58,12 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {ALL_AGENTS.map((agent) => {
           const isSelected = selectedAgents.some(
-            (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === agent.id
+            (id) => (id === "researcher" ? "researcher" : id === "overthinker" ? "operator" : id) === agent.id
           );
           // ONLY lookup rationale when agent is actually selected/active!
           const rawRationale = isSelected
             ? agentRationales[agent.id] ||
-              (agent.id === "researcher" ? agentRationales["receipts"] : undefined) ||
+              (agent.id === "researcher" ? agentRationales["researcher"] : undefined) ||
               (agent.id === "operator" ? agentRationales["overthinker"] : undefined)
             : undefined;
           const rationale = isSelected && rawRationale ? formatConciseRationale(rawRationale) : undefined;

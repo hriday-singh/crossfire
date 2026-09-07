@@ -339,7 +339,7 @@ def test_unresolved_without_a_missing_input_and_a_sourced_contradiction_is_weake
     findings = [
         _finding(
             "c1",
-            "receipts",
+            "researcher",
             0.8,
             evidence=[_evidence()],
             contradiction="49 CFR 395.3 caps driving at 11 hours.",

@@ -1,6 +1,6 @@
 """
 Owner: Dev B. Scrapling wrapper — deep-verification for load-bearing claims
-and pasted-URL ingestion share this module. See docs/03-dev-B-evidence-receipts.md.
+and pasted-URL ingestion share this module. See docs/03-dev-B-evidence-researcher.md.
 """
 from __future__ import annotations
 

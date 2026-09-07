@@ -9,7 +9,7 @@ interface CruciblePageTransitionProps {
 
 /**
  * CruciblePageTransition Component
- * Seamless, non-intrusive viewport transition when the Judge exits the bullpen.
+ * Seamless, non-intrusive viewport transition when the Steelman exits the bullpen.
  * Dissolves smoothly into the Decision Memo without modal popups or dialogue boxes.
  */
 export const CruciblePageTransition: React.FC<CruciblePageTransitionProps> = ({

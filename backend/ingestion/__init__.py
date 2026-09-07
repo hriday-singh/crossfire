@@ -1,6 +1,6 @@
 """
 Owner: Dev B. Ingestion module for documents/PDFs feeding Case.context.
-See docs/03-dev-B-evidence-receipts.md hour 35+ stretch.
+See docs/03-dev-B-evidence-researcher.md hour 35+ stretch.
 """
 from __future__ import annotations
 

@@ -1,10 +1,10 @@
 /**
  * Room Layout & Coordinate System (1000 x 650)
- * Crossfire Evaluator Cubicle Bullpen & Crucible Judge Court.
+ * Crossfire Evaluator Cubicle Bullpen & Crucible Steelman Court.
  *
  * Architecture:
- * - Center (x: 500): The Crucible Judge Table & Arbiter Bench presiding over verdicts.
- * - Left Side: 2 Modular Cubicles (Cubicle 01: Devil's Advocate, Cubicle 02: Receipts).
+ * - Center (x: 500): The Crucible Steelman Table & Arbiter Bench presiding over verdicts.
+ * - Left Side: 2 Modular Cubicles (Cubicle 01: Devil's Advocate, Cubicle 02: Researcher).
  * - Right Side: 2 Modular Cubicles (Cubicle 03: Builder, Cubicle 04: Operator).
  * - Central Corridor connecting all workstations with telemetry consoles.
  */
@@ -14,7 +14,7 @@ export const ROOM_DIMENSIONS = {
   height: 587,
 };
 
-export const JUDGE_TABLE_CONFIG = {
+export const STEELMAN_TABLE_CONFIG = {
   x: 500,
   y: 281,
   width: 240,
@@ -23,7 +23,7 @@ export const JUDGE_TABLE_CONFIG = {
 };
 
 // Backward-compatible alias for existing components
-export const TABLE_CONFIG = JUDGE_TABLE_CONFIG;
+export const TABLE_CONFIG = STEELMAN_TABLE_CONFIG;
 
 export const CUBICLE_LAYOUTS = [
   {
@@ -56,7 +56,7 @@ export const CUBICLE_LAYOUTS = [
   },
   {
     id: 'cubicle_3',
-    agentId: 'receipts',
+    agentId: 'researcher',
     name: 'Cubicle 03 // RESEARCHER',
     testName: 'Evidence Test',
     side: 'right',
@@ -125,10 +125,10 @@ export const WAYPOINTS = {
     depth: 390,
   },
 
-  // Cubicle 3: Receipts / Researcher (NE)
+  // Cubicle 3: Researcher / Researcher (NE)
   cubicle_3_desk: {
     id: 'cubicle_3_desk',
-    name: 'Cubicle 03 Desk (Receipts)',
+    name: 'Cubicle 03 Desk (Researcher)',
     x: 715,
     y: 195,
     facing: 'north',
@@ -165,19 +165,19 @@ export const WAYPOINTS = {
     depth: 390,
   },
 
-  // Center: Crucible Judge Table & Arbiter Bench
-  judge_chair: {
-    id: 'judge_chair',
-    name: 'Crucible Judge Bench Chair',
+  // Center: Crucible Steelman Table & Arbiter Bench
+  steelman_chair: {
+    id: 'steelman_chair',
+    name: 'Crucible Steelman Bench Chair',
     x: 500,
     y: 250,
     facing: 'south',
     isChair: true,
     depth: 250,
   },
-  judge_desk: {
-    id: 'judge_desk',
-    name: 'Crucible Judge Station',
+  steelman_desk: {
+    id: 'steelman_desk',
+    name: 'Crucible Steelman Station',
     x: 500,
     y: 281,
     facing: 'south',
@@ -300,7 +300,7 @@ export const WAYPOINTS = {
   },
   presentation_podium: {
     id: 'presentation_podium',
-    name: 'Crucible Judge Monolith',
+    name: 'Crucible Steelman Monolith',
     x: 500,
     y: 281,
     facing: 'south',
@@ -309,43 +309,43 @@ export const WAYPOINTS = {
   },
   podium_approach: {
     id: 'podium_approach',
-    name: 'Judge Approach',
+    name: 'Steelman Approach',
     x: 500,
     y: 360,
     facing: 'north',
     isChair: false,
     depth: 360,
   },
-  judge_approach: {
-    id: 'judge_approach',
-    name: 'Judge Approach',
+  steelman_approach: {
+    id: 'steelman_approach',
+    name: 'Steelman Approach',
     x: 500,
     y: 360,
     facing: 'north',
     isChair: false,
     depth: 360,
   },
-  judge_approach_west: {
-    id: 'judge_approach_west',
-    name: 'West Judge Table Approach',
+  steelman_approach_west: {
+    id: 'steelman_approach_west',
+    name: 'West Steelman Table Approach',
     x: 395,
     y: 245,
     facing: 'east',
     isChair: false,
     depth: 245,
   },
-  judge_approach_east: {
-    id: 'judge_approach_east',
-    name: 'East Judge Table Approach',
+  steelman_approach_east: {
+    id: 'steelman_approach_east',
+    name: 'East Steelman Table Approach',
     x: 605,
     y: 245,
     facing: 'west',
     isChair: false,
     depth: 245,
   },
-  judge_approach_south: {
-    id: 'judge_approach_south',
-    name: 'South Judge Approach (Overflow)',
+  steelman_approach_south: {
+    id: 'steelman_approach_south',
+    name: 'South Steelman Approach (Overflow)',
     x: 500,
     y: 400,
     facing: 'north',
@@ -362,37 +362,37 @@ export const WAYPOINTS = {
     depth: 200,
   },
 
-  // Dedicated Table Spots per AI Evaluator (Diagonal clearance spots around Judge table)
-  judge_spot_builder: {
-    id: 'judge_spot_builder',
-    name: 'Judge Table NW Spot (Builder)',
+  // Dedicated Table Spots per AI Evaluator (Diagonal clearance spots around Steelman table)
+  steelman_spot_builder: {
+    id: 'steelman_spot_builder',
+    name: 'Steelman Table NW Spot (Builder)',
     x: 395,
     y: 245,
     facing: 'east',
     isChair: false,
     depth: 245,
   },
-  judge_spot_devils_advocate: {
-    id: 'judge_spot_devils_advocate',
-    name: "Judge Table SW Spot (Devil's Advocate)",
+  steelman_spot_devils_advocate: {
+    id: 'steelman_spot_devils_advocate',
+    name: "Steelman Table SW Spot (Devil's Advocate)",
     x: 415,
     y: 335,
     facing: 'east',
     isChair: false,
     depth: 335,
   },
-  judge_spot_receipts: {
-    id: 'judge_spot_receipts',
-    name: 'Judge Table NE Spot (Receipts)',
+  steelman_spot_researcher: {
+    id: 'steelman_spot_researcher',
+    name: 'Steelman Table NE Spot (Researcher)',
     x: 605,
     y: 245,
     facing: 'west',
     isChair: false,
     depth: 245,
   },
-  judge_spot_operator: {
-    id: 'judge_spot_operator',
-    name: 'Judge Table SE Spot (Operator)',
+  steelman_spot_operator: {
+    id: 'steelman_spot_operator',
+    name: 'Steelman Table SE Spot (Operator)',
     x: 585,
     y: 335,
     facing: 'west',
@@ -400,7 +400,7 @@ export const WAYPOINTS = {
     depth: 335,
   },
 
-  // Right Chamber Door (Exit for Judge upon discussion completion)
+  // Right Chamber Door (Exit for Steelman upon discussion completion)
   right_door: {
     id: 'right_door',
     name: 'Right Chamber Door (Exit)',
@@ -412,44 +412,44 @@ export const WAYPOINTS = {
   },
 };
 
-export const AGENT_JUDGE_SPOTS = {
-  builder: 'judge_spot_builder',
-  agent_1: 'judge_spot_builder',
-  devils_advocate: 'judge_spot_devils_advocate',
-  agent_2: 'judge_spot_devils_advocate',
-  receipts: 'judge_spot_receipts',
-  researcher: 'judge_spot_receipts',
-  agent_3: 'judge_spot_receipts',
-  operator: 'judge_spot_operator',
-  agent_4: 'judge_spot_operator',
-  judge: 'judge_chair',
+export const AGENT_STEELMAN_SPOTS = {
+  builder: 'steelman_spot_builder',
+  agent_1: 'steelman_spot_builder',
+  devils_advocate: 'steelman_spot_devils_advocate',
+  agent_2: 'steelman_spot_devils_advocate',
+  researcher: 'steelman_spot_researcher',
+  researcher: 'steelman_spot_researcher',
+  agent_3: 'steelman_spot_researcher',
+  operator: 'steelman_spot_operator',
+  agent_4: 'steelman_spot_operator',
+  steelman: 'steelman_chair',
 };
 
-export const JUDGE_APPROACH_SPOTS = [
-  'judge_spot_builder',
-  'judge_spot_devils_advocate',
-  'judge_spot_receipts',
-  'judge_spot_operator',
-  'judge_approach',
-  'judge_approach_west',
-  'judge_approach_east',
-  'judge_approach_south',
+export const STEELMAN_APPROACH_SPOTS = [
+  'steelman_spot_builder',
+  'steelman_spot_devils_advocate',
+  'steelman_spot_researcher',
+  'steelman_spot_operator',
+  'steelman_approach',
+  'steelman_approach_west',
+  'steelman_approach_east',
+  'steelman_approach_south',
 ];
 
-export const JUDGE_APPROACH_ALIASES = [
+export const STEELMAN_APPROACH_ALIASES = [
   'podium_approach',
   'presentation_podium',
-  'judge_approach',
-  'judge_desk',
-  'judge_table',
-  'judge_spot_builder',
-  'judge_spot_devils_advocate',
-  'judge_spot_receipts',
-  'judge_spot_operator',
+  'steelman_approach',
+  'steelman_desk',
+  'steelman_table',
+  'steelman_spot_builder',
+  'steelman_spot_devils_advocate',
+  'steelman_spot_researcher',
+  'steelman_spot_operator',
 ];
 
 /**
- * Resolves the dedicated, deterministic spot at the judge table for each AI agent.
+ * Resolves the dedicated, deterministic spot at the steelman table for each AI agent.
  * Each AI evaluator goes to their assigned spot every single time using the shortest path.
  */
 export function resolveApproachSpot(agentId, characterPositions, requestedTargetId) {
@@ -457,15 +457,15 @@ export function resolveApproachSpot(agentId, characterPositions, requestedTarget
     return 'right_door';
   }
 
-  if (!requestedTargetId || !JUDGE_APPROACH_ALIASES.includes(requestedTargetId)) {
+  if (!requestedTargetId || !STEELMAN_APPROACH_ALIASES.includes(requestedTargetId)) {
     return requestedTargetId;
   }
 
-  if (agentId && AGENT_JUDGE_SPOTS[agentId]) {
-    return AGENT_JUDGE_SPOTS[agentId];
+  if (agentId && AGENT_STEELMAN_SPOTS[agentId]) {
+    return AGENT_STEELMAN_SPOTS[agentId];
   }
 
-  return 'judge_approach';
+  return 'steelman_approach';
 }
 
 export const CHAIR_IDS = [
@@ -473,7 +473,7 @@ export const CHAIR_IDS = [
   'cubicle_2_desk',
   'cubicle_3_desk',
   'cubicle_4_desk',
-  'judge_chair',
+  'steelman_chair',
   'chair_north',
   'chair_south',
   'chair_west',
@@ -482,10 +482,10 @@ export const CHAIR_IDS = [
 
 export default {
   ROOM_DIMENSIONS,
-  JUDGE_TABLE_CONFIG,
+  STEELMAN_TABLE_CONFIG,
   TABLE_CONFIG,
   CUBICLE_LAYOUTS,
   WAYPOINTS,
-  AGENT_JUDGE_SPOTS,
+  AGENT_STEELMAN_SPOTS,
   CHAIR_IDS,
 };

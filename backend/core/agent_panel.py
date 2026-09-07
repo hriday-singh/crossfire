@@ -9,13 +9,13 @@ from pydantic import BaseModel, Field
 from core.models import Case, TestPlanItem
 from core.textutil import format_concise_rationale, is_empirical_claim, one_line
 
-KNOWN_AGENTS: tuple[str, ...] = ("devils_advocate", "receipts", "builder", "operator")
+KNOWN_AGENTS: tuple[str, ...] = ("devils_advocate", "researcher", "builder", "operator")
 
 # One agent, one failure mode. The whole routing table — no keywords, because a
 # keyword table can only ever encode the scenarios someone thought of.
 AGENT_FAILURE_MODE: dict[str, str] = {
     "devils_advocate": "assumption",
-    "receipts": "evidence",
+    "researcher": "evidence",
     "builder": "feasibility",
     "operator": "operational_friction",
 }
@@ -28,26 +28,26 @@ FAILURE_MODE_TO_AGENT["edge-case"] = "operator"
 
 AGENT_OBJECTIVE: dict[str, str] = {
     "devils_advocate": "Deductively probe unstated premises, circular dependencies, and counter-incentives behind: {statement}",
-    "receipts": "Empirically verify external evidence, benchmarks, prices, or statutory sources for: {statement}",
+    "researcher": "Empirically verify external evidence, benchmarks, prices, or statutory sources for: {statement}",
     "builder": "Assess technical architecture, API dependencies, execution limits, and Day-1 blockers for: {statement}",
     "operator": "Stress-test human adoption inertia, workflow disruption, procurement red tape, and process drag for: {statement}",
 }
 
 DEFAULT_RATIONALES: dict[str, str] = {
     "devils_advocate": "Tests unstated premises and deductive logical flaws.",
-    "receipts": "Verifies facts and regulations against empirical evidence.",
+    "researcher": "Verifies facts and regulations against empirical evidence.",
     "builder": "Evaluates technical architecture and execution blockers.",
     "operator": "Stress-tests human adoption and organizational friction.",
 }
 
-# Receipts is the single-pass default for secondary claims: it is the only
+# Researcher is the single-pass default for secondary claims: it is the only
 # evaluator that can bring an outside source back, and a sourced contradiction
 # is the only thing that can break a claim (Stage 1a).
-SINGLE_PASS_PRIORITY: tuple[str, ...] = ("receipts", "devils_advocate", "builder", "operator")
+SINGLE_PASS_PRIORITY: tuple[str, ...] = ("researcher", "devils_advocate", "builder", "operator")
 
 
 class AgentPick(BaseModel):
-    agent: str = Field(description="One of: devils_advocate, receipts, builder, operator")
+    agent: str = Field(description="One of: devils_advocate, researcher, builder, operator")
     rationale: str = Field(
         description="One clear, concise sentence (under 100 characters) explaining why this test is needed."
     )
@@ -83,7 +83,7 @@ def normalize_agents(picks: list[AgentPick]) -> tuple[list[str], dict[str, str]]
         if agent == "overthinker":
             agent = "operator"
         if agent == "researcher":
-            agent = "receipts"
+            agent = "researcher"
         if agent in KNOWN_AGENTS and agent not in selected:
             selected.append(agent)
             rationales[agent] = format_concise_rationale(pick.rationale) or DEFAULT_RATIONALES[agent]
@@ -116,7 +116,7 @@ EXTRACTION_SYSTEM_PROMPT = (
     "provide exactly ONE concise sentence (under 100 characters) clearly explaining why this "
     "test is needed for this decision. Keep it crisp, direct, and under three lines. No filler:\n"
     "- devils_advocate: unstated premises, counter-incentives, motivated reasoning.\n"
-    "- receipts: claims checkable against outside sources, prices, rules, records, precedent.\n"
+    "- researcher: claims checkable against outside sources, prices, rules, records, precedent.\n"
     "- builder: whether execution is actually achievable with the time, money, skill or access available.\n"
     "- operator: organizational friction, human inertia, enterprise procurement red tape, regulatory liability, process drag.\n"
     "Pick only the ones that earn their place for this decision."
@@ -131,9 +131,9 @@ def build_test_plan(
     """Routes claims to adversarial evaluators.
 
     All claims (load-bearing and secondary) receive multi-persona scrutiny:
-    - Empirical claims: route to Researcher (receipts), Builder (builder), Operator (operator),
+    - Empirical claims: route to Researcher (researcher), Builder (builder), Operator (operator),
       and Devil's Advocate (devils_advocate).
-    - Non-empirical claims: omit Researcher (receipts), routing to Builder (builder),
+    - Non-empirical claims: omit Researcher (researcher), routing to Builder (builder),
       Operator (operator), and Devil's Advocate (devils_advocate).
 
     Single-pass single-evaluator routing has been eliminated to prevent routing blindspots.
@@ -146,8 +146,8 @@ def build_test_plan(
 
     items: list[TestPlanItem] = []
     for claim in case.claims:
-        # Selective Evaluator Dispatch: omit receipts if claim is not empirical
-        claim_agents = [a for a in agents if a != "receipts" or is_empirical_claim(claim.statement)]
+        # Selective Evaluator Dispatch: omit researcher if claim is not empirical
+        claim_agents = [a for a in agents if a != "researcher" or is_empirical_claim(claim.statement)]
         if not claim_agents:
             claim_agents = list(agents)
 

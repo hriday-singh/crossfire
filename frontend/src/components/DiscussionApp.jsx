@@ -3,7 +3,7 @@ import StageContainer from './canvas/StageContainer';
 import DialogueOverlay from './ui/DialogueOverlay';
 import SideControlPanel from './ui/SideControlPanel';
 import CruciblePageTransition from './ui/CruciblePageTransition';
-import { AGENT_CONFIGS, AGENT_MAP, JUDGE_CONFIG } from '../constants/agentConfigs';
+import { AGENT_CONFIGS, AGENT_MAP, STEELMAN_CONFIG } from '../constants/agentConfigs';
 import { WAYPOINTS } from '../constants/roomLayout';
 import useSocketSimulation from '../hooks/useSocketSimulation';
 import useAudioPlayback from '../hooks/useAudioPlayback';
@@ -36,7 +36,7 @@ export function DiscussionApp() {
       acc[a.id] = { x: wp.x, y: wp.y };
       return acc;
     }, {
-      judge: { x: WAYPOINTS.judge_chair.x, y: WAYPOINTS.judge_chair.y },
+      steelman: { x: WAYPOINTS.steelman_chair.x, y: WAYPOINTS.steelman_chair.y },
     });
   });
 
@@ -44,7 +44,7 @@ export function DiscussionApp() {
   const [activeDialogue, setActiveDialogue] = useState(null);
   const [hoveredAgentId, setHoveredAgentId] = useState(null);
   const [evaluatorFindings, setEvaluatorFindings] = useState({});
-  const [isJudgeExiting, setIsJudgeExiting] = useState(false);
+  const [isSteelmanExiting, setIsSteelmanExiting] = useState(false);
   const [isPageTransitionActive, setIsPageTransitionActive] = useState(false);
   const exitTriggeredRef = useRef(false);
 
@@ -68,8 +68,8 @@ export function DiscussionApp() {
       [agentId]: { x, y },
     }));
 
-    // If Judge reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation
-    if (agentId === 'judge' && x >= 840 && !exitTriggeredRef.current) {
+    // If Steelman reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation
+    if (agentId === 'steelman' && x >= 840 && !exitTriggeredRef.current) {
       exitTriggeredRef.current = true;
       setIsPageTransitionActive(true);
     }
@@ -79,9 +79,9 @@ export function DiscussionApp() {
   const handleEventReceived = useCallback((eventPacket) => {
     const speakerId = eventPacket.speaker_id;
 
-    // Detect Judge exit event
-    if (speakerId === 'judge' && eventPacket.target === 'right_door') {
-      setIsJudgeExiting(true);
+    // Detect Steelman exit event
+    if (speakerId === 'steelman' && eventPacket.target === 'right_door') {
+      setIsSteelmanExiting(true);
     }
 
     // Cache latest telemetry, thought & finding per evaluator for real-time thought bubbles and hover inspection
@@ -96,7 +96,7 @@ export function DiscussionApp() {
       setActiveSpeakerId(speakerId);
       setActiveDialogue(eventPacket);
 
-      // Play synthesized audio strictly if Judge (enforced in playSpeech)
+      // Play synthesized audio strictly if Steelman (enforced in playSpeech)
       playSpeech({
         speakerId: speakerId,
         dialogue: eventPacket.dialogue,
@@ -158,7 +158,7 @@ export function DiscussionApp() {
   // Handle transition completion to navigate to the Decision Memo / Dashboard screen
   const handleTransitionComplete = useCallback(() => {
     setIsPageTransitionActive(false);
-    setIsJudgeExiting(false);
+    setIsSteelmanExiting(false);
     if (caseContext?.navigateScreen) {
       caseContext.navigateScreen('dashboard');
     } else if (caseContext?.dispatch) {
@@ -171,13 +171,13 @@ export function DiscussionApp() {
   const isFinished = caseStatus === 'done' && !isLiveBackendActive;
   const isTesting = isLiveBackendActive || caseStatus === 'testing';
 
-  // When the case finishes, trigger the judge exit sequence if not already running
+  // When the case finishes, trigger the steelman exit sequence if not already running
   useEffect(() => {
-    if (isFinished && !isJudgeExiting && !exitTriggeredRef.current) {
+    if (isFinished && !isSteelmanExiting && !exitTriggeredRef.current) {
       const timer = setTimeout(() => {
-        setIsJudgeExiting(true);
+        setIsSteelmanExiting(true);
         triggerManualEvent({
-          speaker_id: 'judge',
+          speaker_id: 'steelman',
           action: 'walk_to',
           target: 'right_door',
           stage: 'Adjudication Complete // Exiting to Decision Memo',
@@ -186,7 +186,7 @@ export function DiscussionApp() {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isFinished, isJudgeExiting, triggerManualEvent]);
+  }, [isFinished, isSteelmanExiting, triggerManualEvent]);
 
   const claimsCount = currentCase?.claims?.length || 0;
   const findingsCount = currentCase?.findings?.length || 0;
@@ -339,7 +339,7 @@ export function DiscussionApp() {
                 <button
                   type="button"
                   onClick={() => {
-                    setIsJudgeExiting(true);
+                    setIsSteelmanExiting(true);
                     setIsPageTransitionActive(true);
                   }}
                   className="px-2.5 py-1 rounded bg-surface-container-highest hover:bg-surface-container border border-outline-variant/60 text-[11px] font-mono font-semibold text-primary transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
@@ -357,12 +357,12 @@ export function DiscussionApp() {
             currentActionPacket={lastEvent}
             activeSpeakerId={activeSpeakerId}
             hoveredAgentId={hoveredAgentId}
-            isJudgeExiting={isJudgeExiting}
+            isSteelmanExiting={isSteelmanExiting}
             onHoverAgent={setHoveredAgentId}
             onPositionUpdate={handlePositionUpdate}
             playSfx={playSfx}
           >
-            {/* In-world Workstation Telemetry HUD with Hover-Only Visibility and Persistent Judge Pill */}
+            {/* In-world Workstation Telemetry HUD with Hover-Only Visibility and Persistent Steelman Pill */}
             <DialogueOverlay
               activeDialogue={activeDialogue}
               characterPositions={characterPositions}

@@ -17,7 +17,7 @@ cd backend
 1. **`POST /cases`**: Decomposes the raw input into discrete, falsifiable claim assertions.
 2. **`GET /cases/{id}/stream`**: Opens an SSE listener queue to monitor real-time test progress.
 3. **`POST /cases/{id}/confirm`**: Locks confirmed claims, returns `202 Accepted` immediately, and schedules the asynchronous pipeline.
-4. **Adversarial Evaluator Panel**: Dispatches Devil's Advocate (assumptions), Builder (feasibility), Receipts (evidence & benchmarks), and Overthinker (tail risks) concurrently.
+4. **Adversarial Evaluator Panel**: Dispatches Devil's Advocate (assumptions), Builder (feasibility), Researcher (evidence & benchmarks), and Overthinker (tail risks) concurrently.
 5. **Judge Reconciliation**: Evaluates evidence quality directly and reconciles claims into `survived`, `weakened`, `broken`, or `unresolved`.
 6. **`GET /cases/{id}`**: Returns the completed **Decision Memo** with impact ratings, recommended strategic pivots, and real-world validation experiments.
 

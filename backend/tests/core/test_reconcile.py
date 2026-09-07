@@ -6,7 +6,7 @@ def _finding(confidence=0.0, evidence=False, contradiction=None):
     return Finding(
         claim_id="claim-1",
         test_id="test-1",
-        evaluator="receipts",
+        evaluator="researcher",
         result="result",
         evidence=[EvidenceItem(source_url="http", snippet="x", retrieved_at="now")] if evidence else [],
         reasoning="reasoning",

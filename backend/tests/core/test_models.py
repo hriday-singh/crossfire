@@ -147,7 +147,7 @@ def test_case_full_json_roundtrip(sample_claim, sample_test_plan_item, sample_fi
     assert len(reconstructed.test_plan) == 1
     assert reconstructed.test_plan[0].failure_mode == "evidence"
     assert len(reconstructed.findings) == 1
-    assert reconstructed.findings[0].evaluator == "receipts"
+    assert reconstructed.findings[0].evaluator == "researcher"
     assert len(reconstructed.consequences) == 1
     assert reconstructed.consequences[0].next_validation == "Interview 10 college counselors"
 

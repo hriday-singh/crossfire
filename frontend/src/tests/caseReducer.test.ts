@@ -133,7 +133,7 @@ describe("caseReducer", () => {
       type: "SSE_EVENT",
       payload: {
         event: "test_started",
-        data: { test_id: "t1", target_claim_id: "c1", evaluator: "receipts", failure_mode: "evidence" },
+        data: { test_id: "t1", target_claim_id: "c1", evaluator: "researcher", failure_mode: "evidence" },
       },
     });
     expect(state.activeTests["t1"]).toBeDefined();
@@ -149,7 +149,7 @@ describe("caseReducer", () => {
           finding: {
             claim_id: "c1",
             test_id: "t1",
-            evaluator: "receipts",
+            evaluator: "researcher",
             result: "Competitor exists",
             evidence: [],
             reasoning: "Public record",
@@ -326,7 +326,7 @@ describe("caseReducer", () => {
         context: null,
         status: "awaiting_confirmation" as const,
         agent_mode: "auto" as const,
-        selected_agents: ["devils_advocate", "receipts", "builder"],
+        selected_agents: ["devils_advocate", "researcher", "builder"],
         claims: [],
         test_plan: [],
         findings: [],
@@ -346,7 +346,7 @@ describe("caseReducer", () => {
       type: "TOGGLE_AGENT_SELECTION",
       payload: "builder",
     });
-    expect(state.currentCase?.selected_agents).toEqual(["devils_advocate", "receipts"]);
+    expect(state.currentCase?.selected_agents).toEqual(["devils_advocate", "researcher"]);
 
     // Toggle in non-existing agent
     state = caseReducer(state, {
@@ -355,16 +355,16 @@ describe("caseReducer", () => {
     });
     expect(state.currentCase?.selected_agents).toEqual([
       "devils_advocate",
-      "receipts",
+      "researcher",
       "operator",
     ]);
 
     // Explicitly set selected agents
     state = caseReducer(state, {
       type: "SET_SELECTED_AGENTS",
-      payload: ["receipts"],
+      payload: ["researcher"],
     });
-    expect(state.currentCase?.selected_agents).toEqual(["receipts"]);
+    expect(state.currentCase?.selected_agents).toEqual(["researcher"]);
   });
 
   it("UPDATE_CASE syncs the archived history copy so a refreshed verdict survives", () => {

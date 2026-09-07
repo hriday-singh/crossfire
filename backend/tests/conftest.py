@@ -155,7 +155,7 @@ def sample_finding(sample_claim, sample_test_plan_item, sample_evidence_items) -
     return Finding(
         claim_id=sample_claim.id,
         test_id=sample_test_plan_item.id,
-        evaluator="receipts",
+        evaluator="researcher",
         result="Evidence partially supports the claim",
         evidence=sample_evidence_items,
         reasoning="One comparable case found; sample size is small",
@@ -176,12 +176,12 @@ def conflicting_findings(sample_claim, sample_test_plan_item) -> list[Finding]:
             evidence=[],
             reasoning="Pure assumption attack, no sources checked",
             confidence=0.4,
-            contradiction="Receipts found a comparable case that succeeded",
+            contradiction="Researcher found a comparable case that succeeded",
         ),
         Finding(
             claim_id=sample_claim.id,
             test_id=sample_test_plan_item.id,
-            evaluator="receipts",
+            evaluator="researcher",
             result="A comparable product has meaningful adoption",
             evidence=[
                 EvidenceItem(

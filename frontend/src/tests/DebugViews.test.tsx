@@ -152,7 +152,7 @@ describe("Debug Views Preview & View Catalog", () => {
     fireEvent.click(screen.getByTestId("preview-btn-runner"));
     expect(
       screen.queryByTestId("live-view-loading") ||
-      (await screen.findByText(/Live 2.5D Bullpen|Judge Voice|Loading 2.5D Live View/i))
+      (await screen.findByText(/Live 2.5D Bullpen|Steelman Voice|Loading 2.5D Live View/i))
     ).toBeInTheDocument();
 
     // 5. Decision Memo view

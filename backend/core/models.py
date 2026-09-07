@@ -62,7 +62,7 @@ class EvidenceItem(BaseModel):
 class Finding(BaseModel):
     claim_id: str
     test_id: str
-    evaluator: str                          # "devils_advocate" | "receipts" | "builder" | "operator"
+    evaluator: str                          # "devils_advocate" | "researcher" | "builder" | "operator"
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str
@@ -129,7 +129,7 @@ class DecisionConsequence(BaseModel):
 
 
 class AgentTokenUsage(BaseModel):
-    agent: str                              # extractor, load_bearing, devils_advocate, builder, receipts, operator, cross_examination, steelman, synthesis
+    agent: str                              # extractor, load_bearing, devils_advocate, builder, researcher, operator, cross_examination, steelman, synthesis
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
@@ -160,9 +160,9 @@ class Case(BaseModel):
     clarify_interpretation: str | None = None  # "Reading it as: ..." or None
     clarify_round: int = 0                 # 0 = first extraction, 1+ = after clarify
     agent_mode: str = "auto"                # "auto" | "custom"
-    selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, operator
+    selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, researcher, builder, operator
         "devils_advocate",
-        "receipts",
+        "researcher",
         "builder",
         "operator",
     ]

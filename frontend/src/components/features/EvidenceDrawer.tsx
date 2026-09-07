@@ -38,8 +38,8 @@ const TEST_SUITES: TestSuiteMeta[] = [
     key: "evidence",
     title: "Evidence Test",
     icon: "fact_check",
-    evaluatorKeys: ["receipts", "researcher", "evidence"],
-    failureModeKeys: ["evidence", "receipts", "researcher", "unsupported_claim"],
+    evaluatorKeys: ["researcher", "researcher", "evidence"],
+    failureModeKeys: ["evidence", "researcher", "researcher", "unsupported_claim"],
     emptySummary: "Evaluated against benchmark market signals and factual citations.",
   },
   {
@@ -311,7 +311,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
           </div>
 
-          {/* Judge / Steel Man Verdict & Reconciliation */}
+          {/* Steelman / Steel Man Verdict & Reconciliation */}
           {consequence?.verdict_reasoning && (
             <div>
               <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary-container mb-space-2 font-medium flex items-center gap-1.5">

@@ -187,7 +187,7 @@ async def test_search_evidence_uses_preloaded_demo_fixtures(monkeypatch):
 
 
 def test_build_query_strips_predictive_framing():
-    """search_evidence used to post the full sentence, which is why Receipts kept
+    """search_evidence used to post the full sentence, which is why Researcher kept
     landing on 'inconclusive'."""
     from evidence.search import build_query
 

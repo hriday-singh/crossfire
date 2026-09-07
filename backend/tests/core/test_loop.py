@@ -251,7 +251,7 @@ async def test_build_test_plan_differentiates_by_load_bearing_not_keywords(sampl
     secondary_modes = [i.failure_mode for i in plan if i.target_claim == "claim-2"]
 
     assert set(lb_modes) == {"assumption", "evidence", "feasibility", "operational_friction"}
-    # Non-empirical secondary claim routes to 3 reasoning evaluators (no receipts)
+    # Non-empirical secondary claim routes to 3 reasoning evaluators (no researcher)
     assert set(secondary_modes) == {"assumption", "feasibility", "operational_friction"}
 
 
@@ -293,7 +293,7 @@ async def test_build_test_plan_single_pass_mode(sample_case):
 
 
 @pytest.mark.asyncio
-async def test_build_test_plan_single_pass_falls_back_when_receipts_is_off(sample_case):
+async def test_build_test_plan_single_pass_falls_back_when_researcher_is_off(sample_case):
     from core.loop import build_test_plan
 
     plan = build_test_plan(sample_case, panel=False, active_agents=["operator", "builder"])
@@ -459,7 +459,7 @@ class SchemaProvider:
         from core.evaluators._reasoning import ReasoningOutput
         from core.evaluators.builder import BuilderVerdict
         from core.evaluators.operator import OperatorVerdict
-        from core.evaluators.receipts import ReceiptsAssessment
+        from core.evaluators.researcher import ResearcherAssessment
         from core.loop import (
             CaseVerdictOutput,
             LoadBearingRanking,
@@ -482,10 +482,10 @@ class SchemaProvider:
                 reasoning="Standard administrative approval needed.",
                 confidence=0.6,
             ),
-            "ReceiptsAssessment": lambda: ReceiptsAssessment(
+            "ResearcherAssessment": lambda: ResearcherAssessment(
                 result="No source found", reasoning="Nothing relevant returned.", confidence=0.2
             ),
-            "ResearcherAssessment": lambda: ReceiptsAssessment(
+            "ResearcherAssessment": lambda: ResearcherAssessment(
                 result="Authority checked", reasoning="No statutory blocker.", confidence=0.7
             ),
             "SteelManVerdict": lambda: ReconcileVerdict(
@@ -692,12 +692,12 @@ def test_normalize_agents_keeps_only_known_agents():
 
     agents, rationales = normalize_agents(
         [
-            AgentPick(agent="receipts", rationale="The rent figure is checkable against listings."),
+            AgentPick(agent="researcher", rationale="The rent figure is checkable against listings."),
             AgentPick(agent="astrologer", rationale="Not a real evaluator."),
         ]
     )
-    assert agents == ["devils_advocate", "receipts"]  # advocate always present
-    assert "listings" in rationales["receipts"]
+    assert agents == ["devils_advocate", "researcher"]  # advocate always present
+    assert "listings" in rationales["researcher"]
     assert set(rationales) == set(agents)
 
 
@@ -707,11 +707,11 @@ def test_normalize_agents_orders_consistently_and_dedupes():
     agents, _ = normalize_agents(
         [
             AgentPick(agent="operator", rationale="Adoption inertia is the main hurdle."),
-            AgentPick(agent="receipts", rationale="Prices are public."),
-            AgentPick(agent="receipts", rationale="Duplicate."),
+            AgentPick(agent="researcher", rationale="Prices are public."),
+            AgentPick(agent="researcher", rationale="Duplicate."),
         ]
     )
-    assert agents == ["devils_advocate", "receipts", "operator"]
+    assert agents == ["devils_advocate", "researcher", "operator"]
 
 
 def test_normalize_agents_falls_back_to_the_full_panel():
@@ -738,7 +738,7 @@ def test_format_concise_rationale_and_normalize_single_sentence():
     agents, rationales = normalize_agents(
         [
             AgentPick(
-                agent="receipts",
+                agent="researcher",
                 rationale="Why selected: Pricing is publicly verifiable. We also verified historical contracts.",
             ),
             AgentPick(
@@ -747,7 +747,7 @@ def test_format_concise_rationale_and_normalize_single_sentence():
             ),
         ]
     )
-    assert rationales["receipts"] == "Pricing is publicly verifiable."
+    assert rationales["researcher"] == "Pricing is publicly verifiable."
     assert rationales["builder"] == "Architecture requires substantial API integration work."
 
 
@@ -760,13 +760,13 @@ def test_build_test_plan_filters_strictly_by_active_agents(sample_case):
     assert all(item.failure_mode == "assumption" for item in plan_advocate)
     assert len(plan_advocate) == len(sample_case.claims)
 
-    # Only run Evidence Test (receipts)
-    plan_receipts = build_test_plan(sample_case, panel=True, active_agents=["receipts"])
-    assert all(item.failure_mode == "evidence" for item in plan_receipts)
-    assert len(plan_receipts) == len(sample_case.claims)
+    # Only run Evidence Test (researcher)
+    plan_researcher = build_test_plan(sample_case, panel=True, active_agents=["researcher"])
+    assert all(item.failure_mode == "evidence" for item in plan_researcher)
+    assert len(plan_researcher) == len(sample_case.claims)
 
-    # Run Devil's Advocate and Receipts, but exclude Builder and Operator
-    plan_combo = build_test_plan(sample_case, panel=True, active_agents=["devils_advocate", "receipts"])
+    # Run Devil's Advocate and Researcher, but exclude Builder and Operator
+    plan_combo = build_test_plan(sample_case, panel=True, active_agents=["devils_advocate", "researcher"])
     assert set(item.failure_mode for item in plan_combo) == {"assumption", "evidence"}
     assert not any(item.failure_mode in ("feasibility", "operational_friction") for item in plan_combo)
 
@@ -796,7 +796,7 @@ async def test_extract_claims_auto_mode_generates_rationales(fake_provider_facto
         ExtractedClaims(
             statements=["The move saves 40 minutes a day", "The lease allows subletting"],
             agents=[
-                AgentPick(agent="receipts", rationale="The lease terms are a matter of record."),
+                AgentPick(agent="researcher", rationale="The lease terms are a matter of record."),
                 AgentPick(agent="operator", rationale="Procurement approval takes 9 months."),
             ],
         )
@@ -804,8 +804,8 @@ async def test_extract_claims_auto_mode_generates_rationales(fake_provider_facto
 
     case = await extract_claims(raw_input="Test proposal", provider=provider, agent_mode="auto")
     assert case.agent_mode == "auto"
-    assert case.selected_agents == ["devils_advocate", "receipts", "operator"]
-    assert "matter of record" in case.agent_rationales["receipts"]
+    assert case.selected_agents == ["devils_advocate", "researcher", "operator"]
+    assert "matter of record" in case.agent_rationales["researcher"]
 
 
 @pytest.mark.asyncio

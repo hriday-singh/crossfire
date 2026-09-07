@@ -16,6 +16,7 @@ interface VerdictBlockProps {
   currentCase: Case;
   onSelectClaim: (claimId: string) => void;
   isTesting: boolean;
+  onStatusClick?: (status: "needs_attention" | "passed" | "all") => void;
 }
 
 // The floor when the backend could not generate a headline for this case.
@@ -66,7 +67,6 @@ function getStatusColor(claim: Claim) {
 
 const EVALUATOR_NAMES: Record<string, string> = {
   devils_advocate: "Devil's Advocate",
-  receipts: "Researcher",
   researcher: "Researcher",
   builder: "Builder",
   operator: "Operator",
@@ -101,6 +101,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
   currentCase,
   onSelectClaim,
   isTesting,
+  onStatusClick,
 }) => {
   const verdict = currentCase.case_verdict;
   const totalClaims = currentCase.claims.length;
@@ -248,11 +249,17 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
     ? currentCase.claims.filter((c) => c.status === "survived").length
     : verdict.survived.length;
 
+  const handleStatusClick = (statusFilter: "needs_attention" | "passed" | "all") => {
+    if (onStatusClick) {
+      onStatusClick(statusFilter);
+    }
+  };
+
   const countElements: React.ReactNode[] = [];
-  if (brokenCount) countElements.push(<span key="broken" className="text-error">{brokenCount} refuted</span>);
-  if (weakenedCount) countElements.push(<span key="weakened" className="text-tertiary">{weakenedCount} weakened</span>);
-  if (unresolvedCount) countElements.push(<span key="unresolved" className="text-secondary">{unresolvedCount} unproven</span>);
-  if (survivedCount) countElements.push(<span key="survived" className="text-primary-container">{survivedCount} held</span>);
+  if (brokenCount) countElements.push(<button key="broken" type="button" onClick={() => handleStatusClick("needs_attention")} className="text-error hover:underline cursor-pointer">{brokenCount} refuted</button>);
+  if (weakenedCount) countElements.push(<button key="weakened" type="button" onClick={() => handleStatusClick("needs_attention")} className="text-tertiary hover:underline cursor-pointer">{weakenedCount} weakened</button>);
+  if (unresolvedCount) countElements.push(<button key="unresolved" type="button" onClick={() => handleStatusClick("needs_attention")} className="text-secondary hover:underline cursor-pointer">{unresolvedCount} unproven</button>);
+  if (survivedCount) countElements.push(<button key="survived" type="button" onClick={() => handleStatusClick("passed")} className="text-primary-container hover:underline cursor-pointer">{survivedCount} held</button>);
 
   const separatedCounts = countElements.reduce((acc: React.ReactNode[], el, idx) => {
     if (idx === 0) return [el];
@@ -264,11 +271,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
       aria-label="Verdict"
       className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-6 space-y-space-8 animate-in fade-in duration-300"
     >
-      {/* Crucible Judge Arbiter Badge */}
-      <div className="flex items-center gap-2 font-mono text-[11px] font-semibold text-outline uppercase tracking-wider pb-1">
-        <span className="w-2 h-2 rounded-full bg-verdict-survived animate-pulse" />
-        <span className="text-on-surface-variant font-medium">Crucible Judge Adjudication</span>
-      </div>
+
 
       {/* The call */}
       <div className="space-y-space-4">

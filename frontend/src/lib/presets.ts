@@ -131,7 +131,7 @@ export const DEFAULT_COLLEGE_AI_CASE: Case = {
     {
       claim_id: "C-02",
       test_id: "CLM-4019",
-      evaluator: "receipts",
+      evaluator: "researcher",
       result:
         "Evidence test cracked: Competitor CollegeAI raised $12M for an automated application system with human-in-the-loop review and deep CommonApp distribution.",
       evidence: [
@@ -176,7 +176,7 @@ export const DEFAULT_COLLEGE_AI_CASE: Case = {
     {
       claim_id: "C-03",
       test_id: "CLM-4022",
-      evaluator: "receipts",
+      evaluator: "researcher",
       result:
         "Passed baseline usability heuristics and target audience aesthetic preference baselines.",
       evidence: [],

@@ -36,7 +36,7 @@ describe("SettingsModal", () => {
     expect(screen.getByRole("heading", { name: "System Settings" })).toBeInTheDocument();
     expect(screen.queryByText("Runtime")).not.toBeInTheDocument();
     expect(screen.getByText(/LLM Provider & Model/i)).toBeInTheDocument();
-    expect(screen.getByText(/Available Gemini Web Models/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Available Gemini Web Models/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Adversarial Evaluator Suite/i)).not.toBeInTheDocument();
   });
 
@@ -56,6 +56,19 @@ describe("SettingsModal", () => {
     expect(screen.queryByText("http://localhost:8000")).not.toBeInTheDocument();
   });
 
+  it("opens the provider manager from the LLM section", () => {
+    render(
+      <CaseProvider>
+        <TestWrapper />
+      </CaseProvider>
+    );
+
+    fireEvent.click(screen.getByText("Open Settings"));
+    fireEvent.click(screen.getByTestId("open-providers-button"));
+
+    expect(screen.queryByRole("heading", { name: "System Settings" })).not.toBeInTheDocument();
+  });
+
   it("closes when close button is clicked", () => {
     render(
       <CaseProvider>
@@ -69,7 +82,7 @@ describe("SettingsModal", () => {
     expect(screen.queryByRole("heading", { name: "System Settings" })).not.toBeInTheDocument();
   });
 
-  it("allows selecting a different model and updates engineInfo and notice", () => {
+  it("delegates model selection to the provider manager", () => {
     render(
       <CaseProvider>
         <TestWrapper />
@@ -77,11 +90,8 @@ describe("SettingsModal", () => {
     );
 
     fireEvent.click(screen.getByText("Open Settings"));
-    const thinkingModelBtn = screen.getByRole("button", { name: /Gemini 3.5 Flash Thinking/i });
-    fireEvent.click(thinkingModelBtn);
 
-    expect(
-      screen.getByText(/Switched active engine model to Gemini 3.5 Flash Thinking/i)
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Gemini 3.5 Flash Thinking/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("open-providers-button")).toBeInTheDocument();
   });
 });

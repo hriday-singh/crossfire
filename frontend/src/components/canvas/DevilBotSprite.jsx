@@ -18,27 +18,27 @@ import { getSpriteConfig } from '../../constants/spriteConfigs';
  * - Devil's Advocate: /devil_thing.webp
  * - Operator: /operator_thing.webp
  * - Builder: /builder_thing.webp
- * - Receipts / Researcher: /researcher_thing.webp
- * - Crucible Arbiter / Judge: /judge_thing.webp
+ * - Researcher / Researcher: /researcher_thing.webp
+ * - Crucible Arbiter / Steelman: /steelman_thing.webp
  */
 /**
  * Calculates a collision-free, shortest waypoint path around the central table.
  * Dedicated clearance spots per AI (standing back from table):
  * - Builder: NW Clearance Spot (380, 355)
  * - Devil's Advocate: SW Clearance Spot (430, 380)
- * - Receipts: NE Clearance Spot (620, 355)
+ * - Researcher: NE Clearance Spot (620, 355)
  * - Operator: SE Clearance Spot (570, 380)
- * - Judge Exit: Right Chamber Door (880, 285)
+ * - Steelman Exit: Right Chamber Door (880, 285)
  */
 export function getPathPoints(startX, startY, targetWp) {
   const targetX = targetWp.x;
   const targetY = targetWp.y;
   const targetId = targetWp.id;
 
-  // --- 1. Right Chamber Door Exit (Judge Exit Sequence) ---
+  // --- 1. Right Chamber Door Exit (Steelman Exit Sequence) ---
   if (targetId === 'right_door') {
     if (startY <= 270) {
-      // From Judge Chair (500, 250) -> move around right of table towards door
+      // From Steelman Chair (500, 250) -> move around right of table towards door
       return [
         { x: 620, y: 246 },
         { x: targetX, y: targetY, facing: 'east' },
@@ -57,7 +57,7 @@ export function getPathPoints(startX, startY, targetWp) {
 
   // --- 2. Dedicated Table Spots (Direct Diagonal Paths from/to Cubicles) ---
   // Builder: Cubicle 1 (NW) <-> NW Table Spot (395, 245)
-  if (targetId === 'judge_spot_builder') {
+  if (targetId === 'steelman_spot_builder') {
     return [
       { x: 330, y: 210 },
       { x: targetX, y: targetY, facing: 'east' },
@@ -72,7 +72,7 @@ export function getPathPoints(startX, startY, targetWp) {
   }
 
   // Devil's Advocate: Cubicle 2 (SW) <-> SW Table Spot (415, 335)
-  if (targetId === 'judge_spot_devils_advocate') {
+  if (targetId === 'steelman_spot_devils_advocate') {
     return [
       { x: 330, y: 390 },
       { x: targetX, y: targetY, facing: 'east' },
@@ -86,15 +86,15 @@ export function getPathPoints(startX, startY, targetWp) {
     ];
   }
 
-  // Receipts / Researcher: Cubicle 3 (NE) <-> NE Table Spot (605, 245)
-  if (targetId === 'judge_spot_receipts') {
+  // Researcher / Researcher: Cubicle 3 (NE) <-> NE Table Spot (605, 245)
+  if (targetId === 'steelman_spot_researcher') {
     return [
       { x: 670, y: 210 },
       { x: targetX, y: targetY, facing: 'west' },
     ];
   }
-  const isStartingFromReceiptsSpot = Math.hypot(startX - 605, startY - 245) < 40;
-  if (isStartingFromReceiptsSpot && (targetId === 'cubicle_3_desk' || targetId === 'cubicle_3_stand')) {
+  const isStartingFromResearcherSpot = Math.hypot(startX - 605, startY - 245) < 40;
+  if (isStartingFromResearcherSpot && (targetId === 'cubicle_3_desk' || targetId === 'cubicle_3_stand')) {
     return [
       { x: 670, y: 210 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
@@ -102,7 +102,7 @@ export function getPathPoints(startX, startY, targetWp) {
   }
 
   // Operator: Cubicle 4 (SE) <-> SE Table Spot (585, 335)
-  if (targetId === 'judge_spot_operator') {
+  if (targetId === 'steelman_spot_operator') {
     return [
       { x: 670, y: 390 },
       { x: targetX, y: targetY, facing: 'west' },
@@ -119,15 +119,15 @@ export function getPathPoints(startX, startY, targetWp) {
   // --- 3. Center Podium Target / Start (Legacy fallback) ---
   const isCenterPodiumTarget =
     targetId === 'podium_approach' ||
-    targetId === 'judge_approach' ||
-    targetId === 'judge_approach_south' ||
+    targetId === 'steelman_approach' ||
+    targetId === 'steelman_approach_south' ||
     targetId === 'presentation_podium';
   const isStartingFromCenterPodium = startY >= 310 && startY <= 410 && startX >= 440 && startX <= 560;
 
-  const isWestApproachTarget = targetId === 'judge_approach_west';
+  const isWestApproachTarget = targetId === 'steelman_approach_west';
   const isStartingFromWestApproach = startY >= 250 && startY <= 320 && startX >= 400 && startX <= 460;
 
-  const isEastApproachTarget = targetId === 'judge_approach_east';
+  const isEastApproachTarget = targetId === 'steelman_approach_east';
   const isStartingFromEastApproach = startY >= 250 && startY <= 320 && startX >= 540 && startX <= 600;
 
   if (isCenterPodiumTarget && startX < 420 && startY < 235) {
@@ -512,7 +512,7 @@ export function DevilBotSprite({
       ? 0x818cf8
       : agent?.id === 'builder' || agent?.id === 'agent_3'
       ? 0xfbbf24
-      : agent?.id === 'receipts' || agent?.id === 'agent_2'
+      : agent?.id === 'researcher' || agent?.id === 'agent_2'
       ? 0x34d399
       : agent?.id === 'operator' || agent?.id === 'agent_4'
       ? 0x60a5fa

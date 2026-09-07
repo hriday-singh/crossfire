@@ -9,7 +9,7 @@ core/evaluators/devils_advocate.py
 core/evaluators/overthinker.py   (stretch, hour 35+ only)
 ```
 
-**Never touch:** `providers/`, `core/models.py`, `core/loop.py`, `evidence/`, `core/evaluators/receipts.py`.
+**Never touch:** `providers/`, `core/models.py`, `core/loop.py`, `evidence/`, `core/evaluators/researcher.py`.
 
 **Reads but doesn't modify:** `providers/base.py` (call through `LLMProvider`), `core/models.py`, `core/loop.py` (you call `extract_claims`/`run_pipeline`, you don't implement them).
 
@@ -24,7 +24,7 @@ core/evaluators/overthinker.py   (stretch, hour 35+ only)
 - [x] `api/schemas.py`: thin request/response wrappers around `Case` for the routes below.
 - [x] `POST /cases`: calls `core.loop.extract_claims()`, returns the resulting `Case` (status `awaiting_confirmation`).
 - [x] `GET /cases/{id}/stream`: opens immediately, reads from the `asyncio.Queue` keyed by `case_id` (Dev A owns queue creation in `core/loop.py` — you just consume it), re-emits as SSE.
-- [x] `core/evaluators/devils_advocate.py`: `run_devils_advocate(claim, plan_item, case) -> Finding` — the Assumption Test. Calls `LLMProvider` directly with the claim + context. No tool chain, no evidence pipeline — that's Receipts' job, not yours.
+- [x] `core/evaluators/devils_advocate.py`: `run_devils_advocate(claim, plan_item, case) -> Finding` — the Assumption Test. Calls `LLMProvider` directly with the claim + context. No tool chain, no evidence pipeline — that's Researcher' job, not yours.
 - [x] **Tests:** `POST /cases` returns a valid `Case` shape for a fixed input (use FastAPI's `TestClient`); `GET /cases/{id}/stream` yields events in SSE format for a manually-populated fake queue; `run_devils_advocate` on a fixture claim produces a `Finding` with non-empty `reasoning`.
 
 **→ Update `PROGRESS.md` per box.**
@@ -33,7 +33,7 @@ core/evaluators/overthinker.py   (stretch, hour 35+ only)
 
 - [x] `POST /cases/{id}/confirm`: validates the (possibly user-edited) claim list, `asyncio.create_task(run_pipeline(case_id))`, **returns 202 immediately — does not await the pipeline.** This is the fix for the real race condition in the spec: if this awaited the full run, every SSE event fired during it would already be gone by the time the frontend's stream connection existed.
 - [x] `GET /cases/{id}`: full `Case`, for the evidence drawer, valid any time after `status == "done"`.
-- [x] `dispatch(item: TestPlanItem, case: Case)` routing: sends each `TestPlanItem` to the right evaluator by `failure_mode` (assumption → Devil's Advocate, evidence → Receipts, feasibility → Builder, edge-case → Overthinker) — this function lives wherever Dev A's `run_evaluators()` calls it from `core/loop.py`, but you're responsible for making sure your own evaluator is correctly wired into it. Coordinate with Dev A on the exact call site rather than guessing.
+- [x] `dispatch(item: TestPlanItem, case: Case)` routing: sends each `TestPlanItem` to the right evaluator by `failure_mode` (assumption → Devil's Advocate, evidence → Researcher, feasibility → Builder, edge-case → Overthinker) — this function lives wherever Dev A's `run_evaluators()` calls it from `core/loop.py`, but you're responsible for making sure your own evaluator is correctly wired into it. Coordinate with Dev A on the exact call site rather than guessing.
 - [x] Confirm every SSE event in `docs/00-CONTRACTS.md` §3 actually fires at the right moment with the right shape — this is the contract the frontend is building against, treat mismatches as bugs, not frontend's problem.
 - [x] Claim-confirmation checkpoint: make sure `POST /cases/{id}/confirm` genuinely gates on user confirmation (`awaiting_confirmation` → `testing`) rather than the frontend faking a pause client-side.
 - [x] **Tests:** `/confirm` responds in well under a second even when `run_pipeline` is mocked to take 10+ seconds (proves it's not awaiting); a full fake run through the queue produces SSE events in the documented order (`claim_map_ready` → `awaiting_confirmation` → `test_started`... → `run_complete`); `GET /cases/{id}` 404s or errors sensibly before `status == "done"` if that's the agreed behavior — confirm with Dev A.

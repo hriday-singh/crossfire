@@ -5,16 +5,16 @@ import { io } from 'socket.io-client';
  * Pre-scripted Crossfire Adversarial Evaluation Scenarios
  * Evaluators work independently at their own cubicle without cross-talk:
  * - Devil's Advocate: Assumption Testing & Premises
- * - Receipts: Live Citations & Empirical Data
+ * - Researcher: Live Citations & Empirical Data
  * - Builder: Feasibility & Latency Benchmarks
  * - Operator: Operational Friction & Procurement
- * - Judge: Crucible Verdict Synthesis
+ * - Steelman: Crucible Verdict Synthesis
  */
 const B2B_COPILOT_SCENARIO = {
   name: 'Enterprise Decision Stress-Test: Autonomous B2B Copilot',
-  description: 'Adversarial evaluators independently audit assumptions, retrieve empirical citations, simulate compute bottlenecks, and step up to the Judge to present findings.',
+  description: 'Adversarial evaluators independently audit assumptions, retrieve empirical citations, simulate compute bottlenecks, and step up to the Steelman to present findings.',
   events: [
-    // 1. Devil's Advocate audits at desk, walks to Judge to report
+    // 1. Devil's Advocate audits at desk, walks to Steelman to report
     {
       speaker_id: 'devils_advocate',
       action: 'type',
@@ -66,9 +66,9 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
 
-    // 2. Receipts audits citations, walks to Judge to report
+    // 2. Researcher audits citations, walks to Steelman to report
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'type',
       target: 'cubicle_3_desk',
       gesture: 'idle',
@@ -78,7 +78,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'walk_to',
       target: 'podium_approach',
       gesture: 'idle',
@@ -88,7 +88,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'inspect',
       target: 'podium_approach',
       gesture: 'point',
@@ -98,7 +98,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'walk_to',
       target: 'cubicle_3_desk',
       gesture: 'idle',
@@ -108,7 +108,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'sit',
       target: 'cubicle_3_desk',
       gesture: 'idle',
@@ -118,7 +118,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
 
-    // 3. Builder benchmarks latency, walks to Judge to report
+    // 3. Builder benchmarks latency, walks to Steelman to report
     {
       speaker_id: 'builder',
       action: 'type',
@@ -170,7 +170,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
 
-    // 4. Operator checks compliance, walks to Judge to report
+    // 4. Operator checks compliance, walks to Steelman to report
     {
       speaker_id: 'operator',
       action: 'type',
@@ -222,11 +222,11 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
 
-    // 5. Crucible Arbiter (Judge) delivers synthesis ruling and exits via right door
+    // 5. Crucible Arbiter (Steelman) delivers synthesis ruling and exits via right door
     {
-      speaker_id: 'judge',
+      speaker_id: 'steelman',
       action: 'stand',
-      target: 'judge_chair',
+      target: 'steelman_chair',
       gesture: 'idle',
       stage: 'Crucible Synthesis',
       verdict: 'weakened',
@@ -234,7 +234,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'judge',
+      speaker_id: 'steelman',
       action: 'walk_to',
       target: 'right_door',
       gesture: 'idle',
@@ -248,9 +248,9 @@ const B2B_COPILOT_SCENARIO = {
 
 const INFERENCE_PIPELINE_SCENARIO = {
   name: 'Real-Time Inference Pipeline Feasibility Audit',
-  description: 'Independent evaluators stress-test edge caching, compute quotas, memory limits, and step up to the Judge to report.',
+  description: 'Independent evaluators stress-test edge caching, compute quotas, memory limits, and step up to the Steelman to report.',
   events: [
-    // 1. Builder approaches Judge
+    // 1. Builder approaches Steelman
     {
       speaker_id: 'builder',
       action: 'walk_to',
@@ -292,7 +292,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
 
-    // 2. Devil's Advocate approaches Judge
+    // 2. Devil's Advocate approaches Steelman
     {
       speaker_id: 'devils_advocate',
       action: 'walk_to',
@@ -334,9 +334,9 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
 
-    // 3. Receipts approaches Judge
+    // 3. Researcher approaches Steelman
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'walk_to',
       target: 'podium_approach',
       gesture: 'idle',
@@ -346,17 +346,17 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'inspect',
       target: 'podium_approach',
       gesture: 'point',
       stage: 'Reporting Evidence',
       verdict: 'survived',
-      dialogue: 'Verifying cloud provider pricing receipts: spot instance fallback reduces burst cost by 42%.',
+      dialogue: 'Verifying cloud provider pricing researcher: spot instance fallback reduces burst cost by 42%.',
       audio_url: null,
     },
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'walk_to',
       target: 'cubicle_3_desk',
       gesture: 'idle',
@@ -366,7 +366,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'receipts',
+      speaker_id: 'researcher',
       action: 'sit',
       target: 'cubicle_3_desk',
       gesture: 'idle',
@@ -376,7 +376,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
 
-    // 4. Operator approaches Judge
+    // 4. Operator approaches Steelman
     {
       speaker_id: 'operator',
       action: 'walk_to',
@@ -418,11 +418,11 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
 
-    // 5. Judge Ruling and exit via right door
+    // 5. Steelman Ruling and exit via right door
     {
-      speaker_id: 'judge',
+      speaker_id: 'steelman',
       action: 'stand',
-      target: 'judge_chair',
+      target: 'steelman_chair',
       gesture: 'idle',
       stage: 'Crucible Synthesis',
       verdict: 'survived',
@@ -430,7 +430,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
     {
-      speaker_id: 'judge',
+      speaker_id: 'steelman',
       action: 'walk_to',
       target: 'right_door',
       gesture: 'idle',
@@ -560,9 +560,9 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
     const homeBots = [
       { speaker_id: 'builder', target: 'cubicle_1_desk' },
       { speaker_id: 'devils_advocate', target: 'cubicle_2_desk' },
-      { speaker_id: 'receipts', target: 'cubicle_3_desk' },
+      { speaker_id: 'researcher', target: 'cubicle_3_desk' },
       { speaker_id: 'operator', target: 'cubicle_4_desk' },
-      { speaker_id: 'judge', target: 'judge_chair' },
+      { speaker_id: 'steelman', target: 'steelman_chair' },
     ];
     homeBots.forEach((b) => {
       dispatchEvent({

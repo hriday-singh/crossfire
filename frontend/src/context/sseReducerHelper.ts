@@ -120,7 +120,7 @@ export function handleSSEEvent(
       const evaluator = (data.evaluator as string) || "assumption";
 
       const mappedFailureMode =
-        evaluator === "receipts" || evaluator === "researcher"
+        evaluator === "researcher" || evaluator === "researcher"
           ? "evidence"
           : evaluator === "builder"
           ? "feasibility"
@@ -166,7 +166,7 @@ export function handleSSEEvent(
           };
         } else if (finding.test_id) {
           const mappedFailureMode =
-            finding.evaluator === "receipts" || finding.evaluator === "researcher"
+            finding.evaluator === "researcher" || finding.evaluator === "researcher"
               ? "evidence"
               : finding.evaluator === "builder"
               ? "feasibility"

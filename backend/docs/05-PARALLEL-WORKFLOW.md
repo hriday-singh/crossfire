@@ -9,7 +9,7 @@ The whole point of the file split in `docs/00-CONTRACTS.md` and the three `docs/
 | Dev | Owns |
 |---|---|
 | A (spine) | `providers/`, `core/models.py`, `core/loop.py`, `core/evaluators/builder.py`, `store.py`, `config.py` |
-| B (evidence) | `evidence/`, `core/evaluators/receipts.py` (Researcher), `ingestion/` |
+| B (evidence) | `evidence/`, `core/evaluators/researcher.py` (Researcher), `ingestion/` |
 | C (api) | `api/`, `core/evaluators/devils_advocate.py`, `core/evaluators/operator.py` (Operator, legacy overthinker) |
 
 That's every file in the repo except two, both handled specially below.
@@ -24,7 +24,7 @@ That's every file in the repo except two, both handled specially below.
 
 **`tests/conftest.py`** — shared fixtures everyone's tests import. Treat it like `core/models.py`: read-only after hour 2 unless the group agrees to add a fixture, in which case whoever needs it adds it and says so, rather than three people adding near-duplicate fixtures under slightly different names.
 
-**`tests/`** otherwise mirrors the ownership table above one-to-one — `tests/core/` and `tests/providers/` are Dev A's, `tests/evidence/` and `tests/evaluators/test_receipts.py` are Dev B's, `tests/api/` and `tests/evaluators/test_devils_advocate.py` are Dev C's. `tests/eval_set/` is Dev A's harness at hour 38-42, but anyone can add a case relevant to their own module without waiting.
+**`tests/`** otherwise mirrors the ownership table above one-to-one — `tests/core/` and `tests/providers/` are Dev A's, `tests/evidence/` and `tests/evaluators/test_researcher.py` are Dev B's, `tests/api/` and `tests/evaluators/test_devils_advocate.py` are Dev C's. `tests/eval_set/` is Dev A's harness at hour 38-42, but anyone can add a case relevant to their own module without waiting.
 
 ## Branches
 

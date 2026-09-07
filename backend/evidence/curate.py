@@ -1,6 +1,6 @@
 """
-Owner: Dev B. Snippet curation, shared by receipts.py and ingestion/.
-See docs/03-dev-B-evidence-receipts.md.
+Owner: Dev B. Snippet curation, shared by researcher.py and ingestion/.
+See docs/03-dev-B-evidence-researcher.md.
 """
 from __future__ import annotations
 

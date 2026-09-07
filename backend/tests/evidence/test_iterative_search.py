@@ -4,7 +4,7 @@ Unit tests for iterative search loop and query reformulation.
 import pytest
 from unittest.mock import AsyncMock, patch
 from core.models import Case, Claim, EvidenceItem, TestPlanItem
-from core.evaluators.receipts import run_researcher
+from core.evaluators.researcher import run_researcher
 from evidence.search import reformulate_query, build_query
 
 
@@ -16,7 +16,7 @@ class MockQueryProvider:
         schema_name = getattr(response_schema, "__name__", "")
         if schema_name == "ReformulatedQuery" or "query" in getattr(response_schema, "model_fields", {}):
             return response_schema(query=self.query_text)
-        from core.evaluators.receipts import ResearcherAssessment
+        from core.evaluators.researcher import ResearcherAssessment
         return ResearcherAssessment(
             result="Empirical limits verified via documentation.",
             reasoning="The official docs state that limits apply as tested.",
@@ -69,7 +69,7 @@ async def test_run_researcher_triggers_iterative_search_on_empty():
         return refreshed_evidence  # Iterative search yields evidence!
 
     provider = MockQueryProvider("Stripe dispute documentation requirements")
-    with patch("core.evaluators.receipts.search_evidence", side_effect=mock_search):
+    with patch("core.evaluators.researcher.search_evidence", side_effect=mock_search):
         finding = await run_researcher(item, case, provider)
 
     assert call_count == 2

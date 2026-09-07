@@ -2,14 +2,13 @@ import { ClaimStatus, FailureMode } from "@/types/crossfire";
 
 /**
  * Maps failure mode to user-facing CI Test name.
- * Mandatory Rule: Backend agent names (devils_advocate, receipts, builder, operator, overthinker)
+ * Mandatory Rule: Backend agent names (devils_advocate, researcher, builder, operator, overthinker)
  * must NEVER appear anywhere in the UI.
  */
 export function formatTestName(failureMode: FailureMode | string): string {
   const normalized = failureMode.toLowerCase().trim();
   switch (normalized) {
     case "evidence":
-    case "receipts":
     case "researcher":
       return "Evidence Test";
     case "feasibility":

@@ -1,6 +1,6 @@
 """
 Owner: Dev B. Covers evidence/fetch.py (Scrapling) and evidence/curate.py.
-See docs/03-dev-B-evidence-receipts.md hour 11-35.
+See docs/03-dev-B-evidence-researcher.md hour 11-35.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ async def test_deep_fetch_only_triggered_for_load_bearing_thin_snippet(
     claim.load_bearing is True AND the search snippet isn't strong enough.
     Assert fetch() is NOT called for a non-load-bearing claim, and IS called
     for a load-bearing one with a thin snippet."""
-    from core.evaluators.receipts import run_receipts
+    from core.evaluators.researcher import run_researcher
     from core.models import Claim, EvidenceItem
 
     fetch_calls: list[str] = []
@@ -40,7 +40,7 @@ async def test_deep_fetch_only_triggered_for_load_bearing_thin_snippet(
         fetch_calls.append(url)
         return "Full page text containing detailed evidence."
 
-    monkeypatch.setattr("core.evaluators.receipts.fetch_page", fake_fetch)
+    monkeypatch.setattr("core.evaluators.researcher.fetch_page", fake_fetch)
 
     # 1. Non-load-bearing claim: should NOT trigger deep fetch
     non_lb_claim = Claim(id="c-non-lb", statement="Test statement", load_bearing=False)
@@ -61,17 +61,17 @@ async def test_deep_fetch_only_triggered_for_load_bearing_thin_snippet(
             )
         ]
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
     provider = fake_provider_factory(responses=[sample_finding])
 
-    await run_receipts(_item_for(non_lb_claim), _case_for(non_lb_claim), provider)
+    await run_researcher(_item_for(non_lb_claim), _case_for(non_lb_claim), provider)
     assert len(fetch_calls) == 0
 
     # 2. Load-bearing claim with thin snippet: MUST trigger deep fetch
     lb_claim = Claim(id="c-lb", statement="Test statement", load_bearing=True)
     provider2 = fake_provider_factory(responses=[sample_finding])
 
-    await run_receipts(_item_for(lb_claim), _case_for(lb_claim), provider2)
+    await run_researcher(_item_for(lb_claim), _case_for(lb_claim), provider2)
     assert len(fetch_calls) == 1
     assert fetch_calls[0] == "https://example.com/item1"
 
@@ -111,7 +111,7 @@ async def test_fetch_failure_drops_the_source_without_crashing(
     monkeypatch, sample_claim, sample_test_plan_item, fake_provider_factory, sample_finding
 ):
     """A dead link or wall drops the source without crashing, producing a Finding."""
-    from core.evaluators.receipts import run_receipts
+    from core.evaluators.researcher import run_researcher
     from evidence.fetch import fetch_page
 
     async def failing_fetch(url: str) -> str:
@@ -121,15 +121,15 @@ async def test_fetch_failure_drops_the_source_without_crashing(
     res = await fetch_page("https://example.com/broken")
     assert res == ""
 
-    # In receipts, zero search results still return a Finding
+    # In researcher, zero search results still return a Finding
     async def empty_search(c):
         return []
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", empty_search)
     provider = fake_provider_factory(responses=[sample_finding])
-    finding = await run_receipts(_item_for(sample_claim), _case_for(sample_claim), provider)
+    finding = await run_researcher(_item_for(sample_claim), _case_for(sample_claim), provider)
     assert finding is not None
-    assert finding.evaluator in ("researcher", "receipts")
+    assert finding.evaluator in ("researcher", "researcher")
 
 
 

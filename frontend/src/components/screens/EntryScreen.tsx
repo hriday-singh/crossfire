@@ -12,17 +12,37 @@ import { EntryPresetsBar } from "@/components/features/EntryPresetsBar";
 import { EntryDropzoneBar } from "@/components/features/EntryDropzoneBar";
 import { EntryFooter } from "@/components/features/EntryFooter";
 import { CubeSpinner } from "@/components/features/CubeSpinner";
-import {
-  detectWebUrl,
-  extractAllWebUrls,
-  normalizeWebUrl,
-  DetectedWebUrl,
-} from "@/lib/urlUtils";
+import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from "@/lib/urlUtils";
 import { SerpApiIcon } from "@/components/ui/serpapi";
+import { motion } from "framer-motion";
+import { RocketIntroAnimation } from "@/components/ui/RocketIntroAnimation";
 import { TechDecorations } from "@/components/features/TechDecorations";
 import SpaceStarfield from "@/components/canvas/SpaceStarfield";
 
 const MAX_PROPOSAL_CHARS = 500;
+
+const heroContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const heroItemVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.55,
+      ease: [0.16, 1, 0.3, 1] as const,
+    },
+  },
+};
 
 const isImageFile = (filename: string): boolean => {
   const ext = filename.toLowerCase().slice(filename.lastIndexOf("."));
@@ -50,7 +70,27 @@ export const EntryScreen: React.FC = () => {
   const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
+  // 2D Rocket Opening Animation State
+  const [isIntroRevealed, setIsIntroRevealed] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+    return false;
+  });
+  const [isIntroComplete, setIsIntroComplete] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+    return false;
+  });
 
+  // Sync with global state when starting a new case
+  useEffect(() => {
+    if (!state.currentCase) {
+      setRawInput("");
+      setAttachments([]);
+      setAgentMode("auto");
+      setSelectedAgents([...DEFAULT_AGENT_IDS]);
+    }
+  }, [state.currentCase]);
 
   // Sync when an improved prompt is loaded back into starting screen
   useEffect(() => {
@@ -69,7 +109,7 @@ export const EntryScreen: React.FC = () => {
 
   const handleToggleAgent = (agentId: string) => {
     const backendIdMap: Record<string, string> = {
-      researcher: "receipts",
+      researcher: "researcher",
       operator: "overthinker"
     };
     const mappedId = backendIdMap[agentId] || agentId;
@@ -486,248 +526,274 @@ export const EntryScreen: React.FC = () => {
   }
 
   return (
-    <div className="relative flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
+    <div className="relative flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between overflow-hidden">
       {/* Background Starfield (borders max, behind all assets, actions, characters, popups) */}
       <SpaceStarfield className="fixed inset-0 w-full h-full pointer-events-none z-0" />
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-space-6 px-space-4 w-full my-auto">
+      {/* 2D Rocket Opening Intro Animation */}
+      {!isIntroComplete && (
+        <RocketIntroAnimation
+          onHeroReveal={() => setIsIntroRevealed(true)}
+          onComplete={() => setIsIntroComplete(true)}
+        />
+      )}
+
+      {/* Hero UI Wrapper with Staggered Framer Motion Reveal */}
+      <motion.div
+        className="relative z-10 flex-1 flex flex-col items-center justify-center py-space-6 px-space-4 w-full my-auto"
+        initial={isIntroRevealed ? "visible" : "hidden"}
+        animate={isIntroRevealed ? "visible" : "hidden"}
+        variants={heroContainerVariants}
+      >
         {/* Subtle Ambient Glow */}
         <div className="relative w-full max-w-[640px]">
           <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-40 bg-gradient-to-b from-primary-container/10 via-primary-container/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
           {/* Header Module */}
-          <div className="flex flex-col items-center text-center mb-space-3">
+          <motion.div variants={heroItemVariants} className="flex flex-col items-center text-center mb-space-5">
             <h1 className="font-headline-lg text-2xl sm:text-3xl md:text-[34px] font-bold text-on-surface tracking-tight leading-tight">
               What decision are you testing?
             </h1>
-          </div>
+          </motion.div>
 
           {/* Patrolling Sentry Robot & Perched Companion Head */}
           <TechDecorations isTyping={rawInput.trim().length > 0} />
 
           {/* Form Container */}
-          <form
-            onSubmit={handleSubmit}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className="relative flex flex-col w-full bg-surface-container-low rounded-xl p-space-4 shadow-xl border border-outline-variant/40"
-          >
-            {isDragging && (
-              <div className="absolute inset-0 bg-surface-container/90 border-2 border-dashed border-primary-container rounded-xl flex flex-col items-center justify-center z-20 pointer-events-none backdrop-blur-xs">
-                <span className="material-symbols-outlined text-[36px] text-primary-container">
-                  upload_file
-                </span>
-                <span className="font-headline-sm text-headline-sm text-on-surface font-semibold mt-2">
-                  Drop PDF or Screenshot to attach
-                </span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  Crossfire will extract context and link it to your proposal
-                </span>
-              </div>
-            )}
-
-            {/* Textarea Workspace */}
-            <div className="relative w-full">
-              <label className="sr-only" htmlFor="proposal-input">
-                Decision proposal statement
-              </label>
-              <textarea
-                ref={textareaRef}
-                id="proposal-input"
-                value={rawInput}
-                onChange={(e) => handleTextChange(e.target.value)}
-                onBlur={handleBlur}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                placeholder="e.g., Shift 100% of our customer support to a fine tuned LLM to cut costs or Replace our entire QA engineering team with automated test-generation agents."
-                rows={4}
-                autoFocus
-                className="w-full bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-md text-body-md rounded-lg p-space-4 resize-none transition-all outline-none focus:bg-surface-container-low min-h-[130px] leading-relaxed border border-transparent focus:border-outline-variant"
-              />
-              {/* Character Limit Counter */}
-              <div className="absolute bottom-3 right-3 flex items-center gap-space-2 pointer-events-none">
-                <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5">
-                  {rawInput.length} characters
-                </span>
-              </div>
-            </div>
-
-            {/* Smart Notice */}
-            {smartNotice && (
-              <div
-                role="status"
-                className="mt-space-2 px-space-3 py-space-1.5 rounded bg-primary-container/15 border border-primary-container/30 text-primary font-body-sm text-xs flex items-center justify-between animate-in fade-in-50"
-              >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="material-symbols-outlined text-[16px] text-primary shrink-0">
-                    auto_awesome
-                  </span>
-                  <span className="truncate">{smartNotice}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSmartNotice(null)}
-                  className="text-outline hover:text-on-surface p-0.5 rounded cursor-pointer shrink-0 transition-colors"
-                  aria-label="Dismiss notice"
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    close
-                  </span>
-                </button>
-              </div>
-            )}
-
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.md,.markdown"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-
-            {/* Ingestion Error Alert */}
-            {ingestError && (
-              <div
-                role="alert"
-                className="mt-space-3 bg-error-container/30 border border-error/50 rounded-lg p-space-3 flex items-center justify-between text-error"
-              >
-                <div className="flex items-center gap-space-2 min-w-0">
-                  <span className="material-symbols-outlined text-[18px] text-error shrink-0">
-                    error
-                  </span>
-                  <span className="font-body-sm text-body-sm truncate">
-                    {ingestError}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIngestError(null)}
-                  className="text-error hover:text-on-surface p-1 rounded transition-colors cursor-pointer"
-                  aria-label="Dismiss error"
-                >
-                  <span className="material-symbols-outlined text-[16px]">
-                    close
-                  </span>
-                </button>
-              </div>
-            )}
-
-            {/* Ingestion In Progress */}
-            {isIngesting && (
-              <div className="mt-space-3 bg-surface-container rounded-lg p-space-3 flex items-center justify-between">
-                <div className="flex items-center gap-space-2 text-on-surface">
-                  <span className="material-symbols-outlined text-[18px] text-primary-container animate-spin">
-                    progress_activity
-                  </span>
-                  <span className="font-body-sm text-body-sm text-on-surface">
-                    Extracting document context...
-                  </span>
-                </div>
-                <span className="font-code-sm text-code-sm text-outline">
-                  Processing
-                </span>
-              </div>
-            )}
-
-            {/* Compact Multi-Attachment Pills Bar (1, 2, +1, +2...) */}
-            <AttachmentBar
-              attachments={attachments}
-              onRemoveAttachment={handleRemoveAttachment}
-            />
-
-            {/* Always Available Dropzone & URL Trigger (Never Locks) */}
-            <EntryDropzoneBar
-              isDragging={isDragging}
-              showUrlInput={showUrlInput}
-              urlInputValue={urlInputValue}
-              onDropzoneClick={handleDropzoneClick}
+          <motion.div variants={heroItemVariants}>
+            <form
+              onSubmit={handleSubmit}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              onToggleUrlInput={() => setShowUrlInput(!showUrlInput)}
-              onUrlInputChange={setUrlInputValue}
-              onUrlSubmit={handleManualUrlSubmit}
-            />
-
-            {/* Agent Suite Selection Panel (Auto vs Custom) */}
-            <AgentSelectorPanel
-              agentMode={agentMode}
-              onAgentModeChange={handleAgentModeChange}
-              selectedAgents={selectedAgents}
-              onToggleAgent={handleToggleAgent}
-              isExpanded={isAgentPanelExpanded}
-              onToggleExpand={() => setIsAgentPanelExpanded((prev) => !prev)}
-            />
-
-            {/* Action Row */}
-            <div className="mt-space-4 pt-space-3 flex items-center justify-between">
-              <div className="flex items-center gap-space-3 flex-wrap">
-                {/* Keyboard Shortcut Hint */}
-                <div className="flex items-center gap-space-1.5 text-outline font-code-sm text-code-sm">
-                  <span className="material-symbols-outlined text-[14px]">
-                    {isMac ? "keyboard_command_key" : "keyboard"}
+              className="relative flex flex-col w-full bg-surface-container-low rounded-xl p-space-4 shadow-xl border border-outline-variant/40"
+            >
+              {isDragging && (
+                <div className="absolute inset-0 bg-surface-container/90 border-2 border-dashed border-primary-container rounded-xl flex flex-col items-center justify-center z-20 pointer-events-none backdrop-blur-xs">
+                  <span className="material-symbols-outlined text-[36px] text-primary-container">
+                    upload_file
                   </span>
-                  <span>Press</span>
-                  <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
-                    {isMac ? "⌘" : "Ctrl"}
-                  </kbd>
-                  <span>+</span>
-                  <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
-                    Enter
-                  </kbd>
-                  <span>to analyze</span>
+                  <span className="font-headline-sm text-headline-sm text-on-surface font-semibold mt-2">
+                    Drop PDF or Screenshot to attach
+                  </span>
+                  <span className="font-body-sm text-body-sm text-on-surface-variant">
+                    Crossfire will extract context and link it to your proposal
+                  </span>
                 </div>
-                <span className="text-outline-variant hidden md:inline">·</span>
-                <a
-                  href="https://serpapi.com?utm_source=crossfire&utm_medium=entry_grounding"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hidden md:inline-flex items-center gap-1.5 text-outline hover:text-primary transition-colors font-code-sm text-xs group cursor-pointer"
-                  title="Search & web grounding powered by SerpAPI"
-                >
-                  <SerpApiIcon size={12} className="transition-transform group-hover:scale-110" />
-                  <span className="hover:underline">Grounded by SerpAPI</span>
-                  <span className="material-symbols-outlined text-[12px] opacity-70 group-hover:opacity-100">
-                    open_in_new
+              )}
+
+              {/* Textarea Workspace */}
+              <div className="relative w-full">
+                <label className="sr-only" htmlFor="proposal-input">
+                  Decision proposal statement
+                </label>
+                <textarea
+                  ref={textareaRef}
+                  id="proposal-input"
+                  value={rawInput}
+                  onChange={(e) => handleTextChange(e.target.value)}
+                  onBlur={handleBlur}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  placeholder="e.g., Shift 100% of our customer support to a fine tuned LLM to cut costs or Replace our entire QA engineering team with automated test-generation agents."
+                  rows={4}
+                  autoFocus
+                  className="w-full bg-surface-container-lowest text-on-surface placeholder:text-outline font-body-md text-body-md rounded-lg p-space-4 resize-none transition-all outline-none focus:bg-surface-container-low min-h-[130px] leading-relaxed border border-transparent focus:border-outline-variant"
+                />
+                {/* Character Limit Counter */}
+                <div className="absolute bottom-3 right-3 flex items-center gap-space-2 pointer-events-none">
+                  <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5">
+                    {rawInput.length} characters
                   </span>
-                </a>
+                </div>
               </div>
 
-              {/* Primary CTA Trigger */}
-              <Button
-                type="submit"
-                id="submit-run-btn"
-                variant="primary"
-                disabled={!canRunTest || state.isStreaming || state.currentCase?.status === "testing"}
-                className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:brightness-110 text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  {state.isStreaming || state.currentCase?.status === "testing" ? "progress_activity" : "play_arrow"}
-                </span>
-                <span>
-                  {state.isStreaming || state.currentCase?.status === "testing"
-                    ? "Stress test is running..."
-                    : "Run stress test"}
-                </span>
-                <span className="sr-only">Test Decision</span>
-              </Button>
-            </div>
-          </form>
+              {/* Smart Notice */}
+              {smartNotice && (
+                <div
+                  role="status"
+                  className="mt-space-2 px-space-3 py-space-1.5 rounded bg-primary-container/15 border border-primary-container/30 text-primary font-body-sm text-xs flex items-center justify-between animate-in fade-in-50"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="material-symbols-outlined text-[16px] text-primary shrink-0">
+                      auto_awesome
+                    </span>
+                    <span className="truncate">{smartNotice}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSmartNotice(null)}
+                    className="text-outline hover:text-on-surface p-0.5 rounded cursor-pointer shrink-0 transition-colors"
+                    aria-label="Dismiss notice"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">
+                      close
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.md,.markdown"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+
+              {/* Ingestion Error Alert */}
+              {ingestError && (
+                <div
+                  role="alert"
+                  className="mt-space-3 bg-error-container/30 border border-error/50 rounded-lg p-space-3 flex items-center justify-between text-error"
+                >
+                  <div className="flex items-center gap-space-2 min-w-0">
+                    <span className="material-symbols-outlined text-[18px] text-error shrink-0">
+                      error
+                    </span>
+                    <span className="font-body-sm text-body-sm truncate">
+                      {ingestError}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIngestError(null)}
+                    className="text-error hover:text-on-surface p-1 rounded transition-colors cursor-pointer"
+                    aria-label="Dismiss error"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      close
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* Ingestion In Progress */}
+              {isIngesting && (
+                <div className="mt-space-3 bg-surface-container rounded-lg p-space-3 flex items-center justify-between">
+                  <div className="flex items-center gap-space-2 text-on-surface">
+                    <span className="material-symbols-outlined text-[18px] text-primary-container animate-spin">
+                      progress_activity
+                    </span>
+                    <span className="font-body-sm text-body-sm text-on-surface">
+                      Extracting document context...
+                    </span>
+                  </div>
+                  <span className="font-code-sm text-code-sm text-outline">
+                    Processing
+                  </span>
+                </div>
+              )}
+
+              {/* Compact Multi-Attachment Pills Bar (1, 2, +1, +2...) */}
+              <AttachmentBar
+                attachments={attachments}
+                onRemoveAttachment={handleRemoveAttachment}
+              />
+
+              {/* Always Available Dropzone & URL Trigger (Never Locks) */}
+              <EntryDropzoneBar
+                isDragging={isDragging}
+                showUrlInput={showUrlInput}
+                urlInputValue={urlInputValue}
+                onDropzoneClick={handleDropzoneClick}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onToggleUrlInput={() => setShowUrlInput(!showUrlInput)}
+                onUrlInputChange={setUrlInputValue}
+                onUrlSubmit={handleManualUrlSubmit}
+              />
+
+              {/* Agent Suite Selection Panel (Auto vs Custom) */}
+              <AgentSelectorPanel
+                agentMode={agentMode}
+                onAgentModeChange={handleAgentModeChange}
+                selectedAgents={selectedAgents}
+                onToggleAgent={handleToggleAgent}
+                isExpanded={isAgentPanelExpanded}
+                onToggleExpand={() => setIsAgentPanelExpanded((prev) => !prev)}
+              />
+
+              {/* Action Row */}
+              <div className="mt-space-4 pt-space-3 flex items-center justify-between">
+                <div className="flex items-center gap-space-3 flex-wrap">
+                  {/* Keyboard Shortcut Hint */}
+                  <div className="flex items-center gap-space-1.5 text-outline font-code-sm text-code-sm">
+                    <span className="material-symbols-outlined text-[14px]">
+                      {isMac ? "keyboard_command_key" : "keyboard"}
+                    </span>
+                    <span>Press</span>
+                    <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
+                      {isMac ? "⌘" : "Ctrl"}
+                    </kbd>
+                    <span>+</span>
+                    <kbd className="px-space-1.5 py-0.5 bg-surface-container font-code-sm text-code-sm text-on-surface rounded">
+                      Enter
+                    </kbd>
+                    <span>to analyze</span>
+                  </div>
+                  <span className="text-outline-variant hidden md:inline">·</span>
+                  <a
+                    href="https://serpapi.com?utm_source=crossfire&utm_medium=entry_grounding"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden md:inline-flex items-center gap-1.5 text-outline hover:text-primary transition-colors font-code-sm text-xs group cursor-pointer"
+                    title="Search & web grounding powered by SerpAPI"
+                  >
+                    <SerpApiIcon size={12} className="transition-transform group-hover:scale-110" />
+                    <span className="hover:underline">Grounded by SerpAPI</span>
+                    <span className="material-symbols-outlined text-[12px] opacity-70 group-hover:opacity-100">
+                      open_in_new
+                    </span>
+                  </a>
+                </div>
+
+                {/* Primary CTA Trigger */}
+                <Button
+                  type="submit"
+                  id="submit-run-btn"
+                  variant="primary"
+                  disabled={!canRunTest || state.isStreaming || state.currentCase?.status === "testing"}
+                  className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:brightness-110 text-on-primary-container font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {state.isStreaming || state.currentCase?.status === "testing" ? "progress_activity" : "play_arrow"}
+                  </span>
+                  <span>
+                    {state.isStreaming || state.currentCase?.status === "testing"
+                      ? "Stress test is running..."
+                      : "Run stress test"}
+                  </span>
+                  <span className="sr-only">Test Decision</span>
+                </Button>
+              </div>
+            </form>
+          </motion.div>
 
           {/* Presets and FAQ Discovery Bar */}
-          <EntryPresetsBar
-            onSelectPreset={setRawInput}
-            onOpenFaq={() => setActiveModal("faq")}
-          />
+          <motion.div variants={heroItemVariants}>
+            <EntryPresetsBar
+              onSelectPreset={setRawInput}
+              onOpenFaq={() => setActiveModal("faq")}
+            />
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Footer */}
-      <div className="relative z-10">
+      <motion.div
+        className="relative z-10"
+        initial={isIntroRevealed ? "visible" : "hidden"}
+        animate={isIntroRevealed ? "visible" : "hidden"}
+        variants={{
+          hidden: { opacity: 0 },
+          visible: { opacity: 1, transition: { duration: 0.45, delay: 0.15 } },
+        }}
+      >
         <EntryFooter onOpenModal={setActiveModal} />
-      </div>
+      </motion.div>
     </div>
   );
 };

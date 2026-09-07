@@ -122,7 +122,7 @@ _NON_EMPIRICAL_SUBJECTIVE_PATTERN = re.compile(
 
 def is_empirical_claim(statement: str) -> bool:
     """Determines if a claim asserts verifiable real-world facts, metrics,
-    outside benchmarks, or third-party realities requiring the Researcher (receipts).
+    outside benchmarks, or third-party realities requiring the Researcher (researcher).
 
     Claims that are purely subjective design choices, aesthetic preferences,
     internal definitions, or abstract logic return False.

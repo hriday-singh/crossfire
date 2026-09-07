@@ -59,7 +59,7 @@ class EvidenceItem(BaseModel):
 class Finding(BaseModel):
     claim_id: str
     test_id: str
-    evaluator: str                          # "devils_advocate" | "receipts" | "builder" | "overthinker"
+    evaluator: str                          # "devils_advocate" | "researcher" | "builder" | "overthinker"
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str
@@ -140,11 +140,11 @@ async def run_evaluators(case: Case, plan: list[TestPlanItem]) -> list[Finding]:
     return await asyncio.gather(*tasks, return_exceptions=True)
 ```
 
-`dispatch()` routes each `TestPlanItem` to the right evaluator function by `failure_mode` (assumption / evidence / feasibility / edge-case), not by "which agent is free." Receipts is the one evaluator that runs the evidence sub-pipeline in section 5 before it ever calls the LLM; the others call the provider directly with the claim and context.
+`dispatch()` routes each `TestPlanItem` to the right evaluator function by `failure_mode` (assumption / evidence / feasibility / edge-case), not by "which agent is free." Researcher is the one evaluator that runs the evidence sub-pipeline in section 5 before it ever calls the LLM; the others call the provider directly with the claim and context.
 
 Reconciliation (`reconcile()`) is a single call that receives every `Finding` for a claim at once and returns the `ClaimStatus`. This is the only place a status gets decided — no evaluator sets its own claim's status, exactly as the docs specify (evidence quality and criticality, never a vote).
 
-## 5. Evidence pipeline (Receipts)
+## 5. Evidence pipeline (Researcher)
 
 Revised again to a cleaner division of labor: DuckDuckGo Lite via Scrapling's AsyncFetcher handles discovery without any third-party API key, Scrapling handles page inspection, and neither relies on costly external search APIs.
 
@@ -165,9 +165,9 @@ claim.statement
 
 This is the same adaptive-scrutiny principle already in your docs — spend the extra fetch only where a wrong answer would change the decision — applied to the evidence pipeline specifically, and it keeps search usage minimal regardless of how deep the verification goes, since the expensive part (a full page fetch) is Scrapling's job, not an extra search. A claim like "a competitor already does this" is the clearest example: DuckDuckGo Lite finds the competitor's URL, Scrapling fetches the actual page once that URL is load-bearing, and curation pulls the exact sentence rather than trusting a search snippet to be precise enough.
 
-The curation step itself is a small, cheap operation — either a simple keyword/relevance heuristic, or (if time allows) one short, low-token LLM call whose only job is "pick the 1-3 sentences relevant to <claim> from this text." Either way, nothing beyond the curated `EvidenceItem.snippet` reaches the Receipts evaluator's context window.
+The curation step itself is a small, cheap operation — either a simple keyword/relevance heuristic, or (if time allows) one short, low-token LLM call whose only job is "pick the 1-3 sentences relevant to <claim> from this text." Either way, nothing beyond the curated `EvidenceItem.snippet` reaches the Researcher evaluator's context window.
 
-Failure handling: if DuckDuckGo Lite returns nothing, or a Scrapling deep-fetch fails (dead link, a wall it genuinely can't beat), that source is dropped, not retried into a crash — Receipts still produces a `Finding`, just with fewer or zero `EvidenceItem`s, which is exactly what should push a claim toward `unresolved` rather than a forced verdict. `tenacity` covers transient failures on both tools; a source that's genuinely gone is a data point, not an error.
+Failure handling: if DuckDuckGo Lite returns nothing, or a Scrapling deep-fetch fails (dead link, a wall it genuinely can't beat), that source is dropped, not retried into a crash — Researcher still produces a `Finding`, just with fewer or zero `EvidenceItem`s, which is exactly what should push a claim toward `unresolved` rather than a forced verdict. `tenacity` covers transient failures on both tools; a source that's genuinely gone is a data point, not an error.
 
 **Demo fallback.** Your own docs already require this: live search can't be the single point of failure holding up the demo's one load-bearing claim. Implement it as an explicit switch, not implicit string-matching on the query text (a keyword match on the demo's wording is fragile and mixes staging concerns into production search code):
 
@@ -238,7 +238,7 @@ backend/
     loop.py                # extract_claims, classify_load_bearing, build_test_plan, reconcile, build_consequences
     evaluators/
       devils_advocate.py
-      receipts.py           # owns the evidence pipeline (section 5)
+      researcher.py           # owns the evidence pipeline (section 5)
       builder.py             # added once the loop + evidence path are solid
       overthinker.py          # stretch
   providers/
@@ -250,7 +250,7 @@ backend/
     search.py                 # DuckDuckGo Lite search wrapper via Scrapling, demo fixtures
     fetch.py                  # Scrapling wrapper — load-bearing deep-verification (section 5) AND
                                # pasted-URL ingestion (section 6) share this one module
-    curate.py                 # snippet curation (shared by receipts.py and ingestion/)
+    curate.py                 # snippet curation (shared by researcher.py and ingestion/)
   ingestion/
     pdf.py                    # pypdf/pdfplumber text extraction only; rejects scanned/image-only PDFs
                                # (no image-upload path — out of scope, see section 6)
@@ -260,7 +260,7 @@ tests/
   eval_set/                   # the 5-10 hand-picked cases from section 15, one pytest case each
 ```
 
-Suggested three-way split, matching this layout directly onto the hour-by-hour plan: one person owns `providers/` + `core/loop.py` (the spine everything else calls into), one owns `evidence/` + `evaluators/receipts.py` (the tool-chained part with the most moving pieces), one owns `api/` + the SSE wiring + `evaluators/devils_advocate.py` and `overthinker.py` (the more self-contained, prompt-only evaluators). `core/models.py` gets written first, by whoever, and frozen before the other two branch off — that's the hour 0-2 lock your docs already call for.
+Suggested three-way split, matching this layout directly onto the hour-by-hour plan: one person owns `providers/` + `core/loop.py` (the spine everything else calls into), one owns `evidence/` + `evaluators/researcher.py` (the tool-chained part with the most moving pieces), one owns `api/` + the SSE wiring + `evaluators/devils_advocate.py` and `overthinker.py` (the more self-contained, prompt-only evaluators). `core/models.py` gets written first, by whoever, and frozen before the other two branch off — that's the hour 0-2 lock your docs already call for.
 
 ## 9. Config
 

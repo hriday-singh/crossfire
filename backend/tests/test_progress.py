@@ -36,12 +36,12 @@ Target: full loop.
 | build_test_plan() | `[~]` | in progress |
 | reconcile() | `[ ]` | |
 
-## Dev B — Evidence + Receipts
+## Dev B — Evidence + Researcher
 
 | Task | Status | Notes |
 |---|---|---|
 | search_evidence() | `[ ]` | |
-| receipts.py | `[!]` | blocked on Dev A |
+| researcher.py | `[!]` | blocked on Dev A |
 
 ## Dev C — API + SSE + Evaluators
 
@@ -62,7 +62,7 @@ def test_parse_progress_markdown():
 
     assert isinstance(summary, ProgressSummary)
     assert "Dev A — Core Loop + Providers" in summary.sections
-    assert "Dev B — Evidence + Receipts" in summary.sections
+    assert "Dev B — Evidence + Researcher" in summary.sections
     assert "Dev C — API + SSE + Evaluators" in summary.sections
 
     dev_a = summary.sections["Dev A — Core Loop + Providers"]
@@ -73,7 +73,7 @@ def test_parse_progress_markdown():
     assert dev_a.blocked == 0
     assert dev_a.percent == 50.0
 
-    dev_b = summary.sections["Dev B — Evidence + Receipts"]
+    dev_b = summary.sections["Dev B — Evidence + Researcher"]
     assert dev_b.total == 2
     assert dev_b.done == 0
     assert dev_b.blocked == 1

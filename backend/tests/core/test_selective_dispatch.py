@@ -32,18 +32,18 @@ def test_build_test_plan_selective_dispatch():
     c2_modes = [p.failure_mode for p in plan if p.target_claim == "c2"]
     c3_modes = [p.failure_mode for p in plan if p.target_claim == "c3"]
 
-    # Empirical load-bearing claim gets all evaluators including evidence (receipts)
+    # Empirical load-bearing claim gets all evaluators including evidence (researcher)
     assert "evidence" in c1_modes
     assert "assumption" in c1_modes
     assert "feasibility" in c1_modes
     assert "operational_friction" in c1_modes
 
-    # Non-empirical load-bearing claim gets reasoning evaluators, but NOT receipts/evidence
+    # Non-empirical load-bearing claim gets reasoning evaluators, but NOT researcher/evidence
     assert "evidence" not in c2_modes
     assert "assumption" in c2_modes
     assert "feasibility" in c2_modes
     assert "operational_friction" in c2_modes
 
-    # Non-empirical secondary claim gets multi-persona reasoning evaluators, but NOT receipts/evidence
+    # Non-empirical secondary claim gets multi-persona reasoning evaluators, but NOT researcher/evidence
     assert "evidence" not in c3_modes
     assert set(c3_modes) == {"assumption", "feasibility", "operational_friction"}

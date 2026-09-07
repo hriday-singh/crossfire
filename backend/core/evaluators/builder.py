@@ -1,7 +1,7 @@
 """
 Owner: Dev A. Feasibility Test — "could this actually be done as described?"
 
-No search, no evidence: that's `receipts` (Dev B). This one reasons about
+No search, no evidence: that's `researcher` (Dev B). This one reasons about
 buildability from the case text alone, so `Finding.evidence` is always empty
 and `reconcile()` correctly gives it less weight than an evidence-backed
 finding (see docs/dev-a/research/02-reconcile.md).

@@ -115,7 +115,7 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                 agentMode === "auto" ||
                 selectedAgents.some(
                   (id) =>
-                    (id === "receipts"
+                    (id === "researcher"
                       ? "researcher"
                       : id === "overthinker"
                         ? "operator"

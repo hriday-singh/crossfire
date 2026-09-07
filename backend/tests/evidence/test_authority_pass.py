@@ -52,7 +52,7 @@ def test_build_authority_query_survives_an_empty_statement():
 
 @pytest.mark.asyncio
 async def test_researcher_runs_an_authority_pass_when_the_first_sweep_is_all_web(monkeypatch):
-    from core.evaluators import receipts
+    from core.evaluators import researcher
 
     queries: list[str | None] = []
 
@@ -62,13 +62,13 @@ async def test_researcher_runs_an_authority_pass_when_the_first_sweep_is_all_web
             return [_item("https://blogsite.example.com/post")]
         return [_item("https://www.fmcsa.dot.gov/hours-of-service", "primary")]
 
-    monkeypatch.setattr(receipts, "search_evidence", mock_search)
+    monkeypatch.setattr(researcher, "search_evidence", mock_search)
 
     claim = Claim(id="c1", statement="Drivers can run 14-hour shifts", load_bearing=False)
     case = Case(id="case-1", raw_input="Schedule 14-hour driver shifts", claims=[claim])
     item = TestPlanItem(id="t1", target_claim="c1", failure_mode="evidence", objective="Check the limit")
 
-    finding = await receipts.run_researcher(item, case, _StubProvider())
+    finding = await researcher.run_researcher(item, case, _StubProvider())
 
     assert len(queries) == 2, "expected a second, authority-biased search"
     assert queries[1] == build_authority_query(claim.statement)
@@ -79,7 +79,7 @@ async def test_researcher_runs_an_authority_pass_when_the_first_sweep_is_all_web
 
 @pytest.mark.asyncio
 async def test_researcher_skips_the_authority_pass_when_a_primary_source_already_landed(monkeypatch):
-    from core.evaluators import receipts
+    from core.evaluators import researcher
 
     queries: list[str | None] = []
 
@@ -87,13 +87,13 @@ async def test_researcher_skips_the_authority_pass_when_a_primary_source_already
         queries.append(query_override)
         return [_item("https://www.fmcsa.dot.gov/hours-of-service", "primary")]
 
-    monkeypatch.setattr(receipts, "search_evidence", mock_search)
+    monkeypatch.setattr(researcher, "search_evidence", mock_search)
 
     claim = Claim(id="c1", statement="Drivers can run 14-hour shifts", load_bearing=False)
     case = Case(id="case-1", raw_input="Schedule 14-hour driver shifts", claims=[claim])
     item = TestPlanItem(id="t1", target_claim="c1", failure_mode="evidence", objective="Check the limit")
 
-    await receipts.run_researcher(item, case, _StubProvider())
+    await researcher.run_researcher(item, case, _StubProvider())
 
     assert queries == [None], "no second search when the first sweep already found authority"
 
@@ -102,7 +102,7 @@ class _StubProvider:
     """Returns the Researcher's own schema; the assertions here are about retrieval."""
 
     async def generate(self, system_prompt, messages, response_schema=None):
-        from core.evaluators.receipts import ResearcherAssessment
+        from core.evaluators.researcher import ResearcherAssessment
 
         if response_schema is None:
             return "plain answer"

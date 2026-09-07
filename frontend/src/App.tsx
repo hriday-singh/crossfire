@@ -11,8 +11,8 @@ import { LiveLogsDrawer } from "@/components/features/LiveLogsDrawer";
 import { HistoryModal } from "@/components/features/HistoryModal";
 import { FaqDrawer } from "@/components/features/FaqDrawer";
 import { SettingsModal } from "@/components/features/SettingsModal";
+import { ProvidersModal } from "@/components/features/ProvidersModal";
 import { DebugViewsToolbar } from "@/components/features/DebugViewsToolbar";
-import { CursorLighting } from "@/components/ui/CursorLighting";
 import SpaceStarfield from "@/components/canvas/SpaceStarfield";
 const DiscussionApp = React.lazy(() => import("./components/DiscussionApp"));
 
@@ -29,12 +29,8 @@ export const AppContent: React.FC = () => {
 
   return (
     <div className="relative flex min-h-screen flex-col bg-black text-foreground selection:bg-indigo-500/20 selection:text-indigo-300">
-      {/* Ambient Cursor Lighting Torch & Reticle */}
-      <CursorLighting />
-
       {/* Fullscreen Space Starfield background across all slides */}
       <SpaceStarfield className="fixed inset-0 w-full h-full pointer-events-none z-0" />
-
       {/* Top Header */}
       <Header />
 
@@ -75,11 +71,14 @@ export const AppContent: React.FC = () => {
       {/* Case History Drawer */}
       <HistoryModal />
 
+
       {/* Frequently Asked Questions Drawer */}
       <FaqDrawer />
 
       {/* System Settings Modal */}
       <SettingsModal />
+      {/* Provider & Model Management */}
+      <ProvidersModal />
 
       {/* Floating Quick Access to Page 3 Live View (when on entry or confirm screen, but not during slide 1b extraction) */}
       {state.activeScreen !== "runner" && state.activeScreen !== "dashboard" && !state.isExtracting && (

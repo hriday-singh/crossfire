@@ -2,26 +2,26 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import {
   WAYPOINTS,
-  AGENT_JUDGE_SPOTS,
+  AGENT_STEELMAN_SPOTS,
   resolveApproachSpot,
 } from '@/constants/roomLayout';
 import { getPathPoints } from '@/components/canvas/DevilBotSprite';
 import { CruciblePageTransition } from '@/components/ui/CruciblePageTransition';
 
-describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
-  it('maps each evaluator to their dedicated spot at the judge table', () => {
-    expect(AGENT_JUDGE_SPOTS.builder).toBe('judge_spot_builder');
-    expect(AGENT_JUDGE_SPOTS.devils_advocate).toBe('judge_spot_devils_advocate');
-    expect(AGENT_JUDGE_SPOTS.receipts).toBe('judge_spot_receipts');
-    expect(AGENT_JUDGE_SPOTS.researcher).toBe('judge_spot_receipts');
-    expect(AGENT_JUDGE_SPOTS.operator).toBe('judge_spot_operator');
+describe('AI 1: Dedicated Steelman Table Spots & Shortest Path Navigation', () => {
+  it('maps each evaluator to their dedicated spot at the steelman table', () => {
+    expect(AGENT_STEELMAN_SPOTS.builder).toBe('steelman_spot_builder');
+    expect(AGENT_STEELMAN_SPOTS.devils_advocate).toBe('steelman_spot_devils_advocate');
+    expect(AGENT_STEELMAN_SPOTS.researcher).toBe('steelman_spot_researcher');
+    expect(AGENT_STEELMAN_SPOTS.researcher).toBe('steelman_spot_researcher');
+    expect(AGENT_STEELMAN_SPOTS.operator).toBe('steelman_spot_operator');
   });
 
   it('defines valid coordinates and orientations for all dedicated spots', () => {
-    const builderSpot = WAYPOINTS.judge_spot_builder;
-    const devilSpot = WAYPOINTS.judge_spot_devils_advocate;
-    const receiptsSpot = WAYPOINTS.judge_spot_receipts;
-    const operatorSpot = WAYPOINTS.judge_spot_operator;
+    const builderSpot = WAYPOINTS.steelman_spot_builder;
+    const devilSpot = WAYPOINTS.steelman_spot_devils_advocate;
+    const researcherSpot = WAYPOINTS.steelman_spot_researcher;
+    const operatorSpot = WAYPOINTS.steelman_spot_operator;
     const rightDoor = WAYPOINTS.right_door;
 
     expect(builderSpot).toBeDefined();
@@ -34,10 +34,10 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
     expect(devilSpot.y).toBe(335);
     expect(devilSpot.facing).toBe('east');
 
-    expect(receiptsSpot).toBeDefined();
-    expect(receiptsSpot.x).toBe(605);
-    expect(receiptsSpot.y).toBe(245);
-    expect(receiptsSpot.facing).toBe('west');
+    expect(researcherSpot).toBeDefined();
+    expect(researcherSpot.x).toBe(605);
+    expect(researcherSpot.y).toBe(245);
+    expect(researcherSpot.facing).toBe('west');
 
     expect(operatorSpot).toBeDefined();
     expect(operatorSpot.x).toBe(585);
@@ -50,24 +50,24 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
     expect(rightDoor.facing).toBe('east');
   });
 
-  it('resolves each AI to their dedicated spot every time when approaching judge', () => {
+  it('resolves each AI to their dedicated spot every time when approaching steelman', () => {
     const characterPositions = {
       builder: { x: 284, y: 195 },
       devils_advocate: { x: 245, y: 410 },
-      receipts: { x: 715, y: 195 },
+      researcher: { x: 715, y: 195 },
       operator: { x: 755, y: 410 },
-      judge: { x: 500, y: 250 },
+      steelman: { x: 500, y: 250 },
     };
 
-    expect(resolveApproachSpot('builder', characterPositions, 'judge_approach')).toBe('judge_spot_builder');
-    expect(resolveApproachSpot('builder', characterPositions, 'podium_approach')).toBe('judge_spot_builder');
-    expect(resolveApproachSpot('devils_advocate', characterPositions, 'judge_approach')).toBe('judge_spot_devils_advocate');
-    expect(resolveApproachSpot('receipts', characterPositions, 'judge_approach')).toBe('judge_spot_receipts');
-    expect(resolveApproachSpot('operator', characterPositions, 'judge_approach')).toBe('judge_spot_operator');
+    expect(resolveApproachSpot('builder', characterPositions, 'steelman_approach')).toBe('steelman_spot_builder');
+    expect(resolveApproachSpot('builder', characterPositions, 'podium_approach')).toBe('steelman_spot_builder');
+    expect(resolveApproachSpot('devils_advocate', characterPositions, 'steelman_approach')).toBe('steelman_spot_devils_advocate');
+    expect(resolveApproachSpot('researcher', characterPositions, 'steelman_approach')).toBe('steelman_spot_researcher');
+    expect(resolveApproachSpot('operator', characterPositions, 'steelman_approach')).toBe('steelman_spot_operator');
   });
 
   it('computes shortest collision-free path for Builder to NW clearance spot and back', () => {
-    const toSpot = getPathPoints(284, 195, WAYPOINTS.judge_spot_builder);
+    const toSpot = getPathPoints(284, 195, WAYPOINTS.steelman_spot_builder);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(395);
     expect(toSpot[toSpot.length - 1].y).toBe(245);
@@ -79,7 +79,7 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
   });
 
   it('computes shortest collision-free path for Devil\'s Advocate to SW clearance spot and back', () => {
-    const toSpot = getPathPoints(245, 410, WAYPOINTS.judge_spot_devils_advocate);
+    const toSpot = getPathPoints(245, 410, WAYPOINTS.steelman_spot_devils_advocate);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(415);
     expect(toSpot[toSpot.length - 1].y).toBe(335);
@@ -90,8 +90,8 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
     expect(toDesk[toDesk.length - 1].y).toBe(410);
   });
 
-  it('computes shortest collision-free path for Receipts to NE clearance spot and back', () => {
-    const toSpot = getPathPoints(715, 195, WAYPOINTS.judge_spot_receipts);
+  it('computes shortest collision-free path for Researcher to NE clearance spot and back', () => {
+    const toSpot = getPathPoints(715, 195, WAYPOINTS.steelman_spot_researcher);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(605);
     expect(toSpot[toSpot.length - 1].y).toBe(245);
@@ -103,7 +103,7 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
   });
 
   it('computes shortest collision-free path for Operator to SE clearance spot and back', () => {
-    const toSpot = getPathPoints(755, 410, WAYPOINTS.judge_spot_operator);
+    const toSpot = getPathPoints(755, 410, WAYPOINTS.steelman_spot_operator);
     expect(toSpot.length).toBeGreaterThanOrEqual(2);
     expect(toSpot[toSpot.length - 1].x).toBe(585);
     expect(toSpot[toSpot.length - 1].y).toBe(335);
@@ -114,12 +114,12 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
     expect(toDesk[toDesk.length - 1].y).toBe(410);
   });
 
-  it('computes shortest path for Judge to walk to right chamber door', () => {
-    const judgeExitPath = getPathPoints(500, 250, WAYPOINTS.right_door);
-    expect(judgeExitPath.length).toBeGreaterThanOrEqual(2);
-    expect(judgeExitPath[judgeExitPath.length - 1].x).toBe(897);
-    expect(judgeExitPath[judgeExitPath.length - 1].y).toBe(246);
-    expect(judgeExitPath[judgeExitPath.length - 1].facing).toBe('east');
+  it('computes shortest path for Steelman to walk to right chamber door', () => {
+    const steelmanExitPath = getPathPoints(500, 250, WAYPOINTS.right_door);
+    expect(steelmanExitPath.length).toBeGreaterThanOrEqual(2);
+    expect(steelmanExitPath[steelmanExitPath.length - 1].x).toBe(897);
+    expect(steelmanExitPath[steelmanExitPath.length - 1].y).toBe(246);
+    expect(steelmanExitPath[steelmanExitPath.length - 1].facing).toBe('east');
   });
 });
 

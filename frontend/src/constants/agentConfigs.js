@@ -2,10 +2,10 @@
  * Agent Configurations for Crossfire Evaluator Cubicle Bullpen Simulation
  * Maps directly to the official Crossfire evaluators in src/lib/agents.ts:
  * - Devil's Advocate (Assumption Test)
- * - Receipts (Evidence Test)
+ * - Researcher (Evidence Test)
  * - Builder (Feasibility Test)
  * - Operator (Operational Friction Test)
- * Plus the Crucible Arbiter / Judge at the center bench.
+ * Plus the Crucible Arbiter / Steelman at the center bench.
  */
 
 export const AGENT_CONFIGS = [
@@ -52,8 +52,8 @@ export const AGENT_CONFIGS = [
     icon: 'psychology',
   },
   {
-    id: 'receipts',
-    name: 'Receipts',
+    id: 'researcher',
+    name: 'Researcher',
     testName: 'Evidence Test',
     role: 'Empirical Evidence Analyst',
     shortRole: 'Empirical market reality',
@@ -69,7 +69,7 @@ export const AGENT_CONFIGS = [
     initialFacing: 'north',
     audioPitch: 1.25,
     audioFrequency: 330,
-    avatarBadge: 'RC',
+    avatarBadge: 'RE',
     icon: 'fact_check',
   },
   {
@@ -95,8 +95,8 @@ export const AGENT_CONFIGS = [
   },
 ];
 
-export const JUDGE_CONFIG = {
-  id: 'judge',
+export const STEELMAN_CONFIG = {
+  id: 'steelman',
   name: 'Steelman',
   role: 'Steelman Magistrate',
   shortRole: 'Synthesizes verdict',
@@ -107,7 +107,7 @@ export const JUDGE_CONFIG = {
   accentColorHex: 0xa4c9ff,
   clothingColor: 0x1f1f22,
   skinToneHex: 0xf5d0b0,
-  initialWaypoint: 'judge_chair',
+  initialWaypoint: 'steelman_chair',
   initialFacing: 'south',
   audioPitch: 0.9,
   audioFrequency: 160,
@@ -117,16 +117,16 @@ export const JUDGE_CONFIG = {
 
 /** @type {Record<string, any>} */
 const baseAgentMap = {
-  judge: JUDGE_CONFIG,
-  arbiter: JUDGE_CONFIG,
-  steelman: JUDGE_CONFIG,
+  steelman: STEELMAN_CONFIG,
+  arbiter: STEELMAN_CONFIG,
+  steelman: STEELMAN_CONFIG,
 };
 
 // Comprehensive AGENT_MAP supporting both evaluator IDs and legacy agent_1..4 IDs
 export const AGENT_MAP = AGENT_CONFIGS.reduce((acc, agent, idx) => {
   acc[agent.id] = agent;
   acc[`agent_${idx + 1}`] = agent; // backward compatibility
-  if (agent.id === 'receipts') {
+  if (agent.id === 'researcher') {
     acc.researcher = agent;
   }
   return acc;

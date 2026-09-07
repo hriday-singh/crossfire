@@ -44,7 +44,7 @@ export interface AppState {
   selectedClaimId: string | null;
   activeTests: Record<string, ActiveTestRow>;
   caseHistory: Case[];
-  activeModal: "none" | "history" | "logs" | "faq" | "settings";
+  activeModal: "none" | "history" | "logs" | "faq" | "settings" | "providers";
   startedAt: number | null;
   completedAt: number | null;
   engineInfo: {
