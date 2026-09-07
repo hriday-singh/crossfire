@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import gsap from 'gsap';
 import StageContainer from './canvas/StageContainer';
 import DialogueOverlay from './ui/DialogueOverlay';
 import SideControlPanel from './ui/SideControlPanel';
@@ -139,6 +140,20 @@ export function DiscussionApp() {
     onEventReceived: handleEventReceived,
   });
 
+  // GSAP Playback Speed scaling across all sprite animations
+  useEffect(() => {
+    gsap.globalTimeline.timeScale(playbackSpeed || 1.5);
+  }, [playbackSpeed]);
+
+  // GSAP Pause / Resume synchronization with user controls
+  useEffect(() => {
+    if (!isAutoPlaying) {
+      gsap.globalTimeline.pause();
+    } else {
+      gsap.globalTimeline.resume();
+    }
+  }, [isAutoPlaying]);
+
   // Real Backend SSE Pipeline Bridge
   const {
     isLiveBackendActive,
@@ -146,14 +161,9 @@ export function DiscussionApp() {
     replayCaseInBullpen,
   } = useBackendLiveBridge({
     onDispatchPacket: triggerManualEvent,
+    isPaused: !isAutoPlaying,
+    playbackSpeed: playbackSpeed || 1.5,
   });
-
-  // When live backend is streaming or replaying, pause mock simulation auto-player
-  useEffect(() => {
-    if (isLiveBackendActive || isReplaying) {
-      setIsAutoPlaying(false);
-    }
-  }, [isLiveBackendActive, isReplaying, setIsAutoPlaying]);
 
   // Handle transition completion to navigate to the Decision Memo / Dashboard screen
   const handleTransitionComplete = useCallback(() => {
@@ -170,23 +180,6 @@ export function DiscussionApp() {
   const caseStatus = currentCase?.status;
   const isFinished = caseStatus === 'done' && !isLiveBackendActive;
   const isTesting = isLiveBackendActive || caseStatus === 'testing';
-
-  // When the case finishes, trigger the steelman exit sequence if not already running
-  useEffect(() => {
-    if (isFinished && !isSteelmanExiting && !exitTriggeredRef.current) {
-      const timer = setTimeout(() => {
-        setIsSteelmanExiting(true);
-        triggerManualEvent({
-          speaker_id: 'steelman',
-          action: 'walk_to',
-          target: 'right_door',
-          stage: 'Adjudication Complete // Exiting to Decision Memo',
-          thought: 'Synthesizing final Decision Memo in the Magistrate Chamber...',
-        });
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isFinished, isSteelmanExiting, triggerManualEvent]);
 
   const claimsCount = currentCase?.claims?.length || 0;
   const findingsCount = currentCase?.findings?.length || 0;

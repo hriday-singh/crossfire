@@ -254,5 +254,40 @@ describe('useBackendLiveBridge Hook & Evaluator Mapping', () => {
         dialogue: 'Real tier-1 containment tops out at 45-65%.',
       })
     );
+
+    // Advance time to verify Steelman leaves judge room upon synthesis completion
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(onDispatchPacket).toHaveBeenCalledWith(
+      expect.objectContaining({
+        speaker_id: 'steelman',
+        action: 'walk_to',
+        target: 'right_door',
+      })
+    );
+  });
+
+  it('pauses dispatching and clears in-flight timers when isPaused is true', () => {
+    const onDispatchPacket = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ isPaused }) => useBackendLiveBridge({ onDispatchPacket, isPaused }),
+      {
+        initialProps: { isPaused: false },
+        wrapper: ({ children }) => <CaseProvider>{children}</CaseProvider>,
+      }
+    );
+
+    // Switch to paused
+    rerender({ isPaused: true });
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // Should not dispatch additional actions while paused
+    expect(onDispatchPacket).not.toHaveBeenCalled();
   });
 });

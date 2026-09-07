@@ -204,7 +204,7 @@ describe("caseReducer", () => {
     expect(state.currentCase?.status).toBe("done");
     // run_complete must not clobber the verdict that arrived just before it.
     expect(state.currentCase?.case_verdict?.decision_state).toBe("drop");
-    expect(state.activeScreen).toBe("dashboard");
+    expect(state.activeScreen).toBe("runner");
     expect(state.isStreaming).toBe(false);
     expect(state.caseHistory).toHaveLength(1);
   });

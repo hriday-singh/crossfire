@@ -34,37 +34,69 @@ export function normalizeEvaluatorId(tagOrName: string | undefined): string {
 
 interface UseBackendLiveBridgeProps {
   onDispatchPacket?: (packet: any) => void;
+  isPaused?: boolean;
+  playbackSpeed?: number;
 }
 
-export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeProps = {}) {
+export function useBackendLiveBridge({
+  onDispatchPacket,
+  isPaused = false,
+  playbackSpeed = 1.5,
+}: UseBackendLiveBridgeProps = {}) {
   const { state } = useCase();
   const currentCase = state.currentCase;
   const isStreaming = state.isStreaming;
 
   const [isReplaying, setIsReplaying] = useState(false);
-  const processedEventCountRef = useRef(0);
-  const queueTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const replayTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const processedEventIdsRef = useRef<Set<string>>(new Set());
+  const lastCaseIdRef = useRef<string | null>(null);
+  const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
   const dispatchPacket = useCallback((packet: any) => {
     onDispatchPacket?.(packet);
   }, [onDispatchPacket]);
 
+  const addTimer = useCallback((fn: () => void, ms: number) => {
+    const timer = setTimeout(() => {
+      activeTimersRef.current.delete(timer);
+      fn();
+    }, ms);
+    activeTimersRef.current.add(timer);
+    return timer;
+  }, []);
+
+  const clearAllTimers = useCallback(() => {
+    activeTimersRef.current.forEach((t) => clearTimeout(t));
+    activeTimersRef.current.clear();
+  }, []);
+
+  // Reset processed IDs on new case
+  useEffect(() => {
+    if (currentCase?.id !== lastCaseIdRef.current) {
+      lastCaseIdRef.current = currentCase?.id || null;
+      processedEventIdsRef.current.clear();
+      clearAllTimers();
+    }
+  }, [currentCase?.id, clearAllTimers]);
+
   // Handle live streaming events from backend SSE stream
   useEffect(() => {
-    if (!isStreaming) {
-      processedEventCountRef.current = state.eventLog.length;
+    if (isPaused || (!isStreaming && currentCase?.status !== 'testing')) {
       return;
     }
 
-    const unprocessed = state.eventLog.slice(processedEventCountRef.current);
+    // state.eventLog is prepended (newest at index 0). Reverse to iterate oldest -> newest
+    const chronologialEvents = [...state.eventLog].reverse();
+    const unprocessed = chronologialEvents.filter((item) => !processedEventIdsRef.current.has(item.id));
     if (unprocessed.length === 0) return;
 
-    processedEventCountRef.current = state.eventLog.length;
+    unprocessed.forEach((item) => processedEventIdsRef.current.add(item.id));
+
+    const speedMultiplier = playbackSpeed > 0 ? 1 / playbackSpeed : 1;
 
     unprocessed.forEach((item, idx) => {
-      const delay = idx * 40;
-      setTimeout(() => {
+      const delay = Math.round(idx * 50 * speedMultiplier);
+      addTimer(() => {
         const { event, data } = item;
 
         if (event === 'test_started') {
@@ -161,7 +193,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
           });
 
           // Step 2: Report findings at table
-          setTimeout(() => {
+          addTimer(() => {
             dispatchPacket({
               speaker_id: agentId,
               action: 'inspect',
@@ -186,7 +218,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             });
 
             // Step 3: Return to workstation
-            setTimeout(() => {
+            addTimer(() => {
               dispatchPacket({
                 speaker_id: agentId,
                 action: 'walk_to',
@@ -196,7 +228,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
               });
 
               // Step 4: Sit back down
-              setTimeout(() => {
+              addTimer(() => {
                 dispatchPacket({
                   speaker_id: agentId,
                   action: 'sit',
@@ -205,9 +237,9 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
                   thought: null,
                   dialogue: null,
                 });
-              }, 350);
-            }, 700);
-          }, 400);
+              }, Math.round(350 * speedMultiplier));
+            }, Math.round(700 * speedMultiplier));
+          }, Math.round(400 * speedMultiplier));
         } else if (event === 'verdict_ready') {
           // 5. verdict_ready: Steelman reconciles findings for a single claim
           const status = data.status || 'survived';
@@ -227,7 +259,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             salvaged_claim: data.salvaged_claim,
           });
         } else if (event === 'case_verdict') {
-          // 6. case_verdict: Final case decision and summary
+          // 6. case_verdict: Final case decision and summary (Crucible Synthesis)
           const verdict: any = data.case_verdict || data.verdict || data;
           const decisionState = verdict.decision_state || 'proceed';
 
@@ -236,21 +268,21 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             action: 'inspect',
             target: 'steelman_chair',
             gesture: 'point',
-            stage: `Adjudicating Decision Memo: ${String(decisionState).toUpperCase()}`,
+            stage: `Crucible Synthesis: ${String(decisionState).toUpperCase()}`,
             verdict: decisionState,
-            dialogue: verdict.summary || verdict.headline || 'Verdict delivered.',
+            dialogue: verdict.summary || verdict.headline || 'Crucible synthesis verdict delivered.',
           });
 
-          // After Steelman delivers verdict, Steelman walks to right chamber door to proceed to Decision Memo
-          setTimeout(() => {
+          // Steelman leaves the judge room when live investigation reaches synthesis
+          addTimer(() => {
             dispatchPacket({
               speaker_id: 'steelman',
               action: 'walk_to',
               target: 'right_door',
-              stage: 'Exiting Bullpen to Decision Memo',
-              dialogue: null,
+              stage: 'Synthesis Complete // Exiting Chamber',
+              thought: 'Adjudication synthesis completed. Exiting chamber...',
             });
-          }, 600);
+          }, Math.round(2500 * speedMultiplier));
         } else if (event === 'run_complete') {
           // 7. run_complete: All evaluators return to seated workstations in standby
           Object.entries(AGENT_HOME_DESKS).forEach(([agentId, desk]) => {
@@ -268,26 +300,35 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
         }
       }, delay);
     });
-  }, [state.eventLog, isStreaming, currentCase, dispatchPacket]);
+  }, [state.eventLog, isStreaming, currentCase, dispatchPacket, isPaused, playbackSpeed, addTimer]);
 
-  // Clean up timers
+  // Pause handling: clear active in-flight timers when paused
+  useEffect(() => {
+    if (isPaused) {
+      clearAllTimers();
+    }
+  }, [isPaused, clearAllTimers]);
+
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
-      if (queueTimeoutRef.current) clearTimeout(queueTimeoutRef.current);
-      if (replayTimerRef.current) clearTimeout(replayTimerRef.current);
+      clearAllTimers();
     };
-  }, []);
+  }, [clearAllTimers]);
 
   // Replay a completed case's findings in the bullpen
   const replayCaseInBullpen = useCallback(() => {
     if (!currentCase || !currentCase.findings || currentCase.findings.length === 0) return;
 
+    clearAllTimers();
     setIsReplaying(true);
     const findings = currentCase.findings;
     const verdict = currentCase.case_verdict;
     const claims = currentCase.claims || [];
 
     let totalOffset = 0;
+    const speedMultiplier = playbackSpeed > 0 ? 1 / playbackSpeed : 1;
+    const baseStep = Math.round(1600 * speedMultiplier);
 
     findings.forEach((finding: any, idx) => {
       const agentId = normalizeEvaluatorId(finding.evaluator);
@@ -307,7 +348,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
       const confidencePercent = Math.round(confidenceVal * 100);
       const cognitiveTag = getCognitiveTag(agentId);
 
-      setTimeout(() => {
+      addTimer(() => {
         // Step 1: Active thinking at desk
         dispatchPacket({
           speaker_id: agentId,
@@ -320,7 +361,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
         });
 
         // Step 2: Walk to table
-        setTimeout(() => {
+        addTimer(() => {
           dispatchPacket({
             speaker_id: agentId,
             action: 'walk_to',
@@ -331,7 +372,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
           });
 
           // Step 3: Present
-          setTimeout(() => {
+          addTimer(() => {
             dispatchPacket({
               speaker_id: agentId,
               action: 'inspect',
@@ -356,7 +397,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             });
 
             // Step 4: Return
-            setTimeout(() => {
+            addTimer(() => {
               dispatchPacket({
                 speaker_id: agentId,
                 action: 'walk_to',
@@ -365,7 +406,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
                 dialogue: null,
               });
 
-              setTimeout(() => {
+              addTimer(() => {
                 dispatchPacket({
                   speaker_id: agentId,
                   action: 'sit',
@@ -374,43 +415,42 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
                   thought: null,
                   dialogue: null,
                 });
-              }, 300);
-            }, 600);
-          }, 350);
-        }, 250);
+              }, Math.round(300 * speedMultiplier));
+            }, Math.round(600 * speedMultiplier));
+          }, Math.round(350 * speedMultiplier));
+        }, Math.round(250 * speedMultiplier));
       }, totalOffset);
 
-      totalOffset += 1600;
+      totalOffset += baseStep;
     });
 
-    // After all findings, Steelman summarizes and walks to right door
+    // After all findings, Steelman delivers synthesis at chair and then exits to right door
     if (verdict) {
-      setTimeout(() => {
+      addTimer(() => {
         dispatchPacket({
           speaker_id: 'steelman',
           action: 'inspect',
           target: 'steelman_chair',
-          stage: `Adjudicating Decision Memo: ${String(verdict.decision_state || 'proceed').toUpperCase()}`,
+          stage: `Crucible Synthesis: ${String(verdict.decision_state || 'proceed').toUpperCase()}`,
           verdict: verdict.decision_state || 'drop',
           dialogue: verdict.summary || verdict.headline || 'All findings reconciled.',
         });
 
-        setTimeout(() => {
+        addTimer(() => {
           dispatchPacket({
             speaker_id: 'steelman',
             action: 'walk_to',
             target: 'right_door',
-            stage: 'Exiting Bullpen to Decision Memo',
-            dialogue: null,
+            stage: 'Synthesis Complete // Exiting Chamber',
+            thought: 'All findings reconciled. Exiting chamber...',
           });
-        }, 600);
-
-        setIsReplaying(false);
+          setIsReplaying(false);
+        }, Math.round(2500 * speedMultiplier));
       }, totalOffset + 150);
     } else {
-      setTimeout(() => setIsReplaying(false), totalOffset);
+      addTimer(() => setIsReplaying(false), totalOffset);
     }
-  }, [currentCase, dispatchPacket]);
+  }, [currentCase, dispatchPacket, playbackSpeed, addTimer, clearAllTimers]);
 
   return {
     isLiveBackendActive: isStreaming || currentCase?.status === 'testing',

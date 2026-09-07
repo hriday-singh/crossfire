@@ -103,23 +103,23 @@ export function SideControlPanel({
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/50 text-[11px] font-mono">
             <span
               className={`w-2 h-2 rounded-full ${
-                isLiveBackendActive
+                !isAutoPlaying
+                  ? 'bg-verdict-weakened'
+                  : isLiveBackendActive
                   ? 'bg-primary-container animate-ping'
-                  : isAutoPlaying
-                  ? 'bg-verdict-survived animate-pulse'
-                  : 'bg-verdict-weakened'
+                  : 'bg-verdict-survived animate-pulse'
               }`}
             />
             <span
               className={
-                isLiveBackendActive
+                !isAutoPlaying
+                  ? 'text-verdict-weakened font-medium'
+                  : isLiveBackendActive
                   ? 'text-primary-container font-semibold'
-                  : isAutoPlaying
-                  ? 'text-verdict-survived font-medium'
-                  : 'text-verdict-weakened'
+                  : 'text-verdict-survived font-medium'
               }
             >
-              {isLiveBackendActive ? 'LIVE STREAM' : isAutoPlaying ? 'RUNNING' : 'PAUSED'}
+              {!isAutoPlaying ? 'PAUSED' : isLiveBackendActive ? 'LIVE STREAM' : 'RUNNING'}
             </span>
           </div>
         </div>

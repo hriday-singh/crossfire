@@ -624,7 +624,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           updatedCase.status = "done";
           updatedCase.completed_at = finishTime;
           updatedCase.activities = [...state.activities];
-          newActiveScreen = "dashboard";
+          newActiveScreen = state.activeScreen === "runner" ? "runner" : "dashboard";
           newIsStreaming = false;
 
           // Also record to history if not already present

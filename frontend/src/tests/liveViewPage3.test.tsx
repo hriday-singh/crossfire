@@ -62,7 +62,7 @@ describe("Page 3 Live View Integration", () => {
     vi.clearAllMocks();
   });
 
-  it("renders DashboardScreen when activeScreen is 'runner' and not in preview mode", async () => {
+  it("renders Live View (DiscussionApp) when activeScreen is 'runner'", async () => {
     render(
       <CaseProvider>
         <SetupRunnerScreen />
@@ -71,8 +71,8 @@ describe("Page 3 Live View Integration", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Testing your decision/i)).toBeInTheDocument();
-      expect(screen.queryByTestId("live-view-page3")).not.toBeInTheDocument();
+      expect(screen.getByTestId("live-view-page3")).toBeInTheDocument();
+      expect(screen.getByTestId("live-view-title")).toHaveTextContent("2.5D Live View Bullpen");
     });
   });
 

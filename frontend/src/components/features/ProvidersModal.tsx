@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ProviderIcon } from "@/components/ui/providerIcons";
@@ -75,10 +75,19 @@ export const ProvidersModal: React.FC = () => {
     [providers, selectedId]
   );
 
+  const noticeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const flash = (message: string) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
     setNotice(message);
-    setTimeout(() => setNotice(null), 3000);
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 3000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);

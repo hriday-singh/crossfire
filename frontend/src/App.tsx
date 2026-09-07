@@ -48,19 +48,15 @@ export const AppContent: React.FC = () => {
         {state.activeScreen === "entry" && <EntryScreen />}
         {state.activeScreen === "confirm" && <ConfirmScreen />}
         {state.activeScreen === "runner" && (
-          state.previewView ? (
-            <React.Suspense
-              fallback={
-                <div data-testid="live-view-loading" className="flex h-[calc(100vh-3.5rem)] items-center justify-center text-slate-400 font-mono text-sm">
-                  Loading 2.5D Live View...
-                </div>
-              }
-            >
-              <DiscussionApp />
-            </React.Suspense>
-          ) : (
-            <DashboardScreen />
-          )
+          <React.Suspense
+            fallback={
+              <div data-testid="live-view-loading" className="flex h-[calc(100vh-3.5rem)] items-center justify-center text-slate-400 font-mono text-sm">
+                Loading 2.5D Live View...
+              </div>
+            }
+          >
+            <DiscussionApp />
+          </React.Suspense>
         )}
         {state.activeScreen === "dashboard" && <DashboardScreen />}
       </main>
