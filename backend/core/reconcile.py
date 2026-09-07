@@ -74,10 +74,11 @@ STEEL_MAN_SYSTEM_PROMPT = (
     "PHASE 1: ADJUDICATION\n"
     "Evaluate the evidence. Do not count votes. A single grounded fact from Researcher overrides "
     "theoretical objections.\n"
-    "Each finding carries an 'objection' band: no objection | minor | substantive | "
-    "severe | fatal. A panel that returns 'no objection' or 'minor' across the board "
-    "is telling you the claim is sound — record that as 'survived'. Do not manufacture "
-    "a downgrade to look rigorous; a review that never lets anything through is not a "
+    "Each finding carries an 'objection' band: abstained (neutral) | no objection | minor | substantive | "
+    "severe | fatal. Findings marked 'abstained (neutral)' are neutral non-objections outside the evaluator's "
+    "domain or lacking empirical sources; ignore them entirely. A panel that returns only 'abstained (neutral)', "
+    "'no objection', or 'minor' across the board is telling you the claim is sound — record that as 'survived'. "
+    "Do not manufacture a downgrade to look rigorous; a review that never lets anything through is not a "
     "review.\n\n"
     "Assign a status:\n"
     "- 'survived': The claim withstands all scrutiny.\n"
@@ -105,6 +106,8 @@ def objection_band(confidence: float) -> str:
     Handing it `confidence=0.8` invites exactly the arithmetic the prompt bans —
     the model anchors on numbers whatever it is told. A word carries the same
     ordering without being addable."""
+    if confidence <= 0.0:
+        return "abstained (neutral)"
     if confidence >= 0.9:
         return "fatal"
     if confidence >= 0.7:
@@ -204,15 +207,17 @@ def apply_evidence_gate(
             "traceable to a source, and absence of evidence is not refutation."
         )
         return ClaimStatus.WEAKENED, f"{reasoning} {note}".strip()
+    active_findings = [f for f in findings if f.confidence > 0.0]
+    max_obj = max((f.confidence for f in active_findings), default=0.0)
     if (
         status is ClaimStatus.WEAKENED
         and findings
-        and max(f.confidence for f in findings) < TRIVIAL_OBJECTION_CEILING
+        and max_obj < TRIVIAL_OBJECTION_CEILING
         and not has_sourced_contradiction(findings)
     ):
         note = (
             "Upgraded from weakened to survived: every evaluator scored its finding in "
-            "the 'no objection' band and none carried a sourced contradiction."
+            "the 'no objection' band (or abstained) and none carried a sourced contradiction."
         )
         return ClaimStatus.SURVIVED, f"{reasoning} {note}".strip()
     return status, reasoning

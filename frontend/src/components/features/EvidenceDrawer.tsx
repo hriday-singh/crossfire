@@ -431,8 +431,11 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                         [{formatTestName(f.evaluator).toUpperCase()}]
                       </span>
                       {f.confidence !== undefined && (
-                        <span className="font-code-sm text-code-sm text-outline">
-                          Confidence: {(f.confidence * 100).toFixed(0)}%
+                        <span 
+                          title="Evaluator objection strength (0% = no objection / abstained, 90%+ = fatal blocker)"
+                          className="font-code-sm text-code-sm text-outline"
+                        >
+                          Objection Strength: {(f.confidence * 100).toFixed(0)}%
                         </span>
                       )}
                     </div>

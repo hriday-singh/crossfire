@@ -23,9 +23,11 @@ class Claim(BaseModel):
     load_bearing: bool | None = None       # set after the load-bearing question runs
     load_bearing_reason: str | None = None # why this claim is load-bearing or secondary
     status: ClaimStatus | None = None
+    confidence: float | None = None        # synthetic claim confidence: 0.0 (broken) to 1.0 (validated)
     fatal_flaw: str | None = None          # isolated flaw if weakened/broken
     salvaged_claim: str | None = None      # minimal viable re-architecture (Break to Rebuild)
     tradeoff_acknowledged: str | None = None  # operational trade-off of the salvaged claim
+
 
 
 class TestPlanItem(BaseModel):

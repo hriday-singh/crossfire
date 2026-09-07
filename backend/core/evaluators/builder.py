@@ -37,6 +37,9 @@ BUILDER_SYSTEM_PROMPT = (
     "   Score by the rubric below. Standard overhead is not an objection: if the thing "
     "is achievable with ordinary effort, set blocker to null and score in the 0.0-0.1 "
     "band (or 0.1 to 0.3 for minor friction). Do not utilize quantitative token or latency estimations.\n\n"
+    "4. ABSTAIN PROTOCOL: If the target claim contains no technical implementation, software/hardware architecture, "
+    "execution mechanics, or buildability to evaluate, explicitly ABSTAIN: set result='Abstain: Out of domain', "
+    "blocker=null, and confidence=0.0.\n\n"
     f"{OBJECTION_SCALE}"
 )
 _SYSTEM_PROMPT = BUILDER_SYSTEM_PROMPT
@@ -108,13 +111,20 @@ async def run_builder(item: TestPlanItem, case: Case, provider: LLMProvider) -> 
         messages=messages,
         response_schema=BuilderVerdict,
     )
+    res_text = verdict.result
+    conf = verdict.confidence
+    blocker = verdict.blocker
+    if res_text.lower().startswith("abstain") or (blocker is None and conf <= 0.05):
+        conf = 0.0
+        blocker = None
+
     return Finding(
         claim_id=item.target_claim,
         test_id=item.id,
         evaluator="builder",
-        result=one_line(verdict.result),
+        result=one_line(res_text),
         evidence=[],
         reasoning=clamp_sentences(verdict.reasoning),
-        confidence=verdict.confidence,
-        contradiction=verdict.blocker,
+        confidence=conf,
+        contradiction=blocker,
     )

@@ -89,13 +89,20 @@ async def run_reasoning_evaluator(
         response_schema=ReasoningOutput,
     )
 
+    res_text = getattr(response, "result", "") or "Claim examined"
+    conf = float(getattr(response, "confidence", 0.7) or 0.0)
+    contra = getattr(response, "contradiction", None)
+    if res_text.lower().startswith("abstain") or (contra is None and conf <= 0.05):
+        conf = 0.0
+        contra = None
+
     return Finding(
         claim_id=item.target_claim,
         test_id=item.id,
         evaluator=name,
-        result=one_line(getattr(response, "result", "") or "Claim examined"),
+        result=one_line(res_text),
         evidence=[],
         reasoning=clamp_sentences(getattr(response, "reasoning", "") or str(response)),
-        confidence=float(getattr(response, "confidence", 0.7) or 0.0),
-        contradiction=getattr(response, "contradiction", None),
+        confidence=conf,
+        contradiction=contra,
     )

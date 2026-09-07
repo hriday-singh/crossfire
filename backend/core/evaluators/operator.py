@@ -33,6 +33,9 @@ OPERATOR_SYSTEM_PROMPT = (
     "review; do not invent institutional friction where there is no institution. There, "
     "the friction pillars that still apply are the person's own follow-through, the "
     "counterparties they depend on, and the liability they personally carry.\n\n"
+    "ABSTAIN PROTOCOL: If the target claim involves no human workflows, corporate bureaucracy, procurement, "
+    "or legal/regulatory liability, explicitly ABSTAIN: set result='Abstain: Out of domain', friction_type='none', "
+    "operational_blocker=null, and confidence=0.0.\n\n"
     f"{OBJECTION_SCALE}\n\n"
     "friction_type=\"none\" and an objection strength of 0.0-0.1 go together: if you "
     "found no friction pillar, do not score as though you had."
@@ -127,9 +130,11 @@ async def run_operator(item: TestPlanItem, case: Case, provider: LLMProvider) ->
     reasoning_text = getattr(response, "reasoning", "") or str(response)
     confidence_val = float(getattr(response, "confidence", 0.0) or 0.0)
     blocker = getattr(response, "operational_blocker", None) or getattr(response, "contradiction", None)
-    # "no friction pillar fired" and "a strong objection" cannot both be true. The
-    # model returns these as independent fields, so hold the invariant here.
-    if getattr(response, "friction_type", "none") == "none" and not blocker:
+    # Abstain protocol & friction invariant
+    if result_text.lower().startswith("abstain") or (getattr(response, "friction_type", "none") == "none" and not blocker and confidence_val <= 0.05):
+        confidence_val = 0.0
+        blocker = None
+    elif getattr(response, "friction_type", "none") == "none" and not blocker:
         confidence_val = min(confidence_val, 0.1)
 
     return Finding(

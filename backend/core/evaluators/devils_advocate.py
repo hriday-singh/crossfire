@@ -33,7 +33,9 @@ DEVILS_ADVOCATE_SYSTEM_PROMPT = (
     "3. Calibrated Confidence Scoring (Calibrated Objection Strength): score by the rubric below, not by safe "
     "generic defaults. The Temporal Inversion frame asks you to imagine a failure; "
     "it does not oblige you to find one. If the premise holds up under the "
-    "pre-mortem, say so plainly and score in the 0.0-0.1 band.\n\n"
+    "pre-mortem, say so plainly and score in the 0.0-0.1 band.\n"
+    "4. ABSTAIN PROTOCOL: If the target claim contains no implicit premises or unstated assumptions to test, "
+    "explicitly ABSTAIN: set result='Abstain: Out of domain', contradiction=null, and confidence=0.0.\n\n"
     f"{OBJECTION_SCALE}"
 )
 

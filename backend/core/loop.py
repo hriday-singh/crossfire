@@ -335,6 +335,26 @@ async def run_evaluators(
     return findings
 
 
+def calculate_claim_confidence(status: ClaimStatus, max_objection: float) -> float:
+    """Calculates overall claim confidence (0.0 to 1.0) for UI display.
+
+    This inverts and calibrates the adversarial panel's objection scores:
+    - SURVIVED: 90% - 98% (sound, with minor objections causing slight drops)
+    - WEAKENED: 40% - 60% (substantive friction identified)
+    - BROKEN: 5% - 15% (fatal refutation)
+    - UNRESOLVED: 50% (neutral indeterminate)
+    """
+    if status == ClaimStatus.SURVIVED:
+        return round(max(0.90, min(0.98, 0.98 - (max_objection * 0.40))), 2)
+    elif status == ClaimStatus.WEAKENED:
+        scaled = ((max(0.20, min(0.80, max_objection)) - 0.20) / 0.60) * 0.20
+        return round(max(0.40, min(0.60, 0.60 - scaled)), 2)
+    elif status == ClaimStatus.BROKEN:
+        scaled = ((max(0.70, min(1.0, max_objection)) - 0.70) / 0.30) * 0.10
+        return round(max(0.05, min(0.15, 0.15 - scaled)), 2)
+    return 0.50
+
+
 async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> None:
     """Background task started by `handle_confirm` — never awaited by a request
     handler. Emits the stage events in docs/00-CONTRACTS.md §3 as they happen
@@ -398,6 +418,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             claim_findings = [f for f in case.findings if f.claim_id == clm.id]
             if not claim_findings:
                 clm.status = ClaimStatus.UNRESOLVED
+                clm.confidence = calculate_claim_confidence(ClaimStatus.UNRESOLVED, 0.0)
                 clm.fatal_flaw = None
                 clm.salvaged_claim = None
                 clm.tradeoff_acknowledged = None
@@ -414,6 +435,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             except Exception as exc:
                 steelman_errors.append(exc)
                 clm.status = ClaimStatus.UNRESOLVED
+                clm.confidence = calculate_claim_confidence(ClaimStatus.UNRESOLVED, 0.0)
                 clm.fatal_flaw = None
                 clm.salvaged_claim = None
                 clm.tradeoff_acknowledged = None
@@ -429,11 +451,15 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 clm.fatal_flaw = gated.fatal_flaw
                 clm.salvaged_claim = gated.salvaged_claim
                 clm.tradeoff_acknowledged = gated.tradeoff_acknowledged
+                max_obj = max((f.confidence for f in claim_findings), default=0.0)
+                clm.confidence = calculate_claim_confidence(clm.status, max_obj)
                 return clm, gated.status, gated.reasoning
             else:
                 st, rsn = verdict
                 gated_st, gated_rsn = apply_evidence_gate(st, rsn, claim_findings)
                 clm.status = gated_st
+                max_obj = max((f.confidence for f in claim_findings), default=0.0)
+                clm.confidence = calculate_claim_confidence(clm.status, max_obj)
                 return clm, gated_st, gated_rsn
 
         reconcile_results = await asyncio.gather(
@@ -452,6 +478,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 {
                     "claim_id": clm.id,
                     "status": clm.status.value,
+                    "confidence": clm.confidence,
                     "verdict_reasoning": reasoning,
                     "fatal_flaw": clm.fatal_flaw,
                     "salvaged_claim": clm.salvaged_claim,

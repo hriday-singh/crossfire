@@ -27,6 +27,7 @@ export interface Claim {
   load_bearing: boolean | null;
   load_bearing_reason?: string | null;
   status: ClaimStatus | null;
+  confidence?: number | null;
   fatal_flaw?: string | null;
   salvaged_claim?: string | null;
   tradeoff_acknowledged?: string | null;

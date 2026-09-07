@@ -66,7 +66,7 @@ class ResearcherAssessment(BaseModel):
         description=(
             "Objection strength against the claim, 0.0-1.0 — NOT how sure you are of your own "
             "reading. Sources that SUPPORT the claim score 0.0-0.1 no matter how strong they are. "
-            "Capped at <= 0.5 for Marketing Mirage (only Tier 3), and <= 0.35 if zero evidence."
+            "Capped at <= 0.5 for Marketing Mirage (only Tier 3), and strictly 0.0 (abstained) if zero empirical evidence."
         ),
     )
     contradiction: str | None = Field(
@@ -108,8 +108,7 @@ RESEARCHER_SYSTEM_PROMPT = (
     "known market leader or competitor to verify whether the capability is already offered or disproven.\n\n"
     "Core Invariants:\n"
     "1. Judge only from the snippets provided. Never fill gaps from memory.\n"
-    "2. Finding nothing is not refutation. With no relevant source, say so plainly and keep confidence at or below 0.35, "
-    "and leave 'contradiction' null.\n"
+    "2. ABSTAIN PROTOCOL: Absence of evidence is not refutation. If no relevant external source was found or the claim is outside empirical verification, you MUST return result='Abstain: No external empirical evidence found', confidence=0.0, and contradiction=null.\n"
     "2a. Your 'confidence' is objection strength, not certainty. If the sources you found "
     "SUPPORT the claim, score 0.0-0.1 — a well-sourced confirmation is a weak objection, and "
     "scoring it high would rank it above findings that actually damage the claim. Score high "
@@ -402,8 +401,14 @@ async def run_researcher(
         evidence = curated_items or response.evidence
         res_text = response.result
         reas_text = response.reasoning
-        conf = response.confidence if evidence else min(response.confidence, 0.35)
-        contra = response.contradiction if evidence else None
+        if not evidence:
+            conf = 0.0
+            contra = None
+            if not res_text.lower().startswith("abstain"):
+                res_text = "Abstain: No external empirical evidence found"
+        else:
+            conf = response.confidence
+            contra = response.contradiction
 
         if evidence:
             all_tier_3 = all(source_class_to_tier(e.source_class, e.source_url) == 3 for e in evidence)
@@ -434,8 +439,14 @@ async def run_researcher(
         )
         res_text = response.result
         reas_text = response.reasoning
-        conf = response.confidence if evidence else min(response.confidence, 0.35)
-        contra = response.contradiction if (evidence and has_valid_citations) else None
+        if not evidence:
+            conf = 0.0
+            contra = None
+            if not res_text.lower().startswith("abstain"):
+                res_text = "Abstain: No external empirical evidence found"
+        else:
+            conf = response.confidence
+            contra = response.contradiction if (evidence and has_valid_citations) else None
 
         # Source Authority Tiering: If only Tier 3 sources are found/cited, enforce Marketing Mirage
         if evidence:
@@ -470,10 +481,10 @@ async def run_researcher(
         claim_id=claim.id,
         test_id=item.id,
         evaluator="researcher",
-        result="Evidence evaluation completed",
+        result=one_line(str(response.result if hasattr(response, "result") else "Abstain: No external empirical evidence found")),
         evidence=curated_items,
         reasoning=clamp_sentences(str(response)),
-        confidence=0.5 if curated_items else 0.2,
+        confidence=0.5 if curated_items else 0.0,
         contradiction=None,
     )
 

@@ -102,3 +102,41 @@ def format_concise_rationale(text: str, max_chars: int = 120) -> str:
     return first_sentence
 
 
+_EMPIRICAL_QUANT_PATTERN = re.compile(
+    r"(\b\d+(\.\d+)?\s*(%|percent|qps|rps|ms|seconds?|mins?|minutes?|hours?|days?|months?|years?|usd|\$|k|m|b|gb|tb|mb|users|customers|queries)\b|\$\d+|\b\d+k\b)",
+    re.IGNORECASE,
+)
+_EMPIRICAL_TERMS_PATTERN = re.compile(
+    r"\b(market|competitor|competitors|industry|pricing|cost|costs|regulation|regulations|compliance|soc\s*2|hipaa|gdpr|sec|fda|law|statute|standard|standards|benchmark|benchmarks|adoption|survey|patent|court|contract|contracts|api|apis|sdk|vendor|vendors|aws|gcp|azure|postgres|postgresql|mysql|redis|openai|anthropic|stripe|google|apple|meta|microsoft|github|docker|kubernetes|saas|churn|retention|conversion|revenue|arr|mrr|cac|ltv|latency|throughput|uptime|sla|downtime|trust|distrust)\b",
+    re.IGNORECASE,
+)
+_EMPIRICAL_COMPARE_PATTERN = re.compile(
+    r"\b(unique|only|first|cheaper than|faster than|more expensive|unmatched|sole|exclusive|proprietary|superior to|nobody else|no other|widely used|industry standard|adoption rate|market share)\b",
+    re.IGNORECASE,
+)
+_NON_EMPIRICAL_SUBJECTIVE_PATTERN = re.compile(
+    r"\b(should use|should be|theme|dark theme|light theme|color|button color|font|aesthetic|looks better|we believe|our mission|philosophy|prefer|by definition|should lead)\b",
+    re.IGNORECASE,
+)
+
+
+def is_empirical_claim(statement: str) -> bool:
+    """Determines if a claim asserts verifiable real-world facts, metrics,
+    outside benchmarks, or third-party realities requiring the Researcher (receipts).
+
+    Claims that are purely subjective design choices, aesthetic preferences,
+    internal definitions, or abstract logic return False.
+    """
+    if not statement:
+        return False
+    has_subjective = bool(_NON_EMPIRICAL_SUBJECTIVE_PATTERN.search(statement))
+    has_quant = bool(_EMPIRICAL_QUANT_PATTERN.search(statement))
+    has_terms = bool(_EMPIRICAL_TERMS_PATTERN.search(statement))
+    has_compare = bool(_EMPIRICAL_COMPARE_PATTERN.search(statement))
+
+    if has_subjective and not (has_quant or has_terms or has_compare):
+        return False
+    return has_quant or has_terms or has_compare or (not has_subjective)
+
+
+

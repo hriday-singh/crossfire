@@ -171,14 +171,21 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             )
           )}
 
-          {relevantFinding?.confidence !== undefined && (
+          {(claim.confidence !== undefined && claim.confidence !== null) ? (
+            <span className="font-code-sm text-code-sm text-outline">
+              Confidence:{" "}
+              <span className="text-on-surface font-semibold">
+                {formatConfidence(claim.confidence)}
+              </span>
+            </span>
+          ) : relevantFinding?.confidence !== undefined ? (
             <span className="font-code-sm text-code-sm text-outline">
               Confidence:{" "}
               <span className="text-on-surface font-semibold">
                 {formatConfidence(relevantFinding.confidence)}
               </span>
             </span>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -386,8 +393,11 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                         [{formatTestName(f.evaluator).toUpperCase()}]
                       </span>
                       {f.confidence !== undefined && (
-                        <span className="font-mono text-xs text-outline">
-                          Confidence: {(f.confidence * 100).toFixed(0)}%
+                        <span 
+                          title="Evaluator objection strength (0% = no objection / abstained, 90%+ = fatal blocker)"
+                          className="font-mono text-xs text-outline"
+                        >
+                          Objection Strength: {(f.confidence * 100).toFixed(0)}%
                         </span>
                       )}
                     </div>

@@ -245,5 +245,41 @@ describe("ClaimCard", () => {
     expect(screen.getByTitle("Verified live web result via SerpApi")).toBeInTheDocument();
     expect(screen.queryByText(/via DuckDuckGo Lite/i)).not.toBeInTheDocument();
   });
+
+  it("renders synthetic claim.confidence on header and Objection Strength in drawer", () => {
+    render(
+      <ClaimCard
+        claim={{
+          id: "claim-conf-1",
+          statement: "Autonomous submission complies with policies",
+          load_bearing: true,
+          status: "survived",
+          confidence: 0.96,
+        }}
+        findings={[
+          {
+            claim_id: "claim-conf-1",
+            test_id: "t-1",
+            evaluator: "devils_advocate",
+            result: "survived",
+            reasoning: "No objections found",
+            confidence: 0.05,
+            contradiction: null,
+            evidence: [],
+          },
+        ]}
+      />
+    );
+
+    // Header shows synthetic claim confidence
+    expect(screen.getByText("0.96")).toBeInTheDocument();
+
+    // Expand
+    const toggleBtn = screen.getByRole("button", { name: /View Evidence & Sources/i });
+    fireEvent.click(toggleBtn);
+
+    // Drawer shows objection strength for finding
+    expect(screen.getByText(/Objection Strength: 5%/i)).toBeInTheDocument();
+  });
 });
 

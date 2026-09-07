@@ -7,7 +7,7 @@ from __future__ import annotations
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from core.models import Case, TestPlanItem
-from core.textutil import format_concise_rationale, one_line
+from core.textutil import format_concise_rationale, is_empirical_claim, one_line
 
 KNOWN_AGENTS: tuple[str, ...] = ("devils_advocate", "receipts", "builder", "operator")
 
@@ -133,17 +133,31 @@ def build_test_plan(
     That difference is the entire adaptive-scrutiny mechanism, and it is why a
     run costs more than a single prompt. `panel=False` forces the cheap path for
     every claim.
+
+    Selective Evaluator Dispatch: Non-empirical claims omit `receipts` (Researcher),
+    dispatching only reasoning evaluators (Builder, Operator, Devil's Advocate).
     """
     if active_agents is None:
         active_agents = list(getattr(case, "selected_agents", None) or KNOWN_AGENTS)
     agents = [a for a in KNOWN_AGENTS if a in active_agents] or ["devils_advocate"]
-    single = next((a for a in SINGLE_PASS_PRIORITY if a in agents), agents[0])
 
     items: list[TestPlanItem] = []
     for claim in case.claims:
         # load_bearing is None before the ranking runs — treat unranked as full panel.
         full = panel and claim.load_bearing is not False
-        for agent in agents if full else [single]:
+
+        # Selective Evaluator Dispatch: omit receipts if claim is not empirical
+        claim_agents = [a for a in agents if a != "receipts" or is_empirical_claim(claim.statement)]
+        if not claim_agents:
+            claim_agents = list(agents)
+
+        if full:
+            target_agents = claim_agents
+        else:
+            single = next((a for a in SINGLE_PASS_PRIORITY if a in claim_agents), claim_agents[0])
+            target_agents = [single]
+
+        for agent in target_agents:
             items.append(
                 TestPlanItem(
                     id=str(uuid4()),
