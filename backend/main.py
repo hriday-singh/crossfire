@@ -29,6 +29,7 @@ settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,
+    allow_origin_regex=r"https://.*\.stratizone\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
