@@ -18,7 +18,7 @@ const getApiBase = () => {
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
     return "";
   }
-  return (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "";
+  return (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "https://api.crossfire.stratizone.com";
 };
 
 const DEFAULT_API_BASE = getApiBase();

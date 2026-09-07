@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from pydantic import BaseModel, Field
 
-from core.models import Claim, ClaimStatus, Finding
+from core.models import Claim, ClaimStatus, Finding, WeakenedKind
 from core.textutil import clamp_sentences
 from providers.base import LLMProvider
 
@@ -267,6 +267,25 @@ def has_sourced_contradiction(findings: list[Finding]) -> bool:
 # `no objection` band of OBJECTION_SCALE. A panel that raised nothing above it
 # has not weakened anything, whatever word the judge reached for.
 TRIVIAL_OBJECTION_CEILING = 0.2
+
+
+# The same line `_blocking_weakened` uses; they must stay equal.
+CONTESTED_OBJECTION_FLOOR = 0.4
+
+
+def classify_weakened(findings: list[Finding], salvage_scope: str | None) -> WeakenedKind:
+    """Derive whether a weakened claim is qualified or contested."""
+    if has_sourced_contradiction(findings):
+        return WeakenedKind.CONTESTED
+    if salvage_scope == "redesign":
+        return WeakenedKind.CONTESTED
+    
+    active_findings = [f for f in findings if f.confidence is not None and f.confidence > 0.0]
+    max_obj = max((f.confidence for f in active_findings), default=0.0)
+    if max_obj >= CONTESTED_OBJECTION_FLOOR:
+        return WeakenedKind.CONTESTED
+    
+    return WeakenedKind.QUALIFIED
 
 
 def apply_evidence_gate(

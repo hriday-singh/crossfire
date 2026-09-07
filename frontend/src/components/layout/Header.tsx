@@ -97,10 +97,10 @@ export const Header: React.FC = () => {
             type="button"
             onClick={() => handleNav("claim-map")}
             data-path="claim-map"
-            disabled={!hasActiveCase}
+            disabled={!hasActiveCase || state.currentCase?.status === "extracting"}
             aria-current={isClaimMapActive ? "page" : undefined}
             className={`transition-colors flex items-center h-full ${
-              !hasActiveCase
+              !hasActiveCase || state.currentCase?.status === "extracting"
                 ? "text-outline/40 cursor-not-allowed opacity-50"
                 : isClaimMapActive
                 ? "text-on-surface border-b-2 border-primary-container font-medium cursor-pointer"

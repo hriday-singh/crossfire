@@ -17,12 +17,18 @@ class ClaimStatus(str, Enum):
     UNRESOLVED = "unresolved"
 
 
+class WeakenedKind(str, Enum):
+    QUALIFIED = "qualified"
+    CONTESTED = "contested"
+
+
 class Claim(BaseModel):
     id: str
     statement: str
     load_bearing: bool | None = None       # set after the load-bearing question runs
     load_bearing_reason: str | None = None # why this claim is load-bearing or secondary
     status: ClaimStatus | None = None
+    weakened_kind: WeakenedKind | None = None # set only when status is WEAKENED. derived, not generated.
     confidence: float | None = None        # synthetic claim confidence: 0.0 (broken) to 1.0 (validated)
     fatal_flaw: str | None = None          # isolated flaw if weakened/broken
     salvaged_claim: str | None = None      # minimal viable re-architecture (Break to Rebuild)

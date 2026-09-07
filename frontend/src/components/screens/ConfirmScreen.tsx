@@ -326,7 +326,13 @@ export const ConfirmScreen: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px] animate-spin">
                       progress_activity
                     </span>
-                    <span>Running Live Runner...</span>
+                    <span>Test already running</span>
+                  </>
+                ) : currentCase.status === "done" ? (
+                  <>
+                    <span>Rerun</span>
+                    <span className="sr-only">Rerun Tests</span>
+                    <span className="material-symbols-outlined text-[18px]">replay</span>
                   </>
                 ) : (
                   <>
