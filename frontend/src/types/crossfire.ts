@@ -211,7 +211,8 @@ export type SSEEventName =
   | "telemetry_ready"
   | "run_complete"
   | "error"
-  | "activity";
+  | "activity"
+  | "done";
 
 export interface SSEActivityData {
   tag: string;

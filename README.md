@@ -19,7 +19,11 @@ When you submit a proposal or decision dilemma, Crossfire runs it through a fixe
         │
         ▼
 1. Claim extraction + input gate + agent selection
-   ├── not testable? → returns a redirect, no invented claims
+   ├── not testable? → zero-claim recovery: one clarifying question, what is
+   │                    missing, how the input was read, and up to 3 provisional
+   │                    claims traceable to the user's own words (never invented)
+   │                    POST /cases/{id}/clarify merges the answer and re-extracts;
+   │                    a successful re-extraction auto-launches the run
    └── testable?     → up to 5 falsifiable claims + the panel this decision needs
         │
         ▼
@@ -42,6 +46,10 @@ When you submit a proposal or decision dilemma, Crossfire runs it through a fixe
    └── Operational Friction Test (adoption inertia, red tape, liability, process drag)
         │
         ▼
+5b. Cross-examination probes (load-bearing claims only)
+    a reasoning-only blocker gets one targeted search before it is judged
+        │
+        ▼
 6. Judicial reconciliation, per claim, in parallel
         │  evidence gate: "broken" requires a source-traceable contradiction
         ▼
@@ -57,7 +65,9 @@ When you submit a proposal or decision dilemma, Crossfire runs it through a fixe
 ### 1. Claim extraction, input gate, and agent selection
 Crossfire parses your input into up to five discrete, checkable claims. Input can be typed directly or ingested from a URL, PDF, or image.
 
-If the input is not testable, Crossfire does not manufacture claims out of it — the case comes back asking you to name the specific decision you are weighing and what you would do if it went wrong.
+If the input is not testable, Crossfire does not manufacture claims out of it. Instead of a generic redirect, the case comes back with a **zero-claim recovery**: one clarifying question written against what you actually typed, two or three fragments naming what is missing (the option, the cost, the deadline, the alternative), how the input is currently being read, and up to three *provisional* claims — each traceable to your own words, with no invented numbers, dates, prices, vendors, or jurisdictions. If nothing is inferable, the provisional list comes back empty rather than fabricated.
+
+Answering sends `POST /cases/{id}/clarify`, which merges the answer into the original input and re-extracts. A second round asks about something different rather than repeating itself. When re-extraction succeeds, the run launches automatically instead of making you confirm twice.
 
 The same model that reads the decision also picks which tests it needs, with a one-sentence rationale per pick. There is no keyword table: a fixed keyword map can only encode the scenarios someone thought of in advance, and identical words mean different things in different domains. You can also pin the panel manually.
 
@@ -80,6 +90,11 @@ Tests run in parallel. To prevent groupthink, each executes in strict isolation:
 * **Builder (Feasibility Test):** Evaluates technical and operational viability, including required APIs, data access, latency budgets, unit economics, threat model, and regulatory boundaries (GDPR, HIPAA, SOC2).
 * **Operator (Operational Friction Test):** Stress-tests the operational frictions that kill decisions after the tech works — adoption inertia, enterprise gatekeeping and procurement, regulatory liability, and process drag.
 
+### 5b. Cross-examination probes
+The Assumption and Feasibility tests do not search the web, so their hardest objections arrive as reasoning with no source behind them — and the evidence gate below would silently discount them. Before adjudication, each load-bearing claim's single strongest unsourced blocker gets one targeted search.
+
+Blockers that assert a published rule (statute, regulation, licensing requirement) are routed to an authority-scoped query rather than the ordinary web query, so a compliance objection is answered by the body that publishes the rule instead of by a setup guide. The probe reports what the sources actually say — `contradicts`, `supports`, or `context` — not what the evaluator that raised it hoped they would say. A claim whose Evidence Test already returned a sourced contradiction is skipped; it needs no probe.
+
 ### 6. Judicial reconciliation & Steel Man Re-Architecture
 Evaluators do not vote, and scores are never averaged. The **Steel Man** acts as judicial reconciler and solutions architect, reviewing the findings across all tests for each claim in parallel:
 
@@ -93,9 +108,32 @@ For any claim that does not cleanly survive, Crossfire synthesizes concrete reco
 * **Smallest next validation:** The lowest-cost real-world experiment to de-risk remaining uncertainty before spending capital.
 
 ### 8. Case verdict
-The run closes with a single decision state — **proceed**, **proceed with changes**, **hold**, or **drop** — the claims sorted into survived, broken, and unproven, and two to three deduplicated next actions anchored to the specific claims that triggered them.
+The run closes with a single decision state — **proceed**, **proceed with changes**, **hold**, or **drop** — a one-line headline, the claims sorted into survived, weakened, broken, and unproven, and two to three deduplicated next actions anchored to the specific claims that triggered them. The verdict also names a **deciding factor**: the single finding that actually moved the call, with its source, and a flag for whether the evidence gate fired there (the panel attacked but nobody could cite it).
+
+Afterwards the memo can be exported, and the **Prompt Fixer** rewrites your original decision statement around the claims that broke or weakened, so the next run tests the re-architected version rather than the one that already failed.
 
 Every synthesis step has a deterministic fallback. If the model fails at ranking, consequences, or the final verdict, a rule-based version ships instead. The report degrades in polish, never in existence.
+
+---
+
+## Providers, keys, and model fallback
+
+Providers, API keys, and the model fallback order are managed from the UI (**Providers** modal) and stored encrypted in SQLite — they are not `.env`-only settings. Full reference: [`docs/PROVIDERS.md`](docs/PROVIDERS.md).
+
+* **Supported providers:** the bundled Gemini proxy (`gemini_proxy`, default, keyless), Google Gemini, OpenAI, Anthropic, local Ollama, and any number of user-registered OpenAI-compatible endpoints (`POST /providers/custom` → `custom:<slug>`). Only Anthropic needs its own adapter; everything else is the OpenAI-compatible client pointed at a different base URL. No vendor SDKs.
+* **Key pool:** several keys per provider, each individually enable/disable-able, sharded across concurrent calls (`KEY_POOL_MAX_INFLIGHT` in flight per key). This is what makes free-tier rate limits survivable.
+* **Encryption at rest:** keys are Fernet-encrypted in the local SQLite keyring. The master key is generated at `backend/.crossfire_key` on first use, or pinned explicitly with `CROSSFIRE_SECRET_KEY`.
+* **Model-level fallback chain:** each provider exposes a model list; you enable the models you want and order them. The chain is one target per enabled model, primary first, all sharing the same key pool — a model that rate-limits or errors is retried on the next enabled model without a key rotation round-trip. Retryable statuses (408/409/425/429/5xx) rotate; 401/403 are fatal and do not.
+* **Provider pinning:** execution is currently pinned to the bundled Gemini proxy (`catalog.LOCKED_PROVIDER`). Every other provider stays fully visible and configurable, and its stored settings take effect the moment the pin is lifted — unpinning is one function in `providers.build_chain()`.
+* **Live check:** `POST /providers/test` and `POST /providers/{id}/test` ping the configured targets so a bad key or an unreachable endpoint is visible before a run starts.
+
+---
+
+## Persistence and telemetry
+
+* **Cases are persisted to SQLite** (`backend/crossfire.db`, schema in [`migrations/`](migrations)), not held in memory. A backend restart mid-run does not lose the case; interrupted runs are reconciled on startup (`store.recover_interrupted_cases`).
+* **The SSE stream is append-only and replayable.** Event history per case is retained, so a listener that attaches late — or reconnects — replays everything it missed before joining the live feed. No verdict is lost to a race with the browser.
+* **Token telemetry per run.** Prompt/completion tokens and estimated cost are tracked per agent (extractor, load-bearing, each evaluator, cross-examination, Steel Man, synthesis), streamed as a `telemetry_ready` event, and stored on the case as `CaseTelemetry`.
 
 ---
 
@@ -317,7 +355,7 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`. Vite is configured to proxy API requests (`/cases`, `/ingest`, `/health`, `/ready`) directly to the backend on port 8000.
+The frontend will be available at `http://localhost:5173`. Vite is configured to proxy API requests (`/cases`, `/ingest`, `/providers`, `/health`, `/ready`) directly to the backend on port 8000.
 
 ### 5. Running tests
 
@@ -359,34 +397,82 @@ Those tools send your question to several models, let them see and react to each
 
 ---
 
+## API surface
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/cases` | Extract claims and select the panel; returns `awaiting_confirmation` or `needs_input` |
+| `POST` | `/cases/{id}/clarify` | Answer a zero-claim recovery question; re-extracts and auto-launches on success |
+| `POST` | `/cases/{id}/confirm` | Lock claims and schedule the run; `202 Accepted` in <50ms |
+| `GET` | `/cases/{id}/stream` | SSE stream (replays history, then live events) |
+| `GET` | `/cases/{id}` | Full hydrated case for the memo and evidence drawer |
+| `POST` | `/cases/{id}/improve_prompt` | Prompt Fixer: rewrite the decision around the claims that broke |
+| `POST` | `/ingest/url` · `/ingest/pdf` · `/ingest/image` · `/ingest/markdown` | Produce the `context` field from an external source |
+| `POST` | `/baseline` | Single-prompt control answer for side-by-side comparison |
+| `GET` | `/health` · `/ready` | Liveness and readiness |
+| `GET`/`PUT` | `/providers`, `/providers/active`, `/providers/fallback` | Read providers; set the active provider and fallback order |
+| `PUT` | `/providers/{id}/models` · `/providers/{id}/config` | Enable/order models; edit base URL and model for editable providers |
+| `POST`/`DELETE` | `/providers/custom` · `/providers/{id}` | Register or remove an OpenAI-compatible endpoint |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/providers/{id}/keys`, `/providers/keys/{key_id}` | Manage the encrypted key pool |
+| `POST` | `/providers/test` · `/providers/{id}/test` | Ping configured targets |
+| `GET` | `/providers/pool/status` · `/providers/ollama/models` | Key-pool state; discovered local Ollama models |
+
+SSE event names: `claim_map_ready`, `needs_input`, `load_bearing_ready`, `test_started`, `finding_ready`, `verdict_ready`, `consequence_ready`, `case_verdict`, `telemetry_ready`, `activity`, `run_complete`, `error`.
+
+---
+
 ## Repository layout
 
 ```
 crossfire/
 ├── backend/
-│   ├── api/             # FastAPI routes, request models, and SSE endpoints
+│   ├── api/
+│   │   ├── routes.py          # Case lifecycle, clarify, ingestion, baseline, prompt fixer
+│   │   ├── provider_routes.py # Provider/key/model management endpoints
+│   │   └── schemas.py         # Request and response models
 │   ├── core/
-│   │   ├── evaluators/  # Devil's Advocate, Researcher (SerpApi), Builder, and Operator runners
-│   │   ├── agent_panel.py # Agent catalog, failure-mode routing, and test-plan construction
-│   │   ├── reconcile.py # Steel Man: per-claim reconciliation, evidence gate, Break to Rebuild re-architecture
-│   │   ├── baseline.py  # Single-prompt control answer for side-by-side comparison
-│   │   ├── loop.py      # Pipeline orchestrator: extraction, ranking, synthesis
-│   │   └── models.py    # Pydantic data contracts (Case, Claim, Finding, CaseVerdict)
-│   ├── evidence/        # SerpApi + Scrapling search and web-page retrieval engine
-│   ├── events.py        # Per-case SSE event queues
-│   ├── ingestion/       # PDF and image ingestion (PyMuPDF, RapidOCR)
-│   ├── providers/       # LLM provider adapters (Gemini, Anthropic, OpenAI-compatible)
-│   ├── config.py        # Environment settings and validation
-│   └── main.py          # FastAPI application entry point
+│   │   ├── evaluators/        # Devil's Advocate, Researcher (SerpApi), Builder, and Operator runners
+│   │   ├── agent_panel.py     # Agent catalog, failure-mode routing, and test-plan construction
+│   │   ├── loop.py            # Pipeline orchestrator: extraction, ranking, evaluation, run_pipeline
+│   │   ├── recovery.py        # Zero-claim recovery: clarifying question + provisional claims
+│   │   ├── cross_examination.py # Phase 1.5 targeted probes for unsourced blockers
+│   │   ├── reconcile.py       # Steel Man: per-claim reconciliation, evidence gate, Break to Rebuild
+│   │   ├── synthesis.py       # Consequences, deciding factor, decision state, case verdict
+│   │   ├── reformulate.py     # Prompt Fixer: rewrites the decision around broken claims
+│   │   ├── activity.py        # Narration events emitted during a run
+│   │   ├── telemetry.py       # Per-agent token and cost accounting
+│   │   ├── baseline.py        # Single-prompt control answer for side-by-side comparison
+│   │   └── models.py          # Pydantic data contracts (Case, Claim, Finding, CaseVerdict)
+│   ├── providers/
+│   │   ├── catalog.py         # Provider specs, model lists, custom-endpoint slugs, LOCKED_PROVIDER
+│   │   ├── keyring.py         # Encrypted key/config store (SQLite + Fernet)
+│   │   ├── pool.py            # Key pool with per-key in-flight limits
+│   │   ├── routing.py         # Fallback chain execution and retry classification
+│   │   └── {gemini,anthropic,openai_compat}.py  # Wire-level adapters
+│   ├── evidence/              # SerpApi + Scrapling search, deep-fetch, and snippet curation
+│   ├── ingestion/             # PDF, image (OCR), URL, and markdown ingestion
+│   ├── events.py              # Per-case append-only SSE history and multi-subscriber queues
+│   ├── store.py               # SQLite case persistence and interrupted-run recovery
+│   ├── config.py              # Environment settings and validation
+│   ├── progress.py            # Project progress report generator
+│   └── main.py                # FastAPI application entry point
 ├── frontend/
 │   ├── src/
-│   │   ├── components/  # Screen layouts, Claim cards, Evidence drawer, FAQ drawer
-│   │   ├── context/     # State management and SSE event listeners
-│   │   ├── lib/         # FAQ content and UI utilities
-│   │   └── tests/       # Vitest component and reducer tests
+│   │   ├── components/
+│   │   │   ├── screens/       # Entry, Confirm, Dashboard
+│   │   │   ├── features/      # Claim cards, Evidence drawer, activity feed, Providers/Settings/History modals
+│   │   │   ├── canvas/        # Starfield, sprites, and stage scenery
+│   │   │   ├── layout/        # Header and error banner
+│   │   │   └── ui/            # Shared primitives (button, card, sheet, dialog, provider icons)
+│   │   ├── context/           # Case reducer, SSE reducer helpers, and state provider
+│   │   ├── hooks/             # SSE stream and live-bridge hooks
+│   │   ├── lib/               # API clients, formatters, memo export, FAQ and preset content
+│   │   └── tests/             # Vitest component, hook, and reducer tests
+│   ├── TESTING.md             # Frontend testing standards (mandatory for frontend changes)
 │   ├── package.json
-│   └── vite.config.ts   # Vite configuration with backend proxy
-├── docs/                # Architecture specifications and implementation records
+│   └── vite.config.ts         # Vite configuration with backend proxy
+├── migrations/                # SQL migration files (generated, never auto-applied)
+├── docs/                      # Architecture specifications, provider reference, implementation records
 └── README.md
 ```
 
@@ -406,4 +492,16 @@ The backend can be configured via environment variables in `backend/.env`:
 | `LLM_API_KEY` | `""` | Optional universal API key override |
 | `EVALUATOR_CONCURRENCY` | `8` | Maximum concurrent evaluator calls during the test stage |
 | `EVALUATOR_TIMEOUT_SECONDS` | `60.0` | Timeout per evaluator call before marking a test timed out |
+| `LLM_TIMEOUT_SECONDS` | `90.0` | Timeout for any single provider call |
+| `STEELMAN_CONCURRENCY` | `3` | Maximum concurrent Steel Man reconciliations |
+| `GEMINI_API_KEYS` | `""` | Comma-separated Gemini keys, sharded across concurrent calls by the key pool |
+| `KEY_POOL_MAX_INFLIGHT` | `2` | Concurrent in-flight requests allowed per key |
+| `CROSSFIRE_SECRET_KEY` | *(generated)* | Fernet master key for the encrypted keyring. Blank generates `backend/.crossfire_key` on first use |
+| `SEARCH_PROVIDER` | `duckduckgo` | Preferred search backend; SerpApi is used when `SERPAPI_API_KEY` is set |
+| `CURATION_LLM_MODEL` | `gemini-3.7-flash` | Model used for evidence snippet curation |
+| `USE_LLM_CURATION` | `false` | When `true`, curates evidence snippets with an LLM pass instead of the deterministic curator |
+| `CORS_ALLOWED_ORIGINS` | `localhost:5173, 127.0.0.1:5173, localhost:3000` | Comma-separated (or JSON list) allowed browser origins |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | `""` | Seed the encrypted keyring on a fresh machine. Keys are normally entered in the UI (Providers modal), not here |
 | `DEMO_MODE` | `false` | When `true`, returns canned fixtures for offline testing |
+
+> Provider selection, per-provider keys, enabled models, and the fallback order are stored in the encrypted keyring and edited from the **Providers** modal in the UI. The `LLM_*` variables above are the bootstrap defaults used before anything is configured there.

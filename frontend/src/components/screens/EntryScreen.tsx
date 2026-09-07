@@ -55,7 +55,7 @@ const isMarkdownFile = (filename: string): boolean => {
 };
 
 export const EntryScreen: React.FC = () => {
-  const { state, startExtracting, setActiveModal, cancelExtraction } = useCase();
+  const { state, dispatch, startExtracting, setActiveModal, cancelExtraction } = useCase();
   const [rawInput, setRawInput] = useState(state.currentCase?.raw_input || "");
   const [attachments, setAttachments] = useState<EntryAttachment[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
@@ -520,7 +520,7 @@ export const EntryScreen: React.FC = () => {
   if (state.isExtracting) {
     return (
       <div className="fixed inset-0 w-full h-full overflow-hidden bg-[#09090b] flex flex-col items-center justify-center">
-        <CubeSpinner />
+        <CubeSpinner onCancel={cancelExtraction} />
       </div>
     );
   }
@@ -642,24 +642,27 @@ export const EntryScreen: React.FC = () => {
                 onChange={handleFileChange}
               />
 
-              {/* Ingestion Error Alert */}
-              {ingestError && (
+              {/* Ingestion & Clarify Error Alert */}
+              {(ingestError || state.error) && (
                 <div
                   role="alert"
-                  className="mt-space-3 bg-error-container/30 border border-error/50 rounded-lg p-space-3 flex items-center justify-between text-error"
+                  className="mt-2 bg-error-container/30 border border-error/50 rounded p-2 flex items-center justify-between text-error"
                 >
-                  <div className="flex items-center gap-space-2 min-w-0">
-                    <span className="material-symbols-outlined text-[18px] text-error shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="material-symbols-outlined text-[16px] text-error shrink-0">
                       error
                     </span>
-                    <span className="font-body-sm text-body-sm truncate">
-                      {ingestError}
+                    <span className="font-body-sm text-sm">
+                      {ingestError || state.error?.message}
                     </span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setIngestError(null)}
-                    className="text-error hover:text-on-surface p-1 rounded transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (ingestError) setIngestError(null);
+                      if (state.error) dispatch({ type: "CLEAR_ERROR" });
+                    }}
+                    className="text-error hover:text-on-surface p-0.5 rounded transition-colors cursor-pointer"
                     aria-label="Dismiss error"
                   >
                     <span className="material-symbols-outlined text-[16px]">

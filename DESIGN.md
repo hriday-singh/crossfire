@@ -11,8 +11,8 @@
 Crossfire is an **authoritative decision testing memo**, not an AI chatbot, a simulated hacker terminal, or an arcade dashboard. 
 
 ### Core UI Principles:
-1. **The Executive Decision Memo in Dark Mode:** A sleek, high-contrast dark theme designed for deep focus. Deep zinc canvas (`#09090b`), elevated card surfaces (`#18181b`), crisp readable typography (`#f4f4f5`), and generous whitespace.
-2. **Zero Fake Telemetry:** No glowing blue "LIVE STREAM" dots, no radar beacons, no simulated counters, and no unbuilt widgets (e.g. model dropdowns, fake dropzones, 3-segment impact meters).
+1. **The Executive Decision Memo in Dark Mode:** A high-contrast dark theme designed for deep focus. Deep canvas (`#0e0e11`), elevated surfaces (`#1f1f22`), crisp readable typography (`#e4e1e6`), and a single blue accent (`#60a5fa`).
+2. **No Fake Telemetry:** Every progress indicator is backed by a real SSE event (`activity`, `test_started`, `finding_ready`, `verdict_ready`). Animation may frame real state — it may never stand in for it. A counter that is not counting something, or a status that is not read from the run, does not ship.
 3. **Internal Evaluator Name Masking (Mandatory Rule):** Internal backend agent names (`devils_advocate`, `receipts`, `builder`, `operator`) **must never appear anywhere in the UI**. They are strictly mapped to test names derived from failure modes:
    - `assumption` $\rightarrow$ **Assumption Test**
    - `evidence` $\rightarrow$ **Evidence Test**
@@ -20,7 +20,7 @@ Crossfire is an **authoritative decision testing memo**, not an AI chatbot, a si
    - `operational_friction` (or `adoption`, `bureaucracy`) $\rightarrow$ **Operational Friction Test**
 4. **Color Carries Verdict, Nothing Else:** The four verdict colors are reserved exclusively for claim and test results. Never use red or amber for regular form validation or general badges.
 5. **Unresolved is a Measured Outcome:** The status `unresolved` means the system actively investigated and found conflicting or thin evidence. It is styled in **Indigo / Violet (`#818cf8`)**—never gray or disabled.
-6. **One Input, Zero Mode Menus:** The entry view has exactly one primary question: *"What are you considering?"*. No tabs, no mode selectors.
+6. **One Input, Secondary Controls Out of the Way:** The entry view asks exactly one primary question. Attachments, presets, panel selection, and provider/model configuration are secondary affordances around it — never tabs or mode selectors competing with the prompt.
 7. **Evidence Always One Click Away:** Every claim card opens a dedicated slide-over sheet (Evidence Drawer) revealing the full audit trail and primary source citations.
 
 ---
@@ -30,64 +30,117 @@ Crossfire is an **authoritative decision testing memo**, not an AI chatbot, a si
 ### 2.1 Color Palette (Dark-First, WCAG AA / AAA)
 The interface uses a deep neutral palette engineered for readability, zero glare, and high contrast.
 
+Defined once in `frontend/src/globals.css` and exposed through `frontend/tailwind.config.js`. No component hardcodes a hex.
+
 | Token | CSS Variable / Tailwind | Hex Value | Semantic Usage |
 |---|---|---|---|
-| **Background** | `--background` / `bg-zinc-950` | `#09090b` | Page root canvas (deep zinc) |
-| **Card / Surface** | `--card` / `bg-zinc-900` | `#18181b` | Cards, memo container, drawer surface |
-| **Border / Divider** | `--border` / `border-zinc-800` | `#27272a` | Card borders, dividers, subtle row separators |
-| **Primary Text** | `--foreground` / `text-zinc-100` | `#f4f4f5` | Headlines, claim statements, primary body text |
-| **Secondary Text** | `--muted-foreground` / `text-zinc-400` | `#a1a1aa` | Captions, metadata, confidence values, queued state |
-| **Primary / Action** | `--primary` / `bg-white` | `#ffffff` | Primary action buttons (`text-zinc-950 font-medium`), focus rings |
-| **Primary Foreground** | `--primary-foreground` | `#09090b` | Text on primary buttons |
+| **Page canvas** | `bg-surface-container-lowest` | `#0e0e11` | Page root, header, footer |
+| **Background** | `--background` / `bg-background` | `#131316` | App shell surface |
+| **Card / Surface** | `--card` / `bg-surface-container` | `#1f1f22` | Cards, memo container, drawer surface |
+| **Raised surface** | `bg-surface-container-high` | `#2a2a2d` | Hover states, nested panels |
+| **Sunken surface** | `bg-surface-container-low` / `--input` | `#1b1b1e` | Inputs, code blocks, badges |
+| **Border / Divider** | `--border` / `border-outline-variant` | `#414751` | Card borders, dividers, row separators |
+| **Primary Text** | `--foreground` / `text-on-surface` | `#e4e1e6` | Headlines, claim statements, body text |
+| **Secondary Text** | `text-on-surface-variant` | `#c1c7d3` | Supporting copy |
+| **Muted Text** | `--muted-foreground` / `text-outline` | `#8b919d` | Captions, metadata, queued state |
+| **Primary / Action** | `--primary` / `--ring` | `#60a5fa` | Primary buttons, links, focus rings |
+| **Primary Foreground** | `--primary-foreground` | `#003a6b` | Text on primary buttons |
+| **Secondary** | `--secondary` | `#cebdff` | Secondary accents |
+| **Destructive** | `--destructive` / `error` | `#ffb4ab` | Error banners and destructive actions |
 
 ### 2.2 Verdict Colors in Dark Mode (Strict Exclusivity)
 *These colors are strictly reserved for claim verdicts and test outcomes. Badges use subtle dark translucent backgrounds with matching borders and luminous text.*
 
-| Verdict | Semantic Role | Text / Icon Color | Badge Background | Badge Border | Lucide Icon | Visual Meaning |
-|---|---|---|---|---|---|---|
-| `survived` | Success | `#34d399` (Emerald-400) | `rgba(6, 78, 59, 0.4)` | `rgba(6, 95, 70, 0.5)` | `circle-check` | Claim withstood tests & scrutiny |
-| `weakened` | Caution | `#fbbf24` (Amber-400) | `rgba(120, 53, 15, 0.4)` | `rgba(146, 64, 14, 0.5)` | `triangle-alert` | Still standing, but damaged or disputed |
-| `broken` | Destructive | `#f87171` (Rose-400) | `rgba(136, 19, 55, 0.4)` | `rgba(159, 18, 57, 0.5)` | `circle-x` | Critical assumption invalidated by evidence |
-| `unresolved` | Measured Uncertainty | `#818cf8` (Indigo-400) | `rgba(49, 46, 129, 0.4)` | `rgba(55, 48, 163, 0.5)` | `circle-help` | Active outcome: evidence was thin or conflicting |
+Resolved in one place: `getVerdictConfig()` in `frontend/src/lib/formatters.ts`. Components read the label and class tokens from it rather than branching on status themselves.
+
+| Verdict | UI Label | Text / Icon Color | Badge Classes | Visual Meaning |
+|---|---|---|---|---|
+| `survived` | Survived | `#34d399` (Emerald-400) | `bg-emerald-950/40 border-emerald-500/30` | Claim withstood tests & scrutiny |
+| `weakened` + `qualified` | Holds, with limits | `#fbbf24` (Amber-400) | `bg-amber-950/40 border-amber-500/30` | Holds under narrower conditions |
+| `weakened` + `contested` | Challenged | `#f97316` (Orange-500) | `bg-orange-950/40 border-orange-500/30` | Disputed by a live counter-position |
+| `weakened` (unspecified) | Weakened | `#fbbf24` (Amber-400) | `bg-amber-950/40 border-amber-500/30` | Still standing, but damaged or disputed |
+| `broken` | Broken | `#f87171` (Rose-400) | `bg-rose-950/40 border-rose-500/30` | Critical assumption invalidated by evidence |
+| `unresolved` | Unresolved | `#818cf8` (Indigo-400) | `bg-indigo-950/40 border-indigo-500/30` | Active outcome: evidence was thin or conflicting |
+| *(none)* | Untested | `#71717a` (Zinc-500) | `bg-zinc-800 border-zinc-700` | Not yet reconciled — the **only** legitimate gray |
+
+> The CSS variables `--verdict-survived` / `--verdict-weakened` / `--verdict-broken` / `--verdict-unresolved` (`#a78bfa` for unresolved) back the `text-verdict-*` and `bg-verdict-*` Tailwind utilities used outside badges — charts, dots, and rails.
+
+`weakened_kind` is derived by the backend, never generated: `qualified` (survives in a narrower scope) and `contested` (a live counter-position disputes it) read differently to a decision-maker, so they carry different labels and hues within the same verdict.
 
 > [!CAUTION]
 > Do NOT use gray for `unresolved`. Gray is reserved exclusively for inactive or queued UI elements. Reusing gray undermines the core principle that `unresolved` is an active, measured finding.
 
 ### 2.3 Typography
-* **UI & Body Stack:** `Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-  * Applied to: Headlines, prompts, claim statements, descriptions, recommendations, and source snippets.
-  * Line height is generous (`leading-relaxed` / 1.6) to guarantee reading comfort.
-* **Monospace Stack:** `ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace`
-  * Narrowly reserved for: Test type labels (e.g. `EVIDENCE TEST`), Case IDs, and source URLs.
+Type is a paired token: `font-<name>` sets the family, `text-<name>` sets size, line height, tracking, and weight. Never mix a family token with an unrelated size.
+
+| Token | Family | Size / Line height | Used for |
+|---|---|---|---|
+| `headline-lg` | Inter | 24 / 32, `-0.02em`, 600 | Screen headlines |
+| `headline-md` | Inter | 18 / 24, `-0.015em`, 600 | Card and section titles |
+| `headline-sm` | Inter | 15 / 20, `-0.01em`, 600 | Sub-section titles, dialog titles |
+| `body-md` | Inter | 14 / 20, 400 | Claim statements, primary body copy |
+| `body-sm` | Inter | 13 / 18, 400 | Supporting copy, drawer prose |
+| `body-xs` | Inter | 12 / 16, 400 | Metadata, captions |
+| `code-lg` | JetBrains Mono | 14 / 20, 500 | Wordmark, engine badge |
+| `code-md` | JetBrains Mono | 12 / 16, 500 | Case IDs, source URLs, log lines |
+| `code-sm` | JetBrains Mono | 11 / 14, `0.02em`, 400 | Footer, dense terminal-style rows |
+| `label-mono` | JetBrains Mono | 10 / 12, `0.06em`, 600 | Uppercase section labels, test-type tags |
+
+Body default is Inter via `globals.css`; monospace stays scoped to identifiers, test labels, URLs, and log output.
 
 ### 2.4 Spacing, Radii & Elevation
-* **Base Grid:** 8px spacing cadence (`gap-2`, `gap-4`, `gap-6`, `p-4`, `p-6`, `p-8`).
-* **Corner Radii:**
-  * Cards / Drawers: `8px` (`rounded-lg`)
-  * Buttons / Inputs: `6px` (`rounded-md`)
-  * Badges / Tags: `9999px` (`rounded-full`)
-* **Shadows:** Muted, subtle depth (`shadow-sm`, `shadow-md` backed by `#000000`). No bright glows or saturated neon drop shadows.
-* **Transitions:** 150ms ease-out on background and opacity. Fast, functional, and smooth.
+* **Spacing scale:** named tokens on a 4px cadence — `space-1` (4px), `space-1.5` (6px), `space-2` (8px), `space-2.5` (10px), `space-3` (12px), `space-4` (16px), `space-5` (20px), `space-6` (24px), `space-8` (32px), plus `gutter` (16px). Use `gap-space-4`, `p-space-6`, not raw Tailwind numbers.
+* **Corner Radii (tight by design — this is an instrument panel, not a consumer card stack):**
+  * `rounded` / `rounded-sm`: 2px — rows, chips, inline tags
+  * `rounded-lg`: 4px — cards, panels
+  * `rounded-md`: 6px — buttons, inputs
+  * `rounded-xl`: 8px — drawers, modals
+  * `rounded-full`: 12px — pills (note: *not* a circle in this scale)
+* **Shadows:** muted depth only (`shadow-sm`, `shadow-md`, `shadow-lg` over black). No glows, no saturated neon drop shadows.
+* **Motion:** transitions on `transform`, `opacity`, `background-color`, and `border-color` only, ~150ms ease-out. `animate-pulse-subtle` is the single shared looping animation. All motion collapses to ~0ms under `prefers-reduced-motion: reduce`, enforced globally in `globals.css` — never re-enable it per component.
 
 ---
 
 ## 3. UI Component Inventory (Radix / shadcn/ui Mapping)
 
-| UI Element | Base Primitive | Custom Dark Mode Styling / Behavior |
+### 3.1 Shared primitives (`src/components/ui/`)
+Radix-backed, styled through the token file. Build once here; never re-implement a variant inside a feature.
+
+| Primitive | File | Notes |
 |---|---|---|
-| **Entry Textarea** | `Textarea` (shadcn) | Auto-expanding, min-height 120px, `bg-zinc-900`, `border-zinc-800`, `text-zinc-100`, focus ring `ring-1 ring-zinc-400` |
-| **Primary CTA** | `Button` (shadcn) | `bg-white text-zinc-950 hover:bg-zinc-200 font-medium rounded-md shadow-sm` |
-| **Secondary Button** | `Button` (shadcn) | `bg-zinc-800 text-zinc-200 hover:bg-zinc-700 border border-zinc-700 rounded-md` |
-| **Claim Card** | `Card` (shadcn) | `bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-colors rounded-lg cursor-pointer` |
-| **Verdict Badge** | `Badge` (shadcn) | Rounded-full pill, dark translucent background + semantic luminous text + matching Lucide icon |
-| **Load-Bearing Flag** | `Badge` (shadcn) | Muted dark pill (`bg-zinc-800 text-zinc-300 border border-zinc-700`), text: *"Core foundation"* |
-| **Evidence Drawer** | `Sheet` (shadcn) | Right slide-over, 480px width, `bg-zinc-900 border-l border-zinc-800`, generous padding |
-| **Status Bar** | `div` | Clean single-line header summary displaying progress or final counts (`text-zinc-400`) |
-| **Error Banner** | `Alert` (shadcn) | Dark rose background (`bg-rose-950/40 border border-rose-800/60 text-rose-300`) |
+| `Button`, `Card`, `Badge`, `Alert`, `Separator`, `Skeleton`, `Textarea` | `button.tsx`, `card.tsx`, … | Token-driven variants only |
+| `Sheet` | `sheet.tsx` | Right slide-over used by the Evidence Drawer |
+| `Dialog` | `dialog.tsx` | Modal shell for Providers, Settings, History, Export |
+| `DropdownMenu` | `dropdown-menu.tsx` | Sort and select menus |
+| `ProviderIcon` | `providerIcons.tsx` | Brand marks for provider rows |
+| `SerpApiIcon` | `serpapi.tsx` | Attribution mark in header, footer, and evidence rows |
+
+### 3.2 Feature components (`src/components/features/`)
+
+| Component | Role |
+|---|---|
+| `ClaimCard` | One claim: verdict badge, load-bearing flag, consequence line, evidence entry point, Prompt Fixer selection |
+| `EvidenceDrawer` | Full audit trail per claim — tests run, sources, contradictions, what needs to change, how to check, export brief, raw JSON |
+| `VerdictBlock` | Case-level result: decision state, headline, deciding factor, claim tallies, next actions |
+| `TestRow` | One test's state (`Queued` → running → `Completed`) inside a claim |
+| `LiveActivityFeed` | Real-time run narration from `activity` events |
+| `ExtractionProgress`, `CubeSpinner` | Honest waiting states during extraction and confirmation |
+| `AgentSelectorPanel`, `AssignedAgentsCard` | Auto-selected panel with per-agent rationale; manual pin |
+| `AttachmentBar`, `EntryDropzoneBar`, `EntryPresetsBar`, `EntryFooter` | Entry-screen input affordances |
+| `PromptFixerWorkbench` | Rewrites the original decision around the claims that broke or weakened |
+| `ProvidersModal`, `SettingsModal`, `HistoryModal`, `FaqDrawer`, `LiveLogsDrawer` | Provider/key/model management, engine settings, past cases, FAQ, raw logs |
+| `RocketBlueprintHead`, `TechDecorations` | Presentational framing only — never state-bearing |
+
+### 3.3 Canvas & motion (`src/components/canvas/`, `ui/Rocket*`)
+`SpaceStarfield`, `StageContainer`, `ConferenceRoom`, `CharacterSprite`, `DevilBotSprite`, `RocketIntroAnimation`, `RocketTrailCanvas`, `CruciblePageTransition`. Decorative layer only: `pointer-events-none` where it overlays content, behind an explicit `z-0`, and fully suppressed under `prefers-reduced-motion`. No run state is ever communicated *only* through this layer.
 
 ---
 
 ## 4. Per-Screen Specifications
+
+> Literal `zinc-*` class names in the skeletons below predate the token migration and are illustrative of *intent* only. The tokens in §2 govern: `surface-container-*` for surfaces, `outline-variant` for borders, `on-surface` / `on-surface-variant` / `outline` for text.
+
+Three screens, addressed by `state.activeScreen` in `CaseContext` and mirrored in the header's stage nav: **01 Ingestion** (`entry`), **02 Claim Map** (`confirm`), **03 Live Runner** (`runner` / `dashboard`). The header also carries the wordmark (click resets the case) and a live engine badge showing the active provider and model, which opens Settings.
 
 ### Screen 1: Decision Entry View
 
@@ -167,6 +220,20 @@ The complete transparency layer. Slides over from the right viewport edge when a
 
 ---
 
+### Screen 2b: Needs-Input / Clarify State
+
+#### Purpose:
+`Case.status == "needs_input"` — extraction found nothing testable. This is a conversation, not an error.
+
+#### Specifications:
+- The `gate_message` is a real clarifying question referencing the user's own words. Never render it as an error banner and never use destructive colors.
+- `clarify_missing` renders as 2–3 short chips naming the absent pieces (the option, the cost, the deadline, the alternative).
+- `clarify_interpretation` renders as a quiet *"Reading it as: …"* line so a misreading can be corrected rather than guessed at.
+- `provisional` claims render with a distinct "inferred" marker and are individually acceptable or removable. They must never look identical to a confirmed claim.
+- The answer field posts to `POST /cases/{id}/clarify`. On success the run starts immediately — no second confirmation step.
+
+---
+
 ### Screen 5: Error Handling & Degradation
 
 #### Purpose:
@@ -184,10 +251,12 @@ Clear, honest, non-destructive error states matching the backend's `error` SSE e
 
 ## 5. Final Design Verification Checklist
 
-- [x] **Dark-First Readability:** Deep zinc canvas (`#09090b`), elevated dark cards (`#18181b`), and crisp zinc text (`#f4f4f5`) with generous line-height (`1.6`).
-- [x] **Zero Fake Telemetry:** No glowing blue "LIVE STREAM" dots, no pulsing radar beacons, no 3-segment impact meters, and no unbuilt provider modals or dropzones.
-- [x] **Strict 4-Color Verdicts:** Luminous Emerald (`survived`), Amber (`weakened`), Rose (`broken`), Indigo (`unresolved`). Never gray or disabled.
-- [x] **Evaluator Masking:** Internal agent names (`devils_advocate`, `receipts`, `builder`) are strictly mapped to human test names (*Assumption Test*, *Evidence Test*, *Feasibility Test*).
-- [x] **Real Backend Contracts:** Aligns 1:1 with `POST /cases`, `POST /cases/{id}/confirm`, `GET /cases/{id}/stream`, and `GET /cases/{id}`.
-- [x] **Responsive & Accessible:** Clean, single-column reading layouts with full keyboard accessibility and WCAG AA contrast.
+- [x] **Tokens Only:** No hardcoded hex, px, or one-off color anywhere in a component. New colors are added to `globals.css` first.
+- [x] **Dark-First Readability:** Canvas `#0e0e11`, surfaces `#1f1f22`, text `#e4e1e6`, one blue accent `#60a5fa`.
+- [x] **No Fake Telemetry:** Every progress indicator traces to a real SSE event. Decorative canvas and rocket layers never carry state on their own.
+- [x] **Strict Verdict Colors:** Emerald (`survived`), Amber / Orange (`weakened`, split by `weakened_kind`), Rose (`broken`), Indigo (`unresolved`). Gray means *untested*, nothing else.
+- [x] **Evaluator Masking:** Internal agent ids (`devils_advocate`, `receipts`, `researcher`, `builder`, `operator`, `overthinker`) never appear in the UI — `formatTestName()` maps them to *Assumption / Evidence / Feasibility / Operational Friction Test*.
+- [x] **Real Backend Contracts:** Aligns with `POST /cases`, `/cases/{id}/clarify`, `/cases/{id}/confirm`, `GET /cases/{id}/stream`, `GET /cases/{id}`, `/cases/{id}/improve_prompt`, and `/providers/*`.
+- [x] **Responsive & Accessible:** Mobile-first single-column reading layouts, keyboard-navigable Radix primitives, WCAG AA contrast from the token palette, and `prefers-reduced-motion` honored globally.
+- [x] **Tested:** Every changed component, hook, reducer, and formatter has a unit test under `frontend/src/tests/`, and `npm run test:all` passes. See `frontend/TESTING.md`.
 

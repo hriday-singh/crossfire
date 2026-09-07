@@ -175,6 +175,12 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         error: action.payload,
       };
 
+    case "CANCEL_EXTRACTION":
+      return {
+        ...state,
+        isExtracting: false,
+      };
+
     case "SET_AGENT_MODE": {
       if (!state.currentCase) return state;
       return {
@@ -248,9 +254,36 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case "START_CLARIFYING": {
+      return {
+        ...state,
+        isExtracting: true, // This will trigger the CubeSpinner
+        activeScreen: "entry", // Need to go to entry screen to show the CubeSpinner, or just let the app handle it? Actually, EntryScreen shows CubeSpinner if isExtracting is true, but it's only rendered if activeScreen is 'entry'. So we set activeScreen to 'entry'.
+        error: null,
+      };
+    }
+
+    case "CLARIFY_FAILED_THIN_IDEA": {
+      return {
+        ...state,
+        isExtracting: false,
+        activeScreen: "entry",
+        error: {
+          stage: "clarify",
+          message: action.payload.message
+        },
+        currentCase: state.currentCase ? {
+          ...state.currentCase,
+          claims: [],
+          status: "extracting"
+        } : null
+      };
+    }
+
     case "CLARIFY_SUCCESS": {
       return {
         ...state,
+        isExtracting: false,
         currentCase: action.payload.case,
         isStreaming: action.payload.autoStarted,
         activeScreen: action.payload.autoStarted ? "dashboard" : "confirm",
@@ -619,10 +652,13 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           break;
         }
 
+        case "done":
         case "run_complete": {
           const finishTime = Date.now();
           updatedCase.status = "done";
-          updatedCase.completed_at = finishTime;
+          if (!updatedCase.completed_at) {
+            updatedCase.completed_at = finishTime;
+          }
           updatedCase.activities = [...state.activities];
           newActiveScreen = state.activeScreen === "runner" ? "runner" : "dashboard";
           newIsStreaming = false;

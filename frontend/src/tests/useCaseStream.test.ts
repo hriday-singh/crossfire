@@ -119,6 +119,13 @@ describe("useCaseStream hook", () => {
         data: JSON.stringify({ summary: "done" }),
       });
     });
+    
+    // Now trigger the final 'done' event with [DONE]
+    act(() => {
+      listeners["done"]({
+        data: "[DONE]",
+      });
+    });
 
     expect(mockClose).toHaveBeenCalled();
     expect(mockRefreshCurrentCase).toHaveBeenCalled();

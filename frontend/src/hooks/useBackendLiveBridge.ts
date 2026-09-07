@@ -300,8 +300,8 @@ export function useBackendLiveBridge({
               progress: 100,
             });
           }, Math.round(2500 * speedMultiplier));
-        } else if (event === 'run_complete') {
-          // 7. run_complete: All evaluators return to seated workstations in standby
+        } else if (event === 'run_complete' || event === 'done') {
+          // 7. run_complete / done: All evaluators return to seated workstations in standby
           Object.entries(AGENT_HOME_DESKS).forEach(([agentId, desk]) => {
             if (agentId !== 'steelman') {
               dispatchPacket({
@@ -316,6 +316,18 @@ export function useBackendLiveBridge({
                 progress: 100,
               });
             }
+          });
+
+          // Trigger Steelman exit animation to right chamber door on done signal
+          dispatchPacket({
+            speaker_id: 'steelman',
+            action: 'walk_to',
+            target: 'right_door',
+            stage: 'Synthesis Complete // Exiting Chamber',
+            thought: 'Adjudication synthesis completed. Exiting chamber...',
+            isSynthesisDone: true,
+            isLoadingDone: true,
+            progress: 100,
           });
         }
       }, delay);

@@ -134,12 +134,15 @@ async def stream_case(case_id: str) -> StreamingResponse:
         # Fast path if case has already finished and no event history exists to replay
         if case.status == "done" and not events.get_history(case_id):
             yield f"event: run_complete\ndata: {json.dumps({'case_id': case_id})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
             return
         if case.status == "error" and not events.get_history(case_id):
             yield f"event: error\ndata: {json.dumps({'stage': 'run_pipeline', 'message': 'Case previously failed'})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
             return
         if case.status == "testing" and not events.get_history(case_id):
             yield f"event: error\ndata: {json.dumps({'stage': 'run_pipeline', 'message': 'Run interrupted or server restarted'})}\n\n"
+            yield "event: done\ndata: [DONE]\n\n"
             return
 
 
@@ -155,6 +158,7 @@ async def stream_case(case_id: str) -> StreamingResponse:
             # on its own. This is the belt-and-braces terminator for a run that
             # died without closing — otherwise the client hangs on an open stream.
             if event_name in ("run_complete", "error"):
+                yield "event: done\ndata: [DONE]\n\n"
                 break
 
     return StreamingResponse(

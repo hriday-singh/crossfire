@@ -32,7 +32,7 @@ export const Header: React.FC = () => {
     ? "01 Ingestion"
     : isClaimMapActive
     ? "02 Claim Map"
-    : "03 Live View";
+    : "03 Live Runner";
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
@@ -64,12 +64,6 @@ export const Header: React.FC = () => {
               }`}
             />
             <span className="text-on-surface font-medium truncate flex items-center gap-1.5">
-              {state.engineInfo && (
-                <span className="text-[10px] font-bold text-verdict-survived uppercase tracking-wider">
-                  LIVE
-                </span>
-              )}
-              {state.engineInfo && <span className="text-outline/40">·</span>}
               <span className="truncate">
                 {formatModelName(state.engineInfo?.model)}
               </span>
@@ -132,7 +126,7 @@ export const Header: React.FC = () => {
                 : "text-on-surface-variant hover:text-on-surface cursor-pointer"
             }`}
           >
-            03 Live Runner (Live View)
+            03 Live Runner
           </button>
         </nav>
 

@@ -99,6 +99,7 @@ export type AppAction =
     }
   | { type: "EXTRACTING_SUCCESS"; payload: Case }
   | { type: "EXTRACTING_ERROR"; payload: { stage: string; message: string; details?: unknown } }
+  | { type: "CANCEL_EXTRACTION" }
   | { type: "SET_AGENT_MODE"; payload: "auto" | "custom" }
   | { type: "TOGGLE_AGENT_SELECTION"; payload: string }
   | { type: "SET_SELECTED_AGENTS"; payload: string[] }
@@ -122,6 +123,8 @@ export type AppAction =
   | { type: "SET_PREVIEW_VIEW"; payload: PreviewView }
   | { type: "EXIT_PREVIEW_MODE" }
   | { type: "ACCEPT_PROVISIONAL_CLAIM"; payload: { claimId: string } }
+  | { type: "START_CLARIFYING" }
+  | { type: "CLARIFY_FAILED_THIN_IDEA"; payload: { message: string } }
   | { type: "CLARIFY_SUCCESS"; payload: { case: Case; autoStarted: boolean } };
 
 

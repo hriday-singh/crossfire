@@ -72,6 +72,33 @@ export const ConfirmScreen: React.FC = () => {
       <div className="flex flex-col w-full">
         <div className="w-full max-w-[760px] mx-auto py-10 px-4">
 
+          {/* Error Alert */}
+          {state.error && (
+            <div
+              role="alert"
+              className="mb-4 bg-error-container/30 border border-error/50 rounded p-2 flex items-center justify-between text-error"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="material-symbols-outlined text-[16px] text-error shrink-0">
+                  error
+                </span>
+                <span className="font-body-sm text-sm">
+                  {state.error.message}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "CLEAR_ERROR" })}
+                className="text-error hover:text-on-surface p-0.5 rounded transition-colors cursor-pointer"
+                aria-label="Dismiss error"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  close
+                </span>
+              </button>
+            </div>
+          )}
+
           {/* Header Title & Subtext */}
           <div className="mb-6">
                   {currentCase.status === "needs_input" ? (
