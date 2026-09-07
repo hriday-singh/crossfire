@@ -19,6 +19,8 @@ import {
   DetectedWebUrl,
 } from "@/lib/urlUtils";
 import { SerpApiIcon } from "@/components/ui/serpapi";
+import { TechDecorations } from "@/components/features/TechDecorations";
+import SpaceStarfield from "@/components/canvas/SpaceStarfield";
 
 const MAX_PROPOSAL_CHARS = 500;
 
@@ -473,11 +475,11 @@ export const EntryScreen: React.FC = () => {
 
   if (state.isExtracting) {
     return (
-      <div className="flex flex-col w-full items-center justify-center py-24 px-space-4 gap-6">
+      <div className="fixed inset-0 w-full h-full overflow-hidden bg-[#09090b] flex flex-col items-center justify-center">
         <CubeSpinner />
         <button
           onClick={cancelExtraction}
-          className="px-6 py-2 rounded-md bg-error text-on-error font-body-sm font-semibold hover:bg-error/90 transition-colors shadow-sm"
+          className="absolute bottom-10 z-50 px-6 py-2 rounded-md bg-error text-on-error font-body-sm font-semibold hover:bg-error/90 transition-colors shadow-sm cursor-pointer"
         >
           Cancel
         </button>
@@ -486,18 +488,24 @@ export const EntryScreen: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
-      <div className="flex-1 flex flex-col items-center justify-center py-space-6 px-space-4 w-full my-auto">
+    <div className="relative flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
+      {/* Background Starfield (borders max, behind all assets, actions, characters, popups) */}
+      <SpaceStarfield className="fixed inset-0 w-full h-full pointer-events-none z-0" />
+
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-space-6 px-space-4 w-full my-auto">
         {/* Subtle Ambient Glow */}
         <div className="relative w-full max-w-[640px]">
           <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-40 bg-gradient-to-b from-primary-container/10 via-primary-container/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
           {/* Header Module */}
-          <div className="flex flex-col items-center text-center mb-space-5">
+          <div className="flex flex-col items-center text-center mb-space-3">
             <h1 className="font-headline-lg text-2xl sm:text-3xl md:text-[34px] font-bold text-on-surface tracking-tight leading-tight">
               What decision are you testing?
             </h1>
           </div>
+
+          {/* Patrolling Sentry Robot & Perched Companion Head */}
+          <TechDecorations isTyping={rawInput.trim().length > 0} />
 
           {/* Form Container */}
           <form
@@ -719,7 +727,9 @@ export const EntryScreen: React.FC = () => {
       </div>
 
       {/* Footer */}
-      <EntryFooter onOpenModal={setActiveModal} />
+      <div className="relative z-10">
+        <EntryFooter onOpenModal={setActiveModal} />
+      </div>
     </div>
   );
 };

@@ -179,7 +179,7 @@ export function DiscussionApp() {
   }
 
   return (
-    <div className="w-full min-h-[calc(100vh-3.5rem)] bg-surface-container-lowest text-on-surface flex flex-col font-sans selection:bg-primary-container/30">
+    <div className="w-full min-h-[calc(100vh-3.5rem)] bg-transparent text-on-surface flex flex-col font-sans selection:bg-primary-container/30">
       {/* Main Content Area: Simulation Stage + Side Control Panel */}
       <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row items-start gap-6">
         {/* Simulation Canvas Stage with In-World Finding / Telemetry Card */}

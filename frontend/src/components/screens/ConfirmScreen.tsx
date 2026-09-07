@@ -58,18 +58,33 @@ export const ConfirmScreen: React.FC = () => {
       <div className="flex flex-col w-full">
         <div className="w-full max-w-[760px] mx-auto py-10 px-4">
 
-          {/* Header Title & Subtext */}
-          <div className="mb-6">
-            <h1 className="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight mb-1.5">
-              We identified{" "}
-              <span className="text-primary-container" id="claim-count">
-                {currentCase.claims.length}
-              </span>{" "}
-              claims to test
-            </h1>
-            <p className="font-body-md text-body-md text-on-surface-variant">
-              Review the extracted assumptions below. You can edit, remove, or add claims before running tests.
-            </p>
+          {/* Header Title & Subtext with Judge Bot Head on the right */}
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h1 className="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight mb-1.5">
+                We identified{" "}
+                <span className="text-primary-container" id="claim-count">
+                  {currentCase.claims.length}
+                </span>{" "}
+                claims to test
+              </h1>
+              <p className="font-body-md text-body-md text-on-surface-variant">
+                Review the extracted assumptions below. You can edit, remove, or add claims before running tests.
+              </p>
+            </div>
+
+            {/* Prominent Judge Bot Head on the right */}
+            <div className="flex flex-col items-center shrink-0 p-2.5 rounded-xl bg-surface-container-low border border-red-500/30 shadow-lg" title="Crucible Arbiter / Judge Bot">
+              <div className="relative group cursor-pointer">
+                <div className="w-14 h-14 rounded-xl bg-surface-container border border-red-500/40 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.3)] group-hover:border-red-500/70 transition-colors">
+                  <img
+                    src="/judge_head.webp"
+                    alt="Judge Bot Head"
+                    className="w-11 h-11 object-contain drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] group-hover:scale-110 transition-transform"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Clean Decision Echo Card */}

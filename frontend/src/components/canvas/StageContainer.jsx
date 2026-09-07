@@ -66,13 +66,7 @@ export function StageContainer({
       onPointerLeave={handlePointerLeave}
       onMouseMove={handlePointerMove}
       onMouseLeave={handlePointerLeave}
-      className="relative w-full aspect-[1000/587] max-w-[1200px] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-surface-container-lowest flex items-center justify-center select-none"
-      style={{
-        backgroundImage: "url('/flpan.webp')",
-        backgroundSize: '100% 100%',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
+      className="relative w-full aspect-[1000/587] max-w-[1200px] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-transparent flex items-center justify-center select-none"
     >
       {/* 2.5D Bullpen Ambient Inspection Spotlight */}
       <div
@@ -89,12 +83,12 @@ export function StageContainer({
         <Application
           width={ROOM_DIMENSIONS.width}
           height={ROOM_DIMENSIONS.height}
-          backgroundColor={0x0e0e11}
+          backgroundColor={0x000000}
           backgroundAlpha={0}
           resolution={Math.min(window.devicePixelRatio || 1, 2)}
           autoDensity={true}
           antialias={true}
-          className="w-full h-full object-contain pointer-events-auto"
+          className="relative z-10 w-full h-full object-contain pointer-events-auto"
         >
           {/* Main Stage Sortable Container: sortableChildren ensures 2.5D dynamic depth layering */}
           <pixiContainer sortableChildren={true}>
