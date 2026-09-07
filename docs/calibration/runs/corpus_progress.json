@@ -1,0 +1,30 @@
+{
+  "cases": {
+    "a1-notion-migration": {
+      "band": "A",
+      "status": "done",
+      "decision_state": "proceed_with_changes",
+      "claims_count": 4,
+      "findings_count": 10,
+      "updated_at": "2026-09-07T04:35:35.701273+00:00"
+    },
+    "a2-treasury-mmf": {
+      "band": "A",
+      "status": "done",
+      "decision_state": "proceed_with_changes",
+      "claims_count": 4,
+      "findings_count": 8,
+      "updated_at": "2026-09-07T04:37:52.548983+00:00"
+    },
+    "a3-soc2": {
+      "band": "A",
+      "status": "done",
+      "decision_state": "drop",
+      "claims_count": 4,
+      "findings_count": 11,
+      "updated_at": "2026-09-07T04:40:21.182736+00:00"
+    }
+  },
+  "completed": 3,
+  "total": 15
+}

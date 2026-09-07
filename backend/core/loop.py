@@ -41,6 +41,9 @@ try:
 except ImportError:  # not landed yet — the pipeline runs without findings until it is
     dispatch = None
 
+from core.cross_examination import run_cross_examination_probes
+from core.telemetry import TelemetryTracker
+
 
 # Re-exported: agent_panel and baseline were split out of this module, and
 # `from core.loop import ...` stays the import path for everything downstream.
@@ -241,297 +244,22 @@ from core.reconcile import (  # noqa: F401
     rank_findings,
 )
 
-
-_IMPACT_BY_STATUS = {
-    ClaimStatus.BROKEN: "high",
-    ClaimStatus.UNRESOLVED: "high",
-    ClaimStatus.WEAKENED: "medium",
-    ClaimStatus.SURVIVED: "low",
-}
-
-_RECOMMENDED_CHANGE_BY_STATUS = {
-    ClaimStatus.BROKEN: "Drop or rework the assumption behind: {statement}",
-    ClaimStatus.UNRESOLVED: "Treat as an open risk until validated: {statement}",
-    ClaimStatus.WEAKENED: "Add a safeguard/caveat for: {statement}",
-    ClaimStatus.SURVIVED: "No change needed.",
-}
-
-
-def build_consequences(case: Case) -> list[DecisionConsequence]:
-    consequences = []
-    for claim in case.claims:
-        if claim.status is None:
-            continue  # not yet tested, nothing to report
-
-        impact = _IMPACT_BY_STATUS[claim.status] if claim.load_bearing else "low"
-        if claim.salvaged_claim:
-            if claim.tradeoff_acknowledged:
-                recommended_change = (
-                    f"Salvaged claim: {claim.salvaged_claim} "
-                    f"(Trade-off: {claim.tradeoff_acknowledged})"
-                )
-            else:
-                recommended_change = f"Salvaged claim: {claim.salvaged_claim}"
-        else:
-            recommended_change = _RECOMMENDED_CHANGE_BY_STATUS[claim.status].format(
-                statement=claim.statement
-            )
-
-        next_validation = None
-        if claim.load_bearing and claim.status in (ClaimStatus.BROKEN, ClaimStatus.UNRESOLVED):
-            next_validation = f"Directly test: {claim.statement}"
-
-        consequences.append(
-            DecisionConsequence(
-                claim_id=claim.id,
-                impact=impact,
-                recommended_change=recommended_change,
-                next_validation=next_validation,
-                verdict_reasoning=f"Reconciled as {claim.status.value} "
-                f"({'load-bearing' if claim.load_bearing else 'not load-bearing'}).",
-                fatal_flaw=claim.fatal_flaw,
-                salvaged_claim=claim.salvaged_claim,
-                tradeoff_acknowledged=claim.tradeoff_acknowledged,
-            )
-        )
-    return consequences
-
-
-class StrategicConsequenceOutput(BaseModel):
-    impact: str = Field(description="Impact level: 'high', 'medium', or 'low'")
-    recommended_change: str = Field(
-        description="One concrete change to the decision itself, specific to what failed. Never generic."
-    )
-    next_validation: str | None = Field(
-        default=None,
-        description="The smallest, cheapest real check that would settle this before committing. Null if survived.",
-    )
-
-
-CONSEQUENCE_SYSTEM_PROMPT = (
-    "One claim a decision rests on has been tested and did not fully hold. Say what "
-    "changes as a result. The decision may be of any kind — a purchase, a treatment, a "
-    "hire, a move, a build — so never assume a domain and never reach for business "
-    "jargon that does not fit it.\n"
-    "1. 'impact': 'high' if load-bearing and broken/unresolved, 'medium' if weakened, else 'low'.\n"
-    "2. 'recommended_change': one concrete change to this decision, in one or two "
-    "sentences, referencing what specifically failed. Not 'rework the assumption'.\n"
-    "3. 'next_validation': the smallest, cheapest real check that would settle it — "
-    "a call to make, a document to read, a small trial to run, a number to look up. "
-    "It must be something a person could start this week."
+from core.synthesis import (  # noqa: F401
+    _IMPACT_BY_STATUS,
+    _RECOMMENDED_CHANGE_BY_STATUS,
+    build_consequences,
+    StrategicConsequenceOutput,
+    CONSEQUENCE_SYSTEM_PROMPT,
+    _synthesize_single_consequence,
+    synthesize_consequences,
+    NextActionOutput,
+    CaseVerdictOutput,
+    _DECISION_STATES,
+    _fallback_decision_state,
+    CASE_VERDICT_SYSTEM_PROMPT,
+    synthesize_case_verdict,
 )
 
-
-async def _synthesize_single_consequence(
-    consequence: DecisionConsequence,
-    claim: Claim,
-    case: Case,
-    findings: list[Finding],
-    provider: LLMProvider,
-) -> DecisionConsequence:
-    if claim.status == ClaimStatus.SURVIVED:
-        return consequence
-
-    try:
-        findings_ctx = "\n".join(
-            f"- [{f.evaluator}]: result={f.result} | reasoning={f.reasoning} | contradiction={f.contradiction}"
-            for f in findings
-        )
-        mitigation_info = ""
-        if claim.fatal_flaw or claim.salvaged_claim:
-            mitigation_info = (
-                f"\nSteel Man Mitigation Analysis:\n"
-                f"- Fatal Flaw: {claim.fatal_flaw or 'None'}\n"
-                f"- Salvaged Claim: {claim.salvaged_claim or 'None'}\n"
-                f"- Trade-off Acknowledged: {claim.tradeoff_acknowledged or 'None'}"
-            )
-        result = await provider.generate(
-            system_prompt=CONSEQUENCE_SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Decision under review: {case.raw_input}\n"
-                        f"Claim: {claim.statement}\n"
-                        f"Verdict: {claim.status.value if claim.status else 'untested'} "
-                        f"(load-bearing: {claim.load_bearing})\n"
-                        f"Findings:\n{findings_ctx or 'No detailed findings.'}"
-                        f"{mitigation_info}"
-                    ),
-                }
-            ],
-            response_schema=StrategicConsequenceOutput,
-        )
-        if isinstance(result, StrategicConsequenceOutput):
-            if result.impact and result.impact.strip().lower() in {"high", "medium", "low"}:
-                consequence.impact = result.impact.strip().lower()
-            if result.recommended_change:
-                consequence.recommended_change = clamp_sentences(result.recommended_change, 2)
-            if result.next_validation is not None:
-                consequence.next_validation = clamp_sentences(result.next_validation, 2)
-    except Exception as exc:
-        logger.debug("LLM consequence synthesis bypassed for claim %s: %s", claim.id, exc)
-
-    consequence.fatal_flaw = claim.fatal_flaw
-    consequence.salvaged_claim = claim.salvaged_claim
-    consequence.tradeoff_acknowledged = claim.tradeoff_acknowledged
-    return consequence
-
-
-async def synthesize_consequences(
-    case: Case,
-    provider: LLMProvider,
-    reasonings: dict[str, str] | None = None,
-) -> list[DecisionConsequence]:
-    tasks = []
-    for consequence in case.consequences:
-        claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
-        if claim is None:
-            continue
-        claim_findings = [f for f in case.findings if f.claim_id == claim.id]
-        tasks.append(
-            _synthesize_single_consequence(consequence, claim, case, claim_findings, provider)
-        )
-    if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
-    return case.consequences
-
-
-class NextActionOutput(BaseModel):
-    action: str = Field(description="One concrete action, at most 2 sentences.")
-    claim_ids: list[str] = Field(
-        default_factory=list,
-        description="Ids of the claims this action answers, copied verbatim from the list given.",
-    )
-
-
-class CaseVerdictOutput(BaseModel):
-    decision_state: str = Field(
-        description="One of: proceed, proceed_with_changes, hold, drop"
-    )
-    summary: str = Field(description="At most 3 sentences: where the decision stands and why.")
-    next_actions: list[NextActionOutput] = Field(
-        default_factory=list,
-        description="2 to 3 merged actions covering everything that failed. No near-duplicates.",
-    )
-
-
-_DECISION_STATES = ("proceed", "proceed_with_changes", "hold", "drop")
-
-
-def _fallback_decision_state(case: Case) -> str:
-    """Used when the synthesis call fails — derived from the verdicts alone."""
-    lb = [c for c in case.claims if c.load_bearing] or case.claims
-    if any(c.status is ClaimStatus.BROKEN for c in lb):
-        return "drop"
-    if any(c.status is ClaimStatus.UNRESOLVED for c in lb):
-        return "hold"
-    if any(c.status is ClaimStatus.WEAKENED for c in lb):
-        return "proceed_with_changes"
-    return "proceed"
-
-
-CASE_VERDICT_SYSTEM_PROMPT = (
-    "You close out an adversarial review of one decision. Every claim it rests on has "
-    "already been judged individually. Produce the case-level answer, not a restatement "
-    "of the claims. The decision may be of any kind — never assume a domain.\n"
-    "- 'decision_state': 'proceed' (nothing load-bearing failed), 'proceed_with_changes' "
-    "(it survives with named modifications), 'hold' (a load-bearing claim is unproven and "
-    "must be settled first), 'drop' (a load-bearing claim was refuted by a source).\n"
-    "- 'summary': at most 3 sentences, and it is an adjudication, not a recap. "
-    "Sentence 1 names the SINGLE specific thing that decided it — a number, a source, "
-    "a rule, a cost, a contradiction — in the vocabulary of the decision itself. Not a "
-    "count of claims, not a restatement of a claim. Sentence 2 says what the decision "
-    "looks like if it survives at all, or what must be settled first. Never list claims, "
-    "never enumerate, never write 'in summary', 'overall' or 'key takeaways'.\n"
-    "- 'next_actions': 2 to 3 actions total, merged across claims. If several claims "
-    "failed for the same underlying reason, that is ONE action. Each must be concrete "
-    "enough to start this week. No near-duplicates. Set 'claim_ids' to the ids of the "
-    "claims that action answers, copied verbatim from the claim list; leave it empty if "
-    "the action answers none of them specifically."
-)
-
-
-async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerdict:
-    """One call producing the case-level state and deduped actions (Stage 4)."""
-    survived = [c.id for c in case.claims if c.status is ClaimStatus.SURVIVED]
-    broken = [c.id for c in case.claims if c.status is ClaimStatus.BROKEN]
-    weakened = [c.id for c in case.claims if c.status is ClaimStatus.WEAKENED]
-    unproven = [
-        c.id
-        for c in case.claims
-        if c.status in (ClaimStatus.WEAKENED, ClaimStatus.UNRESOLVED)
-    ]
-
-    verdict = CaseVerdict(
-        decision_state=_fallback_decision_state(case),
-        summary="",
-        survived=survived,
-        broken=broken,
-        weakened=weakened,
-        unproven=unproven,
-        next_actions=[],
-    )
-
-    claim_lines = "\n".join(
-        f"- {c.id} [{c.status.value if c.status else 'untested'}]"
-        f"{' (load-bearing)' if c.load_bearing else ''} {c.statement}"
-        for c in case.claims
-    )
-    consequence_lines = "\n".join(
-        f"- {cons.recommended_change}"
-        + (f" | check: {cons.next_validation}" if cons.next_validation else "")
-        for cons in case.consequences
-    )
-
-    try:
-        result = await provider.generate(
-            system_prompt=CASE_VERDICT_SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Decision: {case.raw_input}\n\n"
-                        f"Claim verdicts:\n{claim_lines}\n\n"
-                        f"Per-claim changes already proposed:\n{consequence_lines or 'none'}"
-                    ),
-                }
-            ],
-            response_schema=CaseVerdictOutput,
-        )
-        state = (getattr(result, "decision_state", "") or "").strip().lower()
-        if state in _DECISION_STATES:
-            verdict.decision_state = state
-        verdict.summary = clamp_sentences(getattr(result, "summary", "") or "")
-        # Dedupe defensively — the merge is the entire point of this call.
-        known_ids = {c.id for c in case.claims}
-        seen: set[str] = set()
-        for raw in getattr(result, "next_actions", []) or []:
-            action = clamp_sentences(getattr(raw, "action", "") or "", 2)
-            key = action.lower()
-            if not action or key in seen:
-                continue
-            seen.add(key)
-            # Models hallucinate ids; an unanchored action beats a dead link.
-            anchors = [
-                cid for cid in (getattr(raw, "claim_ids", []) or []) if cid in known_ids
-            ]
-            verdict.next_actions.append(NextAction(action=action, claim_ids=anchors))
-        verdict.next_actions = verdict.next_actions[:3]
-    except Exception as exc:
-        logger.warning("Case verdict synthesis failed (%s); using derived state.", exc)
-
-    if not verdict.summary:
-        verdict.summary = (
-            f"{len(survived)} claim(s) held, {len(broken)} refuted, {len(unproven)} unproven."
-        )
-    if not verdict.next_actions:
-        verdict.next_actions = [
-            NextAction(action=cons.next_validation, claim_ids=[cons.claim_id])
-            for cons in case.consequences
-            if cons.next_validation
-        ][:3]
-    return verdict
 
 
 def _degraded_finding(item: TestPlanItem, exc: BaseException) -> Finding:
@@ -620,6 +348,13 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         await events.close(case_id)
         return
 
+    tracker = TelemetryTracker()
+    tracker.record(
+        "claims_extractor",
+        prompt_text=case.raw_input,
+        output=" ".join(c.statement for c in case.claims),
+    )
+
     try:
         case.status = "testing"
         await emit_activity(case.id, "Pipeline", "Classifying load-bearing assumptions...", action="load_bearing")
@@ -636,6 +371,11 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     "reason": claim.load_bearing_reason or "",
                 },
             )
+        tracker.record(
+            "load_bearing_ranker",
+            prompt_text=case.raw_input,
+            output=" ".join(c.load_bearing_reason or "" for c in case.claims),
+        )
 
 
         case.test_plan = build_test_plan(case, panel=True, active_agents=case.selected_agents)
@@ -647,6 +387,23 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             action="test_plan",
         )
         case.findings = await run_evaluators(case, case.test_plan, provider)
+        for f in case.findings:
+            tracker.record(f.evaluator, prompt_text=f.result, output=f.reasoning)
+
+        # Phase 1.5: Targeted Cross-Examination Probes
+        try:
+            probe_findings = await run_cross_examination_probes(case, case.findings, provider)
+            if probe_findings:
+                case.findings.extend(probe_findings)
+                for pf in probe_findings:
+                    tracker.record("cross_examination", prompt_text=pf.result, output=pf.reasoning)
+                    await events.publish(
+                        case.id,
+                        "finding_ready",
+                        {"finding": pf.model_dump(), "target_claim_id": pf.claim_id},
+                    )
+        except Exception as exc:
+            logger.warning("Cross-examination stage failed (%s); proceeding with original findings.", exc)
 
         # Steelman: parallel reconcile across claims, seeing all findings for each claim.
         # One claim failing degrades that claim; every claim failing means the
@@ -684,6 +441,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 )
 
             if isinstance(verdict, SteelManVerdict):
+                tracker.record("steelman", prompt_text=clm.statement, output=verdict.reasoning)
                 gated = apply_steelman_gate(verdict, claim_findings)
                 clm.status = gated.status
                 clm.fatal_flaw = gated.fatal_flaw
@@ -692,6 +450,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 return clm, gated.status, gated.reasoning
             else:
                 st, rsn = verdict
+                tracker.record("steelman", prompt_text=clm.statement, output=rsn)
                 gated_st, gated_rsn = apply_evidence_gate(st, rsn, claim_findings)
                 clm.status = gated_st
                 return clm, gated_st, gated_rsn
@@ -765,6 +524,16 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         case.case_verdict = await synthesize_case_verdict(case, provider)
         await events.publish(
             case.id, "case_verdict", {"case_verdict": case.case_verdict.model_dump()}
+        )
+        tracker.record(
+            "synthesis",
+            prompt_text=case.raw_input,
+            output=case.case_verdict.summary if case.case_verdict else "",
+        )
+
+        case.telemetry = tracker.build_telemetry()
+        await events.publish(
+            case.id, "telemetry_ready", {"telemetry": case.telemetry.model_dump()}
         )
 
         await emit_activity(

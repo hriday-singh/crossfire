@@ -1,0 +1,265 @@
+{
+  "case_id": "a3-soc2",
+  "band": "A",
+  "raw_input": "Our SaaS will get SOC 2 Type II certified before we chase enterprise deals. We have budgeted nine months and about $45,000 including the auditor.",
+  "status": "done",
+  "wall_clock_seconds": 120.34011960029602,
+  "claims": [
+    {
+      "id": "47b90b8e-0b18-4f83-9fa3-939320fa1d31",
+      "statement": "Enterprise deals require SOC 2 Type II certification prior to active sales engagement.",
+      "status": "broken",
+      "load_bearing": true,
+      "load_bearing_reason": "If enterprise clients are actually willing to engage, run pilots, or accept a Type I report or security addendum, holding back sales engagement entirely for 9 months is an unnecessary self-imposed restriction that directly changes the strategy.",
+      "fatal_flaw": "Gating top-of-funnel sales outreach on a full SOC 2 Type II audit confuses early-stage sales engagement and pilot evaluation with final contract execution.",
+      "salvaged_claim": "Enterprise sales engagement and pilot evaluations proceed under NDA with a SOC 2 Type I report or completed security questionnaire, while deferring SOC 2 Type II compliance as a condition for final contract execution.",
+      "tradeoff_acknowledged": "Increases early-stage security review overhead per opportunity and risks pipeline drop-off at final contracting if the Type II audit encounters delays."
+    },
+    {
+      "id": "4228c2f7-613d-479e-90e5-f19a4ea57928",
+      "statement": "A SOC 2 Type II certification can be completed within a nine-month timeframe.",
+      "status": "survived",
+      "load_bearing": false,
+      "load_bearing_reason": "Nine months is a standard, realistic timeframe for a SOC 2 Type II audit (including observation period); if it takes slightly longer or shorter, it adjusts execution details rather than changing the fundamental decision to obtain certification before selling.",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    },
+    {
+      "id": "43f0f308-c4cb-4703-aca2-2aacafdff8ed",
+      "statement": "The total financial cost of obtaining SOC 2 Type II certification, including auditor fees, will not exceed $45,000.",
+      "status": "broken",
+      "load_bearing": false,
+      "load_bearing_reason": "While exceeding $45,000 creates budget pressure, it is a operational constraint that can often be absorbed via reallocations unless the overage is catastrophic; it does not automatically invalidate the core timing and go-to-market plan.",
+      "fatal_flaw": "The claim caps the total financial cost (all-in spend including tooling, pen testing, and readiness) rather than isolating primary auditor fees or scoping specifically to early-stage startups with minimal infrastructure.",
+      "salvaged_claim": "The direct external auditor fee for a baseline SOC 2 Type II audit, or total first-year compliance costs for a seed-stage startup using automation tooling, can be constrained to non-exceed $45,000.",
+      "tradeoff_acknowledged": "Restricting the scope to direct auditor fees or small-scale environments excludes internal engineering labor, advanced penetration testing options, and complex multi-trust principle scopes."
+    },
+    {
+      "id": "0da07b80-8c32-411d-adae-c138c5abc1c0",
+      "statement": "Delaying enterprise deal pursuit until SOC 2 Type II certification is secured will not unacceptably deplete cash runway or burn market opportunity.",
+      "status": "weakened",
+      "load_bearing": true,
+      "load_bearing_reason": "If waiting 9 months unacceptably drains cash or lets competitors capture the market, the decision to hold off on active sales until certified is fundamentally flawed and could destroy the business.",
+      "fatal_flaw": "Strictly gating top-of-funnel pipeline building and initial deal pursuit on the full completion of a SOC 2 Type II audit, creating an unnecessary 9-month revenue blackout during the observation period.",
+      "salvaged_claim": "Initiating enterprise pipeline engagement and closing early deals using a SOC 2 Type I report or NDA-backed bridge letter while concurrently running the 6-month SOC 2 Type II observation window will prevent runway depletion without compromising enterprise compliance requirements.",
+      "tradeoff_acknowledged": "Increased prospect-by-prospect security review friction and potential deal-closing delays during the interim period before the final Type II report is issued."
+    }
+  ],
+  "findings": [
+    {
+      "claim_id": "47b90b8e-0b18-4f83-9fa3-939320fa1d31",
+      "evaluator": "researcher",
+      "confidence": 0.85,
+      "result": "Refuted: Enterprise sales engagements, procurement reviews, and initial pilot discussions routinely proceed prior to SOC 2 Type II.",
+      "reasoning": "While 61% of enterprise clients require SOC 2 before signing contracts, sales engagement and vendor evaluations frequently begin well before a Type II audit is complete. Many enterprises accept a SOC 2 Type I report during initial sales cycles and procurement reviews, or rely on interim security questionnaires to initiate engagement. Vendors routinely engage in enterprise sales and run pilot evaluations while actively completing their 6-12 month Type II observation period.",
+      "contradiction": "The claim asserts SOC 2 Type II is required prior to 'active sales engagement', but sources confirm Type 1 reports and security questionnaires permit active sales engagement, with Type II typically required prior to final contract signing.",
+      "evidence_count": 2,
+      "source_classes": [
+        "web",
+        "web"
+      ],
+      "stances": [
+        "contradicts",
+        "context"
+      ]
+    },
+    {
+      "claim_id": "47b90b8e-0b18-4f83-9fa3-939320fa1d31",
+      "evaluator": "devils_advocate",
+      "confidence": 0.75,
+      "result": "Sales velocity collapsed because enterprise buyers run active pilots under non-disclosure agreements with SOC 2 Type I or custom security…",
+      "reasoning": "The claim rests on the false premise that enterprise procurement blocks all initial sales engagement without a Type II report. In reality, enterprise security teams regularly clear vendor pilots and contract negotiations using a SOC 2 Type I or a completed SIG questionnaire combined with NDA terms. Nine months of frozen outreach gave competitors like Vanta-backed rivals time to capture those accounts, leaving the pipeline empty.",
+      "contradiction": "Enterprise procurement rules mandate risk assessment prior to contract execution, not prior to active sales engagement or trial pilots.",
+      "evidence_count": 0,
+      "source_classes": [],
+      "stances": []
+    },
+    {
+      "claim_id": "47b90b8e-0b18-4f83-9fa3-939320fa1d31",
+      "evaluator": "operator",
+      "confidence": 0.5,
+      "result": "Gating top-of-funnel active sales engagement on SOC 2 completion creates 9 months of unnecessary pipeline drag.",
+      "reasoning": "Enterprise sales cycles routinely begin using non-disclosure agreements, security questionnaires, and SOC 3 or SOC 2 Type I reports while Type II monitoring occurs over the 9-month window. Halting active sales outreach until the $45,000 SOC 2 Type II audit completes starves the pipeline of real prospective buyer feedback and procurement requirements. Enterprise prospects routinely accept custom vendor risk assessments or security addendums to evaluate product-market fit during early sales stages.",
+      "contradiction": "Self-imposed 9-month hold on active sales engagement during the SOC 2 Type II observation period",
+      "evidence_count": 0,
+      "source_classes": [],
+      "stances": []
+    },
+    {
+      "claim_id": "47b90b8e-0b18-4f83-9fa3-939320fa1d31",
+      "evaluator": "builder",
+      "confidence": 0.05,
+      "result": "The plan is achievable; $45,000 and 9 months are realistic for a standard SOC 2 Type II audit.",
+      "reasoning": "Obtaining SOC 2 Type II requires establishing security controls over a 3-to-12 month observation window, fitting within the 9-month timeline and $45,000 budget for small teams. The baseline threat model vector is data exposure via unmonitored third-party SaaS integrations or over-privileged cloud storage buckets during audit scope evaluation. Enterprise prospects typically demand proof of SOC 2 via a continuous logging trust report to mitigate vendor spoofing and privilege escalation risks.",
+      "contradiction": null,
+      "evidence_count": 0,
+      "source_classes": [],
+      "stances": []
+    },
+    {
+      "claim_id": "4228c2f7-613d-479e-90e5-f19a4ea57928",
+      "evaluator": "researcher",
+      "confidence": 0.05,
+      "result": "Sources confirm SOC 2 Type II completion typically spans 6 to 12 months, fitting easily within a nine-month timeframe.",
+      "reasoning": "Industry guidelines from audit firms and compliance vendors specify that SOC 2 Type II implementation and auditing generally take between 6 to 12 months (or 6 to 9 months for startups). The audit window itself requires an observation period ranging from 3 to 12 months, making a total end-to-end timeline of nine months achievable.",
+      "contradiction": null,
+      "evidence_count": 2,
+      "source_classes": [
+        "web",
+        "web"
+      ],
+      "stances": [
+        "supports",
+        "supports"
+      ]
+    },
+    {
+      "claim_id": "43f0f308-c4cb-4703-aca2-2aacafdff8ed",
+      "evaluator": "researcher",
+      "confidence": 0.85,
+      "result": "Total SOC 2 Type II compliance spend regularly exceeds $45,000, with typical all-in initial costs spanning $50,000 to $100,000+.",
+      "reasoning": "Industry benchmark reports from Drata and Scrut Automation show that while standalone boutique auditor fees can start under $30,000, all-in first-year certification costs (including software platforms, gap assessments, penetration testing, and engineering labor) frequently reach $50,000 to over $100,000. A strict upper spending cap of $45,000 for total financial cost is disproven by common market benchmarks across mid-sized and enterprise SaaS organizations.",
+      "contradiction": "The total financial cost of obtaining SOC 2 Type II certification, including auditor fees, will not exceed $45,000.",
+      "evidence_count": 2,
+      "source_classes": [
+        "web",
+        "web"
+      ],
+      "stances": [
+        "contradicts",
+        "contradicts"
+      ]
+    },
+    {
+      "claim_id": "0da07b80-8c32-411d-adae-c138c5abc1c0",
+      "evaluator": "researcher",
+      "confidence": 0.85,
+      "result": "Cross-examination verified blocker: A 9-month audit window requires a full 6-month observation period after controls are built, leaving…",
+      "reasoning": "Empirical cross-examination of evaluator blocker (A 9-month audit window requires a full 6-month observation period after controls are built, leaving enterprise pipeline creation at zero for almost a year.): Waiting until procurement blocks a deal before starting SOC 2: Preparing for a SOC 2 audit takes time, and a Type 2 report generally requires an observation ...",
+      "contradiction": "A 9-month audit window requires a full 6-month observation period after controls are built, leaving enterprise pipeline creation at zero for almost a year.",
+      "evidence_count": 2,
+      "source_classes": [
+        "web",
+        "web"
+      ],
+      "stances": [
+        "contradicts",
+        "contradicts"
+      ]
+    },
+    {
+      "claim_id": "0da07b80-8c32-411d-adae-c138c5abc1c0",
+      "evaluator": "devils_advocate",
+      "confidence": 0.75,
+      "result": "A 9-month enterprise sales blackout drains runway while competitors capture pipeline using lighter initial security assurances.",
+      "reasoning": "The collapse occurred because SOC 2 Type II requires an extended observation period (typically 3 to 6 months minimum) during which operating baseline history is audited, causing total sales inertia during the 9-month blackout. Mid-market competitors operating on SOC 2 Type I or custom NDAs actively closed those targeted enterprise accounts before the certificate arrived. Enterprise procurement leads who require customized security questionnaires were never engaged early to shape the actual control framework, invalidating the $45,000 spend.",
+      "contradiction": "A 9-month audit window requires a full 6-month observation period after controls are built, leaving enterprise pipeline creation at zero for almost a year.",
+      "evidence_count": 0,
+      "source_classes": [],
+      "stances": []
+    },
+    {
+      "claim_id": "0da07b80-8c32-411d-adae-c138c5abc1c0",
+      "evaluator": "operator",
+      "confidence": 0.5,
+      "result": "Gating deal pursuit on Type II completion creates a 9-month dead period, unnecessarily stalling revenue pipeline growth.",
+      "reasoning": "Enterprise sales cycles take 6 to 18 months, meaning security evaluations happen late in the evaluation funnel rather than at prospect discovery. Waiting 9 months for a completed observation period before initiating outreach wastes runway, whereas companies typically sell against a SOC 2 Type I or NDA-backed bridge letter while Type II observation is underway. This self-imposed gatekeeping stalls pipeline velocity without reducing actual InfoSec procurement friction.",
+      "contradiction": "Self-imposed 9-month moratorium on top-of-funnel enterprise outreach prior to report completion",
+      "evidence_count": 0,
+      "source_classes": [],
+      "stances": []
+    },
+    {
+      "claim_id": "0da07b80-8c32-411d-adae-c138c5abc1c0",
+      "evaluator": "researcher",
+      "confidence": 0.35,
+      "result": "No evidence addresses cash runway depletion from SOC 2 delays, but sources note SOC 2 is required by 61% of enterprise clients.",
+      "reasoning": "The provided snippets do not contain evidence regarding cash runway depletion or burned market opportunity from delaying enterprise sales for SOC 2 Type II certification. Sources like TrustVanta note that 61% of enterprise clients require SOC 2 compliance before signing, but no source evaluates the financial or timeline impacts on runway. Zero direct evidence was found regarding the claim's core financial assertion, so confidence remains capped at 0.35.",
+      "contradiction": null,
+      "evidence_count": 4,
+      "source_classes": [
+        "web",
+        "web",
+        "web",
+        "web"
+      ],
+      "stances": [
+        "context",
+        "context",
+        "context",
+        "context"
+      ]
+    },
+    {
+      "claim_id": "0da07b80-8c32-411d-adae-c138c5abc1c0",
+      "evaluator": "builder",
+      "confidence": 0.15,
+      "result": "Securing a SOC 2 Type II certification within 9 months and $45,000 is feasible for standard SaaS operational workflows.",
+      "reasoning": "A 9-month timeframe and $45,000 budget align with average auditor fees ($20,000-$30,000) and automated compliance platform costs ($10,000-$15,000) for a standard 6-month observation window. The primary baseline threat model vector during the audit period is data exposure via unauthorized access to central log repositories or evidence-gathering read-only API integrations. Delaying enterprise sales causes minor timeline friction, but the goal is achievable with ordinary operational effort.",
+      "contradiction": null,
+      "evidence_count": 0,
+      "source_classes": [],
+      "stances": []
+    }
+  ],
+  "consequences": [
+    {
+      "claim_id": "47b90b8e-0b18-4f83-9fa3-939320fa1d31",
+      "impact": "high",
+      "recommended_change": "Begin active enterprise sales outreach immediately using SOC 2 Type I or custom security questionnaires for early procurement and pilots, deferring the Type II requirement to final contract execution.",
+      "next_validation": "Contact three prospective enterprise buyers this week to confirm if a SOC 2 Type I report or completed security questionnaire is sufficient to initiate a pilot under NDA.",
+      "verdict_reasoning": "Empirical evidence cited by Researcher demonstrates that enterprise procurement routinely permits active sales engagements and pilot evaluations under SOC 2 Type I reports or security questionnaires, with Type II only required prior to final contract execution. Enforcing a strict pre-engagement Type II block created 9 months of unnecessary pipeline starvation and market share loss to competitors. Builder's cost and timeline verification does not alter the fact that gating early-stage sales outreach on Type II completion is empirically inaccurate.",
+      "has_downgrade_note": false
+    },
+    {
+      "claim_id": "4228c2f7-613d-479e-90e5-f19a4ea57928",
+      "impact": "low",
+      "recommended_change": "No change needed.",
+      "next_validation": null,
+      "verdict_reasoning": "The Researcher's empirical evidence from industry sources confirms that SOC 2 Type II completion typically spans 6 to 12 months, with startups often achieving it in 6 to 9 months. Because the audit window requires an observation period ranging from 3 to 12 months, a nine-month end-to-end timeframe is completely achievable and supported by zero objections from the panel.",
+      "has_downgrade_note": false
+    },
+    {
+      "claim_id": "43f0f308-c4cb-4703-aca2-2aacafdff8ed",
+      "impact": "medium",
+      "recommended_change": "Increase the SOC 2 certification budget allocation from $45,000 to $75,000 to cover mandatory auxiliary costs like automated compliance software and penetration testing alongside direct auditor fees.",
+      "next_validation": "Get itemized binding quotes from two compliance automation vendors (such as Vanta or Drata) and an auditor to map total baseline fees for your current setup.",
+      "verdict_reasoning": "Empirical data from Drata and Vanta benchmarks demonstrates that total all-in SOC 2 Type II compliance costs typically range from $50,000 to over $100,000 when accounting for software platforms, pen testing, and readiness prep alongside auditor fees. A strict $45,000 cap on total spend is directly contradicted by these market averages. Consequently, the claim fails as written.",
+      "has_downgrade_note": false
+    },
+    {
+      "claim_id": "0da07b80-8c32-411d-adae-c138c5abc1c0",
+      "impact": "medium",
+      "recommended_change": "Begin enterprise outreach and initial sales conversations immediately using a SOC 2 Type I report or custom security pack as a bridge, rather than pausing sales until the 6-month Type II observation period ends.",
+      "next_validation": "Call three target enterprise IT/procurement leads this week to ask if a SOC 2 Type I report plus a bridge letter would allow us to begin a trial or security review.",
+      "verdict_reasoning": "The Researcher verified that enterprise deals require a 6-month observation period and prior audit preparation time, validating that gating outreach until final report delivery creates a total blackout window. Because enterprise security reviews occur late in the 6-to-18-month sales cycle, delaying initial top-of-funnel engagement until Type II completion burns pipeline opportunity without operational necessity. However, because 61% of enterprise clients ultimately require SOC 2 compliance to close, the core premise of needing SOC 2 for enterprise deal closure remains viable.",
+      "has_downgrade_note": false
+    }
+  ],
+  "case_verdict": {
+    "decision_state": "drop",
+    "summary": "1 claim(s) held, 2 refuted, 1 unproven.",
+    "sentence_count": 1,
+    "next_actions": [
+      {
+        "action": "Contact three prospective enterprise buyers this week to confirm if a SOC 2 Type I report or completed security questionnaire is sufficient to initiate a pilot under NDA.",
+        "claim_ids": [
+          "47b90b8e-0b18-4f83-9fa3-939320fa1d31"
+        ]
+      },
+      {
+        "action": "Get itemized binding quotes from two compliance automation vendors (such as Vanta or Drata) and an auditor to map total baseline fees for your current setup.",
+        "claim_ids": [
+          "43f0f308-c4cb-4703-aca2-2aacafdff8ed"
+        ]
+      },
+      {
+        "action": "Call three target enterprise IT/procurement leads this week to ask if a SOC 2 Type I report plus a bridge letter would allow us to begin a trial or security review.",
+        "claim_ids": [
+          "0da07b80-8c32-411d-adae-c138c5abc1c0"
+        ]
+      }
+    ]
+  }
+}

@@ -62,7 +62,16 @@ const baseCase = (verdict: CaseVerdict | null): Case => ({
 
 const verdict: CaseVerdict = {
   decision_state: "drop",
+  headline: "Containment tops out at 65%, not 100%.",
   summary: "Real tier-1 containment tops out at 45-65%, not the 100% the plan assumes.",
+  deciding_factor: {
+    claim_id: "c1",
+    evaluator: "receipts",
+    the_fact: "Benchmarks put tier-1 containment at 45-65%, not 100%.",
+    source_url: "https://example.com/cx-trends",
+    source_title: "Zendesk CX Trends 2024",
+    gate_fired: false,
+  },
   survived: ["c3"],
   broken: ["c1"],
   unproven: ["c2"],
@@ -78,10 +87,11 @@ describe("VerdictBlock", () => {
     ["hold", "Not decidable yet."],
     ["proceed_with_changes", "Survives, but only with changes."],
     ["proceed", "Holds up."],
-  ])("renders the headline for decision_state %s", (state, headline) => {
+  ])("falls back to the static headline for decision_state %s", (state, headline) => {
+    // headline: "" is what an older run, or a failed synthesis call, sends.
     render(
       <VerdictBlock
-        currentCase={baseCase({ ...verdict, decision_state: state })}
+        currentCase={baseCase({ ...verdict, decision_state: state, headline: "" })}
         onSelectClaim={vi.fn()}
         isTesting={false}
       />
@@ -89,7 +99,16 @@ describe("VerdictBlock", () => {
     expect(screen.getByText(headline)).toBeInTheDocument();
   });
 
-  it("renders the summary, counts, and the deciding sentence with its source", () => {
+  it("prefers the generated headline over the static one", () => {
+    render(
+      <VerdictBlock currentCase={baseCase(verdict)} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    expect(screen.getByText("Containment tops out at 65%, not 100%.")).toBeInTheDocument();
+    expect(screen.queryByText("Don't proceed as written.")).not.toBeInTheDocument();
+  });
+
+  it("renders the summary, counts, and the deciding fact with its source", () => {
     render(
       <VerdictBlock currentCase={baseCase(verdict)} onSelectClaim={vi.fn()} isTesting={false} />
     );
@@ -97,14 +116,26 @@ describe("VerdictBlock", () => {
     expect(screen.getByText(verdict.summary)).toBeInTheDocument();
     expect(screen.getByText("1 refuted · 1 unproven · 1 held")).toBeInTheDocument();
     expect(
-      screen.getByText("Real tier-1 containment tops out at 45-65%, not 100%.")
+      screen.getByText("Benchmarks put tier-1 containment at 45-65%, not 100%.")
     ).toBeInTheDocument();
-    expect(screen.getByText("Zendesk CX Trends 2024")).toBeInTheDocument();
-    // Only the two claims that failed are listed.
+    expect(screen.getByText(/Zendesk CX Trends 2024/)).toBeInTheDocument();
     expect(screen.queryByText("Ticket volume stays flat")).not.toBeInTheDocument();
   });
 
-  it("opens the drawer on the claim behind a broken row", () => {
+  it("keeps the deciding claim out of the collapsed list so it is not shown twice", () => {
+    render(
+      <VerdictBlock currentCase={baseCase(verdict)} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    // c1 is the deciding claim and is already rendered above the disclosure.
+    expect(screen.getByText("1 more claim didn't hold")).toBeInTheDocument();
+    expect(
+      screen.queryByText("The agent handles 100% of tier-1 without escalation")
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Token cost beats support salaries")).toBeInTheDocument();
+  });
+
+  it("opens the drawer on the claim behind the deciding fact", () => {
     const onSelectClaim = vi.fn();
     render(
       <VerdictBlock
@@ -114,8 +145,58 @@ describe("VerdictBlock", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("The agent handles 100% of tier-1 without escalation"));
+    fireEvent.click(screen.getByText("Benchmarks put tier-1 containment at 45-65%, not 100%."));
     expect(onSelectClaim).toHaveBeenCalledWith("c1");
+  });
+
+  it("opens the drawer on a claim inside the collapsed list", () => {
+    const onSelectClaim = vi.fn();
+    render(
+      <VerdictBlock
+        currentCase={baseCase(verdict)}
+        onSelectClaim={onSelectClaim}
+        isTesting={false}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Token cost beats support salaries"));
+    expect(onSelectClaim).toHaveBeenCalledWith("c2");
+  });
+
+  it("says the panel could not cite it when the evidence gate fired", () => {
+    const gated = {
+      ...verdict,
+      deciding_factor: { ...verdict.deciding_factor!, gate_fired: true },
+    };
+    render(
+      <VerdictBlock currentCase={baseCase(gated)} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    expect(
+      screen.getByText("Not refuted — the panel attacked this but no source backed it.")
+    ).toBeInTheDocument();
+  });
+
+  it("hides the gate note when the gate did not fire", () => {
+    render(
+      <VerdictBlock currentCase={baseCase(verdict)} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    expect(screen.queryByText(/no source backed it/)).not.toBeInTheDocument();
+  });
+
+  it("lists every failed claim when the run carries no deciding factor", () => {
+    // Older runs have no deciding_factor; nothing may be dropped from the page.
+    const legacy = { ...verdict, deciding_factor: null };
+    render(
+      <VerdictBlock currentCase={baseCase(legacy)} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    expect(screen.getByText("2 more claims didn't hold")).toBeInTheDocument();
+    expect(
+      screen.getByText("The agent handles 100% of tier-1 without escalation")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Token cost beats support salaries")).toBeInTheDocument();
   });
 
   it("anchors an action to its first claim and leaves an unanchored one plain", () => {

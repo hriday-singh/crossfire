@@ -21,6 +21,7 @@ from evidence.search import (
     build_competitor_query,
     build_query,
     classify_source,
+    reformulate_query,
     search_evidence,
     source_class_to_tier,
 )
@@ -60,7 +61,11 @@ class ResearcherAssessment(BaseModel):
     confidence: float = Field(
         ge=0.0,
         le=1.0,
-        description="Confidence score between 0.0 and 1.0. Capped at <= 0.5 for Marketing Mirage (only Tier 3), and <= 0.35 if zero evidence.",
+        description=(
+            "Objection strength against the claim, 0.0-1.0 — NOT how sure you are of your own "
+            "reading. Sources that SUPPORT the claim score 0.0-0.1 no matter how strong they are. "
+            "Capped at <= 0.5 for Marketing Mirage (only Tier 3), and <= 0.35 if zero evidence."
+        ),
     )
     contradiction: str | None = Field(
         default=None,
@@ -103,6 +108,10 @@ RESEARCHER_SYSTEM_PROMPT = (
     "1. Judge only from the snippets provided. Never fill gaps from memory.\n"
     "2. Finding nothing is not refutation. With no relevant source, say so plainly and keep confidence at or below 0.35, "
     "and leave 'contradiction' null.\n"
+    "2a. Your 'confidence' is objection strength, not certainty. If the sources you found "
+    "SUPPORT the claim, score 0.0-0.1 — a well-sourced confirmation is a weak objection, and "
+    "scoring it high would rank it above findings that actually damage the claim. Score high "
+    "only when a source says something the claim cannot survive.\n"
     "3. Populate 'contradiction' ONLY when a specific source states something the claim cannot survive, or when noting 'Data Staleness'.\n"
     "4. A Tier 1 primary/official source outweighs a Tier 2 forum or Tier 3 blog post saying the opposite.\n"
     "5. In 'cited', list only the sources you actually relied on, each marked 'supports', 'contradicts' or 'context'. Leave out the ones you ignored."
@@ -216,6 +225,32 @@ async def run_researcher(
                     existing_urls.add(item_ev.source_url)
         except Exception as exc:
             logger.warning(f"Competitor triangulation search failed: {exc}")
+
+    # Iterative Search Loop (ReAct / Query Reformulation):
+    # If the initial search (and competitor check) returned 0 sources,
+    # autonomously diagnose and reformulate the search query rather than immediately bailing.
+    if not evidence_items:
+        prev_q = build_query(claim.statement)
+        try:
+            refined_q = await reformulate_query(claim.statement, prev_q)
+            if refined_q and refined_q.strip().lower() != prev_q.strip().lower():
+                if case_id:
+                    try:
+                        from core.activity import emit_activity
+                        await emit_activity(
+                            case_id,
+                            tag="Evidence Test",
+                            text=f'Iterative Search: Reformulating query to "{refined_q}"',
+                            claim_id=claim.id,
+                            action="search",
+                        )
+                    except Exception:
+                        pass
+                iter_items = await search_evidence(claim, query_override=refined_q)
+                if iter_items:
+                    evidence_items = iter_items
+        except Exception as exc:
+            logger.warning(f"Iterative search pass failed: {exc}")
 
     if case_id and evidence_items:
         try:

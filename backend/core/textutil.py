@@ -24,6 +24,35 @@ SPECIFICITY_RULE = (
     "for an unrelated decision."
 )
 
+# Every evaluator's `confidence` field means ONE thing: how hard this finding
+# argues AGAINST the claim. Not "how sure am I of my own analysis" — that scale
+# is unrankable across evaluators, because a Researcher who is certain the claim
+# is FINE would score high on it and then sort above a Builder who found a hard
+# blocker (see rank_findings). Objection strength is comparable; certainty is not.
+#
+# The 0.0-0.1 band is the important one. Without it a persona has no way to say
+# "nothing here", so it invents friction to fill the field, and every claim
+# collects four objections regardless of quality.
+OBJECTION_SCALE = (
+    "Calibrated objection strength ('confidence'):\n"
+    "This float is NOT how sure you are of your own analysis. It is how hard "
+    "your finding argues AGAINST the claim. Use the full range:\n"
+    "- 0.0 to 0.1: No real objection. The claim is sound on your dimension, or "
+    "the friction you found is the ordinary cost of doing this kind of thing. "
+    "USE THIS BAND. A claim that is genuinely fine must be scoreable as fine, "
+    "and inventing a token concern to avoid a low score is a failure.\n"
+    "- 0.2 to 0.35: A real but minor issue, cheaply mitigated, that does not "
+    "change whether the decision goes ahead.\n"
+    "- 0.4 to 0.6: A substantive problem that changes the shape of the decision "
+    "— it needs a named fix, a scope cut, or more budget.\n"
+    "- 0.7 to 0.85: Severe. The claim as written probably does not hold without "
+    "restructuring.\n"
+    "- 0.9 to 1.0: Fatal. The claim contradicts a hard limit — physical, "
+    "mathematical, statutory, or contractual.\n"
+    "If the proposal names its own mitigation for a risk, that risk is not an "
+    "objection to it. Do not score the failure the proposal already handles."
+)
+
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 

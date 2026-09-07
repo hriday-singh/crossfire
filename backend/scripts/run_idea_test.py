@@ -12,6 +12,7 @@ Runs the full end-to-end Python pipeline internally:
   5. GET /cases/{id} -> prints formatted Decision Memo and verdicts
 """
 import asyncio
+import json
 import os
 import sys
 
@@ -33,7 +34,7 @@ DEFAULT_PROPOSITION = (
     "AI agent to reduce support department operating costs to zero."
 )
 
-async def run_pipeline_test(proposition: str):
+async def run_pipeline_test(proposition: str, dump_path: str | None = None):
     print("=" * 76)
     print("CROSSFIRE INTERNAL IDEA TEST RUNNER")
     print("=" * 76)
@@ -97,6 +98,11 @@ async def run_pipeline_test(proposition: str):
             return
 
         final = get_res.json()
+        if dump_path:
+            os.makedirs(os.path.dirname(os.path.abspath(dump_path)), exist_ok=True)
+            with open(dump_path, "w", encoding="utf-8") as fh:
+                json.dump(final, fh, indent=2, ensure_ascii=False)
+            print(f"    --> Raw case JSON written to {dump_path}")
         print("=" * 76)
         print("DECISION MEMO RESULTS")
         print("=" * 76)
@@ -138,4 +144,5 @@ async def run_pipeline_test(proposition: str):
 
 if __name__ == "__main__":
     prop = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PROPOSITION
-    asyncio.run(run_pipeline_test(prop))
+    dump = sys.argv[2] if len(sys.argv) > 2 else None
+    asyncio.run(run_pipeline_test(prop, dump))

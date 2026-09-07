@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import pytest
 from core.evaluators.operator import OperatorVerdict, run_operator
@@ -46,7 +46,7 @@ async def test_run_operator_handles_friction_none(
 
     assert finding.evaluator == "operator"
     assert finding.contradiction is None
-    assert finding.confidence == 0.9
+    assert finding.confidence <= 0.1
 
 
 @pytest.mark.asyncio

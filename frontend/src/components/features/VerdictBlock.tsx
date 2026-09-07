@@ -4,9 +4,12 @@ import { cleanUiText } from "@/lib/formatters";
 import { SerpApiText } from "@/components/ui/serpapi";
 
 /**
- * Layer 0-1 of the dashboard: the call, the single thing that forced it, and
- * what to do before committing. Everything here is anchored - every row and
- * every action clicks through to the claim whose test produced it.
+ * The call, the one fact that forced it, and what to do before committing.
+ *
+ * Everything on this page is anchored — every row clicks through to the claim
+ * whose test produced it. Only three things sit above the fold; the remaining
+ * failed claims are one disclosure down, because a flat list of every failure
+ * gives the reader no way to tell which one actually decided the case.
  */
 
 interface VerdictBlockProps {
@@ -15,6 +18,8 @@ interface VerdictBlockProps {
   isTesting: boolean;
 }
 
+// The floor when the backend could not generate a headline for this case.
+// Kept in sync with synthesis.FALLBACK_HEADLINES.
 const HEADLINES: Record<string, string> = {
   drop: "Don't proceed as written.",
   hold: "Not decidable yet.",
@@ -41,6 +46,15 @@ const STATUS_COLORS: Record<string, string> = {
   weakened: "text-tertiary",
   unresolved: "text-secondary",
   survived: "text-primary-container",
+};
+
+const EVALUATOR_NAMES: Record<string, string> = {
+  devils_advocate: "Devil's Advocate",
+  receipts: "Researcher",
+  researcher: "Researcher",
+  builder: "Builder",
+  operator: "Operator",
+  overthinker: "Operator",
 };
 
 // Same ordering the claim list uses: load-bearing first, then worst outcome first.
@@ -80,19 +94,28 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
     );
   }
 
-  const headline = HEADLINES[verdict.decision_state] ?? "Result";
+  // Generated per case; the static map is only the floor for older runs and for
+  // synthesis failures. Four fixed strings read identically across unrelated
+  // decisions, which is exactly what this replaces.
+  const headline =
+    cleanUiText(verdict.headline || "") || HEADLINES[verdict.decision_state] || "Result";
   const headlineColor = HEADLINE_COLORS[verdict.decision_state] ?? "text-on-surface";
+
+  const deciding = verdict.deciding_factor ?? null;
 
   const failedClaims = rankClaims(
     currentCase.claims.filter((c) => c.status && c.status !== "survived")
   );
+  // The deciding claim is already shown in full above; repeating it in the list
+  // below is the duplication that made this page feel long.
+  const otherFailedClaims = failedClaims.filter((c) => c.id !== deciding?.claim_id);
+
+  const decidingClaim = deciding
+    ? currentCase.claims.find((c) => c.id === deciding.claim_id)
+    : undefined;
 
   const decidingSentence = (claimId: string) =>
     currentCase.consequences.find((c) => c.claim_id === claimId)?.verdict_reasoning || "";
-
-  const sourceCredit = (claimId: string) =>
-    currentCase.findings.find((f) => f.claim_id === claimId && f.evidence.length > 0)
-      ?.evidence[0]?.title || "";
 
   const claimsWithStatus = currentCase.claims.filter((c) => c.status);
   const hasClaimStatuses = claimsWithStatus.length > 0;
@@ -125,12 +148,12 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
       aria-label="Verdict"
       className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-5 space-y-space-5"
     >
-      {/* Layer 0 - the call */}
+      {/* The call */}
       <div className="space-y-space-2">
         <h2
           className={`font-headline-lg text-headline-lg font-semibold leading-tight ${headlineColor}`}
         >
-          {headline}
+          <SerpApiText text={headline} />
         </h2>
         <p className="font-body-md text-body-md text-on-surface leading-relaxed">
           <SerpApiText text={cleanUiText(verdict.summary)} />
@@ -140,54 +163,52 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
         )}
       </div>
 
-      {/* Layer 1 - what broke it */}
-      {failedClaims.length > 0 && (
+      {/* What decided it — one finding, resolved server-side */}
+      {deciding && (
         <div className="space-y-space-2">
           <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">
-            What broke it
+            What decided it
           </h3>
-          <ul className="space-y-space-2">
-            {failedClaims.map((claim) => {
-              const reasoning = decidingSentence(claim.id);
-              const source = sourceCredit(claim.id);
-              return (
-                <li key={claim.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectClaim(claim.id)}
-                    className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between gap-space-3">
-                      <span className="font-body-md text-body-md text-on-surface">
-                        <SerpApiText text={cleanUiText(claim.statement)} />
-                      </span>
-                      <span
-                        className={`font-code-sm text-code-sm font-semibold shrink-0 ${
-                          STATUS_COLORS[claim.status || ""] || "text-outline"
-                        }`}
-                      >
-                        {STATUS_WORDS[claim.status || ""] || "Untested"}
-                      </span>
-                    </div>
-                    {reasoning && (
-                      <p className="mt-1 font-body-md text-body-md text-on-surface-variant leading-relaxed">
-                        <SerpApiText text={cleanUiText(reasoning)} />
-                      </p>
-                    )}
-                    {source && (
-                      <p className="mt-1 font-code-sm text-code-sm text-outline">
-                        <SerpApiText text={cleanUiText(source)} />
-                      </p>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <button
+            type="button"
+            onClick={() => onSelectClaim(deciding.claim_id)}
+            className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
+          >
+            <div className="flex items-start justify-between gap-space-3">
+              <span className="font-body-md text-body-md text-on-surface">
+                <SerpApiText text={cleanUiText(deciding.the_fact)} />
+              </span>
+              {decidingClaim?.status && (
+                <span
+                  className={`font-code-sm text-code-sm font-semibold shrink-0 ${
+                    STATUS_COLORS[decidingClaim.status] || "text-outline"
+                  }`}
+                >
+                  {STATUS_WORDS[decidingClaim.status] || "Untested"}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 font-code-sm text-code-sm text-outline">
+              {EVALUATOR_NAMES[deciding.evaluator] || deciding.evaluator}
+              {deciding.source_title ? (
+                <>
+                  {" · "}
+                  <SerpApiText text={cleanUiText(deciding.source_title)} />
+                </>
+              ) : null}
+            </p>
+            {/* Where the panel attacked but nobody could cite it. Showing the
+                refusal is the point: it is the opposite of a model that agrees. */}
+            {deciding.gate_fired && (
+              <p className="mt-1 font-code-sm text-code-sm text-secondary">
+                Not refuted — the panel attacked this but no source backed it.
+              </p>
+            )}
+          </button>
         </div>
       )}
 
-      {/* Layer 1 - what to do about it */}
+      {/* What to do about it */}
       {verdict.next_actions.length > 0 && (
         <div className="space-y-space-2">
           <h3 className="font-code-sm text-code-sm text-on-surface-variant font-semibold">
@@ -219,6 +240,51 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
             })}
           </ul>
         </div>
+      )}
+
+      {/* Everything else that failed. Native disclosure: keyboard and screen
+          reader support for free, and no open/closed state to keep in sync. */}
+      {otherFailedClaims.length > 0 && (
+        <details className="group">
+          <summary className="font-code-sm text-code-sm text-on-surface-variant font-semibold cursor-pointer list-none inline-flex items-center gap-1 hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined text-[16px] transition-transform group-open:rotate-90">
+              chevron_right
+            </span>
+            {otherFailedClaims.length} more claim{otherFailedClaims.length > 1 ? "s" : ""} didn't hold
+          </summary>
+          <ul className="mt-space-2 space-y-space-2">
+            {otherFailedClaims.map((claim) => {
+              const reasoning = decidingSentence(claim.id);
+              return (
+                <li key={claim.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectClaim(claim.id)}
+                    className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-space-3">
+                      <span className="font-body-md text-body-md text-on-surface">
+                        <SerpApiText text={cleanUiText(claim.statement)} />
+                      </span>
+                      <span
+                        className={`font-code-sm text-code-sm font-semibold shrink-0 ${
+                          STATUS_COLORS[claim.status || ""] || "text-outline"
+                        }`}
+                      >
+                        {STATUS_WORDS[claim.status || ""] || "Untested"}
+                      </span>
+                    </div>
+                    {reasoning && (
+                      <p className="mt-1 font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                        <SerpApiText text={cleanUiText(reasoning)} />
+                      </p>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
       )}
     </section>
   );

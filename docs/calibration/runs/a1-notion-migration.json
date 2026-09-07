@@ -1,0 +1,393 @@
+{
+  "id": "7afe7643-5f24-42a6-ad91-406a244a1dea",
+  "raw_input": "We're moving our 12-person engineering team's internal docs from Confluence to Notion over one weekend, keeping Confluence in read-only mode for six months as a fallback before we cancel the licence.",
+  "context": null,
+  "claims": [
+    {
+      "id": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "statement": "A 12-person engineering team can complete the migration of all critical internal documentation from Confluence to Notion within two days.",
+      "load_bearing": true,
+      "load_bearing_reason": "If the team cannot complete the migration over a single weekend, the execution plan immediately breaks down, causing immediate operational disruption.",
+      "status": "weakened",
+      "fatal_flaw": "Assuming that rich metadata, complex macro diagrams, and relative internal links can be fully repaired and validated across all critical docs within the 48-hour automated import window.",
+      "salvaged_claim": "A 12-person engineering team can complete the automated bulk ingestion of critical Confluence text and page structures into Notion over a two-day weekend, deferring link and macro remediation to post-migration sprint allocations.",
+      "tradeoff_acknowledged": "Accepts temporary link rot, formatting defects, and dual-system lookup overhead in exchange for hitting the strict 48-hour migration deadline."
+    },
+    {
+      "id": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "statement": "Notion's search, organization, and feature set can adequately replace Confluence's functionality for this engineering team without disrupting ongoing development workflows.",
+      "load_bearing": true,
+      "load_bearing_reason": "If Notion's feature set and search cannot adequately replace Confluence for core engineering workflows, the decision to migrate tools fails at a foundational level.",
+      "status": "weakened",
+      "fatal_flaw": "Loss of native, dynamic Jira-to-documentation workflow integration and space-wide permission search visibility without manual governance.",
+      "salvaged_claim": "Notion's search and organization can replace Confluence for engineering documentation if Jira integration requirements are decoupled via third-party sync connectors (e.g., Unito) and a standardized workspace template with default workspace-wide page read permissions is enforced.",
+      "tradeoff_acknowledged": "Incurs additional third-party middleware subscription costs and introduces operational overhead for maintaining workspace permission rules."
+    },
+    {
+      "id": "04a6a60e-eda1-4253-a9eb-0403368750d4",
+      "statement": "Maintaining Confluence in read-only mode for six months provides a sufficient safety net while preventing significant dual-licensing or maintenance overhead.",
+      "load_bearing": false,
+      "load_bearing_reason": "If read-only mode proves insufficient or too costly, it affects the risk mitigation strategy and fallback cost, but it does not fundamentally invalidate the primary decision to switch tools.",
+      "status": "unresolved",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    },
+    {
+      "id": "4f16217f-3f70-4a69-ae53-eaf7492dc19d",
+      "statement": "Team members will adopt Notion as their primary documentation tool without persistent workflow friction or reliance on the archived Confluence instance.",
+      "load_bearing": false,
+      "load_bearing_reason": "If adoption fails and team members face persistent friction, the migration's long-term utility is severely compromised, though it is secondary to basic functional parity and execution capability.",
+      "status": "unresolved",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    }
+  ],
+  "test_plan": [
+    {
+      "id": "591f78a5-0b2e-498a-9ac5-8dd1435cc08d",
+      "target_claim": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "failure_mode": "assumption",
+      "objective": "Stress-test the implicit premises and counter-incentives behind: A 12-person engineering team can complete the migration of all critical internal documentation from Confluence to Notion within two days."
+    },
+    {
+      "id": "bd2f2f69-dd2b-401e-a89b-2ab520393ef0",
+      "target_claim": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: A 12-person engineering team can complete the migration of all critical internal documentation from Confluence to Notion within two days."
+    },
+    {
+      "id": "e9dc2d92-c711-4b7f-b9c6-e0e62266c07d",
+      "target_claim": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "failure_mode": "feasibility",
+      "objective": "Assess what it concretely takes to make this true, and what blocks it: A 12-person engineering team can complete the migration of all critical internal documentation from Confluence to Notion within two days."
+    },
+    {
+      "id": "c64044db-554c-4d70-bfa8-74c932231336",
+      "target_claim": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "failure_mode": "operational_friction",
+      "objective": "Stress-test adoption inertia, enterprise red tape, regulatory liability, and process drag: A 12-person engineering team can complete the migration of all critical internal documentation from Confluence to Notion within two days."
+    },
+    {
+      "id": "cd505978-5583-4974-a65a-6f062290f9bc",
+      "target_claim": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "failure_mode": "assumption",
+      "objective": "Stress-test the implicit premises and counter-incentives behind: Notion's search, organization, and feature set can adequately replace Confluence's functionality for this engineering team without disrupting ongoing development workflows."
+    },
+    {
+      "id": "56506092-7084-4c91-9554-8b47e51538f6",
+      "target_claim": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: Notion's search, organization, and feature set can adequately replace Confluence's functionality for this engineering team without disrupting ongoing development workflows."
+    },
+    {
+      "id": "f09fe6bc-1cfd-4178-858b-933498b8833f",
+      "target_claim": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "failure_mode": "feasibility",
+      "objective": "Assess what it concretely takes to make this true, and what blocks it: Notion's search, organization, and feature set can adequately replace Confluence's functionality for this engineering team without disrupting ongoing development workflows."
+    },
+    {
+      "id": "b3f289ab-d206-4dc8-912f-08f7ab62b833",
+      "target_claim": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "failure_mode": "operational_friction",
+      "objective": "Stress-test adoption inertia, enterprise red tape, regulatory liability, and process drag: Notion's search, organization, and feature set can adequately replace Confluence's functionality for this engineering team without disrupting ongoing development workflows."
+    },
+    {
+      "id": "986786bf-8a51-4640-83fe-3ce989a8a67d",
+      "target_claim": "04a6a60e-eda1-4253-a9eb-0403368750d4",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: Maintaining Confluence in read-only mode for six months provides a sufficient safety net while preventing significant dual-licensing or maintenance overhead."
+    },
+    {
+      "id": "e92f716d-2cef-456f-a6fc-44dfd93bef9b",
+      "target_claim": "4f16217f-3f70-4a69-ae53-eaf7492dc19d",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: Team members will adopt Notion as their primary documentation tool without persistent workflow friction or reliance on the archived Confluence instance."
+    }
+  ],
+  "findings": [
+    {
+      "claim_id": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "test_id": "c64044db-554c-4d70-bfa8-74c932231336",
+      "evaluator": "operator",
+      "result": "Migrating all critical docs in two days underestimates manual formatting, broken links, and permission mapping drag.",
+      "evidence": [],
+      "reasoning": "A two-day timeline for a 12-person team ignores the heavy process drag of re-linking embedded code snippets, remapping granular space permissions, and cleaning up legacy pages. Engineers will face immediate incentive misalignment, abandoning doc cleanup under sprint pressure to push features instead. The six-month read-only Confluence safety net creates redundant searching and knowledge fragmentation rather than a clean cutover.",
+      "confidence": 0.85,
+      "contradiction": "Manual cleanup and link restoration across migrated pages will drag beyond the two-day weekend deadline."
+    },
+    {
+      "claim_id": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "test_id": "591f78a5-0b2e-498a-9ac5-8dd1435cc08d",
+      "evaluator": "devils_advocate",
+      "result": "Unstated premise that links and formatting import cleanly fails, leaving critical API docs broken past the two-day window.",
+      "evidence": [],
+      "reasoning": "In the 12-month post-mortem, engineers abandoned Notion because relative page links, embedded code blocks, and diagrams from Confluence corrupted during the automated import over the weekend. Atlassian product owners lose renewal revenue, but internally, senior engineers actively resist manually fixing ruined docs because re-authoring metadata steals sprint time from product features. The team lacked concrete automated tools to validate document integrity across all pages, leading to immediate context loss and reliance on the read-only Confluence fallback.",
+      "confidence": 0.8,
+      "contradiction": "A manual or automated bulk export/import of rich Confluence schema into Notion does not preserve relative links and embedded macros intact within a 48-hour window for 12 engineers."
+    },
+    {
+      "claim_id": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "test_id": "bd2f2f69-dd2b-401e-a89b-2ab520393ef0",
+      "evaluator": "researcher",
+      "result": "No evidence found confirming or refuting a 12-person engineering team migrating Confluence to Notion in two days.",
+      "evidence": [
+        {
+          "source_url": "https://ones.com/blog/team-task-management-without-burnout-a-workflow-guide/",
+          "title": "Team Task Management Without Burnout: A Workflow Guide",
+          "snippet": "Assistant \nAI\nAI assistant for project delivery\nONES MCP \nAI\nAI protocol connecting projects, wikis, and worklogs\nBacklog\nManage and prioritize product requirements\nTask\nTrack and organize work items\nRequirement\nDefine and manage project requirements\nGantt\nVisualize project timelines and dependencies\nKanban\nVisualize workflows and remove bottlenecks with customizable Kanban boards\nBug Tracking\nMonitor bugs from discovery to resolution\nReporting\nGenerate insights and analytics\nResource Planning\nOptimize team capacity and workload\nCode Integration\nConnect development tools and.",
+          "retrieved_at": "2026-09-07T04:32:33.263131+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://clickup.com/learn/topic/operations/people/skills-matrix/examples/",
+          "title": "Skills Matrix Examples: 5 Real Templates by Team Type (2026)",
+          "snippet": "Start with the SOP guide →\n\n                                    People & Knowledge                                    \nPeople Ops\nView all people ops →\nKnowledge\nView all knowledge →\nMOST POPULAR\nEmployee Onboarding Guide\nThe complete onboarding framework from pre-boarding through the first 90 days. CT\nBy \nClickUp Editorial Team\n·\nStaff Writers at ClickUp\n← Skills Matrix\nSkills Matrix\nPage 1 of 1\n1\nSkills Matrix Examples: 5 Real Templates by Team Type\nTry ClickUp Free\nWhen You Would Build This\nEach example represents a real team scenario: a 10 person software engineering team preparing for a.",
+          "retrieved_at": "2026-09-07T04:32:33.263131+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.glitter.io/blog/knowledge-sharing/documentation-culture",
+          "title": "Building a Documentation Culture in Your Team",
+          "snippet": "Proven strategies for building a documentation culture that actually works. Learn how to get your team documenting without resistance.",
+          "retrieved_at": "2026-09-07T04:32:33.263131+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://envadel.com/en/blog/004-build-operate-transfer-enterprise-guide/",
+          "title": "Build-Operate-Transfer for Enterprise: A CTO's Complete Guide",
+          "snippet": "Build: Assembled a 12-person team (React, Node.js, PostgreSQL, AWS) in 6 weeks; Operate: Delivered the full POS migration across 200+ locations over 10 months ...",
+          "retrieved_at": "2026-09-07T04:32:33.263131+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        }
+      ],
+      "reasoning": "The retrieved sources discuss general task management, skills matrices, documentation culture, and build-operate-transfer POS migrations, but none mention Confluence to Notion migration timelines. Without relevant evidence in the provided snippets, no claim about this two-day migration timeline can be verified. I have no concrete specifics or empirical migration benchmarks drawn from the evidence.",
+      "confidence": 0.35,
+      "contradiction": null
+    },
+    {
+      "claim_id": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "test_id": "e9dc2d92-c711-4b7f-b9c6-e0e62266c07d",
+      "evaluator": "builder",
+      "result": "A 12-person engineering team can complete a Confluence to Notion documentation migration over a single weekend.",
+      "evidence": [],
+      "reasoning": "Notion provides built-in automated import tools specifically for Confluence spaces that handle pages, attachments, and permissions mapping out of the box. The main operational risk is accidental data exposure due to mismatched page permission hierarchies between Confluence groups and Notion workspaces after bulk ingestion. Retaining Confluence in read-only mode for 6 months provides a immediate safety net for any missed links or formatting gaps.",
+      "confidence": 0.05,
+      "contradiction": null
+    },
+    {
+      "claim_id": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "test_id": "56506092-7084-4c91-9554-8b47e51538f6",
+      "evaluator": "researcher",
+      "result": "Notion handles basic technical specs, but search limits and missing Atlassian integrations risk disrupting engineering workflows.",
+      "evidence": [
+        {
+          "source_url": "https://ones.com/blog/notion-vs-confluence-comparison-8-features-tested-head-to-head/",
+          "title": "Notion vs Confluence Comparison: 8 Features Tested ...",
+          "snippet": "Can Notion replace Confluence for technical documentation? Yes, Notion's code blocks, API, and nested pages handle most technical specs well.",
+          "retrieved_at": "2026-09-07T04:32:33.487329+00:00",
+          "stance": "supports",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.reddit.com/r/Notion/comments/1f7s4uk/notion_vs_confluence_vs_something_else_for_small/",
+          "title": "Notion vs Confluence vs something else for small business ...",
+          "snippet": "Currently my set up is this: SOPs: google docs.Recording: OBS.Tasks: Zoho Projects (just a todolist).Daily checklist: google docs.",
+          "retrieved_at": "2026-09-07T04:32:33.487329+00:00",
+          "stance": "contradicts",
+          "source_class": "community",
+          "provider": "duckduckgo"
+        }
+      ],
+      "reasoning": "While ONES testing indicates Notion's code blocks and nested pages handle technical specs, community feedback highlights workflow friction when replacing Confluence. Moving away from native Atlassian toolchain integrations like Jira can cause significant operational disruption for engineering teams. Without primary documentation proving feature parity for deep technical workflows, replacing Confluence poses workflow risks.",
+      "confidence": 0.5,
+      "contradiction": "Community evidence on Reddit indicates that Notion lacks seamless deep Atlassian integration, contradicting claims of non-disruptive migration for engineering workflows."
+    },
+    {
+      "claim_id": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "test_id": "b3f289ab-d206-4dc8-912f-08f7ab62b833",
+      "evaluator": "operator",
+      "result": "Migrating a 12-person engineering team to Notion over a weekend creates high process drag and search friction without immediate ROI.",
+      "evidence": [],
+      "reasoning": "Splitting documentation between a new Notion workspace and a read-only Confluence instance for 6 months forces engineers to search two places, creating immediate process drag during active sprints. Notion lacks native Jira depth and granular permission controls equivalent to Atlassian's ecosystem, increasing manual maintenance for technical specs. Without a structured cleanup strategy prior to the weekend migration, stale or partial docs will contaminate Notion's search results and disrupt development workflows.",
+      "confidence": 0.85,
+      "contradiction": "Dual-system documentation lookup across Notion and read-only Confluence during active development sprints for 6 months."
+    },
+    {
+      "claim_id": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "test_id": "cd505978-5583-4974-a65a-6f062290f9bc",
+      "evaluator": "devils_advocate",
+      "result": "Failure: Unindexed Notion permissions split team knowledge into private silos, destroying cross-functional search and velocity.",
+      "evidence": [],
+      "reasoning": "The migration failed because it assumed Notion's flexible page-level permission model would maintain Confluence's space-wide search visibility without manual governance. Engineers default-restricted personal workspace pages to preserve drafts, hiding critical technical architecture notes from the rest of the 12-person team and forcing duplicate work. Senior engineers, incentivized to protect deep-focus time, weaponized these permission boundaries to block context-seeking requests from junior developers.",
+      "confidence": 0.75,
+      "contradiction": "Notion's granular page-level permissions directly contradict Confluence's default space-wide search discoverability, turning institutional knowledge into unreachable private silos."
+    },
+    {
+      "claim_id": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "test_id": "f09fe6bc-1cfd-4178-858b-933498b8833f",
+      "evaluator": "builder",
+      "result": "Migrating a 12-person team's internal docs to Notion over a weekend is fully achievable with standard automated export/import tools.",
+      "evidence": [],
+      "reasoning": "A 12-person engineering team can complete a Confluence-to-Notion migration via automated HTML/Markdown import tools within 48 hours without blocking work. The main threat vector is data exposure during content export if access permissions on sensitive API keys or credentials stored in Confluence pages are not maintained across platforms. Retaining Confluence in read-only mode for $0 additional license setup during the buffer period mitigates immediate transition risks.",
+      "confidence": 0.05,
+      "contradiction": null
+    },
+    {
+      "claim_id": "04a6a60e-eda1-4253-a9eb-0403368750d4",
+      "test_id": "986786bf-8a51-4640-83fe-3ce989a8a67d",
+      "evaluator": "receipts",
+      "result": "Test did not complete (TimeoutError).",
+      "evidence": [],
+      "reasoning": "This evaluator failed to return a finding: ",
+      "confidence": 0.0,
+      "contradiction": null
+    },
+    {
+      "claim_id": "4f16217f-3f70-4a69-ae53-eaf7492dc19d",
+      "test_id": "e92f716d-2cef-456f-a6fc-44dfd93bef9b",
+      "evaluator": "researcher",
+      "result": "No evidence addresses migrating teams from Confluence to Notion without persistent friction or archived reference reliance.",
+      "evidence": [
+        {
+          "source_url": "https://www.facebook.com/groups/notionbusiness/posts/1349235735955679/",
+          "title": "How to design a simple Notion management system for ...",
+          "snippet": "Notion offers various tools like checklists, to-do lists, and calendars to help teams manage tasks, keep track of deadlines, and prioritize ...",
+          "retrieved_at": "2026-09-07T04:32:51.152390+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://ones.com/blog/solution-guide/notion-alternatives-2026/",
+          "title": "6 Best Notion Alternatives for Software Teams in 2026",
+          "snippet": "Notion combines documents, databases, team knowledge, and lightweight project tracking in one flexible workspace.",
+          "retrieved_at": "2026-09-07T04:32:51.152390+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://bullet.so/blog/notion-for-product-teams/",
+          "title": "Why should every product team use Notion?",
+          "snippet": "One of the primary reasons why product teams should adopt Notion is its streamlined task management capabilities ...",
+          "retrieved_at": "2026-09-07T04:32:51.152390+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://monday.com/blog/project-management/notion-alternatives/",
+          "title": "Notion Alternatives Best Platforms For Enterprise ...",
+          "snippet": "Notion alternatives for 2026: Compare 15 top tools like Coda, ClickUp, and Airtable for better performance, security, and cross-team ...",
+          "retrieved_at": "2026-09-07T04:32:51.152390+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        }
+      ],
+      "reasoning": "The retrieved sources offer general software feature overviews and alternative lists from ones.com, bullet.so, and monday.com without measuring actual team adoption friction or post-Confluence migration reliance. Finding zero direct empirical evidence regarding this migration claim requires keeping confidence low.",
+      "confidence": 0.35,
+      "contradiction": null
+    }
+  ],
+  "consequences": [
+    {
+      "claim_id": "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "impact": "medium",
+      "recommended_change": "Shift the two-day weekend migration target to cover automated bulk import and high-priority core docs only, explicitly scheduling a 5-day post-migration sprint buffer for engineers to repair broken links, permissions, and code block formatting.",
+      "next_validation": "Run a test import of your 10 most complex Confluence pages into a sandbox Notion space this week to measure link rot, macro breakdown, and exact manual cleanup time required per page.",
+      "verdict_reasoning": "The panel provided zero empirical benchmarks, and under Evidence Gating, unsourced speculative objections cannot fully break a claim. However, automated migrations reliably corrupt embedded macros and relative links, making a complete, error-free transition within 48 hours unrealistic without narrowing scope. The core premise remains partially viable if restricted to raw page content ingestion rather than full manual remediation.",
+      "fatal_flaw": "Assuming that rich metadata, complex macro diagrams, and relative internal links can be fully repaired and validated across all critical docs within the 48-hour automated import window.",
+      "salvaged_claim": "A 12-person engineering team can complete the automated bulk ingestion of critical Confluence text and page structures into Notion over a two-day weekend, deferring link and macro remediation to post-migration sprint allocations.",
+      "tradeoff_acknowledged": "Accepts temporary link rot, formatting defects, and dual-system lookup overhead in exchange for hitting the strict 48-hour migration deadline."
+    },
+    {
+      "claim_id": "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "impact": "high",
+      "recommended_change": "Extend the timeline beyond a single weekend to establish standardized workspace permission templates and implement third-party Jira sync connectors before migrating core technical documentation.",
+      "next_validation": "Run a 1-week pilot with two senior engineers attempting to execute sprint workflows and cross-search technical specs using Notion with the new permission rules and Jira integration.",
+      "verdict_reasoning": "Empirical sources cited by Researcher show Notion lacks native deep Atlassian integration (specifically Jira linkage), introducing friction into active engineering workflows. Without automated cross-platform sync or permission governance, migrating directly disrupts technical specs discoverability compared to Confluence. However, core documentation and basic technical spec features remain viable for a 12-person team.",
+      "fatal_flaw": "Loss of native, dynamic Jira-to-documentation workflow integration and space-wide permission search visibility without manual governance.",
+      "salvaged_claim": "Notion's search and organization can replace Confluence for engineering documentation if Jira integration requirements are decoupled via third-party sync connectors (e.g., Unito) and a standardized workspace template with default workspace-wide page read permissions is enforced.",
+      "tradeoff_acknowledged": "Incurs additional third-party middleware subscription costs and introduces operational overhead for maintaining workspace permission rules."
+    },
+    {
+      "claim_id": "04a6a60e-eda1-4253-a9eb-0403368750d4",
+      "impact": "low",
+      "recommended_change": "Proceed with the planned transition schedule, but set a reminder to verify Confluence's read-only seat limits and costs before locking in the licensing structure.",
+      "next_validation": "Check Atlassian's current pricing documentation or contact account support to confirm if converting user seats to read-only incurs ongoing licensing fees.",
+      "verdict_reasoning": "The empirical evaluator (receipts) failed to complete due to a TimeoutError, resulting in zero grounded evidence to evaluate. Under Evidence Gating, an unevidenced or missing evaluation prevents refutation, leaving the claim unverified.",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    },
+    {
+      "claim_id": "4f16217f-3f70-4a69-ae53-eaf7492dc19d",
+      "impact": "low",
+      "recommended_change": "Proceed with the planned Notion migration and six-month read-only Confluence fallback without structural changes, as non-essential documentation friction is low-impact.",
+      "next_validation": "Run a two-week migration trial with one engineering sub-team to track how often they access Confluence and flag Notion friction points before full rollout.",
+      "verdict_reasoning": "The panel provided zero grounded empirical evidence evaluating team adoption friction or post-migration reliance when moving from Confluence to Notion. Under Evidence Gating, an absence of evidence is not a refutation, preventing a ruling of broken or weakened.",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    }
+  ],
+  "case_verdict": {
+    "decision_state": "proceed_with_changes",
+    "summary": "The migration proceeds on condition that the single-weekend timeline is reframed as a staged rollout rather than a complete cutover, as manual remediation of links, permissions, and Jira integrations cannot be absorbed in two days. The team will execute bulk automated imports over the weekend while allocating a post-migration buffer and establishing permission templates prior to full adoption. Resolving the read-only licensing tier with Atlassian ensures the dual-system fallback remains cost-effective.",
+    "survived": [],
+    "broken": [],
+    "weakened": [
+      "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "d6971ca4-886f-477a-8250-88ecb89d976c"
+    ],
+    "unproven": [
+      "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+      "d6971ca4-886f-477a-8250-88ecb89d976c",
+      "04a6a60e-eda1-4253-a9eb-0403368750d4",
+      "4f16217f-3f70-4a69-ae53-eaf7492dc19d"
+    ],
+    "next_actions": [
+      {
+        "action": "Run a migration pilot with two senior engineers importing complex Confluence pages into a sandbox Notion space to benchmark manual cleanup times and test Jira sync integration.",
+        "claim_ids": [
+          "b82b8f51-a4b7-4d77-8c35-5e51241d0fb3",
+          "d6971ca4-886f-477a-8250-88ecb89d976c",
+          "4f16217f-3f70-4a69-ae53-eaf7492dc19d"
+        ]
+      },
+      {
+        "action": "Confirm Atlassian's current seat pricing policies for read-only archive access to prevent unexpected licensing costs during the six-month fallback period.",
+        "claim_ids": [
+          "04a6a60e-eda1-4253-a9eb-0403368750d4"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "gate_message": null,
+  "agent_mode": "auto",
+  "selected_agents": [
+    "devils_advocate",
+    "receipts",
+    "builder",
+    "operator"
+  ],
+  "agent_rationales": {
+    "devils_advocate": "The decision assumes six months of read-only access eliminates risk, ignoring potential hidden dependencies or motivated reasoning around…",
+    "receipts": "The vendor pricing, contract cancellation terms, and automated export/import capabilities require verification against official…",
+    "builder": "Migrating content, links, and permissions for an entire team over a single weekend presents severe technical execution and timeline risks.",
+    "operator": "Human inertia and process friction often cause engineering teams to resist adopting new documentation tools during active sprint workflows."
+  }
+}

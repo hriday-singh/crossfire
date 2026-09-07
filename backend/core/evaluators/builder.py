@@ -11,7 +11,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from core.models import Case, Finding, TestPlanItem
-from core.textutil import SPECIFICITY_RULE, clamp_sentences, one_line
+from core.textutil import OBJECTION_SCALE, SPECIFICITY_RULE, clamp_sentences, one_line
 from providers.base import LLMProvider
 
 BUILDER_SYSTEM_PROMPT = (
@@ -33,13 +33,11 @@ BUILDER_SYSTEM_PROMPT = (
     "   Conduct a baseline security vulnerability assessment before code is written. "
     "   Explicitly identify the most likely data exposure vector, privilege escalation, "
     "   or spoofing risk inherent in the proposed architecture or implementation.\n\n"
-    "3. Calibrated Confidence Scoring (Technical Rubric):\n"
-    "   Strictly calibrate the confidence float to technical severity rather than generic defaults:\n"
-    "   - 0.9 to 1.0: Hard limits (violating physics, speed of light in network requests, hard API limits, statutory compliance walls).\n"
-    "   - 0.7 to 0.8: Severe operational burden or known architectural anti-patterns.\n"
-    "   - 0.4 to 0.6: High maintenance or integration friction solvable with capital or engineering time.\n"
-    "   - 0.1 to 0.3: Minor implementation friction or standard engineering overhead.\n"
-    "   Do not utilize quantitative token or latency estimations."
+    "3. Calibrated Confidence Scoring (Calibrated Objection Strength):\n"
+    "   Score by the rubric below. Standard overhead is not an objection: if the thing "
+    "is achievable with ordinary effort, set blocker to null and score in the 0.0-0.1 "
+    "band (or 0.1 to 0.3 for minor friction). Do not utilize quantitative token or latency estimations.\n\n"
+    f"{OBJECTION_SCALE}"
 )
 _SYSTEM_PROMPT = BUILDER_SYSTEM_PROMPT
 
@@ -56,8 +54,9 @@ class BuilderVerdict(BaseModel):
         ge=0.0,
         le=1.0,
         description=(
-            "Calibrated confidence score based on technical severity: 0.9-1.0 (hard limits/statutory walls), "
-            "0.7-0.8 (severe operational burden/anti-patterns), 0.4-0.6 (capital-solvable friction), 0.1-0.3 (minor friction)"
+            "Objection strength against the claim: 0.0-0.1 (buildable as stated, no real objection), "
+            "0.2-0.35 (minor friction), 0.4-0.6 (needs a named fix or more budget), "
+            "0.7-0.85 (severe, needs restructuring), 0.9-1.0 (hard limit / statutory wall)"
         ),
     )
     blocker: str | None = Field(
@@ -85,8 +84,8 @@ async def run_builder(item: TestPlanItem, case: Case, provider: LLMProvider) -> 
                 "1. MVP vs. Scale Bifurcation: If a blocker exists, prefix it with '[Day-1 Blocker]' (launch blocker) "
                 "or '[Day-1000 Blocker]' (scale limit). Do not call scaling issues Day-1 blockers.\n"
                 "2. Lightweight Threat Modeling: Explicitly account for data exposure, privilege escalation, or spoofing risks.\n"
-                "3. Calibrated Confidence Scoring: Follow the technical rubric (0.9-1.0 hard limits, 0.7-0.8 severe burden/anti-patterns, "
-                "0.4-0.6 solvable friction, 0.1-0.3 minor). Do not use speculative quantitative token or latency estimations."
+                "3. Calibrated Confidence Scoring (Calibrated Objection Strength): follow the rubric, and use the 0.0-0.1 band when the claim "
+                "is simply buildable. Do not use speculative quantitative token or latency estimations."
             ),
         }
     ]

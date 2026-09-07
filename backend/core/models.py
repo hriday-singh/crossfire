@@ -52,7 +52,11 @@ class Finding(BaseModel):
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str
-    confidence: float
+    confidence: float                       # objection strength: how hard this finding argues
+                                            # AGAINST the claim. 0.0 = no objection. One scale for
+                                            # all four evaluators — see textutil.OBJECTION_SCALE.
+                                            # Not "how sure the evaluator is": that is unrankable
+                                            # across personas (rank_findings sorts on this).
     contradiction: str | None = None
 
 
@@ -63,11 +67,34 @@ class NextAction(BaseModel):
     claim_ids: list[str] = []               # Claim.id values this action answers
 
 
+class DecidingFactor(BaseModel):
+    """The one finding that actually moved the case verdict.
+
+    Derived, not generated: `rank_findings` already knows which finding carried
+    evidence and a contradiction. Resolving it server-side keeps the verdict page
+    from having to re-derive "what mattered" out of the full findings list.
+    """
+
+    claim_id: str
+    evaluator: str
+    the_fact: str                           # the number, rule, cost or contradiction. verbatim.
+    source_url: str | None = None
+    source_title: str | None = None
+    gate_fired: bool = False                # the evidence gate downgraded broken -> weakened here,
+                                            # i.e. the panel attacked but nobody could cite it
+
+
 class CaseVerdict(BaseModel):
     """One case-level judgement replacing N near-identical per-claim ones."""
 
     decision_state: str                     # proceed | proceed_with_changes | hold | drop
+    headline: str = ""                      # the call in one line, <= 70 chars, generated per case.
+                                            # Empty falls back to a static string keyed on
+                                            # decision_state — four fixed strings read identically
+                                            # across unrelated decisions, which is the point of
+                                            # generating this.
     summary: str
+    deciding_factor: DecidingFactor | None = None
     survived: list[str] = []                # claim ids
     broken: list[str] = []
     weakened: list[str] = []                # weakened claim ids
@@ -85,6 +112,23 @@ class DecisionConsequence(BaseModel):
     fatal_flaw: str | None = None           # isolated flaw from Steel Man
     salvaged_claim: str | None = None       # minimal viable fix from Steel Man
     tradeoff_acknowledged: str | None = None  # operational trade-off from Steel Man
+
+
+class AgentTokenUsage(BaseModel):
+    agent: str                              # extractor, load_bearing, devils_advocate, builder, receipts, operator, cross_examination, steelman, synthesis
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+
+
+class CaseTelemetry(BaseModel):
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    total_tokens: int = 0
+    total_estimated_cost_usd: float = 0.0
+    agent_breakdown: list[AgentTokenUsage] = []
+    duration_ms: float = 0.0
 
 
 class Case(BaseModel):
@@ -106,3 +150,4 @@ class Case(BaseModel):
         "operator",
     ]
     agent_rationales: dict[str, str] = {}   # rationales explaining why agents were auto-selected
+    telemetry: CaseTelemetry | None = None  # token usage & cost telemetry

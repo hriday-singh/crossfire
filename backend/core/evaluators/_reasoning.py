@@ -20,7 +20,15 @@ from providers.base import LLMProvider
 class ReasoningOutput(BaseModel):
     result: str = Field(description="One line, under 140 characters: what you found")
     reasoning: str = Field(description="At most 3 sentences of argument")
-    confidence: float = Field(0.7, ge=0.0, le=1.0)
+    confidence: float = Field(
+        0.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Objection strength against the claim: 0.0-0.1 (no real objection), 0.2-0.35 (minor), "
+            "0.4-0.6 (needs a named fix), 0.7-0.85 (severe), 0.9-1.0 (hard limit)"
+        ),
+    )
     contradiction: str | None = Field(
         default=None, description="The specific contradiction or failure identified, or null"
     )

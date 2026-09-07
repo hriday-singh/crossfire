@@ -60,10 +60,20 @@ function Test-HttpEndpoint {
         [string]$Url,
         [int]$TimeoutSec = 2
     )
+    # Prefer 127.0.0.1 over localhost to prevent Windows IPv6 [::1] resolution hang/timeout
+    $ResolvedUrl = $Url -replace '://localhost([:/])', '://127.0.0.1$1'
     try {
-        $response = Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec $TimeoutSec -ErrorAction Stop
+        $null = Invoke-RestMethod -Uri $ResolvedUrl -Method Get -TimeoutSec $TimeoutSec -ErrorAction Stop
         return $true
     } catch {
+        if ($ResolvedUrl -ne $Url) {
+            try {
+                $null = Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec $TimeoutSec -ErrorAction Stop
+                return $true
+            } catch {
+                return $false
+            }
+        }
         return $false
     }
 }
@@ -119,15 +129,19 @@ try {
     Write-Host ""
 
     # -------------------------------------------------------------------------
-    # Auto-Setup Verification
+    # Auto-Setup Verification & Virtual Environment Initialization
     # -------------------------------------------------------------------------
-    $NeedsSetup = $Setup -or `
-        (-not (Test-Path (Join-Path $BackendDir ".venv\Scripts\python.exe"))) -or `
-        (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) -or `
-        (-not (Test-Path (Join-Path $BackendDir ".env")))
+    $BackendVenvPy = Join-Path $BackendDir ".venv\Scripts\python.exe"
+    $BackendUvicorn = Join-Path $BackendDir ".venv\Scripts\uvicorn.exe"
+    $BackendActivate = Join-Path $BackendDir ".venv\Scripts\Activate.ps1"
+    $FrontendModules = Join-Path $FrontendDir "node_modules"
+    $BackendEnv = Join-Path $BackendDir ".env"
+
+    $VenvInitialized = (Test-Path $BackendVenvPy) -and (Test-Path $BackendActivate) -and (Test-Path $BackendUvicorn)
+    $NeedsSetup = $Setup -or (-not $VenvInitialized) -or (-not (Test-Path $FrontendModules)) -or (-not (Test-Path $BackendEnv))
 
     if ($NeedsSetup) {
-        Write-Host "[*] First run or missing dependencies detected. Running setup..." -ForegroundColor Yellow
+        Write-Host "[*] Setup required (missing or uninitialized virtual environment / dependencies). Running setup..." -ForegroundColor Yellow
         $SetupScript = Join-Path $WorkspaceRoot "setup.ps1"
         if (Test-Path $SetupScript) {
             & $SetupScript
@@ -140,6 +154,19 @@ try {
             exit 1
         }
     }
+
+    # Explicitly wait for the virtual environment to be initialized and ready
+    if (-not ((Test-Path $BackendVenvPy) -and (Test-Path $BackendUvicorn))) {
+        $venvReady = Wait-UntilReady -ServiceName "Python Virtual Environment" -CheckBlock {
+            (Test-Path $BackendVenvPy) -and (Test-Path $BackendUvicorn)
+        } -TimeoutSeconds 45
+
+        if (-not $venvReady) {
+            Write-Error "[ERROR] Python virtual environment failed to initialize at $BackendDir\.venv. Run .\setup.ps1 manually."
+            exit 1
+        }
+    }
+    Write-Host "    [OK] Python virtual environment verified: $BackendVenvPy" -ForegroundColor Green
 
     # -------------------------------------------------------------------------
     # 1. Start Gemini-Web2API Proxy (:8081)
@@ -187,10 +214,10 @@ try {
 
                 $ready = Wait-UntilReady -ServiceName "Gemini Proxy" -CheckBlock {
                     Test-PortOpen -Port $ProxyPort
-                } -TimeoutSeconds 15
+                } -TimeoutSeconds 25
 
                 if (-not $ready) {
-                    Write-Warning "    [WARN] Gemini Proxy did not report ready within 15 seconds. Proceeding anyway..."
+                    Write-Warning "    [WARN] Gemini Proxy did not report ready within 25 seconds. Proceeding anyway..."
                 }
             }
         }
@@ -214,18 +241,18 @@ try {
             $BackendPython = if ($SysPy) { $SysPy.Source } else { "python" }
         }
 
-        $backendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [2/3] Backend API (:$BackendPort)'; Set-Location '$BackendDir'; Write-Host 'Starting Crossfire Backend API on :$BackendPort...' -ForegroundColor Cyan; & '$BackendPython' -m uvicorn main:app --reload --port $BackendPort"
+        $backendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [2/3] Backend API (:$BackendPort)'; Set-Location '$BackendDir'; if (Test-Path '.\.venv\Scripts\Activate.ps1') { . '.\.venv\Scripts\Activate.ps1' }; Write-Host 'Starting Crossfire Backend API on :$BackendPort...' -ForegroundColor Cyan; & '$BackendPython' -m uvicorn main:app --reload --host 127.0.0.1 --port $BackendPort"
         
         $backendProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $backendCmd) -PassThru
         $SpawnedProcesses.Add($backendProc)
         Write-Host "    [+] Spawned Backend API window (PID $($backendProc.Id))" -ForegroundColor DarkCyan
 
         $backendReady = Wait-UntilReady -ServiceName "Backend API (/health)" -CheckBlock {
-            Test-HttpEndpoint -Url "http://localhost:$BackendPort/health"
-        } -TimeoutSeconds 25
+            (Test-PortOpen -Port $BackendPort) -and (Test-HttpEndpoint -Url "http://127.0.0.1:$BackendPort/health")
+        } -TimeoutSeconds 30
 
         if (-not $backendReady) {
-            Write-Warning "    [WARN] Backend /health endpoint did not respond within 25 seconds. Please inspect backend console window."
+            Write-Warning "    [WARN] Backend /health endpoint did not respond within 30 seconds. Please inspect backend console window."
         }
     }
 
@@ -246,10 +273,10 @@ try {
 
         $frontendReady = Wait-UntilReady -ServiceName "Frontend UI" -CheckBlock {
             Test-PortOpen -Port $FrontendPort
-        } -TimeoutSeconds 25
+        } -TimeoutSeconds 30
 
         if (-not $frontendReady) {
-            Write-Warning "    [WARN] Frontend did not report ready within 25 seconds. Please inspect frontend console window."
+            Write-Warning "    [WARN] Frontend did not report ready within 30 seconds. Please inspect frontend console window."
         }
     }
 

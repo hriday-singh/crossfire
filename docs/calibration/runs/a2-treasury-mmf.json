@@ -1,0 +1,412 @@
+{
+  "id": "da6fee38-4942-4146-83f7-10c6a02110b2",
+  "raw_input": "I'm moving my savings out of a 0.5% APY checking account into a US Treasury money market fund yielding about 4.5%, keeping three months of expenses liquid in checking.",
+  "context": null,
+  "claims": [
+    {
+      "id": "ae32646e-9e8e-43d5-9f08-bfe79a4c0942",
+      "statement": "A US Treasury money market fund currently yields approximately 4.5% APY.",
+      "load_bearing": false,
+      "load_bearing_reason": "If the yield is not exactly 4.5%, the overall thesis of moving low-yield checking funds into a much higher-yielding fund remains intact as long as a substantial rate differential exists.",
+      "status": "broken",
+      "fatal_flaw": "The claimed 4.5% APY overstates real-time US Treasury money market yields following federal rate adjustments, which now sit between 3.43% and 3.69%.",
+      "salvaged_claim": "A US Treasury money market fund currently yields approximately 3.4% to 3.7% APY.",
+      "tradeoff_acknowledged": "Accepting a lower, realistic yield range accurately reflects current market conditions while removing speculative rate assumptions."
+    },
+    {
+      "id": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "statement": "Three months of living expenses held in checking is sufficient liquidity to cover all immediate cash needs and short-term emergencies.",
+      "load_bearing": true,
+      "load_bearing_reason": "If 3 months of expenses in checking is insufficient liquidity, the decision to lock/move the remaining funds could force premature liquidation or overdrafts, materially altering the recommended cash allocation strategy.",
+      "status": "survived",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    },
+    {
+      "id": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "statement": "The yields on US Treasury money market funds will remain high enough over the holding period to outperform lower-risk liquid alternatives after accounting for any management fees or fund expenses.",
+      "load_bearing": true,
+      "load_bearing_reason": "If the net yield after fees drops significantly or underperforms safe liquid alternatives, moving the money out of checking no longer achieves the central objective of maximizing return on idle cash.",
+      "status": "survived",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    },
+    {
+      "id": "ef75a517-f203-446c-8ea5-8f7253c5b7af",
+      "statement": "Moving cash into a US Treasury money market fund carries minimal principal or default risk compared to keeping it in a FDIC-insured checking account.",
+      "load_bearing": false,
+      "load_bearing_reason": "While principal risk is extremely low, US Treasuries are backed by the US government rather than FDIC insurance; however, even if false, US Treasuries remain near-risk-free, so the decision would rarely change.",
+      "status": "survived",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    }
+  ],
+  "test_plan": [
+    {
+      "id": "ccb7701e-3adb-4bfe-aca2-cc05fd5080b7",
+      "target_claim": "ae32646e-9e8e-43d5-9f08-bfe79a4c0942",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: A US Treasury money market fund currently yields approximately 4.5% APY."
+    },
+    {
+      "id": "dea3fa60-77b8-417f-a43d-f8f88e2d8e4a",
+      "target_claim": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "failure_mode": "assumption",
+      "objective": "Stress-test the implicit premises and counter-incentives behind: Three months of living expenses held in checking is sufficient liquidity to cover all immediate cash needs and short-term emergencies."
+    },
+    {
+      "id": "ebeee830-98cb-4c6f-a13b-0c3cd24ddf4a",
+      "target_claim": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: Three months of living expenses held in checking is sufficient liquidity to cover all immediate cash needs and short-term emergencies."
+    },
+    {
+      "id": "2915fadf-59f6-4c81-834f-61e413fea479",
+      "target_claim": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "failure_mode": "feasibility",
+      "objective": "Assess what it concretely takes to make this true, and what blocks it: Three months of living expenses held in checking is sufficient liquidity to cover all immediate cash needs and short-term emergencies."
+    },
+    {
+      "id": "1b1947d6-df6b-4864-af37-88954bc7c7e1",
+      "target_claim": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "failure_mode": "assumption",
+      "objective": "Stress-test the implicit premises and counter-incentives behind: The yields on US Treasury money market funds will remain high enough over the holding period to outperform lower-risk liquid alternatives after accounting for any management fees or fund expenses."
+    },
+    {
+      "id": "2fa40c0a-2458-47db-ae6f-c0b3850cfbad",
+      "target_claim": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: The yields on US Treasury money market funds will remain high enough over the holding period to outperform lower-risk liquid alternatives after accounting for any management fees or fund expenses."
+    },
+    {
+      "id": "b3215191-85dc-434a-8025-7ae7652599fa",
+      "target_claim": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "failure_mode": "feasibility",
+      "objective": "Assess what it concretely takes to make this true, and what blocks it: The yields on US Treasury money market funds will remain high enough over the holding period to outperform lower-risk liquid alternatives after accounting for any management fees or fund expenses."
+    },
+    {
+      "id": "3c472d56-fcff-4006-9418-3dc7c74c98a6",
+      "target_claim": "ef75a517-f203-446c-8ea5-8f7253c5b7af",
+      "failure_mode": "evidence",
+      "objective": "Check real-world evidence and sources that support or contradict: Moving cash into a US Treasury money market fund carries minimal principal or default risk compared to keeping it in a FDIC-insured checking account."
+    }
+  ],
+  "findings": [
+    {
+      "claim_id": "ae32646e-9e8e-43d5-9f08-bfe79a4c0942",
+      "test_id": "ccb7701e-3adb-4bfe-aca2-cc05fd5080b7",
+      "evaluator": "researcher",
+      "result": "US Treasury money market funds currently yield around 3.43%–3.69% APY, well below the claimed 4.5%.",
+      "evidence": [
+        {
+          "source_url": "https://investor.vanguard.com/investment-products/money-markets",
+          "title": "Money market funds for short-term investing goals - Vanguard",
+          "snippet": "Compare our money market funds ; Fund · Vanguard Treasury Money Market Fund ; Initial investment $3,000 ; Average 7-day SEC yield as of 09/03/2026 3.69%.",
+          "retrieved_at": "2026-09-07T04:36:29.249423+00:00",
+          "stance": "contradicts",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.schwab.com/money-market-funds",
+          "title": "Money Market Funds",
+          "snippet": "Treasury Money Fund – Investor Shares (SNSXX), 3.43%, $0* ; Schwab U.S. Treasury Money Fund – Ultra Shares (SUTXX), 3.58%, $1,000,000 ...",
+          "retrieved_at": "2026-09-07T04:36:29.249423+00:00",
+          "stance": "contradicts",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://ycharts.com/indicators/us_money_market_account_rate",
+          "title": "US Money Market Treasury Yield (Monthly) - United States",
+          "snippet": "US Money Market Treasury Yield is at 3.63%, compared to 3.63% last month and 4.33% last year.",
+          "retrieved_at": "2026-09-07T04:36:29.249423+00:00",
+          "stance": "contradicts",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        }
+      ],
+      "reasoning": "Major US Treasury money market funds such as Vanguard Treasury Money Market Fund (3.69% SEC yield as of Sept 3, 2026) and Schwab SNSXX (3.43%) yield significantly less than 4.5%. YCharts reports the US Money Market Treasury Yield at 3.63% down from 4.33% last year. The claim overstates current yields by nearly a full percentage point.",
+      "confidence": 0.9,
+      "contradiction": "Vanguard's 7-day SEC yield is 3.69% as of 09/03/2026 and Schwab SNSXX yields 3.43%, contradicting the 4.5% APY figure."
+    },
+    {
+      "claim_id": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "test_id": "ebeee830-98cb-4c6f-a13b-0c3cd24ddf4a",
+      "evaluator": "researcher",
+      "result": "Vanguard and financial consensus recommend holding 3 to 6 months of expenses, validating 3 months as sufficient baseline liquidity.",
+      "evidence": [
+        {
+          "source_url": "https://www.consumerfinance.gov/an-essential-guide-to-building-an-emergency-fund/",
+          "title": "An essential guide to building an emergency fund",
+          "snippet": "An emergency fund is a cash reserve that’s specifically set aside for unplanned expenses or financial emergencies. Strategy: Manage your cash flow\nYour cash flow\n is essentially the timing of when your money is coming in (your income) and going out (your expenses and spending). Cash\n — Another option is keeping money on hand for emergencies, either in your home or with a trusted family member or friend.",
+          "retrieved_at": "2026-09-07T04:36:40.731733+00:00",
+          "stance": "context",
+          "source_class": "primary",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://investor.vanguard.com/investor-resources-education/emergency-fund",
+          "title": "Guide to Building an Emergency Fund - Vanguard",
+          "snippet": "Saving enough to cover at least half a month’s worth of living expenses can help you prepare for potential spending shocks. Over time, you should aim to build three to six months' worth of living expenses in your emergency fund to prepare for potential income shocks. For an income shock aim to save three-six months’ worth of your expenses.",
+          "retrieved_at": "2026-09-07T04:36:40.731733+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.facebook.com/Transamerica/posts/as-a-general-rule-how-many-months-expenses-do-financial-planners-recommend-that-/2841505655898818/",
+          "title": "As a general rule, how many months' expenses do ...",
+          "snippet": "3 to 6 months of expenses is appropriate for an emergency fund. A good rule of thumb is 3-6 months.",
+          "retrieved_at": "2026-09-07T04:36:40.731733+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.reddit.com/r/investing/comments/1gdls66/when_people_say_you_need_a_36_months_worth_of/",
+          "title": "When people say you need a 3-6 months worth of ...",
+          "snippet": "Add up your monthly expenses. Save that much in a cash equivalent with minimal hoops to jump through to access.",
+          "retrieved_at": "2026-09-07T04:36:40.731733+00:00",
+          "stance": "context",
+          "source_class": "community",
+          "provider": "duckduckgo"
+        }
+      ],
+      "reasoning": "Vanguard guidelines and community financial standards establish 3 to 6 months of living expenses as the standard target for handling income shocks and spending emergencies. A checking or highly accessible cash equivalent account fulfills immediate liquidity requirements. No retrieved source contradicts holding 3 months of expenses as sufficient baseline coverage.",
+      "confidence": 0.05,
+      "contradiction": null
+    },
+    {
+      "claim_id": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "test_id": "dea3fa60-77b8-417f-a43d-f8f88e2d8e4a",
+      "evaluator": "devils_advocate",
+      "result": "Three months in checking risks immediate illiquidity if settlement lags coincide with concurrent emergencies or asset freezes.",
+      "evidence": [],
+      "reasoning": "The 12-month failure occurs when a severe job-loss event coincides with an immediate car or medical expense requiring same-day cash above the 3-month threshold before the Treasury fund T+1 settlement clears. Commercial banks, losing high-margin deposit float on 0.5% APY accounts, actively enforce strict daily transfer limits and automated fraud freezes during unusual rapid withdrawals. No hard limits are breached, making this a standard execution risk inherent to cash management.",
+      "confidence": 0.1,
+      "contradiction": null
+    },
+    {
+      "claim_id": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "test_id": "2915fadf-59f6-4c81-834f-61e413fea479",
+      "evaluator": "builder",
+      "result": "The transfer is entirely achievable using standard brokerage features, leaving ample buffer for immediate cash needs.",
+      "evidence": [],
+      "reasoning": "Moving capital to a Treasury money market fund yielding 4.5% takes minutes via standard ACH, while retaining 3 months of expenses in checking handles routine cash flows and unexpected costs smoothly. The primary baseline security risk is account takeover or spoofing during bank linking, which is standard financial software risk mitigated by multi-factor authentication. Settlement lag for additional redemptions is T+1, making liquid buffer management straightforward with zero physical or statutory blockers.",
+      "confidence": 0.05,
+      "contradiction": null
+    },
+    {
+      "claim_id": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "test_id": "1b1947d6-df6b-4864-af37-88954bc7c7e1",
+      "evaluator": "devils_advocate",
+      "result": "The 4.5% yield is floating, making the strategy vulnerable if Federal Reserve interest rate cuts rapidly compress fund yields.",
+      "evidence": [],
+      "reasoning": "Money market fund yields track short-term interest rates dynamically, meaning aggressive Fed rate cuts over 12 months can crush the fund's yield down toward bank rates while management fees remain fixed. Commercial banks holding low-yield deposits benefit from sticking yields low, while fixed-rate liquid instruments or HYSA promotions guarantee yield where variable money funds cannot. The premise assumes sustained high benchmark rates across the holding period despite macroeconomic shifts.",
+      "confidence": 0.3,
+      "contradiction": "Variable yield assumption vs rate-cut environment"
+    },
+    {
+      "claim_id": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "test_id": "2fa40c0a-2458-47db-ae6f-c0b3850cfbad",
+      "evaluator": "researcher",
+      "result": "No relevant evidence directly proves or refutes whether US Treasury MMF yields will beat liquid alternatives net of fees.",
+      "evidence": [
+        {
+          "source_url": "https://www.ici.org/research/stats/mmf",
+          "title": "Release: Money Market Fund Assets",
+          "snippet": "View all Research\n\n                Statistics\n                \nToggle submenu\n\n                All Statistics\n                \n\n                Combined ETF and Mutual Funds\n                \n\n                Weekly Combined Estimated ETF and Long-Term Flows\n                \n\n                Monthly Active and Index Data\n                \n\n                Monthly ESG Investing Data\n                \n\n                Quarterly Worldwide Regulated Open-End Fund Market\n                \n\n                Mutual Funds\n                \n\n                Weekly Estimated Long-Term Mutual Fund Flows\n     .",
+          "retrieved_at": "2026-09-07T04:36:34.879445+00:00",
+          "stance": "context",
+          "source_class": "institutional",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.troweprice.com/personal-investing/resources/insights/4-reasons-to-save-in-a-money-market-fund.html",
+          "title": "Four reasons to save in a money market fund",
+          "snippet": "If you’re saving for a goal that falls within the next three to five years, saving in a lower-risk investment with greater liquidity—such as a money market fund, bank savings account, or CD—may make sense for you. Money market fund\nMoney market account\nCertificate of deposit\nType\nInvestment product\nBank account\nBank-issued savings certificate\nLiquidity\nGain access to the money at any time\nGain access to the money at any time\nHold funds for a set period of time\n2\nIncome and returns with yields\nTypically offer better returns than interest-bearing savings accounts\nMay offer a fixed interest.",
+          "retrieved_at": "2026-09-07T04:36:34.879445+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.morganstanley.com/articles/money-market-funds-fed-rate-cuts",
+          "title": "Reconsidering Money Market Funds as the Fed Cuts Rates",
+          "snippet": "yields on low-risk money market funds surged to their highest levels in years, in many cases surpassing 5%, making them competitive with riskier assets like ...",
+          "retrieved_at": "2026-09-07T04:36:34.879445+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.usmoneymarketfunds.com/daily-yields.html",
+          "title": "Daily Yields",
+          "snippet": "Treasury Money Market Funds7 … 30-day yield Deadlines 65:00 p.m. the fund seeks to preserve the value of your investment at $1.00 per share, it cannot ...",
+          "retrieved_at": "2026-09-07T04:36:34.879445+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        }
+      ],
+      "reasoning": "The retrieved sources mention general MMF yields surging over 5% and contrasting MMFs with CDs and savings accounts, but none provide specific comparative net yield performance data for Treasury MMFs against lower-risk alternatives over a defined holding period. Without specific comparative data, the claim cannot be verified or disproven from the provided snippets. Consequently, no concrete numbers, dates, or specific fee structures can be evaluated.",
+      "confidence": 0.35,
+      "contradiction": null
+    },
+    {
+      "claim_id": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "test_id": "b3215191-85dc-434a-8025-7ae7652599fa",
+      "evaluator": "builder",
+      "result": "The transfer is achievable with ordinary effort, easily outperforming a 0.5% checking account net of standard expense ratios.",
+      "evidence": [],
+      "reasoning": "Executing this shift requires opening a brokerage account, initiating an ACH transfer, and purchasing Treasury MMF shares like SNSXX or VUSXX with expense ratios around 0.09% to 0.42%. Primary threat vectors include session hijacking or spoofing during credential input at the online brokerage, which requires baseline multi-factor authentication to secure personal financial data. Floating Federal Reserve interest rates mean yields fluctuate over time, but net yields far exceed 0.5% checking rates without Day-1 operational barriers.",
+      "confidence": 0.05,
+      "contradiction": null
+    },
+    {
+      "claim_id": "ef75a517-f203-446c-8ea5-8f7253c5b7af",
+      "test_id": "3c472d56-fcff-4006-9418-3dc7c74c98a6",
+      "evaluator": "researcher",
+      "result": "U.S. Treasury money market funds hold government obligations with minimal default risk, but unlike FDIC accounts carry no principal…",
+      "evidence": [
+        {
+          "source_url": "https://www.amundi.lu/professional/article/cash-motion-money-market-strategies-operational-resilience",
+          "title": "Cash in Motion: Money Market Resilience",
+          "snippet": "Discover how money market funds help treasurers improve liquidity, manage risk and capture short-term yield in volatile markets.",
+          "retrieved_at": "2026-09-07T04:36:40.134853+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.svb.com/market-insights/fixed-income-strategy/navigating-the-fed-pause-strategies-for-corporate-cash-optimization/",
+          "title": "Navigating the Fed Pause: Strategies for Corporate Cash ...",
+          "snippet": "Staying entirely focused on money market funds increases reinvestment risk and opportunity cost, but selectively adding duration may help lock ...",
+          "retrieved_at": "2026-09-07T04:36:40.134853+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://am.jpmorgan.com/us/en/asset-management/institutional/products/jpmorgan-100-u-s-treasury-securities-money-market-etf-etf-shares-46654q542",
+          "title": "JPMorgan 100% US Treasury Securities Money Market ETF",
+          "snippet": "Daily liquid assets include (i) cash; (ii) direct obligations of the U.S.",
+          "retrieved_at": "2026-09-07T04:36:40.134853+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        },
+        {
+          "source_url": "https://www.facebook.com/nicholascrownfb/posts/the-treasury-and-fed-are-now-moving-in-opposite-directions/1098714769401579/",
+          "title": "The Treasury and Fed are now moving in opposite directions.",
+          "snippet": "Money Market Funds are sponsored by fund companies and carry no guarantee of principal.",
+          "retrieved_at": "2026-09-07T04:36:40.134853+00:00",
+          "stance": "context",
+          "source_class": "web",
+          "provider": "duckduckgo"
+        }
+      ],
+      "reasoning": "As shown in JPMorgan ETF documentation, funds hold direct obligations of the U.S. government, providing very low default risk. However, snippets highlight that money market funds are sponsored by fund companies and carry no statutory guarantee of principal.",
+      "confidence": 0.1,
+      "contradiction": null
+    }
+  ],
+  "consequences": [
+    {
+      "claim_id": "ae32646e-9e8e-43d5-9f08-bfe79a4c0942",
+      "impact": "low",
+      "recommended_change": "Adjust your expected annual yield calculation down from 4.5% to around 3.5%, but proceed with moving the excess savings since a ~3.5% return still vastly outperforms your current 0.5% checking account.",
+      "next_validation": "Check the current 7-day SEC yield on your target fund's yield page before submitting the transfer.",
+      "verdict_reasoning": "Empirical evidence from Vanguard and Schwab shows actual US Treasury money market fund 7-day SEC yields range between 3.43% and 3.69% as of September 2026. The claim overstates the actual current yield by nearly a full percentage point (4.5%).",
+      "fatal_flaw": "The claimed 4.5% APY overstates real-time US Treasury money market yields following federal rate adjustments, which now sit between 3.43% and 3.69%.",
+      "salvaged_claim": "A US Treasury money market fund currently yields approximately 3.4% to 3.7% APY.",
+      "tradeoff_acknowledged": "Accepting a lower, realistic yield range accurately reflects current market conditions while removing speculative rate assumptions."
+    },
+    {
+      "claim_id": "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "impact": "low",
+      "recommended_change": "No change needed.",
+      "next_validation": null,
+      "verdict_reasoning": "All panel members recorded 'no objection' across the board, with Researcher providing four grounded sources validating the 3-to-6-month living expense baseline for emergency liquidity. Neither Builder nor Devil's Advocate provided evidence of physical or statutory impossibility, confirming the target claim's operational viability.",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    },
+    {
+      "claim_id": "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "impact": "low",
+      "recommended_change": "No change needed.",
+      "next_validation": null,
+      "verdict_reasoning": "Across all adversarial panel inputs, the highest objection level raised was 'minor', which signals the claim stands without fatal or substantive flaws. The Researcher found no empirical evidence directly disproving the net yield comparison, while the Builder confirmed the net yield comfortably exceeds baseline liquid alternatives after deducting standard expense ratios of 0.09% to 0.42%.",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    },
+    {
+      "claim_id": "ef75a517-f203-446c-8ea5-8f7253c5b7af",
+      "impact": "low",
+      "recommended_change": "No change needed.",
+      "next_validation": null,
+      "verdict_reasoning": "The claim states that moving cash into a US Treasury MMF carries 'minimal' principal or default risk compared to FDIC accounts, which aligns with the Researcher's finding of 'no objection' and minimal default risk via direct US obligations. While MMFs lack statutory FDIC insurance, the claim asserts 'minimal' risk rather than 'zero' risk, which holds true given the underlying backing of US government obligations.",
+      "fatal_flaw": null,
+      "salvaged_claim": null,
+      "tradeoff_acknowledged": null
+    }
+  ],
+  "case_verdict": {
+    "decision_state": "proceed_with_changes",
+    "headline": "The yield is 3.5%, not 4.5%, but still beats checking.",
+    "summary": "The baseline 4.5% yield assumption overstated current money market rates, which are closer to 3.5%. The move remains clearly beneficial because 3.5% dramatically outperforms the 0.5% checking rate while preserving essential liquidity. Proceed with the transfer after recalibrating income expectations.",
+    "deciding_factor": {
+      "claim_id": "ae32646e-9e8e-43d5-9f08-bfe79a4c0942",
+      "evaluator": "researcher",
+      "the_fact": "Vanguard's 7-day SEC yield is 3.69% as of 09/03/2026 and Schwab SNSXX yields 3.43%, contradicting the 4.5% APY figure.",
+      "source_url": "https://investor.vanguard.com/investment-products/money-markets",
+      "source_title": "Money market funds for short-term investing goals - Vanguard",
+      "gate_fired": false
+    },
+    "survived": [
+      "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+      "87fe5b38-088a-4330-8e96-207918d6ff49",
+      "ef75a517-f203-446c-8ea5-8f7253c5b7af"
+    ],
+    "broken": [
+      "ae32646e-9e8e-43d5-9f08-bfe79a4c0942"
+    ],
+    "weakened": [],
+    "unproven": [],
+    "next_actions": [
+      {
+        "action": "Verify the current 7-day SEC yield on the target fund's site before initiating the transfer to confirm updated return expectations.",
+        "claim_ids": [
+          "ae32646e-9e8e-43d5-9f08-bfe79a4c0942"
+        ]
+      },
+      {
+        "action": "Initiate the transfer of savings above the three-month reserve from checking into the money market fund.",
+        "claim_ids": [
+          "604aeb86-9f73-46e6-a53f-9a63557c39f6",
+          "87fe5b38-088a-4330-8e96-207918d6ff49",
+          "ef75a517-f203-446c-8ea5-8f7253c5b7af"
+        ]
+      }
+    ]
+  },
+  "status": "done",
+  "gate_message": null,
+  "agent_mode": "auto",
+  "selected_agents": [
+    "devils_advocate",
+    "receipts",
+    "builder"
+  ],
+  "agent_rationales": {
+    "devils_advocate": "Challenges the unstated premise that Treasury MMF yields are fixed or guaranteed long-term, highlighting interest rate reset risk if…",
+    "receipts": "Verifies current yield claims, fund expense ratios, tax advantages of Treasury funds, and settlement times relative to FDIC-insured…",
+    "builder": "Evaluates operational mechanics such as same-day vs T+1 redemption settlement times to ensure three months of checking liquidity is…"
+  }
+}

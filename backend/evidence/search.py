@@ -21,6 +21,8 @@ from tenacity import (
     wait_exponential,
 )
 
+from pydantic import BaseModel, Field
+
 from config import get_settings
 from core.models import Claim, EvidenceItem
 
@@ -233,8 +235,61 @@ def build_competitor_query(statement: str) -> str:
     return f"{feature} competitor market leader alternative"
 
 
+async def reformulate_query(
+    statement: str,
+    previous_query: str,
+    provider: Any | None = None,
+) -> str:
+    """Diagnostic query reformulation for iterative search when initial queries yield 0 results.
+
+    Strips over-constraining adjectives, extracts core entities/nouns, or uses a fast LLM rewrite
+    if an LLM provider is supplied. Caps output to at most 6-8 search terms.
+    """
+    if provider is not None and hasattr(provider, "generate"):
+        try:
+            class ReformulatedQuery(BaseModel):
+                query: str = Field(description="3 to 6 search keywords targeting documentation, benchmarks, or facts")
+
+            system_prompt = (
+                "A web search query returned 0 results. Reformulate it into a broader, high-signal keyword query "
+                "of 3 to 6 terms. Focus on primary entity names, official policy terms, technical specs, or industry standards. "
+                "Drop marketing buzzwords, speculative verbs, or overly narrow adjectives."
+            )
+            user_prompt = f"Target Claim: {statement}\nFailed Search Query: {previous_query}"
+            res = await provider.generate(
+                system_prompt=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+                response_schema=ReformulatedQuery,
+            )
+            if isinstance(res, ReformulatedQuery) and res.query.strip():
+                return res.query.strip()
+            if hasattr(res, "query") and res.query:
+                return str(res.query).strip()
+        except Exception as exc:
+            logger.debug("LLM query reformulation failed (%s); using rule-based fallback.", exc)
+
+    # Rule-based fallback: Relax query by extracting proper nouns, numbers, or top keywords
+    tokens = re.findall(r"[\w$%.,/-]*\w[\w$%.,/-]*", statement or "")
+    proper_nouns = [t.strip(".,/-") for t in tokens if t and t[0].isupper() and t.lower() not in _QUERY_STOPWORDS]
+    if len(proper_nouns) >= 2:
+        return " ".join(proper_nouns[:4]) + " documentation limits requirements"
+
+    # Strip restrictive adjectives from previous query
+    relaxed = re.sub(
+        r"\b(unlimited|instant|zero|free|guaranteed|automatic|seamless|effortless|exclusive|complete|total)\b",
+        "",
+        previous_query,
+        flags=re.IGNORECASE,
+    )
+    relaxed = re.sub(r"\s+", " ", relaxed).strip()
+    words = [w for w in relaxed.split() if w.lower() not in _QUERY_STOPWORDS]
+    if len(words) > 4:
+        return " ".join(words[:4])
+    return relaxed or previous_query
+
 
 def _clean_ddg_url(raw_url: str) -> str:
+
     """Decodes DuckDuckGo redirect URLs if present, otherwise returns cleaned URL."""
     clean = html.unescape(raw_url)
     parsed = urllib.parse.urlparse(clean)

@@ -75,9 +75,21 @@ export interface NextAction {
   claim_ids: string[];
 }
 
+export interface DecidingFactor {
+  claim_id: string;
+  evaluator: string;
+  the_fact: string;
+  source_url?: string | null;
+  source_title?: string | null;
+  gate_fired?: boolean;
+}
+
 export interface CaseVerdict {
   decision_state: "proceed" | "proceed_with_changes" | "hold" | "drop" | string;
+  /** Generated per case. Empty on older runs — fall back to HEADLINES. */
+  headline?: string;
   summary: string;
+  deciding_factor?: DecidingFactor | null;
   survived: string[];
   broken: string[];
   weakened?: string[];

@@ -12,7 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from core.models import Case, Finding, TestPlanItem
-from core.textutil import SPECIFICITY_RULE, clamp_sentences, one_line
+from core.textutil import OBJECTION_SCALE, SPECIFICITY_RULE, clamp_sentences, one_line
 from providers.base import LLMProvider
 
 OPERATOR_SYSTEM_PROMPT = (
@@ -27,7 +27,15 @@ OPERATOR_SYSTEM_PROMPT = (
     "3. REGULATORY LIABILITY: When an autonomous or assisted system errs, who takes the regulatory, financial, or legal blame? Does the proposal brush up against regulated boundaries (e.g., unauthorized practice of law, medical triage compliance, financial advisory restrictions, student visa auto-filing prohibitions)?\n"
     "4. PROCESS DRAG: Does the operational burden of verifying, managing, and configuring this system eliminate the claimed ROI? Does the system assume instantaneous two-sided participation or perfect historical documentation?\n\n"
     "Produce a rigorous, grounded assessment. If the claim is operationally sound and respects existing workflows, assign friction_type=\"none\" and operational_blocker=None.\n"
-    "If it relies on naive assumptions about human compliance, frictionless enterprise approval, or unassigned liability, highlight the exact bottleneck."
+    "If it relies on naive assumptions about human compliance, frictionless enterprise approval, or unassigned liability, highlight the exact bottleneck.\n\n"
+    "Not every decision passes through an organization. A personal, medical, legal or "
+    "financial decision made by one person has no procurement committee and no InfoSec "
+    "review; do not invent institutional friction where there is no institution. There, "
+    "the friction pillars that still apply are the person's own follow-through, the "
+    "counterparties they depend on, and the liability they personally carry.\n\n"
+    f"{OBJECTION_SCALE}\n\n"
+    "friction_type=\"none\" and an objection strength of 0.0-0.1 go together: if you "
+    "found no friction pillar, do not score as though you had."
 )
 
 
@@ -36,7 +44,16 @@ class OperatorVerdict(BaseModel):
     reasoning: str = Field(
         description="At most 3 sentences: analysis across the 4 friction pillars (incentives, red tape, liability, process drag)"
     )
-    confidence: float = Field(default=0.7, ge=0.0, le=1.0, description="Confidence score between 0.0 and 1.0")
+    confidence: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Objection strength against the claim: 0.0-0.1 (operationally frictionless), "
+            "0.2-0.35 (minor friction), 0.4-0.6 (needs a named fix), 0.7-0.85 (severe), "
+            "0.9-1.0 (hard institutional or statutory wall)"
+        ),
+    )
     friction_type: Literal[
         "incentive_misalignment",
         "enterprise_gatekeeping",
@@ -108,8 +125,12 @@ async def run_operator(item: TestPlanItem, case: Case, provider: LLMProvider) ->
 
     result_text = getattr(response, "result", "") or "Operational friction examined"
     reasoning_text = getattr(response, "reasoning", "") or str(response)
-    confidence_val = float(getattr(response, "confidence", 0.7) or 0.0)
+    confidence_val = float(getattr(response, "confidence", 0.0) or 0.0)
     blocker = getattr(response, "operational_blocker", None) or getattr(response, "contradiction", None)
+    # "no friction pillar fired" and "a strong objection" cannot both be true. The
+    # model returns these as independent fields, so hold the invariant here.
+    if getattr(response, "friction_type", "none") == "none" and not blocker:
+        confidence_val = min(confidence_val, 0.1)
 
     return Finding(
         claim_id=item.target_claim,

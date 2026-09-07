@@ -18,7 +18,7 @@ import {
   normalizeWebUrl,
   DetectedWebUrl,
 } from "@/lib/urlUtils";
-import { PoweredBySerpApiBadge, SerpApiIcon } from "@/components/ui/serpapi";
+import { PoweredBySerpApiBadge } from "@/components/ui/serpapi";
 
 const MAX_PROPOSAL_CHARS = 500;
 

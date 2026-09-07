@@ -74,6 +74,11 @@ STEEL_MAN_SYSTEM_PROMPT = (
     "PHASE 1: ADJUDICATION\n"
     "Evaluate the evidence. Do not count votes. A single grounded fact from Researcher overrides "
     "theoretical objections.\n"
+    "Each finding carries an 'objection' band: no objection | minor | substantive | "
+    "severe | fatal. A panel that returns 'no objection' or 'minor' across the board "
+    "is telling you the claim is sound — record that as 'survived'. Do not manufacture "
+    "a downgrade to look rigorous; a review that never lets anything through is not a "
+    "review.\n\n"
     "Assign a status:\n"
     "- 'survived': The claim withstands all scrutiny.\n"
     "- 'weakened': Flaws exist, or evidence is lacking, but the core premise remains partially viable.\n"
@@ -94,13 +99,31 @@ STEEL_MAN_SYSTEM_PROMPT = (
 RECONCILE_SYSTEM_PROMPT = STEEL_MAN_SYSTEM_PROMPT
 
 
+def objection_band(confidence: float) -> str:
+    """Axiom 1 forbids averaging confidences, so the judge never sees the raw floats.
+
+    Handing it `confidence=0.8` invites exactly the arithmetic the prompt bans —
+    the model anchors on numbers whatever it is told. A word carries the same
+    ordering without being addable."""
+    if confidence >= 0.9:
+        return "fatal"
+    if confidence >= 0.7:
+        return "severe"
+    if confidence >= 0.4:
+        return "substantive"
+    if confidence >= 0.2:
+        return "minor"
+    return "no objection"
+
+
 async def reconcile(
     claim: Claim, findings: list[Finding], provider: LLMProvider
 ) -> SteelManVerdict:
     findings_summary = "\n".join(
         f"- evaluator={f.evaluator}, result={f.result!r}, evidence_count={len(f.evidence)}, "
         f"sources={[e.source_url for e in f.evidence] or 'none'}, "
-        f"confidence={f.confidence}, reasoning={f.reasoning!r}, contradiction={f.contradiction!r}"
+        f"objection={objection_band(f.confidence)}, reasoning={f.reasoning!r}, "
+        f"contradiction={f.contradiction!r}"
         for f in findings
     )
     result = await provider.generate(
