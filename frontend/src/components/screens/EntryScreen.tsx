@@ -16,6 +16,8 @@ import { detectWebUrl, extractAllWebUrls, normalizeWebUrl, DetectedWebUrl } from
 import { SerpApiIcon } from "@/components/ui/serpapi";
 import { motion } from "framer-motion";
 import { RocketIntroAnimation } from "@/components/ui/RocketIntroAnimation";
+import { TechDecorations } from "@/components/features/TechDecorations";
+import SpaceStarfield from "@/components/canvas/SpaceStarfield";
 
 const MAX_PROPOSAL_CHARS = 500;
 
@@ -519,6 +521,9 @@ export const EntryScreen: React.FC = () => {
 
   return (
     <div className="relative flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between overflow-hidden">
+      {/* Background Starfield (borders max, behind all assets, actions, characters, popups) */}
+      <SpaceStarfield className="fixed inset-0 w-full h-full pointer-events-none z-0" />
+
       {/* 2D Rocket Opening Intro Animation */}
       {!isIntroComplete && (
         <RocketIntroAnimation
@@ -529,7 +534,7 @@ export const EntryScreen: React.FC = () => {
 
       {/* Hero UI Wrapper with Staggered Framer Motion Reveal */}
       <motion.div
-        className="flex-1 flex flex-col items-center justify-center py-space-6 px-space-4 w-full my-auto"
+        className="relative z-10 flex-1 flex flex-col items-center justify-center py-space-6 px-space-4 w-full my-auto"
         initial={isIntroRevealed ? "visible" : "hidden"}
         animate={isIntroRevealed ? "visible" : "hidden"}
         variants={heroContainerVariants}
@@ -544,6 +549,9 @@ export const EntryScreen: React.FC = () => {
               What decision are you testing?
             </h1>
           </motion.div>
+
+          {/* Patrolling Sentry Robot & Perched Companion Head */}
+          <TechDecorations isTyping={rawInput.trim().length > 0} />
 
           {/* Form Container */}
           <motion.div variants={heroItemVariants}>
@@ -770,6 +778,7 @@ export const EntryScreen: React.FC = () => {
 
       {/* Footer */}
       <motion.div
+        className="relative z-10"
         initial={isIntroRevealed ? "visible" : "hidden"}
         animate={isIntroRevealed ? "visible" : "hidden"}
         variants={{

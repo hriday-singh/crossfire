@@ -150,30 +150,78 @@ async def test_gemini_provider_delegates_generate(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_anthropic_provider_raises_not_implemented():
+async def test_anthropic_provider_posts_to_the_messages_api(monkeypatch):
+    """Claude speaks a different wire shape: system is top-level, text comes
+    back as content blocks. No SDK — just the documented REST call."""
+    import httpx
+
     from providers.anthropic import AnthropicProvider
     from providers.base import LLMProvider
 
-    anthropic: LLMProvider = AnthropicProvider(api_key="ant-key")
-    with pytest.raises(NotImplementedError) as exc_info:
-        await anthropic.generate(system_prompt="sys", messages=[])
-    assert "stub" in str(exc_info.value)
+    seen: dict = {}
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"content": [{"type": "text", "text": "claude says hi"}]}
+
+    class MockClient:
+        async def post(self, url, json=None, headers=None):
+            seen["url"] = url
+            seen["json"] = json
+            seen["headers"] = headers
+            return MockResponse()
+
+    provider: LLMProvider = AnthropicProvider(api_key="ant-key", model="claude-sonnet-5")
+    monkeypatch.setattr(provider, "_get_client", lambda: _resolved(MockClient()))
+
+    result = await provider.generate(
+        system_prompt="sys", messages=[{"role": "user", "content": "hi"}]
+    )
+
+    assert result == "claude says hi"
+    assert seen["url"].endswith("/messages")
+    assert seen["json"]["system"] == "sys"
+    assert seen["json"]["messages"] == [{"role": "user", "content": "hi"}]
+    assert seen["headers"]["x-api-key"] == "ant-key"
+    assert seen["headers"]["anthropic-version"] == "2023-06-01"
+
+
+def _resolved(value):
+    async def _coro():
+        return value
+
+    return _coro()
+
+
+def test_anthropic_message_conversion_drops_system_and_starts_with_user():
+    from providers.anthropic import AnthropicProvider
+
+    converted = AnthropicProvider._to_anthropic_messages(
+        [
+            {"role": "system", "content": "ignored"},
+            {"role": "assistant", "content": "leading assistant turn"},
+        ]
+    )
+
+    assert all(m["role"] != "system" for m in converted)
+    assert converted[0]["role"] == "user"
 
 
 def test_get_provider_factory():
+    """Named lookup builds one bare adapter per catalog id — no pool, no
+    fallback. The no-argument call is the pipeline's path and is covered by
+    tests/api/test_provider_routes.py."""
     from providers import get_provider
     from providers.anthropic import AnthropicProvider
-    from providers.gemini import GeminiProvider
     from providers.openai_compat import OpenAICompatibleProvider
 
-    p1 = get_provider("gemini")
-    assert isinstance(p1, GeminiProvider)
-
-    p2 = get_provider("OPENAI_COMPAT")
-    assert isinstance(p2, OpenAICompatibleProvider)
-
-    p3 = get_provider("Anthropic")
-    assert isinstance(p3, AnthropicProvider)
+    assert isinstance(get_provider("gemini"), OpenAICompatibleProvider)
+    assert isinstance(get_provider("OPENAI_COMPAT"), OpenAICompatibleProvider)
+    assert isinstance(get_provider("Anthropic"), AnthropicProvider)
+    assert isinstance(get_provider("ollama"), OpenAICompatibleProvider)
 
     # API key override
     p4 = get_provider("openai_compat", api_key="custom-override-key")
@@ -183,6 +231,15 @@ def test_get_provider_factory():
     with pytest.raises(ValueError) as exc_info:
         get_provider("unsupported_provider")
     assert "unknown LLM provider 'unsupported_provider'" in str(exc_info.value)
+
+
+def test_get_provider_with_no_arguments_returns_the_routing_chain():
+    from providers import get_provider
+    from providers.routing import RoutingProvider
+
+    provider = get_provider()
+    assert isinstance(provider, RoutingProvider)
+    assert provider.primary.provider == "gemini_proxy"
 
 
 @pytest.mark.asyncio

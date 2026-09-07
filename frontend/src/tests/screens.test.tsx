@@ -558,6 +558,8 @@ describe("Screen Components", () => {
 
     it("loads draftPrompt into textarea when provided in context", () => {
       vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+      clarify: vi.fn(),
+      acceptProvisionalClaim: vi.fn(),
         state: {
           ...INITIAL_STATE,
           draftPrompt: "Draft prompt from Steel Man fix",
@@ -616,6 +618,8 @@ describe("Screen Components", () => {
       const useCaseSpy = vi
         .spyOn(CaseContextModule, "useCase")
         .mockReturnValue({
+          clarify: vi.fn(),
+          acceptProvisionalClaim: vi.fn(),
           state: {
             ...INITIAL_STATE,
             activeScreen: "confirm",
@@ -702,6 +706,8 @@ describe("Screen Components", () => {
       const scrollToSpy = vi.spyOn(window, "scrollTo");
 
       vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+      clarify: vi.fn(),
+      acceptProvisionalClaim: vi.fn(),
         state: {
           ...INITIAL_STATE,
           activeScreen: "runner",
@@ -786,6 +792,8 @@ describe("Screen Components", () => {
       };
 
       vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+      clarify: vi.fn(),
+      acceptProvisionalClaim: vi.fn(),
         state: {
           ...INITIAL_STATE,
           activeScreen: "dashboard",
@@ -896,6 +904,8 @@ describe("Screen Components", () => {
       };
 
       vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+      clarify: vi.fn(),
+      acceptProvisionalClaim: vi.fn(),
         state: {
           ...INITIAL_STATE,
           activeScreen: "dashboard",

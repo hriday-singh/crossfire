@@ -36,9 +36,9 @@ export function StageContainer({
   activeSpeakerId = null,
   hoveredAgentId = null,
   isJudgeExiting = false,
-  onHoverAgent = () => {},
-  onPositionUpdate = () => {},
-  playSfx = () => {},
+  onHoverAgent = () => { },
+  onPositionUpdate = () => { },
+  playSfx = () => { },
   children = null,
 }) {
   const containerRef = useRef(null);

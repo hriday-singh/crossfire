@@ -24,6 +24,8 @@ from api.schemas import (
     ConfirmCaseRequest,
     ConfirmCaseResponse,
     CreateCaseRequest,
+    ClarifyCaseRequest,
+    ClarifyCaseResponse,
     IngestImageRequest,
     IngestMarkdownRequest,
     IngestPdfRequest,
@@ -208,6 +210,10 @@ async def confirm_case(
             detail="Cannot confirm case with no claims.",
         )
 
+    if any(getattr(c, "provisional", False) for c in case.claims):
+        raise HTTPException(400, "Confirm or remove the inferred claims before running tests.")
+
+
     if payload and payload.selected_agents is not None:
         if len(payload.selected_agents) == 0:
             raise HTTPException(
@@ -240,6 +246,68 @@ async def confirm_case(
         status="testing",
         message="Case confirmed and pipeline launched",
     )
+
+
+@router.post(
+    "/cases/{case_id}/clarify",
+    response_model=ClarifyCaseResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def clarify_case(
+    case_id: str,
+    payload: ClarifyCaseRequest,
+    provider: Annotated[LLMProvider, Depends(get_llm_provider)],
+) -> ClarifyCaseResponse:
+    case = store.get(case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    if case.status != "needs_input":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot clarify case in status '{case.status}'. Must be 'needs_input'.",
+        )
+
+    merged = f"{case.raw_input}\n\n{payload.answer.strip()}"
+    
+    try:
+        updated = await extract_claims(
+            merged,
+            provider,
+            context=case.context,
+            agent_mode=case.agent_mode,
+            selected_agents=case.selected_agents,
+            case_id=case.id,
+            clarify_round=case.clarify_round + 1,
+            previous_question=case.gate_message,
+        )
+    except (httpx.TimeoutException, TimeoutError) as exc:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Extraction timed out") from exc
+    except httpx.HTTPStatusError as exc:
+        is_rate_limit = exc.response.status_code == 429 or "429" in exc.response.text
+        code = status.HTTP_429_TOO_MANY_REQUESTS if is_rate_limit else status.HTTP_424_FAILED_DEPENDENCY
+        raise HTTPException(status_code=code, detail=f"Extraction failed: {exc.response.text}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_424_FAILED_DEPENDENCY, detail=f"Extraction failed: {exc}") from exc
+
+    store.set(updated)
+
+    if updated.status != "needs_input":
+        updated.gate_message = None
+        updated.clarify_missing = []
+        updated.status = "testing"
+        store.set(updated)
+        await events.publish(
+            updated.id,
+            "claim_map_ready",
+            {"claims": [c.model_dump() for c in updated.claims]},
+        )
+        await handle_confirm(updated.id)
+        return ClarifyCaseResponse(case=updated, auto_started=True)
+    else:
+        await events.publish(updated.id, "needs_input", {"message": updated.gate_message})
+        return ClarifyCaseResponse(case=updated, auto_started=False)
+
 
 
 @router.get("/cases/{case_id}", response_model=Case)

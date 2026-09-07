@@ -25,6 +25,7 @@ export type CaseStatus =
 export interface Claim {
   id: string;
   statement: string;
+  provisional?: boolean;
   load_bearing: boolean | null;
   load_bearing_reason?: string | null;
   status: ClaimStatus | null;
@@ -111,7 +112,11 @@ export interface Case {
   case_verdict?: CaseVerdict | null;
   status: CaseStatus;
   gate_message?: string | null;
+  clarify_missing?: string[];
+  clarify_interpretation?: string | null;
+  clarify_round?: number;
   started_at?: number | null;
+
   completed_at?: number | null;
   agent_mode?: "auto" | "custom";
   selected_agents?: string[];

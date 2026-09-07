@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from core.models import Claim
+from core.models import Claim, Case
 
 
 class CreateCaseRequest(BaseModel):
@@ -17,6 +17,15 @@ class CreateCaseRequest(BaseModel):
         default=None,
         description="Optional pre-selected agent IDs when agent_mode is 'custom'",
     )
+
+
+class ClarifyCaseRequest(BaseModel):
+    answer: str = Field(min_length=1, max_length=4000)
+
+
+class ClarifyCaseResponse(BaseModel):
+    case: Case
+    auto_started: bool
 
 
 class ConfirmCaseRequest(BaseModel):

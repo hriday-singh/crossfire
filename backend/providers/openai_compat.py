@@ -90,12 +90,17 @@ class OpenAICompatibleProvider:
         model: str | None = None,
         client: httpx.AsyncClient | None = None,
         timeout: float | None = None,
+        retry_transient: bool = True,
     ) -> None:
+        # retry_transient=False is for providers/routing.py: when a key pool is
+        # in play, a 429 should rotate to the next key immediately rather than
+        # burn two seconds retrying the key that just refused us.
         settings = get_settings()
         self._api_key = api_key or settings.llm_api_key or settings.openai_api_key or "none"
         self._base_url = (base_url or settings.llm_base_url or "http://localhost:8081/v1").rstrip("/")
         self._model = model or settings.llm_model or "gemini-3.7-flash"
         self._timeout = timeout or getattr(settings, "llm_timeout_seconds", 90.0)
+        self._retry_transient = retry_transient
         self._client = client
         self._owns_client = client is None
 
@@ -158,12 +163,14 @@ class OpenAICompatibleProvider:
             else:
                 formatted_messages.insert(0, {"role": "system", "content": instruction})
 
+        attempts = 2 if self._retry_transient else 1
+
         if response_schema is None:
-            for attempt in range(2):
+            for attempt in range(attempts):
                 try:
                     return await self._complete(formatted_messages)
                 except httpx.TimeoutException as exc:
-                    if attempt == 0:
+                    if attempt + 1 < attempts:
                         logger.warning(
                             "LLM completion attempt 1 timed out after %.1fs; resetting connection and retrying...",
                             self._timeout,
@@ -176,7 +183,7 @@ class OpenAICompatibleProvider:
                         request=_safe_request(exc),
                     ) from exc
                 except httpx.ConnectError as exc:
-                    if attempt == 0:
+                    if attempt + 1 < attempts:
                         logger.warning("LLM connection failed; resetting client and retrying: %s", exc)
                         await self._reset_client()
                         await asyncio.sleep(1.0)
@@ -186,7 +193,7 @@ class OpenAICompatibleProvider:
                         request=_safe_request(exc),
                     ) from exc
                 except httpx.HTTPStatusError as exc:
-                    if attempt == 0 and exc.response.status_code in (429, 500, 502, 503, 504):
+                    if attempt + 1 < attempts and exc.response.status_code in (429, 500, 502, 503, 504):
                         logger.warning(
                             "LLM completion attempt 1 returned HTTP %d; resetting client and retrying in 2s...",
                             exc.response.status_code,
@@ -200,12 +207,12 @@ class OpenAICompatibleProvider:
         # or transient timeout is retried once.
         last_error: ValidationError | Exception | None = None
         last_content = ""
-        for attempt in range(2):
+        for attempt in range(attempts):
             try:
                 last_content = await self._complete(formatted_messages)
             except httpx.TimeoutException as exc:
                 last_error = exc
-                if attempt == 0:
+                if attempt + 1 < attempts:
                     logger.warning(
                         "LLM structured completion attempt 1 timed out after %.1fs; retrying...",
                         self._timeout,
@@ -219,7 +226,7 @@ class OpenAICompatibleProvider:
                 ) from exc
             except httpx.ConnectError as exc:
                 last_error = exc
-                if attempt == 0:
+                if attempt + 1 < attempts:
                     logger.warning("LLM structured completion connection failed; retrying: %s", exc)
                     await self._reset_client()
                     await asyncio.sleep(1.0)
@@ -230,7 +237,7 @@ class OpenAICompatibleProvider:
                 ) from exc
             except httpx.HTTPStatusError as exc:
                 last_error = exc
-                if attempt == 0 and exc.response.status_code in (429, 500, 502, 503, 504):
+                if attempt + 1 < attempts and exc.response.status_code in (429, 500, 502, 503, 504):
                     logger.warning(
                         "LLM structured completion attempt 1 returned HTTP %d; retrying in 2s...",
                         exc.response.status_code,
@@ -247,7 +254,7 @@ class OpenAICompatibleProvider:
 
         raise LLMFormatError(
             f"{self._model} did not return valid {response_schema.__name__} JSON "
-            f"after 2 attempts; upstream said: {_snippet(last_content)}"
+            f"after {attempts} attempts; upstream said: {_snippet(last_content)}"
         ) from last_error
 
     async def _complete(self, formatted_messages: list[dict[str, Any]]) -> str:

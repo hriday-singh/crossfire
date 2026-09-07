@@ -10,3 +10,4 @@ pypdf
 rapidocr_onnxruntime
 pymupdf
 serpapi
+cryptography

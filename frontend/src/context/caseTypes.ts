@@ -120,5 +120,8 @@ export type AppAction =
   | { type: "SET_DEBUG_MODE"; payload: boolean }
   | { type: "ENTER_PREVIEW_MODE"; payload?: PreviewView }
   | { type: "SET_PREVIEW_VIEW"; payload: PreviewView }
-  | { type: "EXIT_PREVIEW_MODE" };
+  | { type: "EXIT_PREVIEW_MODE" }
+  | { type: "ACCEPT_PROVISIONAL_CLAIM"; payload: { claimId: string } }
+  | { type: "CLARIFY_SUCCESS"; payload: { case: Case; autoStarted: boolean } };
+
 

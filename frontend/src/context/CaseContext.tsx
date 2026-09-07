@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from "react";
 import { AppAction, AppState, INITIAL_STATE, PreviewView, caseReducer } from "./caseReducer";
 import { DECISION_PRESETS } from "@/lib/presets";
-import { confirmCase, createCase, getCase, getHealth } from "@/lib/api";
+import { clarifyCase, confirmCase, createCase, getCase, getHealth } from "@/lib/api";
 import { Case } from "@/types/crossfire";
 
 interface CaseContextValue {
@@ -15,6 +15,8 @@ interface CaseContextValue {
   ) => Promise<void>;
   cancelExtraction: () => void;
   confirmAndRun: () => Promise<void>;
+  clarify: (answer: string) => Promise<void>;
+  acceptProvisionalClaim: (claimId: string) => void;
   toggleAgentSelection: (agentId: string) => void;
   setAgentMode: (mode: "auto" | "custom") => void;
   setSelectedAgents: (agents: string[]) => void;
@@ -237,6 +239,45 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isClarifyingRef = useRef(false);
+
+  const clarify = async (answer: string) => {
+    if (!state.currentCase || isClarifyingRef.current) return;
+    
+    isClarifyingRef.current = true;
+    try {
+      const result = await clarifyCase(state.currentCase.id, answer);
+      if (result.auto_started) {
+        dispatch({
+          type: "CLARIFY_SUCCESS",
+          payload: { case: result.case, autoStarted: true }
+        });
+        await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      } else {
+        dispatch({
+          type: "CLARIFY_SUCCESS",
+          payload: { case: result.case, autoStarted: false }
+        });
+      }
+    } catch (err: unknown) {
+      const errorObj = err as { stage?: string; message?: string };
+      dispatch({
+        type: "EXTRACTING_ERROR",
+        payload: {
+          stage: "clarify",
+          message: errorObj?.message || "Failed to submit clarification.",
+          details: err,
+        },
+      });
+    } finally {
+      isClarifyingRef.current = false;
+    }
+  };
+
+  const acceptProvisionalClaim = (claimId: string) => {
+    dispatch({ type: "ACCEPT_PROVISIONAL_CLAIM", payload: { claimId } });
+  };
+
   const refreshCurrentCase = useCallback(async () => {
     if (!state.currentCase?.id) return;
     try {
@@ -297,6 +338,8 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startExtracting,
         cancelExtraction,
         confirmAndRun,
+        clarify,
+        acceptProvisionalClaim,
         toggleAgentSelection,
         setAgentMode,
         setSelectedAgents,

@@ -12,6 +12,7 @@ import { HistoryModal } from "@/components/features/HistoryModal";
 import { FaqDrawer } from "@/components/features/FaqDrawer";
 import { SettingsModal } from "@/components/features/SettingsModal";
 import { DebugViewsToolbar } from "@/components/features/DebugViewsToolbar";
+import SpaceStarfield from "@/components/canvas/SpaceStarfield";
 const DiscussionApp = React.lazy(() => import("./components/DiscussionApp"));
 
 export const AppContent: React.FC = () => {
@@ -26,7 +27,9 @@ export const AppContent: React.FC = () => {
   }, [state.activeScreen]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-indigo-500/20 selection:text-indigo-300">
+    <div className="relative flex min-h-screen flex-col bg-black text-foreground selection:bg-indigo-500/20 selection:text-indigo-300">
+      {/* Fullscreen Space Starfield background across all slides */}
+      <SpaceStarfield className="fixed inset-0 w-full h-full pointer-events-none z-0" />
       {/* Top Header */}
       <Header />
 
@@ -40,7 +43,7 @@ export const AppContent: React.FC = () => {
       />
 
       {/* Main Screen Canvas */}
-      <main className="flex-1 pt-14">
+      <main className="relative z-10 flex-1 pt-14">
         {state.activeScreen === "entry" && <EntryScreen />}
         {state.activeScreen === "confirm" && <ConfirmScreen />}
         {state.activeScreen === "runner" && (
