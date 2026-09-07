@@ -163,3 +163,146 @@ def test_health_reports_the_selected_provider(client):
     body = client.get("/health").json()
     assert body["provider"] == "openai"
     assert body["model"] == "gpt-4o"
+
+
+# ------------------------------------------------- multiple custom endpoints
+
+
+def _custom(client, name, base_url, model="house-model", **extra):
+    return client.post(
+        "/providers/custom",
+        json={"name": name, "base_url": base_url, "model": model, **extra},
+    )
+
+
+def test_several_custom_endpoints_coexist(client):
+    _custom(client, "OpenRouter", "https://openrouter.ai/api/v1", model="mixtral")
+    _custom(client, "vLLM Box", "http://10.0.0.5:8000/v1", model="qwen2.5-72b")
+
+    body = client.get("/providers").json()
+    added = {p["id"]: p for p in body["providers"] if p["removable"]}
+
+    assert set(added) == {"custom:openrouter", "custom:vllm-box"}
+    assert added["custom:openrouter"]["base_url"] == "https://openrouter.ai/api/v1"
+    assert added["custom:vllm-box"]["model"] == "qwen2.5-72b"
+
+
+def test_custom_endpoint_api_key_is_optional_and_stored_masked(client):
+    keyless = _custom(client, "Open Gateway", "http://gw.internal/v1").json()
+    keyed = _custom(
+        client, "Paid Gateway", "https://paid.example/v1", api_key="sk-paid-000000001234"
+    ).json()
+
+    assert keyless["key_count"] == 0
+    assert keyless["configured"] is True  # no key required for a custom endpoint
+    assert keyed["key_count"] == 1
+
+    keys = client.get("/providers/custom:paid-gateway/keys").json()
+    assert keys[0]["hint"] == "sk-p...1234"
+    assert "sk-paid-000000001234" not in client.get("/providers").text
+
+
+def test_duplicate_custom_endpoint_name_is_rejected(client):
+    assert _custom(client, "My Gateway", "http://a/v1").status_code == 201
+    assert _custom(client, "my  gateway!", "http://b/v1").status_code == 409
+
+
+def test_custom_endpoint_name_must_contain_something_usable(client):
+    assert _custom(client, "---", "http://a/v1").status_code == 400
+
+
+def test_custom_endpoints_take_their_place_in_the_fallback_order(client):
+    _custom(client, "First Backup", "http://one/v1", model="m1")
+    _custom(client, "Second Backup", "http://two/v1", model="m2")
+    client.post("/providers/gemini/keys", json={"api_key": "AIzaSyCHAINORDER01"})
+    client.put("/providers/active", json={"provider": "gemini"})
+
+    client.put(
+        "/providers/fallback",
+        json={"chain": ["custom:first-backup", "custom:second-backup", "gemini_proxy"]},
+    )
+
+    chain = providers.get_provider().targets
+    assert [t.provider for t in chain] == [
+        "gemini",
+        "custom:first-backup",
+        "custom:second-backup",
+        "gemini_proxy",
+    ]
+    assert [t.base_url for t in chain[1:3]] == ["http://one/v1", "http://two/v1"]
+    assert [t.model for t in chain[1:3]] == ["m1", "m2"]
+
+
+def test_deleting_a_custom_endpoint_removes_its_keys_and_chain_entry(client):
+    _custom(client, "Doomed", "http://doomed/v1", api_key="sk-doomed-0000000001")
+    client.put("/providers/fallback", json={"chain": ["custom:doomed", "gemini_proxy"]})
+
+    assert client.delete("/providers/custom:doomed").status_code == 204
+
+    body = client.get("/providers").json()
+    assert "custom:doomed" not in {p["id"] for p in body["providers"]}
+    assert body["fallback_chain"] == ["gemini_proxy"]
+    assert keyring.list_keys("custom:doomed") == []
+
+
+def test_deleting_the_active_custom_endpoint_falls_back_to_the_default(client):
+    _custom(client, "Solo", "http://solo/v1")
+    client.put("/providers/active", json={"provider": "custom:solo"})
+
+    client.delete("/providers/custom:solo")
+
+    assert client.get("/providers").json()["active"] == "gemini_proxy"
+
+
+def test_builtin_providers_cannot_be_deleted(client):
+    assert client.delete("/providers/openai").status_code == 400
+    assert client.delete("/providers/custom:ghost").status_code == 404
+
+
+# ------------------------------------------------------- testing every link
+
+
+class _StubAdapter:
+    """Answers 'ok' unless its base_url is on the dead list."""
+
+    def __init__(self, provider_id, base_url):
+        self._model = f"{provider_id}-model"
+        self._dead = "dead" in base_url
+
+    async def generate(self, system_prompt, messages, response_schema=None):
+        if self._dead:
+            raise ConnectionError("connection refused")
+        return "ok"
+
+
+def test_testing_the_chain_reports_one_row_per_link_in_order(client, monkeypatch):
+    _custom(client, "Good Backup", "http://good/v1")
+    _custom(client, "Dead Backup", "http://dead/v1")
+    client.put(
+        "/providers/fallback", json={"chain": ["custom:good-backup", "custom:dead-backup"]}
+    )
+
+    monkeypatch.setattr(
+        providers,
+        "build_adapter",
+        lambda provider_id, **kw: _StubAdapter(provider_id, keyring.get_config(provider_id).base_url),
+    )
+
+    rows = client.post("/providers/test").json()
+
+    assert [(r["provider"], r["ok"]) for r in rows] == [
+        ("gemini_proxy", True),
+        ("custom:good-backup", True),
+        ("custom:dead-backup", False),
+    ]
+    assert "ConnectionError" in rows[2]["detail"]
+
+
+def test_a_single_provider_can_be_tested_with_an_unsaved_key(client, monkeypatch):
+    monkeypatch.setattr(
+        providers, "build_adapter", lambda provider_id, **kw: _StubAdapter(provider_id, "http://x/v1")
+    )
+
+    body = client.post("/providers/openai/test", json={"api_key": "sk-unsaved-00000001"}).json()
+
+    assert body == {"ok": True, "provider": "openai", "model": "openai-model", "detail": "ok"}

@@ -96,7 +96,7 @@ def test_unknown_provider_is_rejected():
 def test_config_defaults_come_from_the_catalog():
     config = keyring.get_config("openai")
     assert config.base_url == "https://api.openai.com/v1"
-    assert config.model == "gpt-4.1-mini"
+    assert config.model == "gpt-5.6-luna"
 
 
 def test_config_override_persists():
@@ -139,3 +139,20 @@ def test_config_version_changes_on_every_write():
     before = keyring.config_version()
     keyring.add_key("openai", "sk-version-bump-1234")
     assert keyring.config_version() != before
+
+
+def test_custom_endpoints_are_registered_and_deletable():
+    keyring.set_config("custom:box-a", model="m", base_url="http://a/v1")
+    keyring.set_config("custom:box-b", model="m", base_url="http://b/v1")
+
+    assert keyring.list_custom_providers() == ["custom:box-a", "custom:box-b"]
+    assert "custom:box-a" in keyring.known_providers()
+
+    assert keyring.delete_provider("custom:box-a") is True
+    assert keyring.list_custom_providers() == ["custom:box-b"]
+    assert keyring.delete_provider("custom:box-a") is False
+
+
+def test_builtin_providers_cannot_be_deleted():
+    with pytest.raises(ValueError):
+        keyring.delete_provider("openai")

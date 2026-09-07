@@ -24,6 +24,9 @@ const getApiBase = () => {
 
 const DEFAULT_API_BASE = getApiBase();
 
+/** Shared base URL for every Crossfire backend call. */
+export const API_BASE = DEFAULT_API_BASE;
+
 export class CrossfireApiError extends Error {
   status: number;
   data: unknown;

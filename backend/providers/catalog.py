@@ -9,7 +9,8 @@ not OpenAI-compatible) one adapter class.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, field, replace
 from config import get_settings
 
 GEMINI = "gemini"
@@ -18,6 +19,10 @@ OPENAI = "openai"
 ANTHROPIC = "anthropic"
 OLLAMA = "ollama"
 CUSTOM = "custom"
+
+#: Ids of user-added endpoints: "custom:openrouter", "custom:vllm-box".
+CUSTOM_PREFIX = "custom:"
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 
 
 @dataclass(frozen=True)
@@ -115,10 +120,39 @@ CATALOG: dict[str, ProviderSpec] = {
 DEFAULT_PROVIDER = GEMINI_PROXY
 
 
+def slugify(name: str) -> str:
+    """'My vLLM Box!' -> 'my-vllm-box'. Raises if nothing usable survives."""
+    slug = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")[:32].rstrip("-")
+    if not _SLUG_RE.match(slug):
+        raise ValueError(f"{name!r} has no letters or digits to name an endpoint with")
+    return slug
+
+
+def custom_id(name: str) -> str:
+    return CUSTOM_PREFIX + slugify(name)
+
+
+def is_custom(provider_id: str) -> bool:
+    """True for a user-added endpoint — the only kind that can be deleted."""
+    return provider_id.startswith(CUSTOM_PREFIX)
+
+
+def custom_label(provider_id: str) -> str:
+    return provider_id[len(CUSTOM_PREFIX):]
+
+
+
 def get_spec(provider_id: str) -> ProviderSpec:
-    try:
-        return CATALOG[provider_id]
-    except KeyError:
-        raise ValueError(
-            f"unknown provider {provider_id!r} — choices: {sorted(CATALOG)}"
-        ) from None
+    """The static description of a provider.
+
+    User-added endpoints have no CATALOG entry — they are the CUSTOM spec with
+    their own id, and their base_url/model come from provider_config.
+    """
+    spec = CATALOG.get(provider_id)
+    if spec is not None:
+        return spec
+    if is_custom(provider_id) and _SLUG_RE.match(custom_label(provider_id)):
+        return replace(CATALOG[CUSTOM], id=provider_id, label=custom_label(provider_id))
+    raise ValueError(
+        f"unknown provider {provider_id!r} — choices: {sorted(CATALOG)} or a 'custom:<name>' endpoint"
+    )

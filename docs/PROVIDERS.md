@@ -12,15 +12,28 @@ REST API — no vendor SDKs anywhere in `backend/providers/`.
 | `openai` | OpenAI | `https://api.openai.com/v1` | yes | OpenAI-compatible |
 | `anthropic` | Claude | `https://api.anthropic.com/v1` | yes | Messages API |
 | `ollama` | Ollama (local) | `http://localhost:11434/v1` | no | OpenAI-compatible |
-| `custom` | Any OpenAI-compatible gateway | user-supplied | optional | OpenAI-compatible |
+| `custom:<name>` | Any OpenAI-compatible gateway, any number of them | user-supplied | optional | OpenAI-compatible |
 
 Only Claude needs its own adapter (`providers/anthropic.py`): system prompt is a
 top-level field and text arrives as content blocks. Everything else is
 `providers/openai_compat.py` pointed at a different base URL.
 
-`base_url` is user-editable only for `gemini_proxy`, `ollama`, and `custom`. A
-vendor's host is pinned, so a stored OpenAI key cannot be redirected elsewhere
-by editing a setting — that is what `custom` is for.
+`base_url` is user-editable only for `gemini_proxy`, `ollama`, and custom
+endpoints. A vendor's host is pinned, so a stored OpenAI key cannot be
+redirected elsewhere by editing a setting — that is what a custom endpoint is
+for.
+
+### Custom endpoints
+
+`POST /providers/custom` with a name, a base URL, a model, and optionally an API
+key registers one more OpenAI-compatible endpoint. Any number may coexist. The
+name becomes the id — "vLLM Box" is `custom:vllm-box` — and that id is what the
+fallback chain, the key routes, and the config route refer to, exactly like a
+built-in provider. `DELETE /providers/custom:<name>` removes it along with its
+keys and any chain entry pointing at it.
+
+There is no extra table: an endpoint exists exactly when it has a
+`provider_config` row, so this needed no schema change.
 
 Provider and model live in the catalog (`providers/catalog.py`), which is the
 single source for the UI's two dropdowns: provider, then that provider's models.
@@ -37,6 +50,9 @@ single source for the UI's two dropdowns: provider, then that provider's models.
 | POST | `/providers/{id}/keys` | Add a key |
 | PATCH | `/providers/keys/{key_id}` | Enable/disable a key |
 | DELETE | `/providers/keys/{key_id}` | Delete a key |
+| POST | `/providers/custom` | Register another OpenAI-compatible endpoint |
+| DELETE | `/providers/custom:{name}` | Delete a custom endpoint and its keys |
+| POST | `/providers/test` | Ping the whole chain, one row per link, in order |
 | POST | `/providers/{id}/test` | One live call to validate a key before saving |
 | GET | `/providers/pool/status` | Live per-key scheduling state |
 | GET | `/providers/ollama/models` | Models actually pulled on the Ollama host |
@@ -75,6 +91,13 @@ Per key, three mechanisms:
 * **failure cooldown** — a key that answers 429 is benched for `Retry-After` or
   an exponential backoff (20s → 300s) and the next caller skips it. Four
   consecutive failures retire it for the process; a 401/403 retires it at once.
+
+The chain itself is a plain ordered list of provider ids — `PUT
+/providers/fallback` with `{"chain": ["openai", "custom:vllm-box", "ollama"]}`
+means fallback 1, 2, 3 in that order, behind whatever `active` is. Ids in the
+chain that have no key or no base URL are skipped when the chain is built, and
+the keyless bundled proxy is appended if nothing else is usable, so a run never
+starts with an empty chain.
 
 `providers/routing.py` sits on top. One `generate()` call walks the chain: within
 a provider it borrows keys from the pool, so a 429 costs the next key rather than

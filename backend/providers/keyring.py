@@ -21,7 +21,7 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from providers.catalog import CATALOG, DEFAULT_PROVIDER, get_spec
+from providers.catalog import CATALOG, CUSTOM_PREFIX, DEFAULT_PROVIDER, get_spec, is_custom
 
 _ACTIVE_PROVIDER = "active_provider"
 _FALLBACK_CHAIN = "fallback_chain"
@@ -162,6 +162,44 @@ def _bump() -> None:
 def config_version() -> int:
     """Monotonic counter; changes whenever keys or settings change."""
     return _version
+
+
+def list_custom_providers() -> list[str]:
+    """Ids of the user-added endpoints, oldest first.
+
+    A custom endpoint exists exactly when it has a provider_config row — there
+    is no separate registry table to keep in sync.
+    """
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT provider FROM provider_config WHERE provider LIKE ? ORDER BY rowid",
+            (CUSTOM_PREFIX + "%",),
+        ).fetchall()
+    return [row["provider"] for row in rows]
+
+
+def known_providers() -> list[str]:
+    """Every provider the UI can select: the catalog plus custom endpoints."""
+    return list(CATALOG) + list_custom_providers()
+
+
+def delete_provider(provider_id: str) -> bool:
+    """Remove a custom endpoint, its keys, and any reference to it."""
+    if not is_custom(provider_id):
+        raise ValueError(f"{provider_id!r} is a built-in provider and cannot be deleted")
+    with _lock:
+        with _connect() as conn:
+            cur = conn.execute("DELETE FROM provider_config WHERE provider = ?", (provider_id,))
+            deleted = cur.rowcount > 0
+            conn.execute("DELETE FROM provider_keys WHERE provider = ?", (provider_id,))
+    if not deleted:
+        return False
+    _bump()
+    if get_active_provider() == provider_id:
+        set_active_provider(DEFAULT_PROVIDER)
+    chain = [p for p in get_fallback_chain() if p != provider_id]
+    set_fallback_chain(chain)
+    return True
 
 
 # --------------------------------------------------------------------------- keys
@@ -329,7 +367,7 @@ def _set_setting(key: str, value: str) -> None:
 
 def get_active_provider() -> str:
     value = _get_setting(_ACTIVE_PROVIDER)
-    if not value or value not in CATALOG:
+    if not value or value not in known_providers():
         return DEFAULT_PROVIDER
     return value
 
@@ -349,7 +387,9 @@ def get_fallback_chain() -> list[str]:
         values = json.loads(raw)
     except json.JSONDecodeError:
         return []
-    return [v for v in values if isinstance(v, str) and v in CATALOG]
+    known = known_providers()
+    # A deleted custom endpoint drops out of the chain rather than breaking it.
+    return [v for v in values if isinstance(v, str) and v in known]
 
 
 def set_fallback_chain(providers: list[str]) -> list[str]:

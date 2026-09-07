@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 import providers
 from providers import keyring
-from providers.catalog import CATALOG, OLLAMA, get_spec
+from providers.catalog import OLLAMA, custom_id, get_spec, is_custom
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,8 @@ class ProviderOut(BaseModel):
     key_count: int
     configured: bool
     notes: str
+    #: user-added endpoint — the UI may offer a delete button
+    removable: bool = False
 
 
 class ProvidersResponse(BaseModel):
@@ -79,7 +81,21 @@ class ActiveProviderRequest(ProviderConfigRequest):
 
 
 class FallbackChainRequest(BaseModel):
-    chain: list[str] = Field(default_factory=list, max_length=len(CATALOG))
+    chain: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Providers tried in order after the active one, first is fallback #1.",
+    )
+
+
+class CreateCustomRequest(BaseModel):
+    """One user-added OpenAI-compatible endpoint. The key is optional."""
+
+    name: str = Field(..., min_length=1, max_length=64)
+    base_url: str = Field(..., min_length=1, max_length=500)
+    model: str = Field(..., min_length=1, max_length=200)
+    api_key: str | None = Field(default=None, max_length=500)
+    rpm: int = Field(default=0, ge=0, le=10000)
 
 
 class TestProviderRequest(ProviderConfigRequest):
@@ -112,6 +128,7 @@ def _provider_out(provider_id: str) -> ProviderOut:
         key_count=key_count,
         configured=bool(config.base_url) and (key_count > 0 or not spec.requires_key),
         notes=spec.notes,
+        removable=is_custom(spec.id),
     )
 
 
@@ -121,7 +138,7 @@ def list_providers() -> ProvidersResponse:
     return ProvidersResponse(
         active=keyring.get_active_provider(),
         fallback_chain=keyring.get_fallback_chain(),
-        providers=[_provider_out(provider_id) for provider_id in CATALOG],
+        providers=[_provider_out(provider_id) for provider_id in keyring.known_providers()],
     )
 
 
@@ -187,6 +204,47 @@ def set_fallback(payload: FallbackChainRequest) -> ProvidersResponse:
     return list_providers()
 
 
+@router.post("/custom", response_model=ProviderOut, status_code=status.HTTP_201_CREATED)
+def create_custom_provider(payload: CreateCustomRequest) -> ProviderOut:
+    """Register another OpenAI-compatible endpoint. Any number may coexist.
+
+    The name only has to be unique — it becomes the id (`custom:my-gateway`) the
+    fallback chain refers to.
+    """
+    try:
+        provider_id = custom_id(payload.name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if provider_id in keyring.known_providers():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"An endpoint named {payload.name!r} already exists ({provider_id}).",
+        )
+    keyring.set_config(
+        provider_id,
+        model=payload.model,
+        base_url=payload.base_url.strip(),
+        rpm=payload.rpm,
+    )
+    if payload.api_key:
+        keyring.add_key(provider_id, payload.api_key)
+    providers.invalidate_cache()
+    return _provider_out(provider_id)
+
+
+@router.delete("/{provider_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_custom_provider(provider_id: str) -> None:
+    """Delete a custom endpoint and its keys. Built-in providers are not deletable."""
+    if not is_custom(provider_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{provider_id!r} is a built-in provider and cannot be deleted.",
+        )
+    if not keyring.delete_provider(provider_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
+    providers.invalidate_cache()
+
+
 @router.put("/{provider_id}/config", response_model=ProviderOut)
 def set_provider_config(provider_id: str, payload: ProviderConfigRequest) -> ProviderOut:
     _require_known(provider_id)
@@ -230,38 +288,38 @@ def delete_provider_key(key_id: int) -> None:
     providers.invalidate_cache()
 
 
-@router.post("/{provider_id}/test", response_model=TestProviderResponse)
-async def test_provider(provider_id: str, payload: TestProviderRequest) -> TestProviderResponse:
-    """One cheap live call, so a wrong key fails here and not mid-run.
-
-    Accepts an unsaved `api_key` so the UI can validate before storing it.
-    """
-    _require_known(provider_id)
+async def _ping(
+    provider_id: str,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+) -> TestProviderResponse:
+    """One cheap live call against a single provider. Never raises."""
     adapter = providers.build_adapter(
-        provider_id,
-        api_key=payload.api_key,
-        model=payload.model,
-        base_url=payload.base_url,
+        provider_id, api_key=api_key, model=model, base_url=base_url
     )
-    model = getattr(adapter, "_model", payload.model or "")
+    resolved = getattr(adapter, "_model", model or "")
     try:
         reply = await adapter.generate(
             system_prompt="Reply with the single word: ok",
             messages=[{"role": "user", "content": "ping"}],
         )
         return TestProviderResponse(
-            ok=True, provider=provider_id, model=model, detail=str(reply)[:200]
+            ok=True, provider=provider_id, model=resolved, detail=str(reply)[:200]
         )
     except httpx.HTTPStatusError as exc:
         return TestProviderResponse(
             ok=False,
             provider=provider_id,
-            model=model,
+            model=resolved,
             detail=f"HTTP {exc.response.status_code}: {exc.response.text[:200]}",
         )
     except Exception as exc:
         return TestProviderResponse(
-            ok=False, provider=provider_id, model=model, detail=f"{type(exc).__name__}: {exc}"[:300]
+            ok=False,
+            provider=provider_id,
+            model=resolved,
+            detail=f"{type(exc).__name__}: {exc}"[:300],
         )
     finally:
         close = getattr(adapter, "aclose", None)
@@ -269,9 +327,36 @@ async def test_provider(provider_id: str, payload: TestProviderRequest) -> TestP
             await close()
 
 
+@router.post("/test", response_model=list[TestProviderResponse])
+async def test_chain() -> list[TestProviderResponse]:
+    """Ping the active provider and every fallback, in the order they'd be used.
+
+    One row per link, so a chain that looks configured but isn't shows up here
+    rather than three hours into a panel run.
+    """
+    chain = [target.provider for target in providers.get_routing_provider().targets]
+    return [await _ping(provider_id) for provider_id in chain]
+
+
+@router.post("/{provider_id}/test", response_model=TestProviderResponse)
+async def test_provider(provider_id: str, payload: TestProviderRequest) -> TestProviderResponse:
+    """One cheap live call, so a wrong key fails here and not mid-run.
+
+    Accepts an unsaved `api_key` so the UI can validate before storing it.
+    """
+    _require_known(provider_id)
+    return await _ping(
+        provider_id,
+        api_key=payload.api_key,
+        model=payload.model,
+        base_url=payload.base_url,
+    )
+
+
 def _require_known(provider_id: str) -> None:
-    if provider_id not in CATALOG:
+    known = keyring.known_providers()
+    if provider_id not in known:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unknown provider {provider_id!r} — choices: {sorted(CATALOG)}",
+            detail=f"Unknown provider {provider_id!r} — choices: {sorted(known)}",
         )
