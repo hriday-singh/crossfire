@@ -9,6 +9,7 @@ import useSocketSimulation from '../hooks/useSocketSimulation';
 import useAudioPlayback from '../hooks/useAudioPlayback';
 import useBackendLiveBridge from '../hooks/useBackendLiveBridge';
 import { useOptionalCase } from '../context/CaseContext';
+import { RocketBlueprintHead } from './features/RocketBlueprintHead';
 import {
   ShieldCheck,
   Terminal,
@@ -204,7 +205,7 @@ export function DiscussionApp() {
   } else if (isTesting) {
     if (reconciledCount > 0) {
       currentPhase = 'Phase 3: Steelman Reconciliation';
-      progressPercent = Math.min(90, 75 + Math.round((reconciledCount / Math.max(1, claimsCount)) * 15));
+      progressPercent = Math.min(95, 75 + Math.round((reconciledCount / Math.max(1, claimsCount)) * 20));
       phaseDetail = `Reconciling evidence for claim ${reconciledCount} of ${claimsCount}...`;
     } else if (findingsCount > 0) {
       currentPhase = 'Phase 2: Adversarial Stress-Testing';
@@ -213,14 +214,28 @@ export function DiscussionApp() {
       phaseDetail = `Gathering empirical evidence (${findingsCount} findings evaluated)...`;
     } else {
       currentPhase = 'Phase 1: Load-Bearing Scrutiny';
-      progressPercent = 15;
+      const eventActivityBonus = Math.min(10, (caseContext?.state?.eventLog?.length || 1) * 2);
+      progressPercent = Math.min(24, 14 + eventActivityBonus);
       phaseDetail = 'Steelman evaluating critical core premises...';
     }
   } else if (isReplaying) {
     currentPhase = 'Replaying Findings in Bullpen';
     progressPercent = 100;
     phaseDetail = 'Reviewing telemetry and delivered verdicts.';
+  } else if (isAutoPlaying || eventHistory?.length > 0) {
+    const currentScenario = scenarios?.[currentScenarioKey];
+    const totalScenarioEvents = currentScenario?.events?.length || 12;
+    const currentMockIndex = Math.min(totalScenarioEvents, Math.max(1, (eventHistory?.length || 1)));
+    progressPercent = Math.min(95, Math.max(12, Math.round((currentMockIndex / totalScenarioEvents) * 100)));
+    currentPhase = lastEvent?.stage || 'Simulation Live Stream';
+    phaseDetail = lastEvent?.thought || lastEvent?.dialogue || 'Autonomous evaluators auditing proposal in bullpen...';
+  } else {
+    currentPhase = 'Pipeline Standby';
+    progressPercent = 8;
+    phaseDetail = 'Ready to launch adversarial evaluation...';
   }
+
+  const clampedProgress = Math.max(0, Math.min(100, progressPercent));
 
   return (
     <div className="w-full min-h-[calc(100vh-3.5rem)] bg-transparent text-on-surface flex flex-col font-sans selection:bg-primary-container/30">
@@ -228,8 +243,8 @@ export function DiscussionApp() {
       <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row items-start gap-6">
         {/* Simulation Canvas Stage with In-World Finding / Telemetry Card */}
         <section className="relative flex-1 w-full min-w-0">
-          {/* Live Progress & Finish Status Header */}
-          <div className="mb-3 rounded-xl bg-surface-container-high/90 border border-outline-variant/60 shadow-md p-3.5 backdrop-blur-sm">
+          {/* Live Progress & Finish Status Header (Translucent glassmorphic panel revealing background starfield) */}
+          <div className="mb-3 rounded-xl bg-black/35 backdrop-blur-md border border-white/10 shadow-2xl p-3.5 relative overflow-visible transition-all duration-300">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="text-outline uppercase tracking-wider font-semibold text-[10px] shrink-0 font-mono">
@@ -268,19 +283,36 @@ export function DiscussionApp() {
                   )}
                   <span>{currentPhase}</span>
                 </span>
-                <span className="text-outline">{progressPercent}% Completed</span>
+                <span className="text-outline">{clampedProgress}% Completed</span>
               </div>
 
-              {/* Progress Bar Track */}
-              <div className="w-full h-1.5 bg-surface-container-lowest rounded-full overflow-hidden border border-outline-variant/30">
+              {/* Progress Bar Track with CAD Blueprint Space Shuttle Rocket Head */}
+              <div className="relative w-full py-1.5 my-0.5 overflow-visible">
+                {/* Background Track */}
+                <div className="w-full h-2 bg-slate-900/70 rounded-full overflow-hidden border border-cyan-500/20 shadow-inner">
+                  <div
+                    className={`h-full transition-all duration-500 ease-out rounded-full ${
+                      isFinished
+                        ? 'bg-verdict-survived shadow-[0_0_10px_rgba(52,211,153,0.5)]'
+                        : 'bg-gradient-to-r from-cyan-500 via-sky-400 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
+                    }`}
+                    style={{ width: `${clampedProgress}%` }}
+                  />
+                </div>
+
+                {/* Rocket Ship Blueprint Head */}
                 <div
-                  className={`h-full transition-all duration-500 ease-out rounded-full ${
-                    isFinished
-                      ? 'bg-verdict-survived'
-                      : 'bg-gradient-to-r from-primary-container via-blue-500 to-indigo-500'
-                  }`}
-                  style={{ width: `${progressPercent}%` }}
-                />
+                  className="absolute top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-500 ease-out z-20"
+                  style={{
+                    left: `clamp(16px, ${clampedProgress}%, calc(100% - 16px))`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <RocketBlueprintHead
+                    isFinished={isFinished}
+                    isTesting={isTesting || isAutoPlaying}
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-between text-[10px] font-mono text-outline pt-0.5">

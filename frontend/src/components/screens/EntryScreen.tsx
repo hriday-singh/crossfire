@@ -505,16 +505,22 @@ export const EntryScreen: React.FC = () => {
     );
   };
 
+  // Allow pressing Escape to cancel extraction if desired
+  useEffect(() => {
+    if (!state.isExtracting) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        cancelExtraction();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [state.isExtracting, cancelExtraction]);
+
   if (state.isExtracting) {
     return (
-      <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] items-center justify-center py-20 px-space-4 gap-6 animate-in fade-in duration-300">
+      <div className="fixed inset-0 w-full h-full overflow-hidden bg-[#09090b] flex flex-col items-center justify-center">
         <CubeSpinner />
-        <button
-          onClick={cancelExtraction}
-          className="px-5 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container border border-outline-variant/60 text-outline hover:text-error font-mono text-xs font-semibold transition-all shadow-sm cursor-pointer active:scale-95"
-        >
-          Cancel Extraction
-        </button>
       </div>
     );
   }
