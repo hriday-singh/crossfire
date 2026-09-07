@@ -42,26 +42,34 @@ export function useCaseStream() {
       "run_complete",
       "error",
       "activity",
+      "done",
     ];
 
     eventTypes.forEach((eventName) => {
       es.addEventListener(eventName, (e: MessageEvent) => {
         try {
-          const parsed = e.data ? JSON.parse(e.data) : {};
-          dispatch({
-            type: "SSE_EVENT",
-            payload: {
-              event: eventName,
-              data: parsed,
-            },
-          });
+          // 'done' payload is just a raw string "[DONE]" typically, or empty. We handle it safely.
+          const isDoneToken = e.data === "[DONE]";
+          const parsed = e.data && !isDoneToken ? JSON.parse(e.data) : (isDoneToken ? "[DONE]" : {});
+          
+          if (eventName !== "done") {
+            dispatch({
+              type: "SSE_EVENT",
+              payload: {
+                event: eventName,
+                data: parsed,
+              },
+            });
+          }
 
-          if (eventName === "run_complete") {
-            es.close();
-            eventSourceRef.current = null;
-            dispatch({ type: "SET_STREAMING", payload: false });
-            // Pull final snapshot to ensure all properties (like load_bearing) are in sync
-            refreshCurrentCase();
+          if (eventName === "done" || eventName === "run_complete") {
+            if (eventName === "done" || isDoneToken) {
+                es.close();
+                eventSourceRef.current = null;
+                dispatch({ type: "SET_STREAMING", payload: false });
+                // Pull final snapshot to ensure all properties (like load_bearing) are in sync
+                refreshCurrentCase();
+            }
           } else if (eventName === "error") {
             es.close();
             eventSourceRef.current = null;
