@@ -300,10 +300,43 @@ def test_parse_serpapi_response_detects_quota_exhaustion():
 
 
 @pytest.mark.asyncio
+async def test_search_evidence_defaults_to_duckduckgo_even_when_serpapi_key_present(monkeypatch, sample_claim):
+    """By default, search_evidence prioritizes DuckDuckGo Lite via Scrapling and does not call SerpApi."""
+    from evidence.search import search_evidence, settings
+
+    monkeypatch.setattr(settings, "SERPAPI_API_KEY", "test-serp-key")
+    monkeypatch.setattr(settings, "SEARCH_PROVIDER", "duckduckgo")
+
+    serp_called = False
+
+    async def fake_serpapi(query: str, api_key: str, max_results: int = 4):
+        nonlocal serp_called
+        serp_called = True
+        return []
+
+    ddg_called = False
+
+    async def fake_ddg_search(query: str) -> str:
+        nonlocal ddg_called
+        ddg_called = True
+        return SAMPLE_DDG_HTML
+
+    monkeypatch.setattr("evidence.search._execute_serpapi_search", fake_serpapi)
+    monkeypatch.setattr("evidence.search._execute_search", fake_ddg_search)
+
+    items = await search_evidence(sample_claim)
+    assert ddg_called is True
+    assert serp_called is False
+    assert len(items) == 3
+    assert all(i.provider == "duckduckgo" for i in items)
+
+
+@pytest.mark.asyncio
 async def test_search_evidence_uses_serpapi_when_key_present(monkeypatch, sample_claim):
     from evidence.search import search_evidence, settings
 
     monkeypatch.setattr(settings, "SERPAPI_API_KEY", "test-serp-key")
+    monkeypatch.setattr(settings, "SEARCH_PROVIDER", "serpapi")
 
     async def fake_serpapi(query: str, api_key: str, max_results: int = 4):
         return [
@@ -333,6 +366,7 @@ async def test_search_evidence_falls_back_to_ddg_on_serpapi_quota_exhausted(monk
     from evidence.search import SerpApiQuotaExceededError, search_evidence, settings
 
     monkeypatch.setattr(settings, "SERPAPI_API_KEY", "test-serp-key")
+    monkeypatch.setattr(settings, "SEARCH_PROVIDER", "serpapi")
 
     async def failing_serpapi(query: str, api_key: str, max_results: int = 4):
         raise SerpApiQuotaExceededError("Account has run out of searches (HTTP 429)")
@@ -358,6 +392,7 @@ async def test_search_evidence_falls_back_to_ddg_on_serpapi_error(monkeypatch, s
     from evidence.search import SerpApiError, search_evidence, settings
 
     monkeypatch.setattr(settings, "SERPAPI_API_KEY", "test-serp-key")
+    monkeypatch.setattr(settings, "SEARCH_PROVIDER", "serpapi")
 
     async def failing_serpapi(query: str, api_key: str, max_results: int = 4):
         raise SerpApiError("SerpApi HTTP 500 error")

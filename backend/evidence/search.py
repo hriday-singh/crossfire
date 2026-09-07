@@ -51,6 +51,8 @@ class SettingsProxy:
             return getattr(self._base, "demo_mode", False)
         if name in ("SERPAPI_API_KEY", "serpapi_api_key"):
             return getattr(self._base, "serpapi_api_key", "")
+        if name in ("SEARCH_PROVIDER", "search_provider"):
+            return getattr(self._base, "search_provider", "duckduckgo")
         return getattr(self._base, name)
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -60,6 +62,9 @@ class SettingsProxy:
         elif name in ("SERPAPI_API_KEY", "serpapi_api_key"):
             object.__setattr__(self, "SERPAPI_API_KEY", value)
             object.__setattr__(self, "serpapi_api_key", value)
+        elif name in ("SEARCH_PROVIDER", "search_provider"):
+            object.__setattr__(self, "SEARCH_PROVIDER", value)
+            object.__setattr__(self, "search_provider", value)
         else:
             object.__setattr__(self, name, value)
 
@@ -515,9 +520,9 @@ async def _execute_search(query: str) -> str:
 async def search_evidence(claim: Claim, query_override: str | None = None) -> list[EvidenceItem]:
     """Searches external evidence for a given claim.
 
-    Prioritizes SerpApi when SERPAPI_API_KEY is configured. If out of credits (HTTP 429),
-    key is invalid (HTTP 401), or any error occurs, it transparently falls back to
-    DuckDuckGo Lite via Scrapling.
+    Primary engine is DuckDuckGo Lite via Scrapling (fast, zero-cost, high Tier-1 authority signal).
+    Falls back to SerpApi only when SEARCH_PROVIDER is explicitly set to 'serpapi' or when
+    DuckDuckGo yields 0 results and SERPAPI_API_KEY is configured.
     """
     is_demo = getattr(settings, "DEMO_MODE", False) or getattr(settings, "demo_mode", False)
     if is_demo and claim.id in DEMO_FIXTURES:
@@ -525,8 +530,14 @@ async def search_evidence(claim: Claim, query_override: str | None = None) -> li
 
     query = query_override or build_query(claim.statement)
     api_key = (getattr(settings, "SERPAPI_API_KEY", "") or getattr(settings, "serpapi_api_key", "") or "").strip()
+    provider_mode = (
+        getattr(settings, "SEARCH_PROVIDER", "duckduckgo")
+        or getattr(settings, "search_provider", "duckduckgo")
+        or "duckduckgo"
+    ).lower().strip()
 
-    if api_key:
+    # If explicitly configured to prioritize SerpApi (e.g. in targeted tests or explicit config)
+    if provider_mode == "serpapi" and api_key:
         try:
             serp_items = await _execute_serpapi_search(query, api_key, max_results=4)
             if inspect.isawaitable(serp_items):
@@ -545,16 +556,32 @@ async def search_evidence(claim: Claim, query_override: str | None = None) -> li
                 "Falling back to DuckDuckGo Lite via Scrapling."
             )
 
+    # Primary engine: DuckDuckGo Lite via Scrapling (fast, zero-cost, no rate limit)
     try:
         html_resp = await _execute_search(query)
         if inspect.isawaitable(html_resp):
             html_resp = await html_resp
-        return rank_by_source_class(parse_duckduckgo_lite_html(html_resp, max_results=4))
+        ddg_items = parse_duckduckgo_lite_html(html_resp, max_results=4)
+        if ddg_items:
+            return rank_by_source_class(ddg_items)
+        logger.info(f"DuckDuckGo Lite returned 0 results for '{query}'.")
     except AssertionError:
         raise
     except Exception as exc:
         logger.warning(f"DuckDuckGo search failed for claim {claim.id}: {exc}")
-        return []
+
+    # Fallback to SerpApi if DDG returned 0 results and SerpApi wasn't already attempted
+    if provider_mode != "serpapi" and api_key and provider_mode != "duckduckgo_only":
+        try:
+            serp_items = await _execute_serpapi_search(query, api_key, max_results=4)
+            if inspect.isawaitable(serp_items):
+                serp_items = await serp_items
+            if serp_items:
+                return rank_by_source_class(serp_items)
+        except Exception as exc:
+            logger.warning(f"SerpApi fallback failed for claim {claim.id}: {exc}")
+
+    return []
 
 
 

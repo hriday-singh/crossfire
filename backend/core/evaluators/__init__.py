@@ -15,7 +15,7 @@ from __future__ import annotations
 from core.evaluators.builder import run_builder
 from core.evaluators.devils_advocate import run_devils_advocate
 from core.evaluators.operator import run_operator
-from core.evaluators.receipts import run_receipts, run_researcher
+from core.evaluators.researcher import run_receipts, run_researcher
 from core.models import Case, Finding, TestPlanItem
 from providers.base import LLMProvider
 

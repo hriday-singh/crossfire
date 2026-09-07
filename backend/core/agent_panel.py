@@ -27,17 +27,17 @@ FAILURE_MODE_TO_AGENT["edge-case"] = "operator"
 
 
 AGENT_OBJECTIVE: dict[str, str] = {
-    "devils_advocate": "Stress-test the implicit premises and counter-incentives behind: {statement}",
-    "receipts": "Check real-world evidence and sources that support or contradict: {statement}",
-    "builder": "Assess what it concretely takes to make this true, and what blocks it: {statement}",
-    "operator": "Stress-test adoption inertia, enterprise red tape, regulatory liability, and process drag: {statement}",
+    "devils_advocate": "Deductively probe unstated premises, circular dependencies, and counter-incentives behind: {statement}",
+    "receipts": "Empirically verify external evidence, benchmarks, prices, or statutory sources for: {statement}",
+    "builder": "Assess technical architecture, API dependencies, execution limits, and Day-1 blockers for: {statement}",
+    "operator": "Stress-test human adoption inertia, workflow disruption, procurement red tape, and process drag for: {statement}",
 }
 
 DEFAULT_RATIONALES: dict[str, str] = {
-    "devils_advocate": "Tests unstated premises and counter-incentives.",
-    "receipts": "Verifies facts against external evidence.",
-    "builder": "Evaluates feasibility and technical blockers.",
-    "operator": "Stress-tests operational friction and red tape.",
+    "devils_advocate": "Tests unstated premises and deductive logical flaws.",
+    "receipts": "Verifies facts and regulations against empirical evidence.",
+    "builder": "Evaluates technical architecture and execution blockers.",
+    "operator": "Stress-tests human adoption and organizational friction.",
 }
 
 # Receipts is the single-pass default for secondary claims: it is the only

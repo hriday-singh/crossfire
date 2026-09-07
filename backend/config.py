@@ -15,7 +15,8 @@ load_dotenv()
 class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     serpapi_api_key: str = Field(default="", alias="SERPAPI_API_KEY")
-    # Search is powered by SerpApi with automatic fallback to DuckDuckGo Lite via Scrapling
+    search_provider: str = Field(default="duckduckgo", alias="SEARCH_PROVIDER")
+    # Search is powered by DuckDuckGo Lite via Scrapling with optional fallback to SerpApi
     tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
