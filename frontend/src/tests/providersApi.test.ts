@@ -8,6 +8,7 @@ import {
   listProviderKeys,
   listProviders,
   setActiveProvider,
+  setEnabledModels,
   setFallbackChain,
   setKeyEnabled,
   setProviderConfig,
@@ -35,6 +36,18 @@ describe("providersApi", () => {
     const [url, init] = lastCall();
     expect(url).toBe("/providers");
     expect(init.method).toBe("GET");
+  });
+
+  it("puts the enabled model list, in order, to /providers/:id/models", async () => {
+    vi.stubGlobal("fetch", okJson({ id: "gemini_proxy" }));
+
+    await setEnabledModels("gemini_proxy", ["gemini-3.7-flash", "gemini-flash-lite"]);
+    const [url, init] = lastCall();
+    expect(url).toBe("/providers/gemini_proxy/models");
+    expect(init.method).toBe("PUT");
+    expect(bodyOf(init)).toEqual({
+      models: ["gemini-3.7-flash", "gemini-flash-lite"],
+    });
   });
 
   it("sends provider plus config patch when setting the active provider", async () => {

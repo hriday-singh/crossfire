@@ -143,7 +143,7 @@ export const ProvidersModal: React.FC = () => {
     };
   }, [isOpen, selectedId, data]);
 
-  //: while the backend pins one provider, everything else is configuration only
+  // while the backend pins one provider, everything else is configuration only
   const locked = data?.locked_provider || null;
   const inFallback = selected ? (data?.fallback_chain || []).includes(selected.id) : false;
   const isActive = selected ? data?.active === selected.id : false;

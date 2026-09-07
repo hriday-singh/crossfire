@@ -38,6 +38,25 @@ There is no extra table: an endpoint exists exactly when it has a
 Provider and model live in the catalog (`providers/catalog.py`), which is the
 single source for the UI's two dropdowns: provider, then that provider's models.
 
+## Pinned to the Gemini proxy
+
+Crossfire currently runs on the bundled Gemini proxy and nothing else:
+`catalog.LOCKED_PROVIDER` names it, and `providers.build_chain()` builds the
+chain from that provider alone, ignoring the saved active provider and
+cross-provider fallback order.
+
+The chain is therefore a *model* fallback: one target per enabled model of the
+proxy, primary first, all sharing one key pool. A model that errors or
+rate-limits is retried on the next enabled model.
+
+Every other provider still appears in the UI and stays configurable — keys,
+base URLs and models are stored and are used the moment the pin is lifted.
+Unpinning is one function: read `keyring.get_active_provider()` and
+`get_fallback_chain()` in `build_chain()` again.
+
+The proxy and Google's REST API are offered the same model list
+(`catalog.GEMINI_MODELS`), so a model id means the same thing either way.
+
 ## API
 
 | Method | Path | Purpose |
@@ -45,6 +64,7 @@ single source for the UI's two dropdowns: provider, then that provider's models.
 | GET | `/providers` | Catalog + active provider + fallback chain + key counts |
 | PUT | `/providers/active` | Select provider (and optionally model) |
 | PUT | `/providers/fallback` | Set the fallback order |
+| PUT | `/providers/{id}/models` | Enable/disable models and set their fallback order |
 | PUT | `/providers/{id}/config` | Set model / base_url / rpm |
 | GET | `/providers/{id}/keys` | List keys (masked) |
 | POST | `/providers/{id}/keys` | Add a key |
@@ -52,7 +72,7 @@ single source for the UI's two dropdowns: provider, then that provider's models.
 | DELETE | `/providers/keys/{key_id}` | Delete a key |
 | POST | `/providers/custom` | Register another OpenAI-compatible endpoint |
 | DELETE | `/providers/custom:{name}` | Delete a custom endpoint and its keys |
-| POST | `/providers/test` | Ping the whole chain, one row per link, in order |
+| POST | `/providers/test` | Ping the whole chain, one row per link (per enabled model), in order |
 | POST | `/providers/{id}/test` | One live call to validate a key before saving |
 | GET | `/providers/pool/status` | Live per-key scheduling state |
 | GET | `/providers/ollama/models` | Models actually pulled on the Ollama host |

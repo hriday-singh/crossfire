@@ -10,8 +10,9 @@ const provider = (over: Partial<Record<string, unknown>> = {}) => ({
   requires_key: true,
   editable_base_url: false,
   base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
-  model: "gemini-3.8-flash",
-  models: ["gemini-3.8-flash", "gemini-3.5-pro"],
+  model: "gemini-3.7-flash",
+  models: ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-flash-lite"],
+  enabled_models: ["gemini-3.7-flash", "gemini-3.6-flash"],
   rpm: 10,
   key_count: 1,
   configured: true,
@@ -22,14 +23,23 @@ const provider = (over: Partial<Record<string, unknown>> = {}) => ({
 
 const PROVIDERS = {
   active: "gemini",
+  locked_provider: "gemini_proxy",
   fallback_chain: ["openai", "custom:vllm-box"],
   providers: [
     provider(),
+    provider({
+      id: "gemini_proxy",
+      label: "Gemini Proxy (default)",
+      requires_key: false,
+      editable_base_url: true,
+      base_url: "http://localhost:8081/v1",
+    }),
     provider({
       id: "openai",
       label: "OpenAI",
       model: "gpt-5.6-luna",
       models: ["gpt-5.6-luna", "gpt-5"],
+      enabled_models: ["gpt-5.6-luna"],
       key_count: 0,
       configured: false,
     }),
@@ -38,6 +48,7 @@ const PROVIDERS = {
       label: "vllm-box",
       model: "llama3.1",
       models: [],
+      enabled_models: ["llama3.1"],
       editable_base_url: true,
       base_url: "http://box:8000/v1",
       requires_key: false,
@@ -66,9 +77,9 @@ function mockBackend() {
       if (url === "/providers" || url.startsWith("/providers/active") || url.startsWith("/providers/fallback"))
         return json(PROVIDERS);
       if (url === "/providers/test" && method === "POST")
-        return json([{ ok: true, provider: "gemini", model: "gemini-3.8-flash", detail: "ok" }]);
+        return json([{ ok: true, provider: "gemini", model: "gemini-3.7-flash", detail: "ok" }]);
       if (url.endsWith("/test") && method === "POST")
-        return json({ ok: false, provider: "gemini", model: "gemini-3.8-flash", detail: "HTTP 401" });
+        return json({ ok: false, provider: "gemini", model: "gemini-3.7-flash", detail: "HTTP 401" });
       if (method === "DELETE") return Promise.resolve({ ok: true, status: 204 });
       return json({});
     })
@@ -108,6 +119,7 @@ describe("ProvidersModal", () => {
     await open();
 
     expect(screen.getByTestId("provider-item-gemini")).toHaveTextContent("ACTIVE");
+    expect(screen.getByTestId("provider-item-gemini_proxy")).toBeInTheDocument();
     expect(screen.getByTestId("provider-item-openai")).toHaveTextContent("FB 1");
     expect(screen.getByTestId("provider-item-custom:vllm-box")).toHaveTextContent("FB 2");
     expect(screen.getByRole("heading", { name: "Google Gemini" })).toBeInTheDocument();
@@ -148,19 +160,71 @@ describe("ProvidersModal", () => {
     fireEvent.click(screen.getByTestId("provider-item-openai"));
 
     expect(screen.getByRole("heading", { name: "OpenAI" })).toBeInTheDocument();
-    expect(screen.getByTestId("model-chip-gpt-5.6-luna")).toBeInTheDocument();
+    expect(screen.getByTestId("model-row-gpt-5.6-luna")).toBeInTheDocument();
     expect(screen.getByTestId("set-active-button")).toBeInTheDocument();
   });
 
-  it("selects a model from the catalog chips", async () => {
+  it("promotes another model to primary", async () => {
     await open();
 
-    fireEvent.click(screen.getByTestId("model-chip-gemini-3.5-pro"));
+    fireEvent.click(screen.getByTestId("model-chip-gemini-3.6-flash"));
 
     await waitFor(() => expect(calledWith("/providers/gemini/config", "PUT")).toHaveLength(1));
     expect(calledWith("/providers/gemini/config", "PUT")[0].body).toEqual({
-      model: "gemini-3.5-pro",
+      model: "gemini-3.6-flash",
     });
+  });
+
+  it("labels each model with its place in the fallback order", async () => {
+    await open();
+
+    expect(screen.getByTestId("model-row-gemini-3.7-flash")).toHaveTextContent("PRIMARY");
+    expect(screen.getByTestId("model-row-gemini-3.6-flash")).toHaveTextContent("FB 1");
+    expect(screen.getByTestId("model-row-gemini-flash-lite")).toHaveTextContent("OFF");
+  });
+
+  it("enables a disabled model and disables an enabled one", async () => {
+    await open();
+
+    fireEvent.click(screen.getByLabelText("Enable gemini-flash-lite"));
+    await waitFor(() => expect(calledWith("/providers/gemini/models", "PUT")).toHaveLength(1));
+    expect(calledWith("/providers/gemini/models", "PUT")[0].body).toEqual({
+      models: ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-flash-lite"],
+    });
+
+    fireEvent.click(screen.getByLabelText("Enable gemini-3.6-flash"));
+    await waitFor(() => expect(calledWith("/providers/gemini/models", "PUT")).toHaveLength(2));
+    expect(calledWith("/providers/gemini/models", "PUT")[1].body).toEqual({
+      models: ["gemini-3.7-flash"],
+    });
+  });
+
+  it("keeps the primary model enabled and unmovable", async () => {
+    await open();
+
+    expect(screen.getByLabelText("Enable gemini-3.7-flash")).toBeDisabled();
+    expect(screen.getByLabelText("Move gemini-3.7-flash up")).toBeDisabled();
+    expect(screen.getByLabelText("Move gemini-3.7-flash down")).toBeDisabled();
+  });
+
+  it("reorders the model fallback order", async () => {
+    await open();
+
+    fireEvent.click(screen.getByTestId("provider-item-openai"));
+    expect(screen.getByTestId("model-row-gpt-5")).toHaveTextContent("OFF");
+
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
+    fireEvent.click(screen.getByLabelText("Enable gemini-flash-lite"));
+    await waitFor(() => expect(calledWith("/providers/gemini/models", "PUT")).toHaveLength(1));
+  });
+
+  it("says which provider runs while the pipeline is pinned", async () => {
+    await open();
+
+    expect(screen.getByTestId("locked-notice")).toHaveTextContent("gemini_proxy");
+
+    fireEvent.click(screen.getByTestId("provider-item-gemini_proxy"));
+    expect(screen.getByTestId("locked-notice")).toHaveTextContent("PINNED");
   });
 
   it("promotes a provider to active with its selected model", async () => {
