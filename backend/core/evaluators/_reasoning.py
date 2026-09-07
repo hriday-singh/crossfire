@@ -17,6 +17,11 @@ from core.textutil import SPECIFICITY_RULE, clamp_sentences, one_line
 from providers.base import LLMProvider
 
 
+# Top of the `minor` band in OBJECTION_SCALE. An evidence-free evaluator that
+# cannot name a contradiction has not raised a substantive objection.
+EVIDENCE_FREE_OBJECTION_CAP = 0.35
+
+
 class ReasoningOutput(BaseModel):
     result: str = Field(description="One line, under 140 characters: what you found")
     reasoning: str = Field(description="At most 3 sentences of argument")
@@ -95,6 +100,13 @@ async def run_reasoning_evaluator(
     if res_text.lower().startswith("abstain") or (contra is None and conf <= 0.05):
         conf = 0.0
         contra = None
+    elif not (contra or "").strip():
+        # These evaluators never carry evidence, so a finding with no contradiction
+        # has named nothing that is wrong with the claim. It is a `minor`
+        # objection whatever float came back — Devil's Advocate returned 0.70+ on 34
+        # of 39 Round 2 findings and was prompted into the zero band once already
+        # without going.
+        conf = min(conf, EVIDENCE_FREE_OBJECTION_CAP)
 
     return Finding(
         claim_id=item.target_claim,

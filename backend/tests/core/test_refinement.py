@@ -82,14 +82,26 @@ def test_evidence_without_a_contradiction_cannot_break():
     assert status is ClaimStatus.WEAKENED
 
 
-@pytest.mark.parametrize(
-    "status", [ClaimStatus.SURVIVED, ClaimStatus.WEAKENED, ClaimStatus.UNRESOLVED]
-)
+@pytest.mark.parametrize("status", [ClaimStatus.SURVIVED, ClaimStatus.WEAKENED])
 def test_gate_leaves_every_other_verdict_alone(status):
     from core.loop import apply_evidence_gate
 
     got, reasoning = apply_evidence_gate(status, "As judged.", [_finding("devils_advocate")])
     assert got is status
+    assert reasoning == "As judged."
+
+
+def test_gate_leaves_an_unresolved_that_named_its_missing_input_alone():
+    """`unresolved` survives the gate on the strength of the named input, not the word."""
+    from core.loop import apply_evidence_gate
+
+    got, reasoning = apply_evidence_gate(
+        ClaimStatus.UNRESOLVED,
+        "As judged.",
+        [_finding("devils_advocate")],
+        "The signed lease's break-fee clause.",
+    )
+    assert got is ClaimStatus.UNRESOLVED
     assert reasoning == "As judged."
 
 

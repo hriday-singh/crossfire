@@ -178,11 +178,19 @@ def run_control_sync(case_def: dict, runs_dir: Path) -> dict:
         )
         if not has_error:
             print(f"[{case_id}] Valid control file already exists at {control_path.name}")
+            cached_dur = 0.0
+            import re
+            m = re.search(r"\*\*Execution Time:\*\*\s*([0-9.]+)s", content)
+            if m:
+                try:
+                    cached_dur = float(m.group(1))
+                except ValueError:
+                    pass
             return {
                 "status": "cached",
                 "error": None,
                 "error_type": None,
-                "duration_seconds": 0.0,
+                "duration_seconds": cached_dur,
                 "attempts": 0,
             }
 
@@ -193,11 +201,15 @@ def run_control_sync(case_def: dict, runs_dir: Path) -> dict:
     ans = ""
     attempts = 0
 
+    req_payload: dict[str, str] = {"raw_input": case_def["raw_input"]}
+    if case_def.get("context"):
+        req_payload["context"] = case_def["context"]
+
     for attempt in range(1, 3):
         attempts = attempt
         try:
             with httpx.Client(base_url="http://127.0.0.1:8000", timeout=180.0) as client:
-                resp = client.post("/baseline", json={"raw_input": case_def["raw_input"]})
+                resp = client.post("/baseline", json=req_payload)
                 if resp.status_code == 200:
                     data = resp.json()
                     ans = data.get("answer", "")
@@ -239,6 +251,7 @@ def run_control_sync(case_def: dict, runs_dir: Path) -> dict:
         control_content = (
             f"# Control Run — {case_id}\n\n"
             f"**Proposition:**\n> {case_def['raw_input']}\n\n"
+            f"**Execution Time:** {dur}s\n"
             f"**Date:** {datetime.datetime.now(datetime.timezone.utc).isoformat()}\n\n"
             f"## Vanilla Gemini Response\n\n{ans}\n"
         )
@@ -417,12 +430,23 @@ def extract_summary(
             or "timeout" in str(f.get("reasoning", "")).lower()
         )
 
+    ctrl_dur = round(float((control_account or {}).get("duration_seconds", 0.0) or 0.0), 2)
+    pipe_dur = round(float((pipeline_account or {}).get("duration_seconds", duration) or 0.0), 2)
+    tot_dur = round(ctrl_dur + pipe_dur, 2)
+    timings_data = {
+        "control_seconds": ctrl_dur,
+        "pipeline_seconds": pipe_dur,
+        "total_seconds": tot_dur,
+    }
+
     return {
         "case_id": case_id,
         "band": case_def["band"],
         "raw_input": case_def["raw_input"],
         "status": case_data.get("status"),
-        "wall_clock_seconds": duration,
+        "wall_clock_seconds": pipe_dur,
+        "total_wall_clock_seconds": tot_dur,
+        "timings": timings_data,
         "test_plan_count": len(test_plan_ids),
         "claims": claims,
         "findings": findings,
@@ -440,6 +464,7 @@ def extract_summary(
             "pipeline": pipeline_account or {"status": case_data.get("status", "done"), "attempts": 1},
             "timeouts_count": timeouts_count,
             "has_system_errors": timeouts_count > 0,
+            "timings": timings_data,
         },
     }
 
@@ -451,7 +476,9 @@ def _calculate_progress_summary(progress: dict) -> None:
     ctrl_ok = sum(1 for c in cases.values() if c.get("control_status") in ("ok", "cached"))
     ctrl_err = sum(1 for c in cases.values() if c.get("control_status") == "error")
     total_timeouts = sum(c.get("timeouts_count", 0) for c in cases.values())
-    total_duration = round(sum(c.get("wall_clock_seconds", 0.0) for c in cases.values()), 2)
+    total_pipe = round(sum(c.get("pipeline_seconds", c.get("wall_clock_seconds", 0.0)) for c in cases.values()), 2)
+    total_ctrl = round(sum(c.get("control_seconds", 0.0) for c in cases.values()), 2)
+    total_duration = round(sum(c.get("total_seconds", c.get("wall_clock_seconds", 0.0)) for c in cases.values()), 2)
 
     progress["completed"] = completed
     progress["total"] = len(CASES)
@@ -463,6 +490,8 @@ def _calculate_progress_summary(progress: dict) -> None:
         "control_ok": ctrl_ok,
         "control_errors": ctrl_err,
         "total_timeouts": total_timeouts,
+        "total_control_seconds": total_ctrl,
+        "total_pipeline_seconds": total_pipe,
         "total_wall_clock_seconds": total_duration,
         "last_updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
@@ -485,6 +514,10 @@ def update_progress(summary: dict, runs_dir: Path) -> None:
     acct = summary.get("account", {})
     ctrl = acct.get("control", {})
     pipe = acct.get("pipeline", {})
+    timings = summary.get("timings", {})
+    ctrl_sec = timings.get("control_seconds", ctrl.get("duration_seconds", 0.0))
+    pipe_sec = timings.get("pipeline_seconds", summary.get("wall_clock_seconds", 0.0))
+    tot_sec = timings.get("total_seconds", round(ctrl_sec + pipe_sec, 2))
 
     progress["cases"][cid] = {
         "band": summary["band"],
@@ -492,7 +525,10 @@ def update_progress(summary: dict, runs_dir: Path) -> None:
         "decision_state": summary.get("case_verdict", {}).get("decision_state"),
         "claims_count": len(summary.get("claims", [])),
         "findings_count": len(summary.get("findings", [])),
-        "wall_clock_seconds": summary.get("wall_clock_seconds", 0.0),
+        "pipeline_seconds": pipe_sec,
+        "control_seconds": ctrl_sec,
+        "total_seconds": tot_sec,
+        "wall_clock_seconds": pipe_sec,
         "control_status": ctrl.get("status", "unknown"),
         "control_error": ctrl.get("error"),
         "timeouts_count": acct.get("timeouts_count", 0),
@@ -523,13 +559,19 @@ def update_progress_failed(
         progress["cases"] = {}
 
     cid = case_def["id"]
+    ctrl_sec = round(float(control_account.get("duration_seconds", 0.0) or 0.0), 2)
+    pipe_sec = round(float(pipeline_account.get("duration_seconds", 0.0) or 0.0), 2)
+    tot_sec = round(ctrl_sec + pipe_sec, 2)
     progress["cases"][cid] = {
         "band": case_def["band"],
         "status": pipeline_account.get("status", "failed"),
         "decision_state": None,
         "claims_count": 0,
         "findings_count": 0,
-        "wall_clock_seconds": pipeline_account.get("duration_seconds", 0.0),
+        "pipeline_seconds": pipe_sec,
+        "control_seconds": ctrl_sec,
+        "total_seconds": tot_sec,
+        "wall_clock_seconds": pipe_sec,
         "control_status": control_account.get("status", "unknown"),
         "control_error": control_account.get("error"),
         "timeouts_count": pipeline_account.get("timeouts_count", 0),
@@ -596,7 +638,12 @@ def main():
 
         # 4. Update progress
         update_progress(summary, runs_dir)
+        t = summary.get("timings", {})
         print(f"[{cid}] Decision State: {summary['case_verdict']['decision_state']}")
+        print(
+            f"[{cid}] Timing: Total={t.get('total_seconds', 0.0)}s "
+            f"(Control={t.get('control_seconds', 0.0)}s, Pipeline={t.get('pipeline_seconds', 0.0)}s)"
+        )
         print(
             f"[{cid}] Claims: {len(summary['claims'])}, Findings: {len(summary['findings'])}, "
             f"Timeouts: {summary['account']['timeouts_count']}, Control: {control_acct['status']}"
@@ -618,6 +665,8 @@ def main():
             print(f"Control Baselines OK:   {s.get('control_ok', 0)}")
             print(f"Control Errors:         {s.get('control_errors', 0)}")
             print(f"Degraded Timeouts:      {s.get('total_timeouts', 0)}")
+            print(f"Total Control Time:     {s.get('total_control_seconds', 0.0)}s")
+            print(f"Total Pipeline Time:    {s.get('total_pipeline_seconds', 0.0)}s")
             print(f"Total Wall Time:        {s.get('total_wall_clock_seconds', 0.0)}s")
             print(f"Progress Ledger:        {progress_file}")
             print("=" * 76)

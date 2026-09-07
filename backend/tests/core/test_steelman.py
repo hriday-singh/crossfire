@@ -306,3 +306,84 @@ async def test_reconcile_emits_verdict_ready_progressively(sample_case):
     assert c1_emitted_while_c2_running, "verdict_ready for c1 should emit before c2 completes"
 
 
+
+
+# --- Round 3: `missing_input` and `salvage_scope` invariants ---------------
+
+
+def test_unresolved_keeps_its_missing_input_and_nulls_the_salvage_scope():
+    verdict = SteelManVerdict(
+        status=ClaimStatus.UNRESOLVED,
+        reasoning="Nothing available settles it.",
+        missing_input="The signed lease's break-fee clause.",
+        salvage_scope="parameter",
+    )
+    gated = apply_steelman_gate(verdict, [_finding("devils_advocate", confidence=0.5)])
+    assert gated.status is ClaimStatus.UNRESOLVED
+    assert gated.missing_input == "The signed lease's break-fee clause."
+    assert gated.salvage_scope is None
+    assert gated.salvaged_claim is None
+
+
+@pytest.mark.parametrize(
+    "status", [ClaimStatus.SURVIVED, ClaimStatus.WEAKENED, ClaimStatus.BROKEN]
+)
+def test_missing_input_is_nulled_on_every_other_status(status):
+    """`missing_input` renders as the one thing blocking the decision. On a status
+    that already ruled, that is a nice-to-have wearing a blocker's clothes."""
+    verdict = SteelManVerdict(
+        status=status,
+        reasoning="Ruled on the evidence.",
+        fatal_flaw="A flaw." if status is not ClaimStatus.SURVIVED else None,
+        salvaged_claim="Scope it down." if status is not ClaimStatus.SURVIVED else None,
+        salvage_scope="parameter" if status is not ClaimStatus.SURVIVED else None,
+        tradeoff_acknowledged="Slower rollout." if status is not ClaimStatus.SURVIVED else None,
+        missing_input="A number that would have been nice to have.",
+    )
+    gated = apply_steelman_gate(
+        verdict,
+        [_finding("receipts", evidence=True, contradiction="The rule forbids it", confidence=0.8)],
+    )
+    assert gated.missing_input is None
+
+
+def test_survived_nulls_the_salvage_scope():
+    verdict = SteelManVerdict(
+        status=ClaimStatus.SURVIVED,
+        reasoning="Held up.",
+        salvage_scope="redesign",
+    )
+    gated = apply_steelman_gate(verdict, [_finding("builder", confidence=0.3)])
+    assert gated.salvage_scope is None
+
+
+def test_a_scope_without_a_salvage_is_dropped():
+    """The scope only means anything as a label on a salvage that exists."""
+    verdict = SteelManVerdict(
+        status=ClaimStatus.BROKEN,
+        reasoning="Refuted by the statute.",
+        fatal_flaw="Violates 45 CFR 164.312.",
+        salvaged_claim=None,
+        salvage_scope="parameter",
+    )
+    gated = apply_steelman_gate(
+        verdict,
+        [_finding("receipts", evidence=True, contradiction="45 CFR 164.312 forbids it", confidence=0.9)],
+    )
+    assert gated.status is ClaimStatus.BROKEN
+    assert gated.salvage_scope is None
+
+
+def test_an_invented_salvage_scope_is_not_trusted():
+    """A third label must not resolve as `redesign`, and must not survive as itself."""
+    verdict = SteelManVerdict(
+        status=ClaimStatus.BROKEN,
+        reasoning="Refuted.",
+        salvaged_claim="Halve the batch size.",
+        salvage_scope="partial_redesign",
+    )
+    gated = apply_steelman_gate(
+        verdict,
+        [_finding("receipts", evidence=True, contradiction="Benchmarks show otherwise", confidence=0.8)],
+    )
+    assert gated.salvage_scope is None

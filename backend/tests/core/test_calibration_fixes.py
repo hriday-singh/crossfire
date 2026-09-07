@@ -280,9 +280,10 @@ def test_a_finding_that_already_has_sources_is_not_probed_again():
 
 def test_steel_man_prompt_discriminates_weakened_from_unresolved():
     prompt = STEEL_MAN_SYSTEM_PROMPT
-    assert "counterfactual" in prompt
     assert "cannot tell" in prompt
-    assert "name the exact missing input" in prompt
+    assert "'missing_input' field" in prompt
+    # Round 3: a forward-looking claim is not automatically unresolvable.
+    assert "NOT unresolved merely because it looks forward" in prompt
 
 
 # --- G3: the ladder is the floor, not a dead fallback --------------------
@@ -318,3 +319,62 @@ def test_case_verdict_prompt_permits_proceed_and_names_the_floor():
     prompt = CASE_VERDICT_SYSTEM_PROMPT
     assert "'proceed' is a real outcome" in prompt
     assert "Do not go below it" in prompt
+
+
+# --- Round 3: an unresolved that names nothing is a hedge -----------------
+#
+# 40.4% of Round 2 claims landed `unresolved`, and every load-bearing one forced the
+# case to `hold`. `unresolved` now means one nameable input is missing; a verdict that
+# reaches it without naming that input is re-graded on the evidence the panel produced.
+
+
+def test_unresolved_without_a_missing_input_and_a_sourced_contradiction_is_weakened():
+    findings = [
+        _finding(
+            "c1",
+            "receipts",
+            0.8,
+            evidence=[_evidence()],
+            contradiction="49 CFR 395.3 caps driving at 11 hours.",
+        )
+    ]
+    status, reasoning = apply_evidence_gate(ClaimStatus.UNRESOLVED, "Unclear.", findings)
+    assert status is ClaimStatus.WEAKENED
+    assert "Re-graded from unresolved to weakened" in reasoning
+
+
+def test_unresolved_without_a_missing_input_on_a_trivial_panel_survives():
+    findings = [_finding("c1", "devils_advocate", 0.1), _finding("c1", "operator", 0.15)]
+    status, reasoning = apply_evidence_gate(ClaimStatus.UNRESOLVED, "Unclear.", findings)
+    assert status is ClaimStatus.SURVIVED
+    assert "Re-graded from unresolved to survived" in reasoning
+
+
+def test_unresolved_without_a_missing_input_on_a_substantive_panel_is_weakened():
+    findings = [_finding("c1", "builder", 0.6)]
+    status, _ = apply_evidence_gate(ClaimStatus.UNRESOLVED, "Unclear.", findings)
+    assert status is ClaimStatus.WEAKENED
+
+
+def test_unresolved_that_names_its_missing_input_is_left_alone():
+    findings = [_finding("c1", "builder", 0.6)]
+    status, reasoning = apply_evidence_gate(
+        ClaimStatus.UNRESOLVED, "Unclear.", findings, "Your actual monthly churn rate."
+    )
+    assert status is ClaimStatus.UNRESOLVED
+    assert reasoning == "Unclear."
+
+
+def test_unresolved_with_no_findings_at_all_is_left_alone():
+    """core/loop.py assigns this directly when no evaluator produced a finding —
+    nothing was measured, so there is nothing to re-grade it against."""
+    status, reasoning = apply_evidence_gate(ClaimStatus.UNRESOLVED, "No findings.", [])
+    assert status is ClaimStatus.UNRESOLVED
+    assert reasoning == "No findings."
+
+
+def test_unresolved_from_an_evaluator_error_stays_unresolved():
+    findings = [_finding("c1", "builder", 0.6), _finding("c1", "operator", None)]
+    status, reasoning = apply_evidence_gate(ClaimStatus.UNRESOLVED, "Panel failed.", findings)
+    assert status is ClaimStatus.UNRESOLVED
+    assert "evaluator execution failure" in reasoning

@@ -62,7 +62,11 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
 
         next_validation = None
         if claim.load_bearing and claim.status in (ClaimStatus.BROKEN, ClaimStatus.UNRESOLVED):
-            next_validation = f"Directly test: {claim.statement}"
+            # The judge already named the one input that settles this. Anything the
+            # consequence call invents instead is vaguer than the thing it replaces.
+            next_validation = (claim.missing_input or "").strip() or (
+                f"Directly test: {claim.statement}"
+            )
 
         consequences.append(
             DecisionConsequence(
@@ -150,7 +154,7 @@ async def _synthesize_single_consequence(
                 consequence.impact = result.impact.strip().lower()
             if result.recommended_change:
                 consequence.recommended_change = clamp_sentences(result.recommended_change, 2)
-            if result.next_validation is not None:
+            if result.next_validation is not None and not (claim.missing_input or "").strip():
                 consequence.next_validation = clamp_sentences(result.next_validation, 2)
     except Exception as exc:
         logger.debug("LLM consequence synthesis bypassed for claim %s: %s", claim.id, exc)
@@ -328,26 +332,54 @@ def _blocking_weakened(case: Case, claim: Claim) -> bool:
     return max((f.confidence for f in findings if f.confidence is not None), default=0.0) >= 0.4
 
 
-def _fallback_decision_state(case: Case) -> str:
-    """Used when the synthesis call fails — derived from the verdicts alone.
+def _salvage_survives_the_decision(claim: Claim) -> bool:
+    """A `parameter` salvage keeps the decision; a `redesign` salvage replaces it.
 
-    Not a pure severity ladder. `drop` means "there is nothing left to do here",
-    which is only true when a refuted load-bearing claim has no salvage. Break to
-    Rebuild exists to produce that salvage; discarding it and reporting `drop`
-    anyway threw away the answer (d2-pro-se-custody, e2-pwa-instead-of-native)."""
+    Break to Rebuild mandates a salvage on every failed claim, so `all(salvaged)`
+    was always true and `drop` was dead code. The scope, not the presence of the
+    salvage, is what says whether the original decision is still on the table.
+    A missing scope reads as `parameter` — the permissive side — because an
+    unlabelled salvage is a judge that skipped a field, not a refutation."""
+    if not (claim.salvaged_claim or "").strip():
+        return False
+    return (claim.salvage_scope or "parameter").strip().lower() != "redesign"
+
+
+def _derive_decision_state(case: Case) -> tuple[str, str]:
+    """The ladder floor plus which branch set it (`clamp_decision_state` needs both).
+
+    Not a pure severity ladder. `drop` means the original decision is off the table:
+    a refuted load-bearing claim with no salvage, or one whose only salvage is a
+    different decision. A refuted claim salvageable by changing a parameter is still
+    the same decision (d2-pro-se-custody, e2-pwa-instead-of-native).
+
+    `unresolved` is severity-weighted rather than absolute. One unresolved claim
+    beside several survived ones is not more restrictive than a claim that actively
+    failed, which is what `any(unresolved) -> hold` made it (a1-notion-migration)."""
     lb = [c for c in case.claims if c.load_bearing] or case.claims
     broken = [c for c in lb if c.status is ClaimStatus.BROKEN]
     if broken:
-        if all((c.salvaged_claim or "").strip() for c in broken):
-            return "proceed_with_changes"
-        return "drop"
-    if any(c.status is ClaimStatus.UNRESOLVED for c in lb):
-        return "hold"
+        # Mixed scopes take the harsher outcome.
+        if all(_salvage_survives_the_decision(c) for c in broken):
+            return "proceed_with_changes", "broken"
+        return "drop", "broken"
+
+    unresolved = [c for c in lb if c.status is ClaimStatus.UNRESOLVED]
+    if unresolved:
+        survived = [c for c in lb if c.status is ClaimStatus.SURVIVED]
+        if len(unresolved) * 2 > len(lb) or not survived:
+            return "hold", "unresolved"
+
     if any(
         c.status is ClaimStatus.WEAKENED and _blocking_weakened(case, c) for c in lb
     ):
-        return "proceed_with_changes"
-    return "proceed"
+        return "proceed_with_changes", "weakened"
+    return "proceed", "clean"
+
+
+def _fallback_decision_state(case: Case) -> str:
+    """Used when the synthesis call fails — derived from the verdicts alone."""
+    return _derive_decision_state(case)[0]
 
 
 _STATE_PERMISSIVENESS = {
@@ -359,7 +391,9 @@ _STATE_PERMISSIVENESS = {
 _PERMISSIVENESS_TO_STATE = {v: k for k, v in _STATE_PERMISSIVENESS.items()}
 
 
-def clamp_decision_state(llm_state: str, derived: str) -> str:
+def clamp_decision_state(
+    llm_state: str, derived: str, floor_reason: str = "broken"
+) -> str:
     """`_fallback_decision_state` is the floor, not the fallback.
 
     It was reachable only when the synthesis call raised, so every correction made
@@ -370,15 +404,23 @@ def clamp_decision_state(llm_state: str, derived: str) -> str:
     The clamp is one-directional and bounded. The model may be more permissive than
     the ladder by one rung, because it sees the salvage text and the actual
     reasoning; it may never be harsher, because that is the exact regression the
-    ladder fixes, and it may not jump two rungs, because `proceed` over a ladder
-    that computed `drop` means a load-bearing claim was refuted and unsalvaged."""
+    ladder fixes.
+
+    How far above the floor depends on what set the floor. A floor set by a
+    `broken` load-bearing claim moves one rung: `proceed` over a ladder that
+    computed `drop` means a claim was refuted and unsalvaged. A floor set by
+    `unresolved` alone moves two, because nothing was refuted there — the ladder
+    only recorded that an input is missing, and the model can see whether the
+    findings settled it. That asymmetry is the guard against Band B overshoot;
+    do not loosen the `broken` side."""
     if llm_state not in _STATE_PERMISSIVENESS:
         return derived
     floor = _STATE_PERMISSIVENESS[derived]
     proposed = _STATE_PERMISSIVENESS[llm_state]
     if proposed < floor:
         return derived
-    return _PERMISSIVENESS_TO_STATE[min(proposed, floor + 1)]
+    headroom = 2 if floor_reason == "unresolved" else 1
+    return _PERMISSIVENESS_TO_STATE[min(proposed, floor + headroom)]
 
 
 CASE_VERDICT_SYSTEM_PROMPT = (
@@ -394,9 +436,12 @@ CASE_VERDICT_SYSTEM_PROMPT = (
     "failure, not caution. Ordinary friction that the panel scored as minor is not a "
     "modification.\n"
     "  You are given a state derived mechanically from the claim verdicts. Do not go "
-    "below it. Every load-bearing failure it counted is real, and a claim that was "
-    "refuted but carries a workable salvage is 'proceed_with_changes', not 'drop' — "
-    "'drop' means there is nothing left to do here.\n"
+    "below it. Every load-bearing failure it counted is real.\n"
+    "  'drop' does not mean the reader is left with nothing. A refuted load-bearing "
+    "claim whose only fix is a different decision is a 'drop', and the replacement is "
+    "shown underneath it: the case reads 'do not do this as written, here is what to "
+    "do instead'. A claim fixable by changing a setting, threshold, scope or budget is "
+    "'proceed_with_changes' — the same decision, tuned.\n"
     "- 'headline': the call itself, as a short, punchy heading of generally 3 to 6 words "
     "(it can be slightly more, up to 7-8 words max, but never a big line). Deliver the core call "
     "or decisive factor in one brief phrase (e.g., 'Don't proceed as written', 'Requires human legal review', "
@@ -430,7 +475,7 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         if c.status in (ClaimStatus.WEAKENED, ClaimStatus.UNRESOLVED)
     ]
 
-    derived_state = _fallback_decision_state(case)
+    derived_state, floor_reason = _derive_decision_state(case)
     verdict = CaseVerdict(
         decision_state=derived_state,
         summary="",
@@ -484,7 +529,9 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         )
         state = (getattr(result, "decision_state", "") or "").strip().lower()
         if state in _DECISION_STATES:
-            verdict.decision_state = clamp_decision_state(state, derived_state)
+            verdict.decision_state = clamp_decision_state(
+                state, derived_state, floor_reason
+            )
         verdict.headline = sanitize_headline(
             getattr(result, "headline", "") or "", verdict.decision_state
         )

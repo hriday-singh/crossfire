@@ -66,6 +66,10 @@ async def retest_single_claim(
         clm.fatal_flaw = None
         clm.salvaged_claim = None
         clm.tradeoff_acknowledged = None
+        # A stale scope on a re-tested claim carries the old salvage's verdict into
+        # the ladder and can force a `drop` the new findings never justified.
+        clm.salvage_scope = None
+        clm.missing_input = None
         # Drop old findings for this claim
         case.findings = [f for f in case.findings if f.claim_id != clm.id]
     elif action == "counter_evidence" and counter_evidence:
@@ -134,6 +138,8 @@ async def retest_single_claim(
             clm.fatal_flaw = gated.fatal_flaw
             clm.salvaged_claim = gated.salvaged_claim
             clm.tradeoff_acknowledged = gated.tradeoff_acknowledged
+            clm.missing_input = gated.missing_input
+            clm.salvage_scope = gated.salvage_scope
             reasoning = gated.reasoning
         else:
             st, rsn = verdict
@@ -154,6 +160,8 @@ async def retest_single_claim(
             "fatal_flaw": clm.fatal_flaw,
             "salvaged_claim": clm.salvaged_claim,
             "tradeoff_acknowledged": clm.tradeoff_acknowledged,
+            "missing_input": clm.missing_input,
+            "salvage_scope": clm.salvage_scope,
         },
     )
 

@@ -49,10 +49,13 @@ _ROUTES = {
     "alternative": run_operator,
 }
 
-# Devil's Advocate is the fallback because it needs no evidence and always
-# produces a Finding: an unrecognised failure_mode degrades to a weaker test
-# instead of dropping the claim out of the run entirely.
-_FALLBACK = run_devils_advocate
+# The Researcher is the fallback. Every one of its return paths produces a Finding,
+# and its zero-evidence paths abstain (confidence=0.0, "Abstain: No external empirical
+# evidence found"), so an unrecognised failure_mode degrades to a search attempt that
+# may abstain rather than to the harshest evidence-free evaluator in the panel. Devil's
+# Advocate held this slot through Round 2 and its median objection was 0.75, which every
+# misrouted claim inherited.
+_FALLBACK = run_researcher
 
 
 async def dispatch(item: TestPlanItem, case: Case, provider: LLMProvider) -> Finding:

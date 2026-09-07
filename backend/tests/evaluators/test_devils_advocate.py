@@ -136,3 +136,79 @@ async def test_run_devils_advocate_passes_enhanced_prompt_and_instruction(
     assert "Stakeholder Incentive Mapping" in user_content
 
 
+
+
+# --- Round 3: an objection that names nothing is a minor one --------------
+#
+# Round 2 Devil's Advocate: minimum confidence 0.30, median 0.75, 34 of 39 findings at
+# or above 0.70. It had already been prompted into the zero band once and did not go,
+# so the cap is the guarantee, not the prompt.
+
+
+@pytest.mark.asyncio
+async def test_evidence_free_finding_without_a_contradiction_is_capped(
+    fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
+):
+    from core.evaluators._reasoning import EVIDENCE_FREE_OBJECTION_CAP
+    from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
+
+    provider = fake_provider_factory(
+        responses=[
+            DevilsAdvocateOutput(
+                result="The team will lose momentum",
+                reasoning="Nobody stays motivated through a 12-month migration.",
+                confidence=0.85,
+                contradiction=None,
+            )
+        ]
+    )
+    finding = await run_devils_advocate(sample_test_plan_item, sample_case, provider)
+    assert finding.confidence == EVIDENCE_FREE_OBJECTION_CAP
+
+
+@pytest.mark.asyncio
+async def test_a_finding_that_names_its_contradiction_is_not_capped(
+    fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
+):
+    from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
+
+    provider = fake_provider_factory(
+        responses=[
+            DevilsAdvocateOutput(
+                result="The pricing premise is circular",
+                reasoning="The margin assumes the volume the margin is meant to produce.",
+                confidence=0.85,
+                contradiction="Margin depends on volume that depends on the margin.",
+            )
+        ]
+    )
+    finding = await run_devils_advocate(sample_test_plan_item, sample_case, provider)
+    assert finding.confidence == 0.85
+
+
+@pytest.mark.asyncio
+async def test_the_cap_does_not_lift_a_low_score(
+    fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
+):
+    from core.evaluators.devils_advocate import DevilsAdvocateOutput, run_devils_advocate
+
+    provider = fake_provider_factory(
+        responses=[
+            DevilsAdvocateOutput(
+                result="The premise holds under the pre-mortem",
+                reasoning="No unstated premise the claim depends on would have to be false.",
+                confidence=0.05,
+                contradiction=None,
+            )
+        ]
+    )
+    finding = await run_devils_advocate(sample_test_plan_item, sample_case, provider)
+    assert finding.confidence == 0.0
+
+
+def test_the_pre_mortem_frame_is_conditional_not_a_fixed_failure():
+    from core.evaluators.devils_advocate import DEVILS_ADVOCATE_SYSTEM_PROMPT as prompt
+
+    assert "fixed future state" not in prompt
+    assert "Suppose it is 12 months post-launch" in prompt
+    assert "0.0-0.1 band" in prompt

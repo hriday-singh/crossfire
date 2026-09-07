@@ -425,6 +425,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 clm.fatal_flaw = None
                 clm.salvaged_claim = None
                 clm.tradeoff_acknowledged = None
+                clm.missing_input = None
+                clm.salvage_scope = None
                 reasoning = "No evaluator produced a finding for this claim."
             else:
                 await emit_activity(
@@ -443,6 +445,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                         clm.fatal_flaw = gated.fatal_flaw
                         clm.salvaged_claim = gated.salvaged_claim
                         clm.tradeoff_acknowledged = gated.tradeoff_acknowledged
+                        clm.missing_input = gated.missing_input
+                        clm.salvage_scope = gated.salvage_scope
                         max_obj = max((f.confidence for f in claim_findings if f.confidence is not None), default=0.0)
                         clm.confidence = calculate_claim_confidence(clm.status, max_obj)
                         reasoning = gated.reasoning
@@ -460,6 +464,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     clm.fatal_flaw = None
                     clm.salvaged_claim = None
                     clm.tradeoff_acknowledged = None
+                    clm.missing_input = None
+                    clm.salvage_scope = None
                     reasoning = f"Reconciliation error ({exc}); marked unresolved."
 
             reasonings[clm.id] = reasoning
@@ -474,6 +480,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     "fatal_flaw": clm.fatal_flaw,
                     "salvaged_claim": clm.salvaged_claim,
                     "tradeoff_acknowledged": clm.tradeoff_acknowledged,
+                    "missing_input": clm.missing_input,
+                    "salvage_scope": clm.salvage_scope,
                 },
             )
             return clm, clm.status, reasoning

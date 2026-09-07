@@ -27,6 +27,11 @@ class Claim(BaseModel):
     fatal_flaw: str | None = None          # isolated flaw if weakened/broken
     salvaged_claim: str | None = None      # minimal viable re-architecture (Break to Rebuild)
     tradeoff_acknowledged: str | None = None  # operational trade-off of the salvaged claim
+    missing_input: str | None = None       # unresolved only: the exact number/document/measurement
+                                           # that would settle it. Null for every other status.
+    salvage_scope: str | None = None       # "parameter" (same decision, different setting) or
+                                           # "redesign" (a different decision replaces it).
+                                           # Decides drop vs proceed_with_changes on a broken claim.
 
 
 

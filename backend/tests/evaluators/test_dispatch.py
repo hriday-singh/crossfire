@@ -173,8 +173,12 @@ async def test_dispatch_routes_edge_case_and_alternative_to_operator(mode, fake_
 
 
 @pytest.mark.asyncio
-async def test_dispatch_fallback_unknown_mode(fake_provider_factory, sample_case):
-    from core.evaluators.devils_advocate import DevilsAdvocateOutput
+async def test_dispatch_fallback_unknown_mode(monkeypatch, fake_provider_factory, sample_case):
+    """An unrecognised failure_mode degrades to the Researcher, not to the harshest
+    evidence-free evaluator in the panel (Round 3)."""
+    import core.evaluators as evaluators
+
+    assert evaluators._FALLBACK is evaluators.run_researcher
 
     item = TestPlanItem(
         id="t-unknown",
@@ -182,18 +186,25 @@ async def test_dispatch_fallback_unknown_mode(fake_provider_factory, sample_case
         failure_mode="nonexistent_mode",
         objective="Fallback test",
     )
-    provider = fake_provider_factory(
-        responses=[
-            DevilsAdvocateOutput(
-                result="Fallback assumption critique",
-                reasoning="Standard reasoning applies",
-                confidence=0.5,
-            )
-        ]
-    )
 
-    finding = await dispatch(item, sample_case, provider)
-    assert finding.evaluator == "devils_advocate"
+    called: list[str] = []
+
+    async def _fake_researcher(it, case, provider):
+        called.append(it.failure_mode)
+        return Finding(
+            claim_id="",
+            test_id="",
+            evaluator="receipts",
+            result="Abstain: No external empirical evidence found",
+            reasoning="No sources.",
+            confidence=0.0,
+        )
+
+    monkeypatch.setattr(evaluators, "_FALLBACK", _fake_researcher)
+
+    finding = await dispatch(item, sample_case, fake_provider_factory(responses=[]))
+    assert called == ["nonexistent_mode"]
+    assert finding.evaluator == "receipts"
     assert finding.test_id == "t-unknown"
     assert finding.claim_id == sample_case.claims[0].id
 

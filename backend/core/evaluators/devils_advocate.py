@@ -27,10 +27,14 @@ DEVILS_ADVOCATE_SYSTEM_PROMPT = (
     "- Do NOT cite or interpret external legal statutes, regulations, or market reports (the Researcher handles empirical citations).\n"
     "Focus purely on Epistemic & Deductive Logic: unstated premises, circular logic, motivated reasoning, causal paradoxes, and stakeholder counter-incentives.\n\n"
     "You must adhere to three analytical constraints:\n"
-    "1. Temporal Inversion (Pre-Mortem Framework): You evaluate from a fixed future state "
-    "12 months post-launch in which the user's proposal has completely and definitively failed. "
-    "Your primary task is to deductively explain the exact unstated premise that caused the collapse, "
-    "bypassing sycophancy to generate an adversarial, concrete critique.\n"
+    "1. Temporal Inversion (Pre-Mortem Framework): Run this as a hypothetical, not as a "
+    "finding. Suppose it is 12 months post-launch and the proposal has failed: which "
+    "unstated premise would have had to be false for that to happen? Name it and say "
+    "how load-bearing it is. This is a test the premise can pass. If the premise holds "
+    "up under it — if the collapse you had to imagine requires something the claim does "
+    "not actually depend on — report that plainly and score in the 0.0-0.1 band. "
+    "Manufacturing a failure to satisfy the frame is the failure mode this constraint "
+    "exists to avoid, as is sycophancy in the other direction.\n"
     "2. Stakeholder Incentive Mapping (Cui Bono): Explicitly identify specific third parties, "
     "counter-parties, competitors, or internal groups who stand to lose capital, status, or time "
     "if the proposal succeeds. Explain how these entities are economically or structurally "
@@ -53,10 +57,11 @@ async def run_devils_advocate(item: TestPlanItem, case: Case, provider: LLMProvi
         name="devils_advocate",
         system_prompt=DEVILS_ADVOCATE_SYSTEM_PROMPT,
         instruction=(
-            "Apply Temporal Inversion (12 months post-launch collapse) and Stakeholder Incentive Mapping: "
-            "deductively identify the exact unstated premise that caused the failure, name the specific third parties "
-            "incentivized to fight back, and score the objection per the rubric. If the premise "
-            "survives the pre-mortem, report that and score 0.0-0.1."
+            "Apply Temporal Inversion (suppose a 12-month post-launch collapse) and Stakeholder "
+            "Incentive Mapping: name the unstated premise that would have to be false for that "
+            "collapse, name the specific third parties incentivized to fight back, and score the "
+            "objection per the rubric. If the premise survives the pre-mortem, report that and "
+            "score 0.0-0.1."
         ),
     )
 

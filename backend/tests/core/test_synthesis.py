@@ -6,6 +6,8 @@ from uuid import uuid4
 from core.models import Case, Claim, ClaimStatus, DecisionConsequence
 from core.synthesis import (
     build_consequences,
+    clamp_decision_state,
+    _derive_decision_state,
     _fallback_decision_state,
     synthesize_case_verdict,
     synthesize_consequences,
@@ -121,3 +123,157 @@ def test_build_consequences_preserves_all_steelman_fields():
     assert c.tradeoff_acknowledged == "Adds replication lag"
     assert "Salvaged claim: Use read replicas" in c.recommended_change
 
+
+
+# --- Round 3: both ends of the ladder are reachable -----------------------
+#
+# Round 2 returned proceed 0/15 and drop 0/15. `any(unresolved) -> hold` treated one
+# unresolved claim among survived ones as more restrictive than a claim that actively
+# failed (a1-notion-migration), and `all(salvaged)` was always true because Break to
+# Rebuild mandates a salvage, which made the drop branch dead code (b1-phi-google-drive).
+
+
+def _ladder_case(claims):
+    return Case(id="ladder", raw_input="A decision", claims=claims)
+
+
+def test_a_minority_unresolved_claim_beside_a_survivor_does_not_hold_the_case():
+    """a1-notion-migration: survived + unresolved was forced to `hold`."""
+    case = _ladder_case(
+        [
+            Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.SURVIVED),
+            Claim(id="c2", statement="B", load_bearing=True, status=ClaimStatus.SURVIVED),
+            Claim(
+                id="c3",
+                statement="C",
+                load_bearing=True,
+                status=ClaimStatus.UNRESOLVED,
+                missing_input="Last quarter's seat count.",
+            ),
+        ]
+    )
+    state, reason = _derive_decision_state(case)
+    assert state == "proceed"
+    assert reason == "clean"
+
+
+def test_majority_unresolved_still_holds_the_case():
+    """Band C (c1/c3): most of what the decision rests on is unmeasured."""
+    case = _ladder_case(
+        [
+            Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.UNRESOLVED),
+            Claim(id="c2", statement="B", load_bearing=True, status=ClaimStatus.UNRESOLVED),
+            Claim(id="c3", statement="C", load_bearing=True, status=ClaimStatus.SURVIVED),
+        ]
+    )
+    assert _derive_decision_state(case) == ("hold", "unresolved")
+
+
+def test_unresolved_with_nothing_surviving_holds_the_case():
+    case = _ladder_case(
+        [
+            Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.UNRESOLVED),
+            Claim(id="c2", statement="B", load_bearing=True, status=ClaimStatus.WEAKENED),
+        ]
+    )
+    assert _derive_decision_state(case) == ("hold", "unresolved")
+
+
+def test_a_parameter_salvage_keeps_the_decision_on_the_table():
+    """a2-treasury-mmf: hold a 0.5-1 month buffer instead of 3 months."""
+    case = _ladder_case(
+        [
+            Claim(
+                id="c1",
+                statement="Hold a 3-month cash buffer",
+                load_bearing=True,
+                status=ClaimStatus.BROKEN,
+                salvaged_claim="Hold a 0.5-1 month buffer and sweep the rest.",
+                salvage_scope="parameter",
+            )
+        ]
+    )
+    assert _derive_decision_state(case) == ("proceed_with_changes", "broken")
+
+
+def test_a_redesign_salvage_drops_the_decision():
+    """b1-phi-google-drive: Workspace under a BAA is not consumer Drive with a tweak."""
+    case = _ladder_case(
+        [
+            Claim(
+                id="c1",
+                statement="Store PHI in consumer Google Drive",
+                load_bearing=True,
+                status=ClaimStatus.BROKEN,
+                salvaged_claim="Move to Google Workspace under a signed BAA.",
+                salvage_scope="redesign",
+            )
+        ]
+    )
+    assert _derive_decision_state(case) == ("drop", "broken")
+
+
+def test_mixed_salvage_scopes_take_the_harsher_outcome():
+    case = _ladder_case(
+        [
+            Claim(
+                id="c1",
+                statement="A",
+                load_bearing=True,
+                status=ClaimStatus.BROKEN,
+                salvaged_claim="Lower the threshold.",
+                salvage_scope="parameter",
+            ),
+            Claim(
+                id="c2",
+                statement="B",
+                load_bearing=True,
+                status=ClaimStatus.BROKEN,
+                salvaged_claim="Use a different vendor entirely.",
+                salvage_scope="redesign",
+            ),
+        ]
+    )
+    assert _derive_decision_state(case) == ("drop", "broken")
+
+
+def test_an_unlabelled_salvage_reads_as_a_parameter_change():
+    """A judge that skipped the field is not a refutation of the whole decision."""
+    case = _ladder_case(
+        [
+            Claim(
+                id="c1",
+                statement="A",
+                load_bearing=True,
+                status=ClaimStatus.BROKEN,
+                salvaged_claim="Scope it down to one team.",
+                salvage_scope=None,
+            )
+        ]
+    )
+    assert _derive_decision_state(case) == ("proceed_with_changes", "broken")
+
+
+def test_a_broken_claim_with_no_salvage_at_all_still_drops():
+    case = _ladder_case(
+        [Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.BROKEN)]
+    )
+    assert _derive_decision_state(case) == ("drop", "broken")
+
+
+# --- Round 3: the clamp's asymmetry is the Band B guard -------------------
+
+
+def test_clamp_allows_two_rungs_above_an_unresolved_floor():
+    assert clamp_decision_state("proceed", "hold", "unresolved") == "proceed"
+
+
+def test_clamp_allows_only_one_rung_above_a_broken_floor():
+    assert clamp_decision_state("proceed", "drop", "broken") == "hold"
+    assert clamp_decision_state("proceed", "proceed_with_changes", "broken") == "proceed"
+
+
+def test_clamp_never_moves_downward_whatever_set_the_floor():
+    for reason in ("broken", "unresolved", "weakened", "clean"):
+        assert clamp_decision_state("drop", "proceed_with_changes", reason) == "proceed_with_changes"
+        assert clamp_decision_state("hold", "proceed", reason) == "proceed"
