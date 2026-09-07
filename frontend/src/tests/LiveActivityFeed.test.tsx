@@ -68,7 +68,7 @@ describe("LiveActivityFeed", () => {
   });
 
   it("toggles collapse and expand when toggle button clicked", () => {
-    render(<LiveActivityFeed activities={sampleActivities} isStreaming={false} />);
+    render(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
 
     expect(
       screen.getByText(/uscis bot submission terms/)

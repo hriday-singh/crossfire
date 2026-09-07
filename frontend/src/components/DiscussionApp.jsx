@@ -105,13 +105,13 @@ export function DiscussionApp() {
           // Keep finding card visible briefly, then clear
           setTimeout(() => {
             setActiveDialogue((curr) => (curr?.id === eventPacket.id ? null : curr));
-          }, 2400);
+          }, 1000);
         },
       });
     } else {
       // If action has no dialogue (e.g. typing or standing), highlight active evaluator briefly
       setActiveSpeakerId(speakerId);
-      setTimeout(() => setActiveSpeakerId(null), 2000);
+      setTimeout(() => setActiveSpeakerId(null), 800);
     }
   }, [playSpeech]);
 

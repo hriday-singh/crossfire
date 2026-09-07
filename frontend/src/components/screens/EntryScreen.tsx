@@ -473,13 +473,13 @@ export const EntryScreen: React.FC = () => {
 
   if (state.isExtracting) {
     return (
-      <div className="flex flex-col w-full items-center justify-center py-24 px-space-4 gap-6">
+      <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] items-center justify-center py-20 px-space-4 gap-6 animate-in fade-in duration-300">
         <CubeSpinner />
         <button
           onClick={cancelExtraction}
-          className="px-6 py-2 rounded-md bg-error text-on-error font-body-sm font-semibold hover:bg-error/90 transition-colors shadow-sm"
+          className="px-5 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container border border-outline-variant/60 text-outline hover:text-error font-mono text-xs font-semibold transition-all shadow-sm cursor-pointer active:scale-95"
         >
-          Cancel
+          Cancel Extraction
         </button>
       </div>
     );

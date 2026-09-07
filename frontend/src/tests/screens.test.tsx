@@ -33,8 +33,7 @@ describe("Screen Components", () => {
       expect(submitBtn).toBeInTheDocument();
       expect(submitBtn).toHaveClass(
         "bg-primary-container",
-        "hover:bg-blue-600",
-        "text-white",
+        "text-on-primary-container",
       );
       expect(screen.getByText("(Optional)")).toBeInTheDocument();
     });
@@ -815,6 +814,10 @@ describe("Screen Components", () => {
 
       render(<DashboardScreen />);
 
+      // Switch to Full Audit Trail tab to access claims table and sorting
+      const auditTabBtn = screen.getByRole("button", { name: /Full Audit Trail/i });
+      fireEvent.click(auditTabBtn);
+
       // Expand all claims if collapsed
       const expandClaimsBtn = screen.queryByRole("button", {
         name: /all 3 claims/i,
@@ -931,11 +934,6 @@ describe("Screen Components", () => {
       expect(
         screen.getAllByText(/Charge \$29 with 14-day trial/i).length
       ).toBeGreaterThanOrEqual(1);
-
-      // Select the revision
-      const claimCards = screen.getAllByText("We will charge $50 without free trial");
-      const claimCard = claimCards[0].closest("div.border");
-      if (claimCard) fireEvent.click(claimCard);
 
       // Click "Test Revised Proposal"
       const putIntoEntryBtn = screen.getByRole("button", {

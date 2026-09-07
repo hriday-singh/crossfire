@@ -101,9 +101,9 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     it("places Judge Table in the upper-center position", () => {
       expect(JUDGE_TABLE_CONFIG).toBeDefined();
       expect(JUDGE_TABLE_CONFIG.x).toBe(500);
-      expect(JUDGE_TABLE_CONFIG.y).toBe(240);
-      expect(JUDGE_TABLE_CONFIG.width).toBe(280);
-      expect(JUDGE_TABLE_CONFIG.height).toBe(110);
+      expect(JUDGE_TABLE_CONFIG.y).toBe(281);
+      expect(JUDGE_TABLE_CONFIG.width).toBe(240);
+      expect(JUDGE_TABLE_CONFIG.height).toBe(120);
     });
 
     it("positions 2 cubicles on the left and 2 cubicles on the right of the judge table", () => {

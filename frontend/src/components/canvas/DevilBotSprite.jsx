@@ -367,7 +367,7 @@ export function DevilBotSprite({
       const targetX = targetWp.x;
       const targetY = targetWp.y;
 
-      const walkingSpeed = 190;
+      const walkingSpeed = 460;
       const waypointsToVisit = getPathPoints(startX, startY, targetWp);
 
       if (walkTweenRef.current) walkTweenRef.current.kill();
@@ -402,7 +402,7 @@ export function DevilBotSprite({
           segFacing = segDy > 0 ? 'south' : 'north';
         }
 
-        const segDuration = Math.max(0.15, segDist / walkingSpeed);
+        const segDuration = Math.max(0.1, segDist / walkingSpeed);
 
         tl.to(posRef.current, {
           x: wp.x,
@@ -574,7 +574,7 @@ export function DevilBotSprite({
         isPlaying={playing}
         initialFrame={initialFrame}
         anchor={0.5}
-        animationSpeed={isWalking ? 0.14 : 0.12}
+        animationSpeed={isWalking ? 0.22 : 0.12}
         scale={{ x: flipSprite ? -scale : scale, y: scale }} 
       />
     </pixiContainer>

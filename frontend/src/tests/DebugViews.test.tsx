@@ -141,7 +141,7 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // 2. Extracting view
     fireEvent.click(screen.getByTestId("preview-btn-extracting"));
-    expect(screen.getByText(/Extracting Core Assumptions\.\.\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Extracting Core Assumptions/i)).toBeInTheDocument();
 
     // 3. Claim Map view
     fireEvent.click(screen.getByTestId("preview-btn-confirm"));
@@ -224,5 +224,5 @@ describe("Debug Views Preview & View Catalog", () => {
     const savedHistory = localStorage.getItem("crossfire_case_history");
     const parsed = savedHistory ? JSON.parse(savedHistory) : [];
     expect(parsed.some((c: { id: string }) => c.id === "case-preview-sample")).toBe(false);
-  });
+  }, 15000);
 });

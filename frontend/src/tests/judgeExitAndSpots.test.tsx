@@ -124,7 +124,7 @@ describe('AI 1: Dedicated Judge Table Spots & Shortest Path Navigation', () => {
 });
 
 describe('AI 1: Crucible Page Transition Animation', () => {
-  it('renders transition HUD and calls onComplete on user bypass click', () => {
+  it('renders seamless transition overlay without popup modals and calls onComplete', () => {
     const handleComplete = vi.fn();
 
     render(
@@ -136,13 +136,12 @@ describe('AI 1: Crucible Page Transition Animation', () => {
       />
     );
 
-    expect(screen.getByTestId('crucible-page-transition')).toBeInTheDocument();
-    expect(screen.getByText(/Judge Adjudication Concluded/i)).toBeInTheDocument();
-    expect(screen.getByText(/Transitioning to Decision Memo/i)).toBeInTheDocument();
-    expect(screen.getByText(/Autonomous Copilot Test Survived/i)).toBeInTheDocument();
+    const transitionOverlay = screen.getByTestId('crucible-page-transition');
+    expect(transitionOverlay).toBeInTheDocument();
+    expect(screen.getByText(/Entering Decision Memo/i)).toBeInTheDocument();
 
-    const bypassBtn = screen.getByRole('button', { name: /Open Decision Memo Now/i });
-    fireEvent.click(bypassBtn);
+    // Clicking anywhere on transition overlay skips smoothly
+    fireEvent.click(transitionOverlay);
     expect(handleComplete).toHaveBeenCalledTimes(1);
   });
 });

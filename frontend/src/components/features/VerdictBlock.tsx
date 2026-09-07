@@ -262,8 +262,14 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
   return (
     <section
       aria-label="Verdict"
-      className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-6 space-y-space-8"
+      className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-6 space-y-space-8 animate-in fade-in duration-300"
     >
+      {/* Crucible Judge Arbiter Badge */}
+      <div className="flex items-center gap-2 font-mono text-[11px] font-semibold text-outline uppercase tracking-wider pb-1">
+        <span className="w-2 h-2 rounded-full bg-verdict-survived animate-pulse" />
+        <span className="text-on-surface-variant font-medium">Crucible Judge Adjudication</span>
+      </div>
+
       {/* The call */}
       <div className="space-y-space-4">
         <h2

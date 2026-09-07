@@ -3,8 +3,14 @@
     Pending:
 
     AI 1 :
-        [] the judge when done will go the next page but have the transition like the bot just goes to the next page and then ill tell no pop up tho it should a smooth transition to the next page
-
+        [] the live logic be faster
     AI 2 (backend logic):
 
         [] tell how the backend logic actually work like will there be a claim every 2 second?  
+
+
+
+NOT Yet:
+    []the judge when done will go the next page but have the transition like the bot just goes to the next page and then ill tell no pop up tho it should a smooth transition to the next page tell what u understood
+            the judge when at the next page will be above all the claim thing and yea
+        
