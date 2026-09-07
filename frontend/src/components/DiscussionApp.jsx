@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import StageContainer from './canvas/StageContainer';
 import DialogueOverlay from './ui/DialogueOverlay';
 import SideControlPanel from './ui/SideControlPanel';
+import CruciblePageTransition from './ui/CruciblePageTransition';
 import { AGENT_CONFIGS, AGENT_MAP, JUDGE_CONFIG } from '../constants/agentConfigs';
 import { WAYPOINTS } from '../constants/roomLayout';
 import useSocketSimulation from '../hooks/useSocketSimulation';
@@ -15,6 +16,7 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
+  ArrowRight,
 } from 'lucide-react';
 
 /**
@@ -41,6 +43,9 @@ export function DiscussionApp() {
   const [activeDialogue, setActiveDialogue] = useState(null);
   const [hoveredAgentId, setHoveredAgentId] = useState(null);
   const [evaluatorFindings, setEvaluatorFindings] = useState({});
+  const [isJudgeExiting, setIsJudgeExiting] = useState(false);
+  const [isPageTransitionActive, setIsPageTransitionActive] = useState(false);
+  const exitTriggeredRef = useRef(false);
 
   // Audio Playback Hook with Voice Readout (TTS) state
   const {
@@ -61,11 +66,22 @@ export function DiscussionApp() {
       ...prev,
       [agentId]: { x, y },
     }));
+
+    // If Judge reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation
+    if (agentId === 'judge' && x >= 840 && !exitTriggeredRef.current) {
+      exitTriggeredRef.current = true;
+      setIsPageTransitionActive(true);
+    }
   }, []);
 
   // Event received handler from Socket or Mock simulation runner
   const handleEventReceived = useCallback((eventPacket) => {
     const speakerId = eventPacket.speaker_id;
+
+    // Detect Judge exit event
+    if (speakerId === 'judge' && eventPacket.target === 'right_door') {
+      setIsJudgeExiting(true);
+    }
 
     // Cache latest telemetry, thought & finding per evaluator for real-time thought bubbles and hover inspection
     if (eventPacket.dialogue || eventPacket.action || eventPacket.thought !== undefined) {
@@ -138,10 +154,38 @@ export function DiscussionApp() {
     }
   }, [isLiveBackendActive, isReplaying, setIsAutoPlaying]);
 
+  // Handle transition completion to navigate to the Decision Memo / Dashboard screen
+  const handleTransitionComplete = useCallback(() => {
+    setIsPageTransitionActive(false);
+    setIsJudgeExiting(false);
+    if (caseContext?.navigateScreen) {
+      caseContext.navigateScreen('dashboard');
+    } else if (caseContext?.dispatch) {
+      caseContext.dispatch({ type: 'NAVIGATE_SCREEN', payload: 'dashboard' });
+    }
+  }, [caseContext]);
+
   // Calculate live progress and stage
   const caseStatus = currentCase?.status;
   const isFinished = caseStatus === 'done' && !isLiveBackendActive;
   const isTesting = isLiveBackendActive || caseStatus === 'testing';
+
+  // When the case finishes, trigger the judge exit sequence if not already running
+  useEffect(() => {
+    if (isFinished && !isJudgeExiting && !exitTriggeredRef.current) {
+      const timer = setTimeout(() => {
+        setIsJudgeExiting(true);
+        triggerManualEvent({
+          speaker_id: 'judge',
+          action: 'walk_to',
+          target: 'right_door',
+          stage: 'Adjudication Complete // Exiting to Decision Memo',
+          thought: 'Synthesizing final Decision Memo in the Magistrate Chamber...',
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFinished, isJudgeExiting, triggerManualEvent]);
 
   const claimsCount = currentCase?.claims?.length || 0;
   const findingsCount = currentCase?.findings?.length || 0;
@@ -262,10 +306,14 @@ export function DiscussionApp() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => caseContext?.setActiveModal?.('evidence')}
-                  className="px-2.5 py-1 rounded bg-surface-container-highest hover:bg-surface-container border border-outline-variant/60 text-[11px] font-mono font-semibold text-primary transition-colors cursor-pointer shrink-0"
+                  onClick={() => {
+                    setIsJudgeExiting(true);
+                    setIsPageTransitionActive(true);
+                  }}
+                  className="px-2.5 py-1 rounded bg-surface-container-highest hover:bg-surface-container border border-outline-variant/60 text-[11px] font-mono font-semibold text-primary transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
                 >
-                  View Decision Memo
+                  <span>Proceed to Decision Memo</span>
+                  <ArrowRight className="w-3 h-3 inline" />
                 </button>
               </div>
             )}
@@ -277,6 +325,7 @@ export function DiscussionApp() {
             currentActionPacket={lastEvent}
             activeSpeakerId={activeSpeakerId}
             hoveredAgentId={hoveredAgentId}
+            isJudgeExiting={isJudgeExiting}
             onHoverAgent={setHoveredAgentId}
             onPositionUpdate={handlePositionUpdate}
             playSfx={playSfx}
@@ -290,6 +339,14 @@ export function DiscussionApp() {
               onHoverAgent={setHoveredAgentId}
             />
           </StageContainer>
+
+          {/* Cinematic Crucible Next Page Transition Animation */}
+          <CruciblePageTransition
+            isActive={isPageTransitionActive}
+            onComplete={handleTransitionComplete}
+            verdictHeadline={currentCase?.case_verdict?.headline || 'Adjudication Complete'}
+            verdictState={currentCase?.case_verdict?.decision_state || 'PROCEED'}
+          />
         </section>
 
         {/* Side Controls: Play/Pause, Speed, Volume, Voice TTS, Scenarios, and Presets */}

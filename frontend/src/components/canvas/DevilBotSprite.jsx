@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
-import { AnimatedSprite, Container } from 'pixi.js';
+import { AnimatedSprite, Container, Graphics } from 'pixi.js';
 import { extend } from '@pixi/react';
 
 extend({
   Container,
   AnimatedSprite,
+  Graphics,
 });
 import gsap from 'gsap';
 import { WAYPOINTS, resolveApproachSpot } from '../../constants/roomLayout';
@@ -21,27 +22,114 @@ import { getSpriteConfig } from '../../constants/spriteConfigs';
  * - Crucible Arbiter / Judge: /judge_thing.webp
  */
 /**
- * Calculates a collision-free waypoint path around the central table.
- * Table bounds roughly: X [390, 610], Y [220, 335]
+ * Calculates a collision-free, shortest waypoint path around the central table.
+ * Dedicated clearance spots per AI (standing back from table):
+ * - Builder: NW Clearance Spot (380, 355)
+ * - Devil's Advocate: SW Clearance Spot (430, 380)
+ * - Receipts: NE Clearance Spot (620, 355)
+ * - Operator: SE Clearance Spot (570, 380)
+ * - Judge Exit: Right Chamber Door (880, 285)
  */
 export function getPathPoints(startX, startY, targetWp) {
   const targetX = targetWp.x;
   const targetY = targetWp.y;
+  const targetId = targetWp.id;
 
+  // --- 1. Right Chamber Door Exit (Judge Exit Sequence) ---
+  if (targetId === 'right_door') {
+    if (startY < 235) {
+      // From Judge Chair (500, 215) -> move around right of table towards door
+      return [
+        { x: 620, y: 246 },
+        { x: targetX, y: targetY, facing: 'east' },
+      ];
+    } else if (startY > 300) {
+      // From South zone
+      return [
+        { x: 645, y: 380 },
+        { x: 645, y: 246 },
+        { x: targetX, y: targetY, facing: 'east' },
+      ];
+    } else {
+      return [{ x: targetX, y: targetY, facing: 'east' }];
+    }
+  }
+
+  // --- 2. Dedicated Table Spots (Direct Diagonal Paths from/to Cubicles) ---
+  // Builder: Cubicle 1 (NW) <-> NW Table Spot (395, 245)
+  if (targetId === 'judge_spot_builder') {
+    return [
+      { x: 329, y: 200 },
+      { x: targetX, y: targetY, facing: 'east' },
+    ];
+  }
+  const isStartingFromBuilderSpot = Math.hypot(startX - 395, startY - 245) < 40;
+  if (isStartingFromBuilderSpot && (targetId === 'cubicle_1_desk' || targetId === 'cubicle_1_stand')) {
+    return [
+      { x: 329, y: 200 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+
+  // Devil's Advocate: Cubicle 2 (SW) <-> SW Table Spot (415, 335)
+  if (targetId === 'judge_spot_devils_advocate') {
+    return [
+      { x: 329, y: 381 },
+      { x: targetX, y: targetY, facing: 'east' },
+    ];
+  }
+  const isStartingFromDevilSpot = Math.hypot(startX - 415, startY - 335) < 40;
+  if (isStartingFromDevilSpot && (targetId === 'cubicle_2_desk' || targetId === 'cubicle_2_stand')) {
+    return [
+      { x: 329, y: 381 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+    ];
+  }
+
+  // Receipts / Researcher: Cubicle 3 (NE) <-> NE Table Spot (605, 245)
+  if (targetId === 'judge_spot_receipts') {
+    return [
+      { x: 670, y: 200 },
+      { x: targetX, y: targetY, facing: 'west' },
+    ];
+  }
+  const isStartingFromReceiptsSpot = Math.hypot(startX - 605, startY - 245) < 40;
+  if (isStartingFromReceiptsSpot && (targetId === 'cubicle_3_desk' || targetId === 'cubicle_3_stand')) {
+    return [
+      { x: 670, y: 200 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+
+  // Operator: Cubicle 4 (SE) <-> SE Table Spot (585, 335)
+  if (targetId === 'judge_spot_operator') {
+    return [
+      { x: 670, y: 381 },
+      { x: targetX, y: targetY, facing: 'west' },
+    ];
+  }
+  const isStartingFromOperatorSpot = Math.hypot(startX - 585, startY - 335) < 40;
+  if (isStartingFromOperatorSpot && (targetId === 'cubicle_4_desk' || targetId === 'cubicle_4_stand')) {
+    return [
+      { x: 670, y: 381 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+    ];
+  }
+
+  // --- 3. Center Podium Target / Start (Legacy fallback) ---
   const isCenterPodiumTarget =
-    targetWp.id === 'podium_approach' ||
-    targetWp.id === 'judge_approach' ||
-    targetWp.id === 'judge_approach_south' ||
-    targetWp.id === 'presentation_podium';
+    targetId === 'podium_approach' ||
+    targetId === 'judge_approach' ||
+    targetId === 'judge_approach_south' ||
+    targetId === 'presentation_podium';
   const isStartingFromCenterPodium = startY >= 310 && startY <= 410 && startX >= 440 && startX <= 560;
 
-  const isWestApproachTarget = targetWp.id === 'judge_approach_west';
+  const isWestApproachTarget = targetId === 'judge_approach_west';
   const isStartingFromWestApproach = startY >= 250 && startY <= 320 && startX >= 400 && startX <= 460;
 
-  const isEastApproachTarget = targetWp.id === 'judge_approach_east';
+  const isEastApproachTarget = targetId === 'judge_approach_east';
   const isStartingFromEastApproach = startY >= 250 && startY <= 320 && startX >= 540 && startX <= 600;
 
-  // --- 1. Center Podium Target / Start ---
   if (isCenterPodiumTarget && startX < 420 && startY < 235) {
     return [
       { x: 365, y: 230 },
@@ -106,7 +194,7 @@ export function getPathPoints(startX, startY, targetWp) {
     ];
   }
 
-  // --- 2. West Approach Target / Start (x: 430, y: 285, facing: east) ---
+  // --- 4. West Approach Target / Start ---
   if (isWestApproachTarget) {
     if (startX <= 450) {
       return [
@@ -143,7 +231,7 @@ export function getPathPoints(startX, startY, targetWp) {
     }
   }
 
-  // --- 3. East Approach Target / Start (x: 570, y: 285, facing: west) ---
+  // --- 5. East Approach Target / Start ---
   if (isEastApproachTarget) {
     if (startX >= 550) {
       return [
@@ -419,8 +507,48 @@ export function DevilBotSprite({
     }
   }, [isWalking, initialFrame, texturesLoaded, currentTextures]);
 
+  const auraColor =
+    agent?.id === 'devils_advocate' || agent?.id === 'agent_1'
+      ? 0x818cf8
+      : agent?.id === 'builder' || agent?.id === 'agent_3'
+      ? 0xfbbf24
+      : agent?.id === 'receipts' || agent?.id === 'agent_2'
+      ? 0x34d399
+      : agent?.id === 'operator' || agent?.id === 'agent_4'
+      ? 0x60a5fa
+      : 0x3b82f6;
+
+  const drawShadowAndAura = useCallback(
+    (g) => {
+      g.clear();
+      // 1. Ground Drop Shadow (grounds all evaluator bots firmly on the isometric floor)
+      g.ellipse(0, 36, 20, 6.5).fill({
+        color: 0x05070c,
+        alpha: 0.45,
+      });
+      g.ellipse(0, 36, 12, 4).fill({
+        color: 0x000000,
+        alpha: 0.35,
+      });
+
+      // 2. Active Speaking / Hovering Cybernetic Aura Glow
+      if (isSpeaking || isHovered) {
+        g.ellipse(0, 10, 26, 36).stroke({
+          width: isHovered ? 2 : 1.5,
+          color: auraColor,
+          alpha: isHovered ? 0.85 : 0.55,
+        });
+        g.ellipse(0, 10, 24, 34).fill({
+          color: auraColor,
+          alpha: isHovered ? 0.16 : 0.08,
+        });
+      }
+    },
+    [isSpeaking, isHovered, auraColor]
+  );
+
   const zIndex = Math.round(pos.y);
-  
+
   if (!texturesLoaded) {
     return null; // Don't render until textures are sliced
   }
@@ -439,6 +567,7 @@ export function DevilBotSprite({
       onpointerenter={() => onHover?.(agent.id)}
       onpointerleave={() => onHover?.(null)}
     >
+      <pixiGraphics draw={drawShadowAndAura} />
       <pixiAnimatedSprite
         ref={spriteRef}
         textures={currentTextures}

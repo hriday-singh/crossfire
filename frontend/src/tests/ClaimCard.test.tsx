@@ -298,11 +298,11 @@ describe("ClaimCard", () => {
       />
     );
 
-    const fixDiv = screen.getByText(/Apply Fix:/i).closest("div.cursor-pointer");
-    expect(fixDiv).toBeInTheDocument();
+    const fixBtn = screen.getByText(/Apply Fix:/i).closest("button");
+    expect(fixBtn).toBeInTheDocument();
 
-    if (fixDiv) {
-      fireEvent.click(fixDiv);
+    if (fixBtn) {
+      fireEvent.click(fixBtn);
       expect(handleToggle).toHaveBeenCalledTimes(1);
     }
   });

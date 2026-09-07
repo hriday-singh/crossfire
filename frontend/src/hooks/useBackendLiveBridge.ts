@@ -240,17 +240,30 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             verdict: decisionState,
             dialogue: verdict.summary || verdict.headline || 'Verdict delivered.',
           });
+
+          // After Judge delivers verdict, Judge walks to right chamber door to proceed to Decision Memo
+          setTimeout(() => {
+            dispatchPacket({
+              speaker_id: 'judge',
+              action: 'walk_to',
+              target: 'right_door',
+              stage: 'Exiting Bullpen to Decision Memo',
+              dialogue: null,
+            });
+          }, 3500);
         } else if (event === 'run_complete') {
           // 7. run_complete: All evaluators return to seated workstations in standby
           Object.entries(AGENT_HOME_DESKS).forEach(([agentId, desk]) => {
-            dispatchPacket({
-              speaker_id: agentId,
-              action: 'sit',
-              target: desk,
-              stage: 'Run Complete',
-              thought: null,
-              dialogue: null,
-            });
+            if (agentId !== 'judge') {
+              dispatchPacket({
+                speaker_id: agentId,
+                action: 'sit',
+                target: desk,
+                stage: 'Run Complete',
+                thought: null,
+                dialogue: null,
+              });
+            }
           });
         }
       }, delay);
@@ -370,7 +383,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
       totalOffset += 8800;
     });
 
-    // After all findings, Judge summarizes
+    // After all findings, Judge summarizes and walks to right door
     if (verdict) {
       setTimeout(() => {
         dispatchPacket({
@@ -381,6 +394,17 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
           verdict: verdict.decision_state || 'drop',
           dialogue: verdict.summary || verdict.headline || 'All findings reconciled.',
         });
+
+        setTimeout(() => {
+          dispatchPacket({
+            speaker_id: 'judge',
+            action: 'walk_to',
+            target: 'right_door',
+            stage: 'Exiting Bullpen to Decision Memo',
+            dialogue: null,
+          });
+        }, 3200);
+
         setIsReplaying(false);
       }, totalOffset + 500);
     } else {
