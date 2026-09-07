@@ -42,13 +42,6 @@ export const EntryFooter: React.FC<EntryFooterProps> = ({ onOpenModal }) => {
           </button>
           <button
             type="button"
-            onClick={() => onOpenModal("logs")}
-            className="hover:text-on-surface transition-colors cursor-pointer"
-          >
-            Telemetry
-          </button>
-          <button
-            type="button"
             onClick={() => onOpenModal("history")}
             className="hover:text-on-surface transition-colors cursor-pointer"
           >

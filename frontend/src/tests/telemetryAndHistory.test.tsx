@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { Header } from "@/components/layout/Header";
 import { LiveLogsDrawer } from "@/components/features/LiveLogsDrawer";
 import { HistoryModal } from "@/components/features/HistoryModal";
+import { EntryFooter } from "@/components/features/EntryFooter";
+import { DashboardScreen } from "@/components/screens/DashboardScreen";
 import { CaseProvider, useCase } from "@/context/CaseContext";
 import { Case } from "@/types/crossfire";
 
@@ -101,7 +103,7 @@ describe("Telemetry & History Modals", () => {
 
     fireEvent.click(screen.getByText("Open History"));
     expect(screen.getByText("Case History")).toBeInTheDocument();
-    expect(screen.getByText("Example Decision Models")).toBeInTheDocument();
+    expect(screen.queryByText("Example Decision Models")).not.toBeInTheDocument();
 
     // Close history
     const closeBtn = screen.getByLabelText("Close history modal");
@@ -117,10 +119,8 @@ describe("Telemetry & History Modals", () => {
       </CaseProvider>
     );
 
-    // Terminal button should open logs
-    const terminalBtn = screen.getByLabelText(/View live pipeline telemetry and logs/i);
-    fireEvent.click(terminalBtn);
-    expect(screen.getByTestId("active-modal").textContent).toBe("logs");
+    // Terminal / live telemetry button should be hidden
+    expect(screen.queryByLabelText(/View live pipeline telemetry and logs/i)).not.toBeInTheDocument();
 
     // History button should open history
     const historyBtn = screen.getByLabelText(/View case history/i);
@@ -134,5 +134,22 @@ describe("Telemetry & History Modals", () => {
 
     // Profile avatar should not be present
     expect(screen.queryByText("CF")).not.toBeInTheDocument();
+  });
+
+  it("verifies EntryFooter does not render a Telemetry button", () => {
+    render(<EntryFooter onOpenModal={() => {}} />);
+    expect(screen.queryByRole("button", { name: /telemetry/i })).not.toBeInTheDocument();
+  });
+
+  it("verifies DashboardScreen does not render token breakdown and telemetry stats", () => {
+    render(
+      <CaseProvider>
+        <TestController />
+        <DashboardScreen />
+      </CaseProvider>
+    );
+
+    fireEvent.click(screen.getByText("Set Current Case"));
+    expect(screen.queryByText(/Agent Token Breakdown/i)).not.toBeInTheDocument();
   });
 });

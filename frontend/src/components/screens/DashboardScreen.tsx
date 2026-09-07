@@ -30,29 +30,13 @@ export const DashboardScreen: React.FC = () => {
   const [claimsOpen, setClaimsOpen] = useState(false);
 
   const currentCase = state.currentCase;
-  if (!currentCase) return null;
-
-  const isTesting = state.isStreaming || currentCase.status === "testing";
+  const isTesting = state.isStreaming || currentCase?.status === "testing";
 
   // Scroll to top on mount or when testing begins so live intelligence and verdict block are visible
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   }, [isTesting]);
 
-  // Dynamic Case ID
-  const formattedCaseId = currentCase.id.startsWith("CRX-")
-    ? currentCase.id
-    : `CRX-${currentCase.id.replace(/-/g, "").slice(0, 6).toUpperCase() || "MEMO"}`;
-
-  // Counts
-  const totalClaims = currentCase.claims.length;
-  const brokenCount = currentCase.claims.filter((c) => c.status === "broken").length;
-  const weakenedCount = currentCase.claims.filter((c) => c.status === "weakened").length;
-  const unresolvedCount = currentCase.claims.filter((c) => c.status === "unresolved").length;
-  const survivedCount = currentCase.claims.filter((c) => c.status === "survived").length;
-  const needsAttentionCount = brokenCount + weakenedCount + unresolvedCount;
-
-  // Severity sort
   const severityRank: Record<string, number> = {
     broken: 1,
     unresolved: 2,
@@ -61,6 +45,7 @@ export const DashboardScreen: React.FC = () => {
   };
 
   const sortedClaims = useMemo(() => {
+    if (!currentCase) return [];
     const claims = [...currentCase.claims];
     switch (sortBy) {
       case "criticality":
@@ -104,7 +89,7 @@ export const DashboardScreen: React.FC = () => {
       default:
         return claims;
     }
-  }, [currentCase.claims, sortBy]);
+  }, [currentCase, sortBy]);
 
   const filteredClaims = useMemo(() => {
     return sortedClaims.filter((c) => {
@@ -118,6 +103,21 @@ export const DashboardScreen: React.FC = () => {
       return true;
     });
   }, [sortedClaims, filterStatus]);
+
+  if (!currentCase) return null;
+
+  // Dynamic Case ID
+  const formattedCaseId = currentCase.id.startsWith("CRX-")
+    ? currentCase.id
+    : `CRX-${currentCase.id.replace(/-/g, "").slice(0, 6).toUpperCase() || "MEMO"}`;
+
+  // Counts
+  const totalClaims = currentCase.claims.length;
+  const brokenCount = currentCase.claims.filter((c) => c.status === "broken").length;
+  const weakenedCount = currentCase.claims.filter((c) => c.status === "weakened").length;
+  const unresolvedCount = currentCase.claims.filter((c) => c.status === "unresolved").length;
+  const survivedCount = currentCase.claims.filter((c) => c.status === "survived").length;
+  const needsAttentionCount = brokenCount + weakenedCount + unresolvedCount;
 
   const handleExportMemo = async () => {
     const brief = formatDecisionMemoMarkdown(currentCase);
@@ -182,51 +182,6 @@ export const DashboardScreen: React.FC = () => {
               activities={state.activities}
               isStreaming={isTesting}
             />
-          )}
-
-          {/* Pipeline Telemetry & Token Breakdown */}
-          {currentCase.telemetry && (
-            <div className="bg-surface-container-low border border-outline-variant rounded p-space-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-2 mb-space-3">
-                <div className="flex items-center gap-space-2">
-                  <span className="material-symbols-outlined text-primary text-[18px]">data_usage</span>
-                  <span className="font-code-sm text-code-sm uppercase tracking-wider text-on-surface font-semibold">
-                    Agent Token Breakdown & Cost Telemetry
-                  </span>
-                </div>
-                <div className="flex items-center gap-space-3 font-code-sm text-code-sm flex-wrap">
-                  <span className="text-outline">
-                    Total: <strong className="text-on-surface font-mono">{currentCase.telemetry.total_tokens.toLocaleString()}</strong> tokens
-                  </span>
-                  <span className="text-outline border-l border-outline-variant pl-space-3">
-                    Est. Cost: <strong className="text-primary-container font-mono">${currentCase.telemetry.total_estimated_cost_usd.toFixed(4)}</strong>
-                  </span>
-                  {currentCase.telemetry.duration_ms > 0 && (
-                    <span className="text-outline border-l border-outline-variant pl-space-3">
-                      Duration: <strong className="text-on-surface font-mono">{(currentCase.telemetry.duration_ms / 1000).toFixed(1)}s</strong>
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-outline-variant/40">
-                {currentCase.telemetry.agent_breakdown.map((item) => (
-                  <div
-                    key={item.agent}
-                    className="bg-surface-container-lowest p-2 rounded border border-outline-variant/30 text-xs font-mono flex flex-col justify-between"
-                  >
-                    <span className="text-on-surface-variant capitalize truncate font-semibold">
-                      {item.agent.replace(/_/g, " ")}
-                    </span>
-                    <div className="flex items-center justify-between text-outline mt-1">
-                      <span>{item.total_tokens.toLocaleString()} tok</span>
-                      <span className="text-primary-container font-semibold">
-                        ${item.estimated_cost_usd.toFixed(4)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
 
           {/* Every claim, in full - collapsed once the verdict is in. */}
@@ -300,7 +255,7 @@ export const DashboardScreen: React.FC = () => {
 
           {/* Claims Dossier Stack */}
           <div className="space-y-space-5">
-            {filteredClaims.map((claim) => {
+            {filteredClaims.map((claim, idx) => {
               const relevantFindings = currentCase.findings.filter((f) => f.claim_id === claim.id);
               const relevantConsequence = currentCase.consequences.find((c) => c.claim_id === claim.id);
               const claimActiveTests = Object.values(state.activeTests).filter(
@@ -310,6 +265,7 @@ export const DashboardScreen: React.FC = () => {
               return (
                 <ClaimCard
                   key={claim.id}
+                  index={idx}
                   claim={claim}
                   tests={claimActiveTests}
                   findings={relevantFindings}

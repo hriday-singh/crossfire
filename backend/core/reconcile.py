@@ -179,18 +179,42 @@ def has_sourced_contradiction(findings: list[Finding]) -> bool:
     return any(f.evidence and (f.contradiction or "").strip() for f in findings)
 
 
+# Below this objection strength every finding on a claim sits in the
+# `no objection` band of OBJECTION_SCALE. A panel that raised nothing above it
+# has not weakened anything, whatever word the judge reached for.
+TRIVIAL_OBJECTION_CEILING = 0.2
+
+
 def apply_evidence_gate(
     status: ClaimStatus, reasoning: str, findings: list[Finding]
 ) -> tuple[ClaimStatus, str]:
-    """Stage 1a / Evidence Gating DNA.
-    Absence of evidence is not refutation. `broken` requires one finding carrying both
-    evidence and a contradiction. Reasoning-only evaluators can weaken; they cannot break."""
+    """Stage 1a / Evidence Gating DNA, in both directions.
+
+    Downward: absence of evidence is not refutation. `broken` requires one finding
+    carrying both evidence and a contradiction. Reasoning-only evaluators can weaken;
+    they cannot break.
+
+    Upward: a `weakened` where every finding scored in the `no objection` band is the
+    judge manufacturing a downgrade to look rigorous. OBJECTION_SCALE gave the panel a
+    way to say "nothing here"; without this branch nothing downstream ever reads it, and
+    `survived` stays unreachable (0/15 in the 2026-09-07 calibration corpus)."""
     if status is ClaimStatus.BROKEN and not has_sourced_contradiction(findings):
         note = (
             "Downgraded from broken to weakened: no finding carried a contradiction "
             "traceable to a source, and absence of evidence is not refutation."
         )
         return ClaimStatus.WEAKENED, f"{reasoning} {note}".strip()
+    if (
+        status is ClaimStatus.WEAKENED
+        and findings
+        and max(f.confidence for f in findings) < TRIVIAL_OBJECTION_CEILING
+        and not has_sourced_contradiction(findings)
+    ):
+        note = (
+            "Upgraded from weakened to survived: every evaluator scored its finding in "
+            "the 'no objection' band and none carried a sourced contradiction."
+        )
+        return ClaimStatus.SURVIVED, f"{reasoning} {note}".strip()
     return status, reasoning
 
 

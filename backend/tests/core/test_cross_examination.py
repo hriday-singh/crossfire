@@ -3,6 +3,7 @@ Unit tests for targeted cross-examination probe engine (core/cross_examination.p
 """
 import pytest
 from core.cross_examination import (
+    ProbeVerdict,
     extract_critical_blocker,
     probe_blocker,
     run_cross_examination_probes,
@@ -108,15 +109,116 @@ async def test_probe_blocker_returns_finding_when_search_yields_curated_evidence
         claim=claim,
         blocker_text="Statutory ban on unauthorized filing",
         case=case,
-        provider=fake_provider_factory(responses=[]),
+        provider=fake_provider_factory(
+            responses=[
+                ProbeVerdict(
+                    stance="contradicts",
+                    contradiction="USCIS forbids automated submissions without an "
+                    "accredited attorney signature.",
+                    confidence=0.9,
+                    reasoning="travel.state.gov states the signature requirement directly.",
+                )
+            ]
+        ),
     )
 
     assert finding is not None
     assert finding.claim_id == "c1"
     assert finding.evaluator == "researcher"
     assert len(finding.evidence) >= 1
-    assert finding.contradiction == "Statutory ban on unauthorized filing"
+    # The contradiction is what the source says, not the blocker text echoed back.
+    assert finding.contradiction == (
+        "USCIS forbids automated submissions without an accredited attorney signature."
+    )
+    assert "Statutory ban on unauthorized filing" not in finding.contradiction
+    assert finding.confidence == 0.9
+    assert all(e.stance == "contradicts" for e in finding.evidence)
     assert "https://travel.state.gov/visa-rules" in [e.source_url for e in finding.evidence]
+
+
+@pytest.mark.asyncio
+async def test_probe_blocker_does_not_manufacture_a_contradiction_from_context(
+    fake_provider_factory, monkeypatch
+):
+    """The whole point of the probe: an unverified blocker must not come back
+    wearing evidence. `has_sourced_contradiction` gates `broken` on the
+    (evidence + contradiction) pair, so a probe that stamps both without reading
+    the sources makes the evidence gate unreachable."""
+    case = Case(id="case-2", raw_input="Migrate the wiki over one weekend")
+    claim = Claim(id="c1", statement="The migration completes in 48 hours", load_bearing=True)
+
+    async def mock_search(claim_obj, query_override=None):
+        return [
+            EvidenceItem(
+                source_url="https://example.com/migration-guide",
+                title="Migration guide",
+                snippet="Teams plan wiki migrations in phases and validate links afterwards.",
+                retrieved_at="2026-09-07T00:00:00Z",
+            )
+        ]
+
+    monkeypatch.setattr("core.cross_examination.search_evidence", mock_search)
+
+    finding = await probe_blocker(
+        claim=claim,
+        blocker_text="Link remediation cannot be absorbed in a weekend",
+        case=case,
+        provider=fake_provider_factory(
+            responses=[
+                ProbeVerdict(
+                    stance="context",
+                    contradiction=None,
+                    confidence=0.7,
+                    reasoning="The guide describes phasing but names no duration.",
+                )
+            ]
+        ),
+    )
+
+    assert finding is not None
+    assert finding.contradiction is None
+    assert finding.confidence <= 0.35
+    assert all(e.stance == "context" for e in finding.evidence)
+
+
+@pytest.mark.asyncio
+async def test_probe_blocker_drops_a_contradiction_stance_with_no_contradiction_text(
+    fake_provider_factory, monkeypatch
+):
+    case = Case(id="case-3", raw_input="Ship the pricing change")
+    claim = Claim(id="c1", statement="Usage pricing lifts net revenue retention", load_bearing=True)
+
+    async def mock_search(claim_obj, query_override=None):
+        return [
+            EvidenceItem(
+                source_url="https://example.org/pricing-study",
+                title="Pricing study",
+                snippet="Retention outcomes under consumption pricing vary widely by segment.",
+                retrieved_at="2026-09-07T00:00:00Z",
+            )
+        ]
+
+    monkeypatch.setattr("core.cross_examination.search_evidence", mock_search)
+
+    finding = await probe_blocker(
+        claim=claim,
+        blocker_text="Enterprise budgets cap consumption spend",
+        case=case,
+        provider=fake_provider_factory(
+            responses=[
+                ProbeVerdict(
+                    stance="contradicts",
+                    contradiction="   ",
+                    confidence=0.95,
+                    reasoning="Asserted a refutation without naming one.",
+                )
+            ]
+        ),
+    )
+
+    assert finding is not None
+    assert finding.contradiction is None
+    assert finding.confidence <= 0.35
 
 
 @pytest.mark.asyncio
@@ -173,7 +275,20 @@ async def test_run_cross_examination_probes_skips_non_load_bearing_and_verified_
 
     monkeypatch.setattr("core.cross_examination.search_evidence", mock_search)
 
-    probes = await run_cross_examination_probes(case, findings, fake_provider_factory(responses=[]))
+    probes = await run_cross_examination_probes(
+        case,
+        findings,
+        fake_provider_factory(
+            responses=[
+                ProbeVerdict(
+                    stance="contradicts",
+                    contradiction="The published limit is 10 requests per minute.",
+                    confidence=0.8,
+                    reasoning="api.example.com documents the ceiling.",
+                )
+            ]
+        ),
+    )
 
     assert len(probes) == 1
     assert probes[0].claim_id == "c3"

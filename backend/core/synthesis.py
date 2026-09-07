@@ -307,14 +307,37 @@ def build_deciding_factor(case: Case) -> DecidingFactor | None:
     )
 
 
+def _blocking_weakened(case: Case, claim: Claim) -> bool:
+    """A `weakened` only blocks `proceed` if something substantive weakened it.
+
+    Steel Man reaches for `weakened` on ordinary friction, so a claim whose whole
+    panel scored in the `no objection`/`minor` bands would otherwise drag the case
+    to `proceed_with_changes` on nothing. 0.4 is the OBJECTION_SCALE line where a
+    finding starts claiming the decision needs a named fix."""
+    findings = [f for f in case.findings if f.claim_id == claim.id]
+    if not findings:
+        return True
+    return max(f.confidence for f in findings) >= 0.4
+
+
 def _fallback_decision_state(case: Case) -> str:
-    """Used when the synthesis call fails — derived from the verdicts alone."""
+    """Used when the synthesis call fails — derived from the verdicts alone.
+
+    Not a pure severity ladder. `drop` means "there is nothing left to do here",
+    which is only true when a refuted load-bearing claim has no salvage. Break to
+    Rebuild exists to produce that salvage; discarding it and reporting `drop`
+    anyway threw away the answer (d2-pro-se-custody, e2-pwa-instead-of-native)."""
     lb = [c for c in case.claims if c.load_bearing] or case.claims
-    if any(c.status is ClaimStatus.BROKEN for c in lb):
+    broken = [c for c in lb if c.status is ClaimStatus.BROKEN]
+    if broken:
+        if all((c.salvaged_claim or "").strip() for c in broken):
+            return "proceed_with_changes"
         return "drop"
     if any(c.status is ClaimStatus.UNRESOLVED for c in lb):
         return "hold"
-    if any(c.status is ClaimStatus.WEAKENED for c in lb):
+    if any(
+        c.status is ClaimStatus.WEAKENED and _blocking_weakened(case, c) for c in lb
+    ):
         return "proceed_with_changes"
     return "proceed"
 

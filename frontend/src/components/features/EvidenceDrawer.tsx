@@ -46,7 +46,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
 
   const allEvidence = findings.flatMap((f) => f.evidence || []);
   const claimIndex = currentCase?.claims.findIndex((c) => c.id === claimId) ?? 0;
-  const formattedClaimId = `C-${String(claimIndex + 1).padStart(2, "0")}`;
+  const formattedClaimId = `${claimIndex + 1}`;
 
   const getStatusBadge = () => {
     switch (claim.status) {

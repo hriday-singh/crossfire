@@ -553,7 +553,11 @@ async def test_run_pipeline_threads_judge_reasoning_into_consequences(
 
     case = store.get(sample_case.id)
     assert case.status == "done"
-    assert all(c.verdict_reasoning == "Holds with caveats." for c in case.consequences)
+    # startswith, not ==: the gates append their own note when they fire, and the
+    # point of this test is that the judge's own reasoning reached the consequence.
+    assert all(
+        c.verdict_reasoning.startswith("Holds with caveats.") for c in case.consequences
+    )
 
 
 @pytest.mark.asyncio

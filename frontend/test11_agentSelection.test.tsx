@@ -168,6 +168,13 @@ describe("AssignedAgentsCard Component", () => {
     );
 
     expect(screen.getByTestId("assigned-agents-panel")).toBeInTheDocument();
+    expect(screen.getByText(/I'm going to use/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Builder \(Feasibility Test\)/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Devil's Advocate \(Assumption Test\)/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/2 of 4 agents armed/i)).toBeInTheDocument();
 
     // Verify corresponding test badges are shown for all agents

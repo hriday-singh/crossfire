@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unit tests for token usage and execution telemetry tracking (core/telemetry.py).
 """
 import pytest
@@ -68,7 +68,7 @@ def test_telemetry_tracker_aggregates_and_sorts():
 
 
 @pytest.mark.asyncio
-async def test_run_pipeline_emits_telemetry_ready_event(sample_case):
+async def test_run_pipeline_omits_token_telemetry(sample_case):
     import events
     import store
     from core.loop import run_pipeline
@@ -80,11 +80,9 @@ async def test_run_pipeline_emits_telemetry_ready_event(sample_case):
     await run_pipeline(sample_case.id, provider=SchemaProvider())
 
     seen = [item["event"] async for item in events.subscribe(sample_case.id)]
-    assert "telemetry_ready" in seen
-    assert seen.index("telemetry_ready") < seen.index("run_complete")
+    assert "telemetry_ready" not in seen
+    assert "run_complete" in seen
 
     updated_case = store.get(sample_case.id)
     assert updated_case is not None
-    assert updated_case.telemetry is not None
-    assert updated_case.telemetry.total_tokens > 0
-    assert len(updated_case.telemetry.agent_breakdown) > 0
+    assert updated_case.telemetry is None

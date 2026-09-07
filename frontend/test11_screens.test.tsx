@@ -485,7 +485,7 @@ describe("Screen Components", () => {
       const mockConfirm = vi.fn();
       const mockDispatch = vi.fn();
 
-      const useCaseSpy = vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+      vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
         state: {
           ...INITIAL_STATE,
           activeScreen: "confirm",
@@ -534,7 +534,7 @@ describe("Screen Components", () => {
       ).toBeInTheDocument();
 
       const addBtn = screen.getByRole("button", { name: /Add an assumption/i });
-      const agentsSection = screen.getByTestId("assigned-agents-panel");
+      const agentsSection = screen.getByText(/Assigned Adversarial Agents/i);
       expect(addBtn).toBeInTheDocument();
       expect(agentsSection).toBeInTheDocument();
       expect(
@@ -545,7 +545,7 @@ describe("Screen Components", () => {
       fireEvent.click(runBtn);
       expect(mockConfirm).toHaveBeenCalledTimes(1);
 
-      useCaseSpy.mockRestore();
+      vi.restoreAllMocks();
     });
   });
 

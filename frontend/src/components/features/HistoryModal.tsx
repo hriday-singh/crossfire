@@ -1,12 +1,11 @@
 import React from "react";
 import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { DECISION_PRESETS } from "@/lib/presets";
 import { Case } from "@/types/crossfire";
 import { getCase } from "@/lib/api";
 
 export const HistoryModal: React.FC = () => {
-  const { state, dispatch, setActiveModal, startExtracting, navigateScreen } = useCase();
+  const { state, dispatch, setActiveModal, navigateScreen } = useCase();
   const isOpen = state.activeModal === "history";
 
   const handleSelectCase = (caseItem: Case) => {
@@ -178,41 +177,6 @@ export const HistoryModal: React.FC = () => {
                 })}
               </div>
             )}
-          </div>
-
-          {/* Quick-Load Sample Presets */}
-          <div>
-            <h3 className="font-label-mono text-label-mono uppercase tracking-wider text-outline mb-space-3 font-semibold">
-              Example Decision Models
-            </h3>
-            <div className="space-y-space-2">
-              {DECISION_PRESETS.map((preset) => (
-                <div
-                  key={preset.id}
-                  className="bg-surface-container-lowest border border-outline-variant/50 rounded-lg p-space-3 flex items-center justify-between gap-space-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <span className="font-code-sm text-code-sm text-outline uppercase block">
-                      {preset.category}
-                    </span>
-                    <span className="font-body-sm text-body-sm text-on-surface font-medium truncate block">
-                      {preset.title}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      startExtracting(preset.rawInput, preset.contextHint);
-                      setActiveModal("none");
-                    }}
-                    className="font-code-sm text-code-sm text-primary hover:underline shrink-0 cursor-pointer flex items-center gap-1"
-                  >
-                    <span>Test this</span>
-                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </SheetContent>

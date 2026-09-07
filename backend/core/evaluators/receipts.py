@@ -18,9 +18,11 @@ from core.textutil import SPECIFICITY_RULE, clamp_sentences, one_line
 from evidence.curate import curate_snippet, curate_snippet_llm
 from evidence.fetch import fetch_page
 from evidence.search import (
+    build_authority_query,
     build_competitor_query,
     build_query,
     classify_source,
+    has_authority_source,
     reformulate_query,
     search_evidence,
     source_class_to_tier,
@@ -199,6 +201,40 @@ async def run_researcher(
             pass
 
     evidence_items = await search_evidence(claim)
+
+    # Authority Pass: if the first sweep returned nothing but ordinary web copy,
+    # ask again in the vocabulary that surfaces the party who sets the fact. A
+    # verdict built on results a frontier model already carries in weights is a
+    # reformatting of that model; the differentiated cases in the calibration
+    # corpus all rested on a primary or institutional source.
+    if evidence_items and not has_authority_source(evidence_items):
+        auth_query = build_authority_query(claim.statement)
+        if case_id:
+            try:
+                from core.activity import emit_activity
+                await emit_activity(
+                    case_id,
+                    tag="Evidence Test",
+                    text=f'Authority Pass: searching primary sources "{auth_query}"',
+                    claim_id=claim.id,
+                    action="search",
+                )
+            except Exception:
+                pass
+        try:
+            auth_items = await search_evidence(claim, query_override=auth_query)
+            existing_urls = {ev.source_url for ev in evidence_items}
+            # Authoritative hits lead: rank_by_source_class orders within a search,
+            # not across two of them.
+            promoted = [
+                ev
+                for ev in auth_items
+                if ev.source_url not in existing_urls and has_authority_source([ev])
+            ]
+            if promoted:
+                evidence_items = promoted + evidence_items
+        except Exception as exc:
+            logger.warning(f"Authority pass search failed: {exc}")
 
     # Competitor Triangulation: if the claim asserts uniqueness or competitive superiority,
     # perform a secondary search targeting market leaders or alternatives.

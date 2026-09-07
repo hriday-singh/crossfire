@@ -7,6 +7,7 @@ import { PoweredBySerpApiBadge, SerpApiText } from "@/components/ui/serpapi";
 
 interface ClaimCardProps {
   claim: Claim;
+  index?: number;
   tests?: ActiveTestRow[];
   findings?: Finding[];
   consequence?: DecisionConsequence;
@@ -20,6 +21,7 @@ interface ClaimCardProps {
 
 export const ClaimCard: React.FC<ClaimCardProps> = ({
   claim,
+  index,
   tests = [],
   findings = [],
   consequence,
@@ -145,8 +147,8 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               Minor point
             </span>
           )}
-          <span className="font-code-sm text-code-sm text-outline">
-            #{claim.id.startsWith("CLM") || claim.id.startsWith("C-") ? claim.id : `CLM-${claim.id.replace(/-/g, "").slice(0, 4).toUpperCase() || "01"}`}
+          <span className="font-code-sm text-code-sm text-outline font-medium">
+            {index !== undefined ? `${index + 1}` : claim.id.replace(/\D/g, "") || "1"}
           </span>
         </div>
 

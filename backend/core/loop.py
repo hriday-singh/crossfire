@@ -42,7 +42,6 @@ except ImportError:  # not landed yet — the pipeline runs without findings unt
     dispatch = None
 
 from core.cross_examination import run_cross_examination_probes
-from core.telemetry import TelemetryTracker
 
 
 # Re-exported: agent_panel and baseline were split out of this module, and
@@ -348,13 +347,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         await events.close(case_id)
         return
 
-    tracker = TelemetryTracker()
-    tracker.record(
-        "claims_extractor",
-        prompt_text=case.raw_input,
-        output=" ".join(c.statement for c in case.claims),
-    )
-
     try:
         case.status = "testing"
         await emit_activity(case.id, "Pipeline", "Classifying load-bearing assumptions...", action="load_bearing")
@@ -371,12 +363,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     "reason": claim.load_bearing_reason or "",
                 },
             )
-        tracker.record(
-            "load_bearing_ranker",
-            prompt_text=case.raw_input,
-            output=" ".join(c.load_bearing_reason or "" for c in case.claims),
-        )
-
 
         case.test_plan = build_test_plan(case, panel=True, active_agents=case.selected_agents)
         lb_count = sum(1 for c in case.claims if c.load_bearing)
@@ -387,8 +373,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             action="test_plan",
         )
         case.findings = await run_evaluators(case, case.test_plan, provider)
-        for f in case.findings:
-            tracker.record(f.evaluator, prompt_text=f.result, output=f.reasoning)
 
         # Phase 1.5: Targeted Cross-Examination Probes
         try:
@@ -396,7 +380,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             if probe_findings:
                 case.findings.extend(probe_findings)
                 for pf in probe_findings:
-                    tracker.record("cross_examination", prompt_text=pf.result, output=pf.reasoning)
                     await events.publish(
                         case.id,
                         "finding_ready",
@@ -441,7 +424,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 )
 
             if isinstance(verdict, SteelManVerdict):
-                tracker.record("steelman", prompt_text=clm.statement, output=verdict.reasoning)
                 gated = apply_steelman_gate(verdict, claim_findings)
                 clm.status = gated.status
                 clm.fatal_flaw = gated.fatal_flaw
@@ -450,7 +432,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 return clm, gated.status, gated.reasoning
             else:
                 st, rsn = verdict
-                tracker.record("steelman", prompt_text=clm.statement, output=rsn)
                 gated_st, gated_rsn = apply_evidence_gate(st, rsn, claim_findings)
                 clm.status = gated_st
                 return clm, gated_st, gated_rsn
@@ -524,16 +505,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         case.case_verdict = await synthesize_case_verdict(case, provider)
         await events.publish(
             case.id, "case_verdict", {"case_verdict": case.case_verdict.model_dump()}
-        )
-        tracker.record(
-            "synthesis",
-            prompt_text=case.raw_input,
-            output=case.case_verdict.summary if case.case_verdict else "",
-        )
-
-        case.telemetry = tracker.build_telemetry()
-        await events.publish(
-            case.id, "telemetry_ready", {"telemetry": case.telemetry.model_dump()}
         )
 
         await emit_activity(

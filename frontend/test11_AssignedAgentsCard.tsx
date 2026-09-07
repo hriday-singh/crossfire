@@ -17,19 +17,62 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
   const activeCount = selectedAgents.length;
   const isAuto = agentMode === "auto";
 
+  // Build the list of active agent names and corresponding tests
+  const activeAgentDescriptions = ALL_AGENTS.filter((a) =>
+    selectedAgents.some(
+      (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === a.id
+    )
+  ).map((a) => `${a.name} (${a.testName})`);
+
   return (
     <div
       data-testid="assigned-agents-panel"
       className="mt-8 bg-surface-container-low border border-outline-variant/60 rounded-xl p-space-5 space-y-space-4"
     >
-      {/* Clean Minimal Header */}
-      <div className="flex items-center gap-2 pb-1 border-b border-outline-variant/30">
-        <span className="material-symbols-outlined text-[20px] text-primary-container">
-          psychology
+      {/* Header & Decision Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/40 pb-3">
+        <div>
+          <div className="text-label-mono font-label-mono uppercase tracking-wider text-outline font-semibold mb-1 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px] text-primary-container">
+              psychology
+            </span>
+            <span>Assigned Adversarial Agents</span>
+          </div>
+          <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+            {activeCount} of {ALL_AGENTS.length} agents armed for execution
+          </h2>
+        </div>
+
+        <span
+          className={`font-code-sm text-code-sm px-2.5 py-1 rounded-full border self-start sm:self-auto ${
+            isAuto
+              ? "bg-primary-container/10 border-primary-container/30 text-primary-container font-medium"
+              : "bg-surface-container-high border-outline-variant text-on-surface"
+          }`}
+        >
+          {isAuto ? "Mode: Auto (Claim-Tailored)" : "Mode: Custom"}
         </span>
-        <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-          {activeCount} of {ALL_AGENTS.length} agents armed
-        </h2>
+      </div>
+
+      {/* Auto Decision Callout ("I'm going to use this, this, this") */}
+      <div
+        data-testid="agent-decision-callout"
+        className="bg-surface-container rounded-lg p-3 border border-outline-variant/50 text-body-sm leading-relaxed"
+      >
+        <span className="text-on-surface font-medium">Crossfire Pipeline: </span>
+        {activeAgentDescriptions.length > 0 ? (
+          <span className="text-on-surface-variant">
+            I'm going to use{" "}
+            <span className="text-primary-container font-semibold">
+              {activeAgentDescriptions.join(", ")}
+            </span>
+            . You can select or deselect any agents below before starting.
+          </span>
+        ) : (
+          <span className="text-error font-medium">
+            No agents selected. Please select at least one agent to run tests.
+          </span>
+        )}
       </div>
 
       {/* Grid of Interactive Agent Cards */}

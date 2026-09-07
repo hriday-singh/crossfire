@@ -170,20 +170,6 @@ export const Header: React.FC = () => {
             </button>
           )}
 
-          {/* Live Pipeline Telemetry Toggle */}
-          <button
-            type="button"
-            onClick={() => setActiveModal("logs")}
-            aria-label="View live pipeline telemetry and logs"
-            title="Terminal & Logs"
-            className="text-outline hover:text-on-surface transition-colors flex items-center justify-center p-2 rounded hover:bg-surface-container relative cursor-pointer min-h-[36px] min-w-[36px]"
-          >
-            <span className="material-symbols-outlined text-[18px]">terminal</span>
-            {state.eventLog.length > 0 && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary-container" />
-            )}
-          </button>
-
           {/* Frequently Asked Questions */}
           <button
             type="button"

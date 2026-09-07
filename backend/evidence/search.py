@@ -222,6 +222,40 @@ def build_adversarial_query(statement: str) -> str:
     return f"{cleaned} complaints churn failure alternative"
 
 
+AUTHORITY_CLASSES = ("primary", "institutional")
+
+
+def has_authority_source(items: list[EvidenceItem]) -> bool:
+    """Whether anything retrieved is a Tier 1 source rather than ordinary web copy."""
+    for item in items:
+        # "unranked" is the model default, not a verdict — an item that never went
+        # through rank_by_source_class still has a host worth reading.
+        sc = getattr(item, "source_class", "") or ""
+        if sc in ("", "unranked"):
+            sc = classify_source(item.source_url)
+        if sc in AUTHORITY_CLASSES:
+            return True
+    return False
+
+
+def build_authority_query(statement: str) -> str:
+    """Pushes the same keywords at the parties that actually set the fact.
+
+    Every case in the 2026-09-07 corpus that beat the vanilla control did it by
+    naming a statute, a filing or a published benchmark; every case that tied the
+    control was answered out of ordinary `web` results, which a frontier model
+    already has. Ranking retrieved items by authority (`rank_by_source_class`)
+    cannot help when the query never surfaced an authoritative one to rank.
+
+    Domain-neutral on purpose: "official" and "statistics" pull a government
+    register, a standards body or a published study depending on the subject,
+    without the caller having to know which kind of decision this is."""
+    base = build_query(statement)
+    if not base:
+        return (statement or "").strip()
+    return f"{base} official regulation statute filing statistics"
+
+
 def build_competitor_query(statement: str) -> str:
     """Transforms a statement into a competitor triangulation query.
 
