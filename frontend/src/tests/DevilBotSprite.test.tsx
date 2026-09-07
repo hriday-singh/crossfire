@@ -112,7 +112,7 @@ describe('DevilBotSprite', () => {
       <DevilBotSprite
         agent={{ id: 'builder', initialWaypoint: 'cubicle_1_desk' }}
         isSelected={false}
-        currentActionPacket={mockWalkPacket}
+        currentActionPacket={mockWalkPacket as any}
         onPositionUpdate={onPositionUpdate}
       />
     );
@@ -126,7 +126,7 @@ describe('DevilBotSprite', () => {
       <DevilBotSprite
         agent={{ id: 'builder', initialWaypoint: 'cubicle_1_desk' }}
         isSelected={false}
-        currentActionPacket={{ ...mockWalkPacket, id: 'packet_walk_2' }}
+        currentActionPacket={{ ...mockWalkPacket, id: 'packet_walk_2' } as any}
         onPositionUpdate={onPositionUpdate}
       />
     );
@@ -149,7 +149,7 @@ describe('DevilBotSprite', () => {
       <DevilBotSprite
         agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }}
         isSynthesisDone={false}
-        currentActionPacket={mockExitPacket}
+        currentActionPacket={mockExitPacket as any}
       />
     );
 
@@ -162,7 +162,7 @@ describe('DevilBotSprite', () => {
       <DevilBotSprite
         agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }}
         isSynthesisDone={true}
-        currentActionPacket={{ ...mockExitPacket, id: 'steelman_exit_2', isSynthesisDone: true }}
+        currentActionPacket={{ ...mockExitPacket, id: 'steelman_exit_2', isSynthesisDone: true } as any}
       />
     );
   });

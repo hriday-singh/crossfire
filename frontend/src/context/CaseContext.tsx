@@ -166,12 +166,22 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Ignored, we handle state reset in cancelExtraction
         return;
       }
-      const errorObj = err as { stage?: string; message?: string };
+      const errorObj = err as { stage?: string; message?: string; status?: number };
+      
+      let errorMessage = "Claim extraction failed.";
+      const status = errorObj?.status;
+      const originalMsg = errorObj?.message || "";
+      if (status === 404 || status === 424 || originalMsg.toLowerCase().includes("failed dependency") || originalMsg.toLowerCase().includes("llm")) {
+        errorMessage = "We got an error from the LLM. Check your LLM.";
+      } else if (status === 429) {
+        errorMessage = "Rate limit exceeded. Please try again.";
+      }
+
       dispatch({
         type: "EXTRACTING_ERROR",
         payload: {
           stage: "extraction",
-          message: errorObj?.message || "Failed to extract claims from backend.",
+          message: errorMessage,
           details: err,
         },
       });
@@ -185,9 +195,8 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    // Delete case is handled implicitly since the backend will not store it.
-    // Reset the frontend state so user goes back to the entry screen safely.
-    dispatch({ type: "RESET_CASE" });
+    // Set isExtracting to false while preserving currentCase so EntryScreen doesn't wipe input text
+    dispatch({ type: "CANCEL_EXTRACTION" });
     dispatch({ type: "NAVIGATE_SCREEN", payload: "entry" });
   };
 
@@ -228,11 +237,21 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dispatch({ type: "CONFIRMING_SUCCESS" });
         return;
       }
+
+      let errorMessage = "Failed to start tests.";
+      const status = errorObj?.status;
+      const originalMsg = errorObj?.message || "";
+      if (status === 404 || status === 424 || originalMsg.toLowerCase().includes("failed dependency") || originalMsg.toLowerCase().includes("llm")) {
+        errorMessage = "We got an error from the LLM. Check your LLM.";
+      } else if (status === 429) {
+        errorMessage = "Rate limit exceeded. Please try again.";
+      }
+
       dispatch({
         type: "EXTRACTING_ERROR",
         payload: {
           stage: "confirm",
-          message: errorObj?.message || "Failed to confirm case and launch tests.",
+          message: errorMessage,
           details: err,
         },
       });
@@ -247,8 +266,18 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!state.currentCase || isClarifyingRef.current) return;
     
     isClarifyingRef.current = true;
+    dispatch({ type: "START_CLARIFYING" });
     try {
       const result = await clarifyCase(state.currentCase.id, answer);
+      
+      if (result.case.claims && result.case.claims.length === 0) {
+        dispatch({
+          type: "CLARIFY_FAILED_THIN_IDEA",
+          payload: { message: "Idea was too thin to find claims." }
+        });
+        return;
+      }
+
       if (result.auto_started) {
         dispatch({
           type: "CLARIFY_SUCCESS",
@@ -262,12 +291,19 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     } catch (err: unknown) {
-      const errorObj = err as { stage?: string; message?: string };
+      const errorObj = err as { stage?: string; message?: string; status?: number };
+      
+      let errorMessage = errorObj?.message || "Failed to submit.";
+      const status = errorObj?.status;
+      if (status === 404 || status === 424 || errorMessage.toLowerCase().includes("failed dependency") || errorMessage.toLowerCase().includes("llm")) {
+        errorMessage = "We got an error from the LLM. Check your LLM.";
+      }
+
       dispatch({
         type: "EXTRACTING_ERROR",
         payload: {
           stage: "clarify",
-          message: errorObj?.message || "Failed to submit clarification.",
+          message: errorMessage,
           details: err,
         },
       });

@@ -111,7 +111,7 @@ describe("Page 3 Live View Integration", () => {
     });
   });
 
-  it("displays '03 Live Runner (Live View)' in the header navigation", async () => {
+  it("displays '03 Live Runner' in the header navigation", async () => {
     render(
       <CaseProvider>
         <SetupRunnerScreen />
@@ -120,7 +120,7 @@ describe("Page 3 Live View Integration", () => {
     );
 
     const liveRunnerTab = screen.getByRole("button", {
-      name: /03 Live Runner \(Live View\)/i,
+      name: /03 Live Runner/i,
     });
     expect(liveRunnerTab).toBeInTheDocument();
   });

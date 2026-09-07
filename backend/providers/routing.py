@@ -51,6 +51,8 @@ class Target:
     pool: KeyPool | None = None
     #: adapters are cached per key so the httpx connection pool is reused
     _adapters: dict[int, LLMProvider] = field(default_factory=dict, repr=False)
+    _consecutive_failures: int = field(default=0, repr=False)
+    _dead_until: float = field(default=0.0, repr=False)
 
     def adapter_for(self, key_id: int, secret: str | None) -> LLMProvider:
         cached = self._adapters.get(key_id)
@@ -138,12 +140,24 @@ class RoutingProvider:
         response_schema: type[BaseModel] | None,
     ) -> str | BaseModel:
         if target.pool is None:
+            import time
+            now = time.time()
+            if now < target._dead_until:
+                raise _TargetFailed(f"endpoint benched for {target._dead_until - now:.0f}s due to failures")
+
             # Keyless provider (bundled Gemini proxy, Ollama, open custom
             # endpoint): nothing to rotate, the adapter's own retry applies.
             adapter = target.adapter_for(0, None)
             try:
-                return await adapter.generate(system_prompt, messages, response_schema)
+                result = await adapter.generate(system_prompt, messages, response_schema)
+                target._consecutive_failures = 0
+                target._dead_until = 0.0
+                return result
             except (httpx.HTTPStatusError, LLMTimeoutError, LLMConnectionError) as exc:
+                target._consecutive_failures += 1
+                if target._consecutive_failures >= 3:
+                    target._dead_until = time.time() + 60.0
+                    logger.warning("Endpoint %s benched for 60s after 3 consecutive failures", target.provider)
                 raise _TargetFailed(_describe(exc), exc) from exc
 
         attempts = min(self._max_key_attempts, max(1, len(target.pool)))

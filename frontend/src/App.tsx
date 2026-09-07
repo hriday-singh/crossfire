@@ -39,7 +39,7 @@ export const AppContent: React.FC = () => {
 
       {/* Pipeline Error Alert Banner */}
       <ErrorBanner
-        error={state.error}
+        error={state.error?.stage === 'clarify' ? null : state.error}
         onDismiss={() => dispatch({ type: "CLEAR_ERROR" })}
       />
 

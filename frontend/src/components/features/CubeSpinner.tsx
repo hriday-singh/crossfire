@@ -347,7 +347,7 @@ function initStars(w: number, h: number): Star[] {
 const FLIGHT_DURATION_MS = 3300; // 1.2x speed increase (3.3s per diagonal pass)
 const SHUTTLE_SIZE_SCALE = 1.9; // ~2x size increase
 
-export const CubeSpinner: React.FC = () => {
+export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // 3D Space Shuttle Flight Canvas Renderer
@@ -645,14 +645,26 @@ export const CubeSpinner: React.FC = () => {
         `}
       </style>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 text-center px-4">
-        <h2 className="text-primary font-headline-md text-2xl tracking-widest font-bold uppercase drop-shadow-md">
-          Extracting Core Assumptions<span className="animated-dots"></span>
+        <h2 className="text-foreground font-headline-lg text-headline-lg">
+          Extracting core assumptions<span className="animated-dots"></span>
         </h2>
-        <p className="text-outline mt-3 font-code-sm uppercase tracking-widest animate-pulse">
+        <p className="text-muted-foreground mt-3 font-code-lg text-code-lg animate-pulse">
           Deconstructing decision framework
         </p>
+        {onCancel && (
+          <div className="mt-8 pointer-events-auto animate-in fade-in duration-1000 delay-500">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-outline hover:text-on-surface hover:bg-zinc-800/60 font-code-sm text-sm transition-colors border border-transparent hover:border-zinc-800"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
-      <span className="sr-only">Extracting Core Assumptions...</span>
+      <span className="sr-only">Extracting core assumptions...</span>
       {/* Fullscreen 3D Blueprint Space Shuttle Flight Arena */}
       <canvas
         ref={canvasRef}
