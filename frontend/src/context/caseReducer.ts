@@ -587,6 +587,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
           const finishTime = Date.now();
           updatedCase.status = "done";
           updatedCase.completed_at = finishTime;
+          updatedCase.activities = [...state.activities];
           newActiveScreen = "dashboard";
           newIsStreaming = false;
 

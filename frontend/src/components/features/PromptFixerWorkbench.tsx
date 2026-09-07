@@ -30,26 +30,32 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
   onPutIntoStartingScreen,
   className = "",
 }) => {
+  const [isExpanded, setIsExpanded] = React.useState(true);
+
   const salvageableClaims = getSalvageableClaims(currentCase);
   if (salvageableClaims.length === 0) return null;
 
   const totalSalvageable = salvageableClaims.length;
   const selectedCount = salvageableClaims.filter((c) => selectedClaimIds.has(c.id)).length;
   const isAllSelected = selectedCount === totalSalvageable;
-  const hasChanges = improvedPrompt.trim() !== currentCase.raw_input.trim();
 
   return (
     <section
       aria-label="Revise Proposal"
       id="prompt-fixer-workbench"
       className={cn(
-        "rounded-xl border border-outline-variant/60 bg-surface-container-lowest p-space-8 space-y-space-8 shadow-sm text-left mt-space-8",
+        "rounded-xl border border-outline-variant/60 bg-surface-container-lowest shadow-sm text-left mt-space-8 overflow-hidden",
         className
       )}
     >
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-4 pb-space-6 border-b border-outline-variant/40">
-        <div className="space-y-2">
+      <div 
+        className={cn(
+          "flex flex-col md:flex-row md:items-center justify-between gap-space-4 p-space-6",
+          isExpanded && "border-b border-outline-variant/40"
+        )}
+      >
+        <div className="space-y-2 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
               Revise Proposal
@@ -63,27 +69,32 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
           </p>
         </div>
 
-        {/* Batch selection buttons */}
+        {/* Batch selection buttons & Toggle */}
         <div className="flex items-center gap-3 shrink-0 flex-wrap mt-4 md:mt-0">
-          <button
-            type="button"
-            onClick={isAllSelected ? onClearAll : onSelectAll}
-            className="px-4 py-2 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-low hover:bg-surface-container text-xs font-code-sm text-on-surface font-medium transition-colors cursor-pointer"
-          >
-            {isAllSelected ? "Deselect All" : "Select All Revisions"}
-          </button>
-          {hasChanges && (
+          {isExpanded && (
             <button
               type="button"
-              onClick={onResetPrompt}
-              className="px-4 py-2 rounded-lg text-xs font-code-sm text-outline hover:text-on-surface transition-colors cursor-pointer"
-              title="Reset prompt back to original statement"
+              onClick={isAllSelected ? onClearAll : onSelectAll}
+              className="px-4 py-2 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-low hover:bg-surface-container text-xs font-code-sm text-on-surface font-medium transition-colors cursor-pointer"
             >
-              Reset
+              {isAllSelected ? "Deselect All" : "Select All"}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer flex items-center justify-center"
+            title={isExpanded ? "Minimize" : "Maximize"}
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {isExpanded ? "expand_less" : "expand_more"}
+            </span>
+          </button>
         </div>
       </div>
+
+      {isExpanded && (
+        <div className="p-space-8 pt-space-6 space-y-space-8">
 
       {/* Failed Claims Checklist */}
       <div className="space-y-space-4">
@@ -134,25 +145,25 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
                     )}
                   </div>
 
-                  <div className="space-y-4 pl-8">
+                  <div className="space-y-5 pl-8">
                       {/* Original Claim */}
                       <div>
-                        <div className="font-label-mono text-[10px] uppercase tracking-wider text-outline mb-1.5">Original</div>
-                        <div className={cn("font-body-sm text-sm text-on-surface-variant", isSelected && "line-through opacity-50")}>
+                        <div className="font-label-mono text-[11px] uppercase tracking-wider text-outline mb-2">Original</div>
+                        <div className={cn("font-body-md text-[15px] leading-relaxed text-on-surface-variant", isSelected && "line-through opacity-50")}>
                           <SerpApiText text={cleanUiText(claim.statement)} />
                         </div>
                       </div>
 
                       {/* Proposed Fix */}
                       <div>
-                        <div className="font-label-mono text-[10px] uppercase tracking-wider text-primary mb-1.5">Proposed Fix</div>
-                        <div className={cn("font-body-sm text-sm font-medium", isSelected ? "text-on-surface" : "text-on-surface-variant")}>
+                        <div className="font-label-mono text-[11px] uppercase tracking-wider text-primary mb-2">Proposed Fix</div>
+                        <div className={cn("font-body-md text-[15px] leading-relaxed font-medium", isSelected ? "text-on-surface" : "text-on-surface-variant")}>
                           <SerpApiText text={cleanUiText(salvageText)} />
                         </div>
                       </div>
 
                       {claim.tradeoff_acknowledged && (
-                        <div className="mt-4 inline-flex items-start gap-2 text-xs font-mono text-outline/90 bg-surface-container p-3 rounded-lg border border-outline-variant/30">
+                        <div className="mt-5 inline-flex items-start gap-2 text-[13px] font-mono text-outline/90 bg-surface-container p-3.5 rounded-lg border border-outline-variant/30">
                           <span className="font-semibold text-on-surface-variant shrink-0">Trade-off:</span>
                           <span className="leading-relaxed">{cleanUiText(claim.tradeoff_acknowledged)}</span>
                         </div>
@@ -166,7 +177,7 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
       </div>
 
       {/* Editable Prompt Area */}
-      <div className="space-y-space-4 pt-space-4 border-t border-outline-variant/40">
+      <div className="space-y-space-5 pt-space-5 border-t border-outline-variant/40">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <label
             htmlFor="improved-prompt-textarea"
@@ -186,7 +197,7 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
           value={improvedPrompt}
           onChange={(e) => onChangeImprovedPrompt(e.target.value)}
           rows={5}
-          className="w-full bg-surface-container-lowest text-on-surface p-5 font-body-md text-sm rounded-xl border border-outline-variant focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none leading-relaxed transition-all resize-y shadow-sm"
+          className="w-full bg-surface-container-lowest text-on-surface p-5 font-body-md text-[15px] rounded-xl border border-outline-variant focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none leading-relaxed transition-all resize-y shadow-sm"
           placeholder="Your revised decision proposal..."
         />
       </div>
@@ -203,6 +214,7 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
           <span>Test Revised Proposal</span>
           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
         </button>
+      </div>
       </div>
     </section>
   );

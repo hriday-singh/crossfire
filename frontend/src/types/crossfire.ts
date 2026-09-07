@@ -117,6 +117,7 @@ export interface Case {
   selected_agents?: string[];
   agent_rationales?: Record<string, string>;
   telemetry?: CaseTelemetry | null;
+  activities?: ActivityItem[];
 }
 
 export interface AgentTokenUsage {

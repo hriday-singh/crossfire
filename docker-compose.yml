@@ -22,25 +22,13 @@ services:
       - SQLITE_DB_PATH=/app/data/crossfire.db
       - PORT=8000
       - LLM_PROVIDER=${LLM_PROVIDER:-openai_compat}
-      # Points at the gemini-web2api stack, which is deployed separately.
-      # Container-to-container over the shared llm network below, so use the
-      # proxy's service/container name and its INTERNAL port (not a published one).
-      - LLM_BASE_URL=${LLM_BASE_URL:-http://gemini-web2api:8081/v1}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://host.docker.internal:8081/v1}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - CORS_ALLOWED_ORIGINS=https://crossfire.stratizone.com,http://localhost:5173,http://127.0.0.1:5173
-    networks:
-      - default
-      - llm
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - crossfire-data:/app/data
-
-networks:
-  default:
-  # Network the separately-deployed gemini-web2api stack already created.
-  # Set LLM_NETWORK in the Komodo env to its real name.
-  llm:
-    external: true
-    name: ${LLM_NETWORK:-gemini-web2api_default}
 
 volumes:
   crossfire-data:

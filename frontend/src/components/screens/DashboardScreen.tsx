@@ -35,17 +35,28 @@ export const DashboardScreen: React.FC = () => {
   const isTesting = state.isStreaming || currentCase?.status === "testing";
 
   // Steel Man prompt fixer state
-  const [selectedFixClaimIds, setSelectedFixClaimIds] = useState<Set<string>>(() => new Set());
+  const [selectedFixClaimIds, setSelectedFixClaimIds] = useState<Set<string>>(() => {
+    if (!currentCase) return new Set();
+    const salvageable = getSalvageableClaims(currentCase);
+    return new Set(salvageable.map((c) => c.id));
+  });
 
   const [improvedPrompt, setImprovedPrompt] = useState<string>(() => {
-    return currentCase?.raw_input || "";
+    if (!currentCase) return "";
+    const salvageable = getSalvageableClaims(currentCase);
+    const allIds = new Set(salvageable.map((c) => c.id));
+    return generateImprovedPrompt(currentCase.raw_input, currentCase.claims, allIds, currentCase);
   });
 
   // Sync when case changes
   useEffect(() => {
     if (currentCase) {
-      setSelectedFixClaimIds(new Set());
-      setImprovedPrompt(currentCase.raw_input);
+      const salvageable = getSalvageableClaims(currentCase);
+      const allIds = new Set(salvageable.map((c) => c.id));
+      setSelectedFixClaimIds(allIds);
+      setImprovedPrompt(
+        generateImprovedPrompt(currentCase.raw_input, currentCase.claims, allIds, currentCase)
+      );
     }
   }, [currentCase?.id]);
 
@@ -232,9 +243,9 @@ export const DashboardScreen: React.FC = () => {
           />
 
           {/* Live Activity Feed during testing or when activities exist */}
-          {(isTesting || state.activities.length > 0) && (
+          {(isTesting || state.activities.length > 0 || (currentCase?.activities && currentCase.activities.length > 0)) && (
             <LiveActivityFeed
-              activities={state.activities}
+              activities={state.activities.length > 0 ? state.activities : (currentCase?.activities || [])}
               isStreaming={isTesting}
             />
           )}
