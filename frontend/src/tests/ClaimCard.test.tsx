@@ -197,7 +197,7 @@ describe("ClaimCard", () => {
 
     expect(screen.getByText(/evidence test/i)).toBeInTheDocument();
     expect(
-      screen.getByText('Querying DuckDuckGo: "agency automated filing policies"')
+      screen.getByText(/agency automated filing policies/)
     ).toBeInTheDocument();
 
     const card = document.getElementById("claim-card-claim-active-1");

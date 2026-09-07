@@ -179,10 +179,6 @@ describe("AssignedAgentsCard Component", () => {
     expect(screen.getByText("Runs Operational Friction Test")).toBeInTheDocument();
     expect(screen.getByText("Runs Evidence Test")).toBeInTheDocument();
 
-    // Verify Active and Excluded badges
-    expect(screen.getAllByText("Active")).toHaveLength(2);
-    expect(screen.getAllByText("Excluded")).toHaveLength(2);
-
     // Verify rationale text is displayed
     expect(
       screen.getByText(
@@ -267,7 +263,6 @@ describe("AssignedAgentsCard Component", () => {
 
     // Operator is excluded: must NOT have 'Why selected:'
     const operatorCard = screen.getByTestId("agent-card-operator");
-    expect(operatorCard).toHaveTextContent("Excluded");
     expect(operatorCard).not.toHaveTextContent("Why selected:");
     expect(operatorCard).not.toHaveTextContent(
       "Stress-tests operational friction and red tape.",

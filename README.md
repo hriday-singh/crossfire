@@ -180,6 +180,45 @@ Or run the full setup explicitly beforehand:
 
 ---
 
+### Run with Docker
+
+To run the frontend and backend using Docker Compose:
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/hriday-singh/crossfire.git
+   cd crossfire
+   ```
+
+2. **Configure environment variables:**
+   Create a `.env` file in the root directory:
+   ```bash
+   # Example .env
+   LLM_PROVIDER=openai_compat
+   # host.docker.internal allows the container to talk to the local proxy on the host
+   LLM_BASE_URL=http://host.docker.internal:8081/v1
+   LLM_API_KEY=none # Required, even if using the proxy
+   # SERPAPI_API_KEY= # Optional, leave blank to use DuckDuckGo
+   ```
+
+3. **(Optional) Start the Gemini Proxy on your host:**
+   If using the local Gemini proxy, run it on your host machine so it binds to port 8081.
+   ```bash
+   # Windows
+   .\run_gemini_proxy.ps1
+   ```
+
+4. **Build and start the containers:**
+   ```bash
+   docker compose up -d --build
+   ```
+
+5. **Access the application:**
+   * **Frontend UI:** `http://localhost:9125`
+   * **Backend API:** `http://localhost:9126`
+
+---
+
 ### Manual Step-by-Step Setup
 
 If you prefer starting each service individually in separate terminals:

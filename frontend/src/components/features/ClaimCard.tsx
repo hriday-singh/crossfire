@@ -221,29 +221,29 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
             onTogglePromptFix?.();
           }}
           className={cn(
-            "p-space-4 rounded-lg border transition-all flex items-start sm:items-center justify-between gap-space-3 cursor-pointer",
+            "p-space-4 rounded-lg border transition-all flex items-start justify-between gap-space-3 cursor-pointer",
             isSelectedForPromptFix
               ? "bg-primary-container/10 border-primary-container/50 text-on-surface ring-1 ring-primary-container/20"
               : "bg-surface-container-low border-outline-variant/60 text-on-surface-variant hover:border-outline hover:bg-surface-container"
           )}
         >
-          <div className="flex items-start sm:items-center gap-3 select-none flex-1 min-w-0">
+          <div className="flex items-start gap-3 select-none flex-1 min-w-0">
             <div className={cn(
-              "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 mt-0.5 sm:mt-0",
+              "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0 mt-0.5",
               isSelectedForPromptFix 
                 ? "bg-primary-container border-primary-container text-on-primary-container" 
                 : "border-outline-variant bg-surface-container-lowest"
             )}>
               {isSelectedForPromptFix && <span className="material-symbols-outlined text-[14px] font-bold">check</span>}
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
               <span className="font-code-sm text-sm font-semibold text-primary-container shrink-0 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[16px]">auto_fix_high</span>
                 <span>Apply Fix:</span>
               </span>
-              <span className="font-body-sm text-sm text-on-surface truncate font-medium">
+              <div className="font-body-md text-[15px] text-on-surface leading-relaxed font-medium">
                 &ldquo;{cleanUiText(claim.salvaged_claim || consequence?.salvaged_claim || "")}&rdquo;
-              </span>
+              </div>
             </div>
           </div>
         </div>

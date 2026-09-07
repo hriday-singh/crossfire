@@ -105,15 +105,7 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
                     >
                       Runs {agent.testName}
                     </span>
-                    <span
-                      className={`font-code-sm text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded shrink-0 ${
-                        isSelected
-                          ? "bg-verdict-survived/15 text-verdict-survived border border-verdict-survived/30"
-                          : "bg-surface-container-high text-outline"
-                      }`}
-                    >
-                      {isSelected ? "Active" : "Excluded"}
-                    </span>
+
                   </div>
                 </div>
 

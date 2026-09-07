@@ -52,12 +52,21 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
       {/* Header */}
       <div 
         className={cn(
-          "flex flex-col md:flex-row md:items-center justify-between gap-space-4 p-space-6",
-          isExpanded && "border-b border-outline-variant/40"
+          "flex flex-col md:flex-row md:items-center justify-between gap-space-4 p-space-6 pb-space-2"
         )}
       >
         <div className="space-y-2 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1 -ml-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer flex items-center justify-center"
+              title={isExpanded ? "Minimize" : "Maximize"}
+            >
+              <span className="material-symbols-outlined text-[24px]">
+                {isExpanded ? "keyboard_arrow_down" : "chevron_right"}
+              </span>
+            </button>
             <h2 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
               Revise Proposal
             </h2>
@@ -65,12 +74,9 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
               {selectedCount} of {totalSalvageable} revisions selected
             </span>
           </div>
-          <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed max-w-2xl">
-            Select the suggested fixes to replace failed claims, then test the updated proposal.
-          </p>
         </div>
 
-        {/* Batch selection buttons & Toggle */}
+        {/* Batch selection buttons */}
         <div className="flex items-center gap-3 shrink-0 flex-wrap mt-4 md:mt-0">
           {isExpanded && (
             <button
@@ -81,16 +87,6 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
               {isAllSelected ? "Deselect All" : "Select All"}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer flex items-center justify-center"
-            title={isExpanded ? "Minimize" : "Maximize"}
-          >
-            <span className="material-symbols-outlined text-[20px]">
-              {isExpanded ? "expand_less" : "expand_more"}
-            </span>
-          </button>
         </div>
       </div>
 
@@ -99,9 +95,6 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
 
       {/* Failed Claims Checklist */}
       <div className="space-y-space-4">
-        <h3 className="font-title-sm text-title-sm text-on-surface font-medium">
-          Available Revisions
-        </h3>
         <div className="grid gap-space-4">
           {salvageableClaims.map((claim, idx) => {
             const isSelected = selectedClaimIds.has(claim.id);
