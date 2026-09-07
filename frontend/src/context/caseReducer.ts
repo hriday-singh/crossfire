@@ -191,7 +191,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       const agentId = action.payload;
       
       const backendIdMap: Record<string, string> = {
-        researcher: "receipts",
+        researcher: "researcher",
         operator: "overthinker"
       };
       
@@ -546,7 +546,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
               };
             } else if (finding.test_id) {
               const mappedFailureMode =
-                finding.evaluator === "receipts"
+                finding.evaluator === "researcher"
                   ? "evidence"
                   : finding.evaluator === "builder"
                   ? "feasibility"

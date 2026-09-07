@@ -322,7 +322,7 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           <span className="font-code-sm text-[15px] font-bold text-primary uppercase shrink-0">
             Recommended Change:
           </span>
-          <span className="font-body-md text-[15px] text-on-surface-variant">
+          <span className="font-body-md text-[15px] text-on-surface-variant line-clamp-2">
             {!isExpanded
               ? (consequence?.recommended_change
                   ? cleanUiText(consequence.recommended_change)
@@ -343,13 +343,13 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               handleToggleExpand(e);
             }
           }}
-          className="font-code-sm text-code-sm text-primary hover:underline flex items-center gap-1 shrink-0 font-medium cursor-pointer"
+          className="px-4 py-2 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-low hover:bg-surface-container font-code-sm text-sm text-primary flex items-center gap-1.5 shrink-0 font-semibold cursor-pointer transition-all shadow-sm group"
         >
           <span>{isExpanded ? "Hide Evidence & Sources" : "View evidence & audit trail"}</span>
           <span className="sr-only">
             {isExpanded ? "Hide Evidence & Sources" : "View Evidence & Sources"}
           </span>
-          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          <span className="material-symbols-outlined text-[16px] transition-transform group-hover:translate-x-1">arrow_forward</span>
         </button>
       </div>
 

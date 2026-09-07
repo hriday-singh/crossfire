@@ -2,16 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Assets, Texture } from 'pixi.js';
 import {
   ROOM_DIMENSIONS,
-  JUDGE_TABLE_CONFIG,
+  STEELMAN_TABLE_CONFIG,
   CUBICLE_LAYOUTS,
 } from '../../constants/roomLayout';
 
 /**
  * ConferenceRoom (CubicleOffice) Component
  * Renders the high-resolution isometric floor plan from public/flplan.webp
- * and provides interactive station illumination when an evaluator or Judge is active or hovered.
+ * and provides interactive station illumination when an evaluator or Steelman is active or hovered.
  */
-export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isJudgeExiting = false }) {
+export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isSteelmanExiting = false }) {
   const [floorTexture, setFloorTexture] = useState(() => {
     try {
       return Texture.from('/bg.png');
@@ -60,24 +60,24 @@ export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isJudgeExiting
         }
       });
 
-      // 2. Judge Bench highlight on hover or during verdict delivery
-      const isJudgeHovered = hoveredAgentId === 'judge';
-      const isJudgeActive = activeSpeakerId === 'judge' || activeSpeakerId === 'arbiter';
+      // 2. Steelman Bench highlight on hover or during verdict delivery
+      const isSteelmanHovered = hoveredAgentId === 'steelman';
+      const isSteelmanActive = activeSpeakerId === 'steelman' || activeSpeakerId === 'arbiter';
 
-      if (isJudgeHovered || isJudgeActive) {
-        g.ellipse(JUDGE_TABLE_CONFIG.x, JUDGE_TABLE_CONFIG.y, 140, 60).stroke({
-          width: isJudgeHovered ? 2 : 1.5,
+      if (isSteelmanHovered || isSteelmanActive) {
+        g.ellipse(STEELMAN_TABLE_CONFIG.x, STEELMAN_TABLE_CONFIG.y, 140, 60).stroke({
+          width: isSteelmanHovered ? 2 : 1.5,
           color: 0x60a5fa,
-          alpha: isJudgeHovered ? 0.85 : 0.5,
+          alpha: isSteelmanHovered ? 0.85 : 0.5,
         });
-        g.ellipse(JUDGE_TABLE_CONFIG.x, JUDGE_TABLE_CONFIG.y, 140, 60).fill({
+        g.ellipse(STEELMAN_TABLE_CONFIG.x, STEELMAN_TABLE_CONFIG.y, 140, 60).fill({
           color: 0x60a5fa,
-          alpha: isJudgeHovered ? 0.1 : 0.05,
+          alpha: isSteelmanHovered ? 0.1 : 0.05,
         });
       }
 
-      // 3. Right Chamber Door exit portal aura (when Judge is exiting or hovered)
-      if (isJudgeExiting) {
+      // 3. Right Chamber Door exit portal aura (when Steelman is exiting or hovered)
+      if (isSteelmanExiting) {
         // Outer pulsing portal ring
         g.ellipse(897, 246, 30, 48).stroke({
           width: 3,
@@ -95,7 +95,7 @@ export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isJudgeExiting
         });
       }
     },
-    [hoveredAgentId, activeSpeakerId, isJudgeExiting]
+    [hoveredAgentId, activeSpeakerId, isSteelmanExiting]
   );
 
   return (

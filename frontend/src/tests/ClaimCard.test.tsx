@@ -60,7 +60,7 @@ describe("ClaimCard", () => {
           {
             claim_id: "claim-3",
             test_id: "test-3",
-            evaluator: "receipts",
+            evaluator: "researcher",
             result: "weakened",
             reasoning: "Budget cycles delayed onboarding by 6 months",
             confidence: 0.85,
@@ -143,7 +143,7 @@ describe("ClaimCard", () => {
     expect(screen.getByText("Queued")).toBeInTheDocument();
   });
 
-  it("renders the judge's reasoning when expanded", () => {
+  it("renders the steelman's reasoning when expanded", () => {
     render(
       <ClaimCard
         claim={{
@@ -218,7 +218,7 @@ describe("ClaimCard", () => {
           {
             claim_id: "claim-ddg-1",
             test_id: "test-ddg-1",
-            evaluator: "receipts",
+            evaluator: "researcher",
             result: "weakened",
             reasoning: "Empirical contradiction found",
             confidence: 0.9,

@@ -26,7 +26,7 @@ describe("LiveActivityFeed", () => {
     {
       id: "act-3",
       case_id: "case-1",
-      tag: "Judge",
+      tag: "Steelman",
       text: "Reconciling evidence for: AI assistant can submit forms...",
       timestamp: "2026-09-06T12:00:05Z",
       claim_id: "c-1",
@@ -61,7 +61,7 @@ describe("LiveActivityFeed", () => {
       screen.getByText("Evaluating sandbox execution constraints against API quotas...")
     ).toBeInTheDocument();
 
-    expect(screen.getByText(/judge/i)).toBeInTheDocument();
+    expect(screen.getByText(/steelman/i)).toBeInTheDocument();
     expect(
       screen.getByText("Reconciling evidence for: AI assistant can submit forms...")
     ).toBeInTheDocument();

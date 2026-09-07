@@ -103,7 +103,7 @@ def test_get_case_returns_full_case_after_done(client, sample_case, sample_findi
     assert body["status"] == "done"
     assert len(body["findings"]) == 1
     assert len(body["consequences"]) == 1
-    assert body["findings"][0]["evaluator"] == "receipts"
+    assert body["findings"][0]["evaluator"] == "researcher"
     assert body["consequences"][0]["impact"] == "high"
 
 
@@ -607,7 +607,7 @@ def test_post_cases_auto_agents_returns_rationales(client, fake_provider_factory
         responses=[
             ExtractedClaims(
                 statements=["Users will pay $50/mo for this platform."],
-                agents=[AgentPick(agent="receipts", rationale="Competitor pricing is public.")],
+                agents=[AgentPick(agent="researcher", rationale="Competitor pricing is public.")],
             )
         ]
     )
@@ -625,7 +625,7 @@ def test_post_cases_auto_agents_returns_rationales(client, fake_provider_factory
         body = response.json()
         assert body["agent_mode"] == "auto"
         assert "devils_advocate" in body["selected_agents"]
-        assert "receipts" in body["selected_agents"]
+        assert "researcher" in body["selected_agents"]
         assert "agent_rationales" in body
         assert len(body["agent_rationales"]) >= 2
     finally:

@@ -11,7 +11,7 @@ store.py                config.py               main.py (route wiring — see do
 tests/eval_set/          (harness — Dev B/C add their own cases into it)
 ```
 
-**Never touch:** `api/`, `evidence/`, `core/evaluators/receipts.py`, `core/evaluators/devils_advocate.py`, `core/evaluators/overthinker.py`, `ingestion/`.
+**Never touch:** `api/`, `evidence/`, `core/evaluators/researcher.py`, `core/evaluators/devils_advocate.py`, `core/evaluators/overthinker.py`, `ingestion/`.
 
 ---
 

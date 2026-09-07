@@ -55,7 +55,7 @@ export interface EvidenceItem {
 export interface Finding {
   claim_id: string;
   test_id: string;
-  evaluator: string; // "devils_advocate" | "receipts" | "builder" | "operator" | "researcher" | "overthinker"
+  evaluator: string; // "devils_advocate" | "researcher" | "builder" | "operator" | "researcher" | "overthinker"
   result: string;
   evidence: EvidenceItem[];
   reasoning: string;

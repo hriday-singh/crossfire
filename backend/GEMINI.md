@@ -44,7 +44,7 @@ backend/
     loop.py                 # Dev A
     evaluators/
       devils_advocate.py    # Dev C
-      receipts.py            # Dev B
+      researcher.py            # Dev B
       builder.py              # Dev A, once loop + evidence are solid (hour 18+)
       overthinker.py           # Dev C, stretch only
   providers/
@@ -72,7 +72,7 @@ No two devs write to the same file except `main.py` and `PROGRESS.md` — see `d
 - **No auth, no accounts, no DB, no migrations, no deployment/CI, no rate limiting beyond what `tenacity` gives you.** All explicitly out of scope for this build — don't future-proof it in.
 - **Every evaluator and every internal step calls through `LLMProvider`** (`providers/base.py`). Nothing outside `providers/` talks to `google-genai` directly.
 - **Reconciliation is the only place a claim's status gets decided.** No evaluator sets its own claim's status.
-- **A negative finding needs a "because."** If Receipts or Devil's Advocate can't point at evidence or reasoning, that finding shouldn't be able to push a claim toward `broken`.
+- **A negative finding needs a "because."** If Researcher or Devil's Advocate can't point at evidence or reasoning, that finding shouldn't be able to push a claim toward `broken`.
 - **Errors are data, not crashes.** A dead source, a failed fetch, an empty search result — drop it and let the claim land on `unresolved`. Don't let a downstream failure take down `run_pipeline()`.
 
 ## 5. Testing — non-negotiable

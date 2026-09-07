@@ -5,7 +5,7 @@ import ConferenceRoom from './ConferenceRoom';
 import CharacterSprite from './CharacterSprite';
 import DevilBotSprite from './DevilBotSprite';
 import { ROOM_DIMENSIONS } from '../../constants/roomLayout';
-import { JUDGE_CONFIG } from '../../constants/agentConfigs';
+import { STEELMAN_CONFIG } from '../../constants/agentConfigs';
 
 // Register Pixi elements for declarative JSX usage in @pixi/react v8
 extend({
@@ -27,7 +27,7 @@ const hasWebGL = typeof window !== 'undefined' && (() => {
 /**
  * StageContainer Component
  * Manages Pixi canvas initialization, fixed 1000x650 viewport aspect ratio,
- * sortable depth container, and renders the 4 cubicle workstations + Judge Arbiter.
+ * sortable depth container, and renders the 4 cubicle workstations + Steelman Arbiter.
  */
 export function StageContainer({
   agents = [],
@@ -35,7 +35,7 @@ export function StageContainer({
   currentActionPacket = null,
   activeSpeakerId = null,
   hoveredAgentId = null,
-  isJudgeExiting = false,
+  isSteelmanExiting = false,
   onHoverAgent = () => { },
   onPositionUpdate = () => { },
   playSfx = () => { },
@@ -67,21 +67,21 @@ export function StageContainer({
         >
           {/* Main Stage Sortable Container: sortableChildren ensures 2.5D dynamic depth layering */}
           <pixiContainer sortableChildren={true}>
-            {/* Room Floor, Acoustic Partitions, Judge Monolith Desk, 4 Cubicles */}
+            {/* Room Floor, Acoustic Partitions, Steelman Monolith Desk, 4 Cubicles */}
             <ConferenceRoom
               activeSpeakerId={activeSpeakerId}
               hoveredAgentId={hoveredAgentId}
-              isJudgeExiting={isJudgeExiting}
+              isSteelmanExiting={isSteelmanExiting}
             />
 
-            {/* Crucible Arbiter (Judge) presiding at the center bench */}
+            {/* Crucible Arbiter (Steelman) presiding at the center bench */}
             <DevilBotSprite
-              key="judge"
-              agent={JUDGE_CONFIG}
+              key="steelman"
+              agent={STEELMAN_CONFIG}
               characterPositions={characterPositions}
-              currentActionPacket={currentActionPacket?.speaker_id === 'judge' ? currentActionPacket : null}
-              isSpeaking={activeSpeakerId === 'judge'}
-              isHovered={hoveredAgentId === 'judge'}
+              currentActionPacket={currentActionPacket?.speaker_id === 'steelman' ? currentActionPacket : null}
+              isSpeaking={activeSpeakerId === 'steelman'}
+              isHovered={hoveredAgentId === 'steelman'}
               onHover={onHoverAgent}
               onPositionUpdate={onPositionUpdate}
               playSfx={playSfx}

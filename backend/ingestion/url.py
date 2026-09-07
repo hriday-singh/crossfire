@@ -1,6 +1,6 @@
 """
 Owner: Dev B. Web URL text extraction and ingestion feeding Case.context.
-See docs/03-dev-B-evidence-receipts.md hour 11-35 item (b).
+See docs/03-dev-B-evidence-researcher.md hour 11-35 item (b).
 
 Guarantees:
 - Extracts clean text using Scrapling AsyncFetcher via evidence.fetch.fetch_page

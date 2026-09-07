@@ -15,7 +15,7 @@ from __future__ import annotations
 from core.evaluators.builder import run_builder
 from core.evaluators.devils_advocate import run_devils_advocate
 from core.evaluators.operator import run_operator
-from core.evaluators.researcher import run_receipts, run_researcher
+from core.evaluators.researcher import run_researcher, run_researcher
 from core.models import Case, Finding, TestPlanItem
 from providers.base import LLMProvider
 
@@ -25,7 +25,7 @@ run_overthinker = run_operator
 
 # failure_mode (assigned by core.loop.build_test_plan) -> evaluator:
 #
-#   evidence             the claim rests on something checkable against the world (Receipts)
+#   evidence             the claim rests on something checkable against the world (Researcher)
 #   feasibility          whether it can actually be done as stated (Builder)
 #   assumption           unstated premises and counter-incentives (Devil's Advocate)
 #   operational_friction human inertia, red tape, liability, process drag (Operator)
@@ -78,7 +78,7 @@ __all__ = [
     "run_devils_advocate",
     "run_operator",
     "run_overthinker",
-    "run_receipts",
+    "run_researcher",
     "run_researcher",
 ]
 

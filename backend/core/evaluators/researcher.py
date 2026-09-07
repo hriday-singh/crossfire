@@ -1,6 +1,6 @@
 """
-Owner: Dev B. Evidence pipeline & Researcher evaluator (formerly Receipts).
-See docs/03-dev-B-evidence-receipts.md.
+Owner: Dev B. Evidence pipeline & Researcher evaluator (formerly Researcher).
+See docs/03-dev-B-evidence-researcher.md.
 
 The only evaluator that can bring an outside source back, and therefore the only
 one whose finding can break a claim (Stage 1a evidence gate in core/loop.py).
@@ -80,11 +80,11 @@ class ResearcherAssessment(BaseModel):
 
 
 # Backward compatibility alias
-ReceiptsAssessment = ResearcherAssessment
+ResearcherAssessment = ResearcherAssessment
 
 
 RESEARCHER_SYSTEM_PROMPT = (
-    "You are the Researcher evaluator in an adversarial decision review (formerly Receipts). You judge one "
+    "You are the Researcher evaluator in an adversarial decision review (formerly Researcher). You judge one "
     "claim against sources retrieved from the open web. The decision may be of any kind "
     "— never assume a domain.\n\n"
     "You are the SOLE custodian of empirical evidence, external facts, statutory citations, and market data on the panel.\n"
@@ -197,7 +197,7 @@ async def run_researcher(
                 text=f'Querying {provider_label}: "{build_query(claim.statement)}"',
                 claim_id=claim.id,
                 action="search",
-                evaluator="receipts",
+                evaluator="researcher",
             )
         except Exception:
             pass
@@ -216,7 +216,7 @@ async def run_researcher(
                     text=f'Competitor Triangulation: Searching alternatives "{comp_query}"',
                     claim_id=claim.id,
                     action="search",
-                    evaluator="receipts",
+                    evaluator="researcher",
                 )
             except Exception:
                 pass
@@ -251,7 +251,7 @@ async def run_researcher(
                     text=f'Authority Pass: searching primary sources "{auth_query}"',
                     claim_id=claim.id,
                     action="search",
-                    evaluator="receipts",
+                    evaluator="researcher",
                 )
             except Exception:
                 pass
@@ -287,7 +287,7 @@ async def run_researcher(
                             text=f'Iterative Search: Reformulating query to "{refined_q}"',
                             claim_id=claim.id,
                             action="search",
-                            evaluator="receipts",
+                            evaluator="researcher",
                         )
                     except Exception:
                         pass
@@ -317,7 +317,7 @@ async def run_researcher(
                 text=f"Found {len(evidence_items)} candidate sources via {provider_display} (top: {top_host})",
                 claim_id=claim.id,
                 action="results",
-                evaluator="receipts",
+                evaluator="researcher",
             )
         except Exception:
             pass
@@ -337,7 +337,7 @@ async def run_researcher(
                     text=f"Deep-fetching {domain} to inspect policy text...",
                     claim_id=claim.id,
                     action="fetch",
-                    evaluator="receipts",
+                    evaluator="researcher",
                 )
             except Exception:
                 pass
@@ -383,7 +383,7 @@ async def run_researcher(
                 text=f"Analyzing {len(curated_items)} source{'s' if len(curated_items) != 1 else ''} against claim...",
                 claim_id=claim.id,
                 action="evaluating",
-                evaluator="receipts",
+                evaluator="researcher",
             )
         except Exception:
             pass
@@ -506,5 +506,5 @@ async def run_researcher(
 
 
 # Backward compatibility alias
-run_receipts = run_researcher
+run_researcher = run_researcher
 

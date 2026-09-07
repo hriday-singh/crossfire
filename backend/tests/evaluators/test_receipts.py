@@ -1,5 +1,5 @@
 """
-Owner: Dev B. See docs/03-dev-B-evidence-receipts.md.
+Owner: Dev B. See docs/03-dev-B-evidence-researcher.md.
 """
 from __future__ import annotations
 
@@ -9,26 +9,26 @@ from core.models import Finding
 
 
 @pytest.mark.asyncio
-async def test_run_receipts_produces_finding_with_evidence(
+async def test_run_researcher_produces_finding_with_evidence(
     fake_provider_factory, sample_case, sample_claim, sample_test_plan_item, sample_finding
 ):
-    from core.evaluators.receipts import run_receipts
+    from core.evaluators.researcher import run_researcher
 
     provider = fake_provider_factory(responses=[sample_finding])
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
     assert isinstance(finding, Finding)
-    assert finding.evaluator in ("researcher", "receipts")
+    assert finding.evaluator in ("researcher", "researcher")
     assert finding.claim_id == sample_claim.id
     assert finding.test_id == sample_test_plan_item.id
 
 
 @pytest.mark.asyncio
-async def test_run_receipts_calls_through_llm_provider_not_google_genai_directly(
+async def test_run_researcher_calls_through_llm_provider_not_google_genai_directly(
     monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item, sample_finding
 ):
     """Architectural guard: nothing talks to google-genai directly outside providers/gemini.py."""
     import sys
-    from core.evaluators.receipts import run_receipts
+    from core.evaluators.researcher import run_researcher
 
     class ForbiddenModule:
         def __getattr__(self, name):
@@ -37,24 +37,24 @@ async def test_run_receipts_calls_through_llm_provider_not_google_genai_directly
     monkeypatch.setitem(sys.modules, "google.genai", ForbiddenModule())
 
     provider = fake_provider_factory(responses=[sample_finding])
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
-    assert finding.evaluator in ("researcher", "receipts")
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
+    assert finding.evaluator in ("researcher", "researcher")
     assert len(provider.calls) == 1
 
 
 @pytest.mark.asyncio
-async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
+async def test_run_researcher_with_zero_evidence_still_returns_a_finding(
     monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
-    """When search_evidence + fetch both come back empty, Receipts still produces a Finding."""
-    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    """When search_evidence + fetch both come back empty, Researcher still produces a Finding."""
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
 
     async def empty_search(c):
         return []
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", empty_search)
 
-    canned_assessment = ReceiptsAssessment(
+    canned_assessment = ResearcherAssessment(
         result="No external evidence found",
         reasoning="Search yielded zero results.",
         confidence=0.2,
@@ -62,9 +62,9 @@ async def test_run_receipts_with_zero_evidence_still_returns_a_finding(
     )
     provider = fake_provider_factory(responses=[canned_assessment])
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
     assert isinstance(finding, Finding)
-    assert finding.evaluator in ("researcher", "receipts")
+    assert finding.evaluator in ("researcher", "researcher")
     assert finding.evidence == []
     assert finding.confidence <= 0.35
 
@@ -80,14 +80,14 @@ async def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_neg
     Verifies that even if an LLM returns a negative verdict with high confidence,
     empty evidence strictly caps the finding confidence at <= 0.35.
     """
-    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
 
     async def empty_search(c):
         return []
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", empty_search)
 
-    aggressive_negative = ReceiptsAssessment(
+    aggressive_negative = ResearcherAssessment(
         result="The claim is completely false and invalid.",
         reasoning="I believe this is wrong based on general knowledge.",
         confidence=0.95,
@@ -95,18 +95,18 @@ async def test_a_finding_with_no_evidence_cannot_silently_become_a_confident_neg
     )
     provider = fake_provider_factory(responses=[aggressive_negative])
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
     assert finding.evidence == []
     # Structural invariant: must be downgraded to low confidence
     assert finding.confidence <= 0.35
 
 
 @pytest.mark.asyncio
-async def test_run_receipts_with_llm_curation_enabled(
+async def test_run_researcher_with_llm_curation_enabled(
     monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
-    """When use_llm_curation=True, receipts uses curate_snippet_llm for snippets."""
-    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    """When use_llm_curation=True, researcher uses curate_snippet_llm for snippets."""
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
     from core.models import EvidenceItem
     from evidence.curate import CuratedSnippet
 
@@ -120,10 +120,10 @@ async def test_run_receipts_with_llm_curation_enabled(
     async def fake_search(c):
         return [raw_item]
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
 
     curated_response = CuratedSnippet(selected_sentences="Crucial sentence confirming the claim.")
-    assessment_response = ReceiptsAssessment(
+    assessment_response = ResearcherAssessment(
         result="Direct evidence found",
         reasoning="Curated evidence supports the statement directly.",
         confidence=0.85,
@@ -132,7 +132,7 @@ async def test_run_receipts_with_llm_curation_enabled(
 
     provider = fake_provider_factory(responses=[curated_response, assessment_response])
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider, use_llm_curation=True)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider, use_llm_curation=True)
     assert len(provider.calls) == 2
     assert len(finding.evidence) == 1
     assert finding.evidence[0].snippet == "Crucial sentence confirming the claim."
@@ -140,11 +140,11 @@ async def test_run_receipts_with_llm_curation_enabled(
 
 
 @pytest.mark.asyncio
-async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
+async def test_run_researcher_with_concurrent_llm_curation_multiple_items(
     monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     """Multiple candidate evidence items are curated concurrently and assembled into the final finding."""
-    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
     from core.models import EvidenceItem
     from evidence.curate import CuratedSnippet
 
@@ -161,13 +161,13 @@ async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
     async def fake_search(c):
         return items
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
 
     curated_responses = [
         CuratedSnippet(selected_sentences=f"Key fact {i} directly supporting claim.")
         for i in range(3)
     ]
-    assessment_response = ReceiptsAssessment(
+    assessment_response = ResearcherAssessment(
         result="Strong supporting evidence found across all sources",
         reasoning="Multiple corroborating facts confirm the statement.",
         confidence=0.92,
@@ -176,8 +176,8 @@ async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
 
     provider = fake_provider_factory(responses=[*curated_responses, assessment_response])
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider, use_llm_curation=True)
-    assert len(provider.calls) == 4  # 3 concurrent curations + 1 final receipts assessment
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider, use_llm_curation=True)
+    assert len(provider.calls) == 4  # 3 concurrent curations + 1 final researcher assessment
     assert len(finding.evidence) == 3
     for i, ev in enumerate(finding.evidence):
         assert ev.snippet == f"Key fact {i} directly supporting claim."
@@ -189,12 +189,12 @@ async def test_run_receipts_with_concurrent_llm_curation_multiple_items(
 
 
 @pytest.mark.asyncio
-async def test_receipts_keeps_only_the_sources_it_cited(
+async def test_researcher_keeps_only_the_sources_it_cited(
     monkeypatch, fake_provider_factory, sample_case, sample_claim, sample_test_plan_item
 ):
     """All four hits used to be attached whether the evaluator referenced them
     or not, which is what made the drawer four undifferentiated links."""
-    from core.evaluators.receipts import CitedSource, ReceiptsAssessment, run_receipts
+    from core.evaluators.researcher import CitedSource, ResearcherAssessment, run_researcher
     from core.models import EvidenceItem
 
     async def fake_search(claim):
@@ -208,10 +208,10 @@ async def test_receipts_keeps_only_the_sources_it_cited(
             for n in ("used", "ignored")
         ]
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
     provider = fake_provider_factory(
         responses=[
-            ReceiptsAssessment(
+            ResearcherAssessment(
                 result="The published limit contradicts the claim",
                 reasoning="The rule caps it at four.",
                 confidence=0.8,
@@ -221,7 +221,7 @@ async def test_receipts_keeps_only_the_sources_it_cited(
         ]
     )
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
 
     assert [e.source_url for e in finding.evidence] == ["https://example.gov/used"]
     assert finding.evidence[0].stance == "contradicts"
@@ -229,10 +229,10 @@ async def test_receipts_keeps_only_the_sources_it_cited(
 
 
 @pytest.mark.asyncio
-async def test_receipts_keeps_everything_when_nothing_was_cited(
+async def test_researcher_keeps_everything_when_nothing_was_cited(
     monkeypatch, fake_provider_factory, sample_case, sample_test_plan_item
 ):
-    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
     from core.models import EvidenceItem
 
     async def fake_search(claim):
@@ -244,32 +244,32 @@ async def test_receipts_keeps_everything_when_nothing_was_cited(
             )
         ]
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
     provider = fake_provider_factory(
         responses=[
-            ReceiptsAssessment(result="Mixed", reasoning="Unclear.", confidence=0.5, cited=[])
+            ResearcherAssessment(result="Mixed", reasoning="Unclear.", confidence=0.5, cited=[])
         ]
     )
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
     assert len(finding.evidence) == 1
     assert finding.evidence[0].stance == "context"
 
 
 @pytest.mark.asyncio
-async def test_receipts_drops_a_contradiction_it_cannot_source(
+async def test_researcher_drops_a_contradiction_it_cannot_source(
     monkeypatch, fake_provider_factory, sample_case, sample_test_plan_item
 ):
     """Stage 1a upstream guard: no evidence means no contradiction to hand the judge."""
-    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
 
     async def empty_search(claim):
         return []
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", empty_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", empty_search)
     provider = fake_provider_factory(
         responses=[
-            ReceiptsAssessment(
+            ResearcherAssessment(
                 result="Nothing supports this",
                 reasoning="No sources found.",
                 confidence=0.9,
@@ -278,17 +278,17 @@ async def test_receipts_drops_a_contradiction_it_cannot_source(
         ]
     )
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
     assert finding.contradiction is None
     assert finding.confidence <= 0.35
 
 
 @pytest.mark.asyncio
-async def test_receipts_drops_contradiction_when_nothing_cited(
+async def test_researcher_drops_contradiction_when_nothing_cited(
     monkeypatch, fake_provider_factory, sample_case, sample_test_plan_item
 ):
     """When sources exist but model cited none of them, keep evidence as context but clear contradiction."""
-    from core.evaluators.receipts import ReceiptsAssessment, run_receipts
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
     from core.models import EvidenceItem
 
     async def fake_search(claim):
@@ -300,10 +300,10 @@ async def test_receipts_drops_contradiction_when_nothing_cited(
             )
         ]
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
     provider = fake_provider_factory(
         responses=[
-            ReceiptsAssessment(
+            ResearcherAssessment(
                 result="Contradiction claim",
                 reasoning="I believe this is false but did not cite any link.",
                 confidence=0.8,
@@ -313,7 +313,7 @@ async def test_receipts_drops_contradiction_when_nothing_cited(
         ]
     )
 
-    finding = await run_receipts(sample_test_plan_item, sample_case, provider)
+    finding = await run_researcher(sample_test_plan_item, sample_case, provider)
     assert len(finding.evidence) == 1
     assert finding.evidence[0].stance == "context"
     assert finding.contradiction is None
@@ -325,7 +325,7 @@ async def test_receipts_drops_contradiction_when_nothing_cited(
 
 
 def test_researcher_system_prompt_contains_all_four_constraints():
-    from core.evaluators.receipts import RESEARCHER_SYSTEM_PROMPT
+    from core.evaluators.researcher import RESEARCHER_SYSTEM_PROMPT
 
     # 1. Adversarial Query Generation (Debunk search)
     assert "Adversarial Query Generation" in RESEARCHER_SYSTEM_PROMPT
@@ -354,17 +354,17 @@ def test_researcher_system_prompt_contains_all_four_constraints():
 
 
 def test_researcher_backward_compatibility_aliases():
-    from core.evaluators.receipts import (
+    from core.evaluators.researcher import (
         RECEIPTS_SYSTEM_PROMPT,
         RESEARCHER_SYSTEM_PROMPT,
-        ReceiptsAssessment,
         ResearcherAssessment,
-        run_receipts,
+        ResearcherAssessment,
+        run_researcher,
         run_researcher,
     )
 
-    assert run_receipts is run_researcher
-    assert ReceiptsAssessment is ResearcherAssessment
+    assert run_researcher is run_researcher
+    assert ResearcherAssessment is ResearcherAssessment
     assert RECEIPTS_SYSTEM_PROMPT == RESEARCHER_SYSTEM_PROMPT
 
 
@@ -374,7 +374,7 @@ async def test_researcher_marketing_mirage_caps_confidence_and_flags_reasoning(
 ):
     """Source Authority Tiering: When only Tier 3 sources are found, confidence must be capped at <= 0.5
     and reasoning must explicitly flag 'Marketing Mirage'."""
-    from core.evaluators.receipts import CitedSource, ResearcherAssessment, run_researcher
+    from core.evaluators.researcher import CitedSource, ResearcherAssessment, run_researcher
     from core.models import EvidenceItem
 
     # Provide only blog / marketing sources (Tier 3)
@@ -391,7 +391,7 @@ async def test_researcher_marketing_mirage_caps_confidence_and_flags_reasoning(
     async def fake_search(c, query_override=None):
         return marketing_items
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
 
     # Model returned a confident assessment based on Tier 3 evidence
     overconfident_assessment = ResearcherAssessment(
@@ -404,7 +404,7 @@ async def test_researcher_marketing_mirage_caps_confidence_and_flags_reasoning(
     provider = fake_provider_factory(responses=[overconfident_assessment])
 
     finding = await run_researcher(sample_test_plan_item, sample_case, provider)
-    assert finding.evaluator in ("researcher", "receipts")
+    assert finding.evaluator in ("researcher", "researcher")
     # Structural invariant: confidence capped at <= 0.5 for pure Tier 3
     assert finding.confidence <= 0.5
     # Structural invariant: reasoning must flag Marketing Mirage
@@ -417,7 +417,7 @@ async def test_researcher_temporal_decay_downgrades_to_weakened_and_notes_data_s
 ):
     """Temporal Decay: If core evidence is > 18-24 months old, verdict is downgraded to 'weakened'
     and 'Data Staleness' is noted in contradiction."""
-    from core.evaluators.receipts import CitedSource, ResearcherAssessment, run_researcher
+    from core.evaluators.researcher import CitedSource, ResearcherAssessment, run_researcher
     from core.models import EvidenceItem
 
     stale_items = [
@@ -434,7 +434,7 @@ async def test_researcher_temporal_decay_downgrades_to_weakened_and_notes_data_s
     async def fake_search(c, query_override=None):
         return stale_items
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", fake_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", fake_search)
 
     stale_assessment = ResearcherAssessment(
         result="Survey shows positive adoption",
@@ -446,7 +446,7 @@ async def test_researcher_temporal_decay_downgrades_to_weakened_and_notes_data_s
     provider = fake_provider_factory(responses=[stale_assessment])
 
     finding = await run_researcher(sample_test_plan_item, sample_case, provider)
-    assert finding.evaluator in ("researcher", "receipts")
+    assert finding.evaluator in ("researcher", "researcher")
     # Invariant: result must reflect weakened
     assert "weakened" in finding.result.lower()
     # Invariant: contradiction must record Data Staleness
@@ -459,7 +459,7 @@ async def test_researcher_competitor_triangulation_triggers_on_uniqueness_claim(
     monkeypatch, fake_provider_factory, sample_case
 ):
     """Competitor Triangulation: Claims asserting uniqueness trigger a secondary competitor search."""
-    from core.evaluators.receipts import ResearcherAssessment, run_researcher
+    from core.evaluators.researcher import ResearcherAssessment, run_researcher
     from core.models import Claim, EvidenceItem, TestPlanItem
 
     # Claim asserting uniqueness
@@ -491,7 +491,7 @@ async def test_researcher_competitor_triangulation_triggers_on_uniqueness_claim(
             )
         ]
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", tracking_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", tracking_search)
 
     assessment = ResearcherAssessment(
         result="Competitor Intuit already offers instant tax reconciliation",
@@ -503,7 +503,7 @@ async def test_researcher_competitor_triangulation_triggers_on_uniqueness_claim(
     provider = fake_provider_factory(responses=[assessment])
 
     finding = await run_researcher(item, sample_case, provider)
-    assert finding.evaluator in ("researcher", "receipts")
+    assert finding.evaluator in ("researcher", "researcher")
     # Verified: secondary search query was executed
     assert len(searched_queries) >= 2
     # Check that competitor triangulation terms were in the second search query

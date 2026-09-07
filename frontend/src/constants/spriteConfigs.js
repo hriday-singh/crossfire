@@ -94,7 +94,7 @@ export const BOT_SPRITE_CONFIGS = {
       { x: 880, y: 715, w: 124, h: 200 },
     ],
   },
-  receipts: {
+  researcher: {
     assetUrl: '/researcher_thing.webp',
     scale: 0.5,
     walkBounds: [
@@ -120,8 +120,8 @@ export const BOT_SPRITE_CONFIGS = {
       { x: 885, y: 696, w: 125, h: 194 },
     ],
   },
-  judge: {
-    assetUrl: '/judge_thing.webp',
+  steelman: {
+    assetUrl: '/steelman_thing.webp',
     scale: 0.5,
     walkBounds: [
       { x: 50, y: 66, w: 165, h: 202 },
@@ -149,10 +149,10 @@ export const BOT_SPRITE_CONFIGS = {
 };
 
 // Aliases
-BOT_SPRITE_CONFIGS.researcher = BOT_SPRITE_CONFIGS.receipts;
-BOT_SPRITE_CONFIGS.arbiter = BOT_SPRITE_CONFIGS.judge;
+BOT_SPRITE_CONFIGS.researcher = BOT_SPRITE_CONFIGS.researcher;
+BOT_SPRITE_CONFIGS.arbiter = BOT_SPRITE_CONFIGS.steelman;
 BOT_SPRITE_CONFIGS.agent_1 = BOT_SPRITE_CONFIGS.devils_advocate;
-BOT_SPRITE_CONFIGS.agent_2 = BOT_SPRITE_CONFIGS.receipts;
+BOT_SPRITE_CONFIGS.agent_2 = BOT_SPRITE_CONFIGS.researcher;
 BOT_SPRITE_CONFIGS.agent_3 = BOT_SPRITE_CONFIGS.builder;
 BOT_SPRITE_CONFIGS.agent_4 = BOT_SPRITE_CONFIGS.operator;
 

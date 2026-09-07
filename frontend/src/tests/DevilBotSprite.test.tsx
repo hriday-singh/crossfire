@@ -64,7 +64,7 @@ describe('DevilBotSprite', () => {
     });
   });
 
-  it('loads specific spritesheets for operator, builder, researcher, and judge', async () => {
+  it('loads specific spritesheets for operator, builder, researcher, and steelman', async () => {
     render(<DevilBotSprite agent={{ id: 'operator', initialWaypoint: 'cubicle_4_desk' }} />);
     await waitFor(() => {
       expect(PIXI.Assets.load).toHaveBeenCalledWith('/operator_thing.webp');
@@ -75,14 +75,14 @@ describe('DevilBotSprite', () => {
       expect(PIXI.Assets.load).toHaveBeenCalledWith('/builder_thing.webp');
     });
 
-    render(<DevilBotSprite agent={{ id: 'receipts', initialWaypoint: 'cubicle_2_desk' }} />);
+    render(<DevilBotSprite agent={{ id: 'researcher', initialWaypoint: 'cubicle_2_desk' }} />);
     await waitFor(() => {
       expect(PIXI.Assets.load).toHaveBeenCalledWith('/researcher_thing.webp');
     });
 
-    render(<DevilBotSprite agent={{ id: 'judge', initialWaypoint: 'judge_chair' }} />);
+    render(<DevilBotSprite agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }} />);
     await waitFor(() => {
-      expect(PIXI.Assets.load).toHaveBeenCalledWith('/judge_thing.webp');
+      expect(PIXI.Assets.load).toHaveBeenCalledWith('/steelman_thing.webp');
     });
   });
 

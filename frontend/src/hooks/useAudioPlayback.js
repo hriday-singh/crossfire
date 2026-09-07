@@ -131,7 +131,7 @@ export function useAudioPlayback() {
   }, []);
 
   // Play character speech event: Howler audio_url OR SpeechSynthesis / phoneme blips
-  // NOTE: Voice readout / TTS is strictly reserved for the Judge (Crucible Arbiter). Evaluators do NOT speak aloud.
+  // NOTE: Voice readout / TTS is strictly reserved for the Steelman (Crucible Arbiter). Evaluators do NOT speak aloud.
   /**
    * @param {{ speakerId: string; dialogue?: string | null; audioUrl?: string | null; onEnd?: () => void }} params
    */
@@ -142,9 +142,9 @@ export function useAudioPlayback() {
       return;
     }
 
-    // Enforce Judge-only voice: AI evaluators do NOT talk or speak aloud
-    const isJudgeSpeaker = speakerId === 'judge' || speakerId === 'arbiter' || speakerId === 'moderator';
-    if (!isJudgeSpeaker) {
+    // Enforce Steelman-only voice: AI evaluators do NOT talk or speak aloud
+    const isSteelmanSpeaker = speakerId === 'steelman' || speakerId === 'arbiter' || speakerId === 'moderator';
+    if (!isSteelmanSpeaker) {
       onEnd?.();
       return;
     }

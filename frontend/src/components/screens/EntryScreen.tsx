@@ -109,7 +109,7 @@ export const EntryScreen: React.FC = () => {
 
   const handleToggleAgent = (agentId: string) => {
     const backendIdMap: Record<string, string> = {
-      researcher: "receipts",
+      researcher: "researcher",
       operator: "overthinker"
     };
     const mappedId = backendIdMap[agentId] || agentId;

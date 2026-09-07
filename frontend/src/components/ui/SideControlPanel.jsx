@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AGENT_CONFIGS, AGENT_MAP, JUDGE_CONFIG } from '../../constants/agentConfigs';
+import { AGENT_CONFIGS, AGENT_MAP, STEELMAN_CONFIG } from '../../constants/agentConfigs';
 import { WAYPOINTS } from '../../constants/roomLayout';
 import {
   Play,
@@ -136,7 +136,7 @@ export function SideControlPanel({
                 </span>
               </div>
               <p className="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
-                Live evaluator telemetry streaming from FastAPI. Findings report to the Judge table in real time.
+                Live evaluator telemetry streaming from FastAPI. Findings report to the Steelman table in real time.
               </p>
             </div>
           </div>
@@ -256,7 +256,7 @@ export function SideControlPanel({
                 <MicOff className="w-3.5 h-3.5 text-outline" />
               )}
               <div>
-                <span className="text-xs font-sans text-on-surface block">Judge Voice</span>
+                <span className="text-xs font-sans text-on-surface block">Steelman Voice</span>
               </div>
             </div>
             <button
@@ -326,7 +326,7 @@ export function SideControlPanel({
                   {activeAgent.name}
                 </span>
                 <span className="text-[10px] text-primary-container font-mono truncate block">
-                  {lastEvent?.cognitive_tag || (activeAgent.id === 'judge' ? '[Steelman]' : `[${activeAgent.testName || 'Hypothesis Scrutiny'}]`)}
+                  {lastEvent?.cognitive_tag || (activeAgent.id === 'steelman' ? '[Steelman]' : `[${activeAgent.testName || 'Hypothesis Scrutiny'}]`)}
                 </span>
               </div>
             </div>
@@ -414,17 +414,17 @@ export function SideControlPanel({
               type="button"
               onClick={() =>
                 triggerManualEvent?.({
-                  speaker_id: 'receipts',
+                  speaker_id: 'researcher',
                   action: 'type',
                   target: 'cubicle_3_desk',
                   gesture: 'idle',
-                  dialogue: 'Querying live market receipts and web citations on enterprise pilot churn.',
+                  dialogue: 'Querying live market researcher and web citations on enterprise pilot churn.',
                   verdict: 'survived',
                 })
               }
               className="w-full text-left p-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container-high border border-outline-variant/50 text-xs text-on-surface transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>Receipts → Query Citations</span>
+              <span>Researcher → Query Citations</span>
               <span className="text-[10px] font-mono text-verdict-survived">Type</span>
             </button>
 
@@ -468,9 +468,9 @@ export function SideControlPanel({
               type="button"
               onClick={() =>
                 triggerManualEvent?.({
-                  speaker_id: 'judge',
+                  speaker_id: 'steelman',
                   action: 'inspect',
-                  target: 'judge_desk',
+                  target: 'steelman_desk',
                   gesture: 'idle',
                   dialogue: 'Crucible synthesis complete: 2 claims survived, 1 weakened, 1 broken.',
                   verdict: 'weakened',

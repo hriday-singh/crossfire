@@ -152,13 +152,13 @@ export const ConfirmScreen: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Prominent Judge Bot Head on the right */}
-                <div className="flex flex-col items-center shrink-0 p-2.5 rounded-xl bg-surface-container-low border border-red-500/30 shadow-lg" title="Crucible Arbiter / Judge Bot">
+                {/* Prominent Steelman Bot Head on the right */}
+                <div className="flex flex-col items-center shrink-0 p-2.5 rounded-xl bg-surface-container-low border border-red-500/30 shadow-lg" title="Crucible Arbiter / Steelman Bot">
                   <div className="relative group cursor-pointer">
                     <div className="w-14 h-14 rounded-xl bg-surface-container border border-red-500/40 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.3)] group-hover:border-red-500/70 transition-colors">
                       <img
-                        src="/judge_head.webp"
-                        alt="Judge Bot Head"
+                        src="/steelman_head.webp"
+                        alt="Steelman Bot Head"
                         className="w-11 h-11 object-contain drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] group-hover:scale-110 transition-transform"
                       />
                     </div>

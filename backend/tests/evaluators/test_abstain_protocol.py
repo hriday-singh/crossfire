@@ -1,7 +1,7 @@
 import pytest
 from core.models import Claim, ClaimStatus, Finding, TestPlanItem, Case
 from core.reconcile import apply_evidence_gate, objection_band, reconcile
-from core.evaluators.receipts import run_researcher
+from core.evaluators.researcher import run_researcher
 from providers.base import LLMProvider
 
 class MockEmptySearchProvider(LLMProvider):
@@ -24,7 +24,7 @@ async def test_researcher_abstains_with_zero_confidence_when_no_evidence(monkeyp
         return []
 
     monkeypatch.setattr("core.evaluators.researcher.search_evidence", mock_empty_search)
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", mock_empty_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", mock_empty_search)
 
     claim = Claim(id="c1", statement="Our core values prioritize customer delight")
     item = TestPlanItem(id="t1", target_claim="c1", failure_mode="evidence", objective="Check sources")

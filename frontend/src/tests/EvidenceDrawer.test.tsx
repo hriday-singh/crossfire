@@ -35,7 +35,7 @@ const mockCase: Case = {
     {
       claim_id: "claim-test-1",
       test_id: "test-1",
-      evaluator: "receipts",
+      evaluator: "researcher",
       result: "competitor pricing is $50/month",
       evidence: [
         {
@@ -164,7 +164,7 @@ describe("EvidenceDrawer", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the judge's reasoning and test suite headers", () => {
+  it("renders the steelman's reasoning and test suite headers", () => {
     render(
       <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
     );

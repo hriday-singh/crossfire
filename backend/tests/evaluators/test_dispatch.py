@@ -40,9 +40,9 @@ async def test_dispatch_routes_assumption_to_devils_advocate(fake_provider_facto
 
 
 @pytest.mark.asyncio
-async def test_dispatch_routes_evidence_to_receipts(monkeypatch, fake_provider_factory, sample_case):
+async def test_dispatch_routes_evidence_to_researcher(monkeypatch, fake_provider_factory, sample_case):
     from core.models import EvidenceItem
-    from core.evaluators.receipts import ReceiptsAssessment
+    from core.evaluators.researcher import ResearcherAssessment
 
     async def mock_search(query, max_results=5):
         return [
@@ -54,7 +54,7 @@ async def test_dispatch_routes_evidence_to_receipts(monkeypatch, fake_provider_f
             )
         ]
 
-    monkeypatch.setattr("core.evaluators.receipts.search_evidence", mock_search)
+    monkeypatch.setattr("core.evaluators.researcher.search_evidence", mock_search)
 
     item = TestPlanItem(
         id="t-evidence",
@@ -64,7 +64,7 @@ async def test_dispatch_routes_evidence_to_receipts(monkeypatch, fake_provider_f
     )
     provider = fake_provider_factory(
         responses=[
-            ReceiptsAssessment(
+            ResearcherAssessment(
                 result="Evidence contradicts claim",
                 reasoning="Empirical survey demonstrates reluctance",
                 confidence=0.9,
@@ -74,7 +74,7 @@ async def test_dispatch_routes_evidence_to_receipts(monkeypatch, fake_provider_f
     )
 
     finding = await dispatch(item, sample_case, provider)
-    assert finding.evaluator in ("researcher", "receipts")
+    assert finding.evaluator in ("researcher", "researcher")
     assert finding.test_id == "t-evidence"
     assert finding.claim_id == sample_case.claims[0].id
     assert finding.result == "Evidence contradicts claim"
@@ -194,7 +194,7 @@ async def test_dispatch_fallback_unknown_mode(monkeypatch, fake_provider_factory
         return Finding(
             claim_id="",
             test_id="",
-            evaluator="receipts",
+            evaluator="researcher",
             result="Abstain: No external empirical evidence found",
             reasoning="No sources.",
             confidence=0.0,
@@ -204,7 +204,7 @@ async def test_dispatch_fallback_unknown_mode(monkeypatch, fake_provider_factory
 
     finding = await dispatch(item, sample_case, fake_provider_factory(responses=[]))
     assert called == ["nonexistent_mode"]
-    assert finding.evaluator == "receipts"
+    assert finding.evaluator == "researcher"
     assert finding.test_id == "t-unknown"
     assert finding.claim_id == sample_case.claims[0].id
 

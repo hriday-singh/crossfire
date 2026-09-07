@@ -11,7 +11,7 @@ All three of you, together: freeze `core/models.py` and `providers/base.py` (`do
 Target for hour 11, straight from the direction docs: **input in, claim extraction, at least two genuinely different tests, real evidence, one real four-state verdict out the other end — even if it's ugly.** An ugly real result beats a polished screen wrapping fake orchestration.
 
 - Dev A: `GeminiProvider` wired end to end, `extract_claims()`, first pass at `classify_load_bearing()`, `store.py`
-- Dev B: DuckDuckGo Lite search wrapper + basic curation, `receipts.py` producing a real `Finding`
+- Dev B: DuckDuckGo Lite search wrapper + basic curation, `researcher.py` producing a real `Finding`
 - Dev C: `POST /cases`, `GET /cases/{id}/stream`, `devils_advocate.py` producing a real `Finding`
 
 **→ Update `PROGRESS.md`. This is Checkpoint 1.**

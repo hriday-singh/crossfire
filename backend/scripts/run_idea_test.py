@@ -8,7 +8,7 @@ Runs the full end-to-end Python pipeline internally:
   1. POST /cases -> extracts claims
   2. GET /cases/{id}/stream -> monitors real-time SSE frames
   3. POST /cases/{id}/confirm -> confirms claims & launches pipeline
-  4. Awaits background evaluators, receipts search, and judge reconciliation
+  4. Awaits background evaluators, researcher search, and judge reconciliation
   5. GET /cases/{id} -> prints formatted Decision Memo and verdicts
 """
 import asyncio

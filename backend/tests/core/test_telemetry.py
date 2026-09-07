@@ -42,7 +42,7 @@ def test_telemetry_tracker_aggregates_and_sorts():
         output="Feasibility confirmed with minor friction",
     )
     tracker.record(
-        agent="receipts",
+        agent="researcher",
         prompt_text="Search queries and scraped webpage results",
         output="Empirical evidence found in regulatory filings",
     )
@@ -63,8 +63,8 @@ def test_telemetry_tracker_aggregates_and_sorts():
 
     agents = {a.agent: a for a in telemetry.agent_breakdown}
     assert "builder" in agents
-    assert "receipts" in agents
-    assert agents["builder"].total_tokens > agents["receipts"].total_tokens
+    assert "researcher" in agents
+    assert agents["builder"].total_tokens > agents["researcher"].total_tokens
 
 
 @pytest.mark.asyncio

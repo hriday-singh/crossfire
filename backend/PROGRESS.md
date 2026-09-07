@@ -47,13 +47,13 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 - **verdict_reasoning gap closed.** `run_pipeline` threads the real `reconcile()` reasoning onto each `DecisionConsequence` after `build_consequences()`. No `Claim` model change, so contracts stay frozen.
 - **Test isolation:** `tests/conftest.py` now has an autouse fixture clearing `store._cases` and `events._queues` between tests. Both are module-global by design; reusing a `case_id` across tests without this inherits the previous run's events.
 
-## Dev B — Evidence + Receipts
+## Dev B — Evidence + Researcher
 
 | Task | Status | Notes |
 |---|---|---|
 | `search_evidence()` (DuckDuckGo via Scrapling) | `[x]` | single-query search against DuckDuckGo Lite via Scrapling AsyncFetcher (zero credit card / API key required), tenacity retry, graceful degradation |
 | Curation v1 (heuristic) | `[x]` | keyword relevance scoring, strictly bounded 1-3 sentences |
-| `receipts.py` producing real `Finding` | `[x]` | calls through LLMProvider with curated evidence, produces well-formed Finding |
+| `researcher.py` producing real `Finding` | `[x]` | calls through LLMProvider with curated evidence, produces well-formed Finding |
 | Scrapling deep-fetch + adaptive-scrutiny wiring | `[x]` | deep-fetch only for load_bearing is True and thin snippet, SERP guard enforced |
 | Demo fallback switch (`DEMO_FIXTURES`) | `[x]` | DEMO_MODE flag + explicit claim.id match bypasses network calls |
 | Failure handling (dead sources → unresolved, not crash) | `[x]` | network/API failures degrade to empty list rather than raising |
@@ -62,7 +62,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | Eval set stress-testing & URL ingestion (Hour 35-48) | `[x]` | dead-link and thin-evidence cases added to `tests/eval_set/cases.py`; `ingest_url` added to `ingestion/`; zero-evidence negative invariant verified |
 
 **Last updated:** Dev B
-**Note:** All Checkpoint 1, Checkpoint 2, and Hour 35–48 deliverables complete. `evidence/search.py`, `evidence/curate.py`, `evidence/fetch.py`, `core/evaluators/receipts.py`, `ingestion/pdf.py`, and `ingestion/url.py` fully implemented and passing all tests across `tests/evidence/`, `tests/evaluators/test_receipts.py`, `tests/ingestion/`, and `tests/eval_set/cases.py` (117 passed, 0 failed).
+**Note:** All Checkpoint 1, Checkpoint 2, and Hour 35–48 deliverables complete. `evidence/search.py`, `evidence/curate.py`, `evidence/fetch.py`, `core/evaluators/researcher.py`, `ingestion/pdf.py`, and `ingestion/url.py` fully implemented and passing all tests across `tests/evidence/`, `tests/evaluators/test_researcher.py`, `tests/ingestion/`, and `tests/eval_set/cases.py` (117 passed, 0 failed).
 
 ## Dev C — API + SSE + Evaluators
 
@@ -73,7 +73,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | `devils_advocate.py` producing real `Finding` | `[x]` | Assumption test, prompt-only, isolated to single claim, zero tool chains |
 | `POST /cases/{id}/confirm` (202, non-blocking) | `[x]` | Validates state gate, launches background `run_pipeline()`, returns 202 immediately |
 | `GET /cases/{id}` | `[x]` | Returns full Case for evidence drawer |
-| `dispatch()` routing wired with Dev A | `[x]` | Fully wired to `run_evaluators()`. Routes `evidence`→Receipts, `behavior`/`constraint`/`feasibility`→Builder, `assumption`→Devil's Advocate, `edge-case`/`alternative`→Overthinker with fallback |
+| `dispatch()` routing wired with Dev A | `[x]` | Fully wired to `run_evaluators()`. Routes `evidence`→Researcher, `behavior`/`constraint`/`feasibility`→Builder, `assumption`→Devil's Advocate, `edge-case`/`alternative`→Overthinker with fallback |
 | SSE events verified against contract | `[x]` | Verified documented event ordering in SSE stream |
 | Claim-confirmation gate is real, not client-faked | `[x]` | Rejects confirm requests when not in `awaiting_confirmation` status |
 | `overthinker.py` (stretch) | `[x]` | Edge-case test evaluator implemented, with dedicated test suite in `tests/evaluators/test_overthinker.py` |
@@ -89,7 +89,7 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 Anything that needs another dev's attention goes here, tagged with their name. Clear it once resolved instead of deleting the line — leave a one-word "resolved" so there's a record.
 
 - **@Dev B / @Dev C** — resolved. Acceptance criteria satisfied: real evidence discovery and deep fetching operational without external keys (Dev B), and evaluator dispatch and routing completed (Dev C).
-- **@Dev C** — resolved. `dispatch()` landed at `core/evaluators/__init__.py`. Routing: `evidence`→receipts, `behavior`/`constraint`→builder, `alternative`→devils_advocate, anything unrecognised → devils_advocate (needs no evidence, so an unknown mode degrades instead of dropping the claim). `run_overthinker` is deliberately unrouted — no failure_mode maps to second-order effects yet; to wire it add a bucket to `core.loop._FAILURE_MODE_KEYWORDS` and an entry to `_ROUTES`. `tests/evaluators/test_dispatch.py` covers the table and guards the seam: adding a keyword bucket without a route now fails a test.
+- **@Dev C** — resolved. `dispatch()` landed at `core/evaluators/__init__.py`. Routing: `evidence`→researcher, `behavior`/`constraint`→builder, `alternative`→devils_advocate, anything unrecognised → devils_advocate (needs no evidence, so an unknown mode degrades instead of dropping the claim). `run_overthinker` is deliberately unrouted — no failure_mode maps to second-order effects yet; to wire it add a bucket to `core.loop._FAILURE_MODE_KEYWORDS` and an entry to `_ROUTES`. `tests/evaluators/test_dispatch.py` covers the table and guards the seam: adding a keyword bucket without a route now fails a test.
 - **@Dev C** — resolved. Two SSE wiring bugs fixed in `api/routes.py`. (1) It kept its own `_case_queues` dict and tried `from core.loop import get_case_queue`, which does not exist — the ImportError fell through to a queue the pipeline never wrote to, so the stream emitted nothing forever. It now iterates `events.subscribe(case_id)`. (2) The generator broke on `None`, but `events.close()` puts a private `_DONE` sentinel, so it would have yielded a junk `event: message` frame and hung; `subscribe()` handles the sentinel itself. `_case_queues` is gone — do not reintroduce a second registry.
 - **@Dev C** — resolved. `confirm_case` did a bare `asyncio.create_task(run_pipeline(...))`. The event loop only weakly references tasks, so the run could be garbage-collected mid-flight. Now calls `core.loop.handle_confirm(case_id)`, which holds it in `_background_tasks`.
 - **@Dev B** — resolved. Replaced Tavily with DuckDuckGo Lite via Scrapling in `evidence/search.py`. Requires zero credit card or API key setup; live searches return verified evidence items, DEMO_FIXTURES bypass preserved, and unit tests pass cleanly.

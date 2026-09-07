@@ -342,7 +342,7 @@ def test_missing_input_is_nulled_on_every_other_status(status):
     )
     gated = apply_steelman_gate(
         verdict,
-        [_finding("receipts", evidence=True, contradiction="The rule forbids it", confidence=0.8)],
+        [_finding("researcher", evidence=True, contradiction="The rule forbids it", confidence=0.8)],
     )
     assert gated.missing_input is None
 
@@ -368,7 +368,7 @@ def test_a_scope_without_a_salvage_is_dropped():
     )
     gated = apply_steelman_gate(
         verdict,
-        [_finding("receipts", evidence=True, contradiction="45 CFR 164.312 forbids it", confidence=0.9)],
+        [_finding("researcher", evidence=True, contradiction="45 CFR 164.312 forbids it", confidence=0.9)],
     )
     assert gated.status is ClaimStatus.BROKEN
     assert gated.salvage_scope is None
@@ -384,6 +384,6 @@ def test_an_invented_salvage_scope_is_not_trusted():
     )
     gated = apply_steelman_gate(
         verdict,
-        [_finding("receipts", evidence=True, contradiction="Benchmarks show otherwise", confidence=0.8)],
+        [_finding("researcher", evidence=True, contradiction="Benchmarks show otherwise", confidence=0.8)],
     )
     assert gated.salvage_scope is None

@@ -1,11 +1,11 @@
 /**
  * Centralized agent catalog and UI presentation rules for Crossfire evaluators.
  * Adheres strictly to DESIGN.md Section 1.3:
- * Internal evaluator IDs ('devils_advocate', 'receipts', 'builder', 'operator')
+ * Internal evaluator IDs ('devils_advocate', 'researcher', 'builder', 'operator')
  * are masked to human test names in all user-facing views.
  */
 
-export type AgentId = "devils_advocate" | "receipts" | "builder" | "operator" | "researcher" | "overthinker";
+export type AgentId = "devils_advocate" | "researcher" | "builder" | "operator" | "researcher" | "overthinker";
 
 export interface AgentDefinition {
   id: AgentId;
@@ -59,7 +59,7 @@ export const DEFAULT_AGENT_IDS: AgentId[] = [
 ];
 
 export function getAgentById(id: string): AgentDefinition | undefined {
-  const normalized = id === "overthinker" ? "operator" : id === "receipts" ? "researcher" : id;
+  const normalized = id === "overthinker" ? "operator" : id === "researcher" ? "researcher" : id;
   return ALL_AGENTS.find((agent) => agent.id === normalized);
 }
 

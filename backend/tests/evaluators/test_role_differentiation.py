@@ -59,6 +59,6 @@ def test_agent_objectives_are_orthogonal():
 
     # Verify distinct keywords per evaluator objective
     assert "deductively" in AGENT_OBJECTIVE["devils_advocate"].lower()
-    assert "empirically" in AGENT_OBJECTIVE["receipts"].lower()
+    assert "empirically" in AGENT_OBJECTIVE["researcher"].lower()
     assert "technical architecture" in AGENT_OBJECTIVE["builder"].lower()
     assert "human adoption inertia" in AGENT_OBJECTIVE["operator"].lower()

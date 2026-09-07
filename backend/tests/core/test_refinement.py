@@ -64,7 +64,7 @@ def test_broken_with_a_sourced_contradiction_stands():
 
     findings = [
         _finding("devils_advocate", contradiction="Reasoning only"),
-        _finding("receipts", evidence=True, contradiction="The published rule forbids it"),
+        _finding("researcher", evidence=True, contradiction="The published rule forbids it"),
     ]
     status, reasoning = apply_evidence_gate(ClaimStatus.BROKEN, "Refuted by the rule.", findings)
 
@@ -77,7 +77,7 @@ def test_evidence_without_a_contradiction_cannot_break():
     from core.loop import apply_evidence_gate
 
     status, _ = apply_evidence_gate(
-        ClaimStatus.BROKEN, "Refuted.", [_finding("receipts", evidence=True)]
+        ClaimStatus.BROKEN, "Refuted.", [_finding("researcher", evidence=True)]
     )
     assert status is ClaimStatus.WEAKENED
 
@@ -113,7 +113,7 @@ def test_rank_findings_leads_with_the_sourced_contradiction():
 
     unsourced = _finding("operator", contradiction="Procurement freeze", confidence=0.9)
     plain = _finding("builder", confidence=0.95)
-    decisive = _finding("receipts", evidence=True, contradiction="The rule forbids it", confidence=0.4)
+    decisive = _finding("researcher", evidence=True, contradiction="The rule forbids it", confidence=0.4)
 
     ranked = rank_findings([plain, unsourced, decisive])
     assert ranked[0] is decisive
@@ -148,7 +148,7 @@ async def test_failed_evaluator_becomes_a_degraded_finding(monkeypatch, sample_c
     assert len(findings) == len(plan)  # nothing dropped
     degraded = [f for f in findings if f.confidence is None]
     assert degraded, "a failed evaluator must still produce a finding"
-    assert degraded[0].evaluator == "receipts"
+    assert degraded[0].evaluator == "researcher"
     assert degraded[0].result == "System Error / Timeout"
     assert "RuntimeError" in degraded[0].reasoning
     assert degraded[0].evidence == []  # and so it can never break a claim
@@ -336,7 +336,7 @@ async def test_dispatch_takes_only_the_contract_triple(sample_case, monkeypatch)
     async def recording(item, case, provider):
         seen.append((item, case, provider))
         return Finding(
-            claim_id=item.target_claim, test_id=item.id, evaluator="receipts",
+            claim_id=item.target_claim, test_id=item.id, evaluator="researcher",
             result="ok", reasoning="fine", confidence=0.5,
         )
 

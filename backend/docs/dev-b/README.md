@@ -1,6 +1,6 @@
 # Dev B — Handoff Index
 
-Full task spec: [`../03-dev-B-evidence-receipts.md`](../03-dev-B-evidence-receipts.md) (unchanged, still the source of truth for hour-by-hour checklist).
+Full task spec: [`../03-dev-B-evidence-researcher.md`](../03-dev-B-evidence-researcher.md) (unchanged, still the source of truth for hour-by-hour checklist).
 
 No RESEARCH FIRST items — every task in the spec names a concrete algorithm or API call (DuckDuckGo Lite search shape, curation heuristic, Scrapling trigger condition, demo-fixture switch, failure-degradation rule). Send the whole spec to Antigravity as written.
 

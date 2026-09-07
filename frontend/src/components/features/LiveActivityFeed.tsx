@@ -14,12 +14,14 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   isStreaming,
   className = "",
 }) => {
-  const [isExpanded, setIsExpanded] = useState(isStreaming);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setIsExpanded(isStreaming);
+    if (isStreaming) {
+      setIsExpanded(true);
+    }
   }, [isStreaming]);
 
   // Auto-scroll to bottom of container when streaming and autoScroll is active
@@ -57,7 +59,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
     if (t.includes("friction") || t.includes("operator") || t.includes("edge")) {
       return "text-on-surface-variant bg-surface-container-highest border-outline-variant";
     }
-    if (t.includes("steelman") || t.includes("judge") || t.includes("reconcil")) {
+    if (t.includes("steelman") || t.includes("steelman") || t.includes("reconcil")) {
       return "text-primary-container bg-surface-container-highest border-primary-container/40";
     }
     return "text-outline bg-surface-container-high border-outline-variant/60";
@@ -133,7 +135,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
             ref={containerRef}
             onScroll={handleScroll}
             data-testid="activity-feed-container"
-            className="p-space-3 max-h-56 overflow-y-auto space-y-1.5 font-mono text-xs select-text"
+            className="p-space-3 max-h-56 overflow-y-auto space-y-1.5 font-mono text-xs select-text scrollbar-thin scrollbar-thumb-outline scrollbar-track-surface-container"
           >
             {activities.length === 0 ? (
               <div className="py-6 flex flex-col items-center justify-center text-center text-outline gap-1">

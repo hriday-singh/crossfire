@@ -1,6 +1,6 @@
 """
 Owner: Dev B. PDF text extraction and ingestion feeding Case.context.
-See docs/03-dev-B-evidence-receipts.md hour 35+ stretch.
+See docs/03-dev-B-evidence-researcher.md hour 35+ stretch.
 
 Guarantees:
 - Extracts clean text using pypdf for digital text layers (<10ms)

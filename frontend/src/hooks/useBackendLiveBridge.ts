@@ -3,18 +3,18 @@ import { useCase } from '../context/CaseContext';
 
 export const AGENT_HOME_DESKS: Record<string, string> = {
   devils_advocate: 'cubicle_2_desk',
-  receipts: 'cubicle_3_desk',
+  researcher: 'cubicle_3_desk',
   builder: 'cubicle_1_desk',
   operator: 'cubicle_4_desk',
-  judge: 'judge_chair',
+  steelman: 'steelman_chair',
 };
 
 export const COGNITIVE_TAGS: Record<string, string> = {
   devils_advocate: '[Assumption Pre-Mortem]',
-  receipts: '[Citation Audit]',
+  researcher: '[Citation Audit]',
   builder: '[Feasibility Test]',
   operator: '[Friction Test]',
-  judge: '[Steelman]',
+  steelman: '[Steelman]',
 };
 
 export function getCognitiveTag(agentId: string): string {
@@ -25,10 +25,10 @@ export function normalizeEvaluatorId(tagOrName: string | undefined): string {
   if (!tagOrName) return 'devils_advocate';
   const lower = tagOrName.toLowerCase();
   if (lower.includes('devil')) return 'devils_advocate';
-  if (lower.includes('receipt') || lower.includes('research') || lower.includes('evidence')) return 'receipts';
+  if (lower.includes('receipt') || lower.includes('research') || lower.includes('evidence')) return 'researcher';
   if (lower.includes('build') || lower.includes('feasib') || lower.includes('mechanic') || lower.includes('latency')) return 'builder';
   if (lower.includes('operat') || lower.includes('procure') || lower.includes('friction') || lower.includes('overthink')) return 'operator';
-  if (lower.includes('judge') || lower.includes('arbit') || lower.includes('steel') || lower.includes('magistrate')) return 'judge';
+  if (lower.includes('steelman') || lower.includes('arbit') || lower.includes('steel') || lower.includes('magistrate')) return 'steelman';
   return 'devils_advocate';
 }
 
@@ -79,7 +79,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
           const cognitiveTag = getCognitiveTag(agentId);
 
           let initialThought = `Testing implicit premises in "${claimStatement}"`;
-          if (agentId === 'receipts') {
+          if (agentId === 'researcher') {
             initialThought = `Searching market citations for "${claimStatement}"`;
           } else if (agentId === 'builder') {
             initialThought = `Auditing Day-1 architecture & blockers for "${claimStatement}"`;
@@ -111,7 +111,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
 
           dispatchPacket({
             speaker_id: agentId,
-            action: agentId === 'judge' ? 'inspect' : 'type',
+            action: agentId === 'steelman' ? 'inspect' : 'type',
             target: desk,
             cognitive_tag: cognitiveTag,
             stage: data.text || 'Processing Investigation Step',
@@ -120,21 +120,21 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             dialogue: null,
           });
         } else if (event === 'load_bearing_ready') {
-          // 3. load_bearing_ready: Judge assesses whether claim is load-bearing
+          // 3. load_bearing_ready: Steelman assesses whether claim is load-bearing
           const stageText = data.load_bearing
             ? 'Identified Load-Bearing Claim'
             : 'Peripheral Assumption Evaluated';
           dispatchPacket({
-            speaker_id: 'judge',
+            speaker_id: 'steelman',
             action: 'inspect',
-            target: 'judge_chair',
+            target: 'steelman_chair',
             cognitive_tag: '[Steelman]',
             stage: stageText,
             thought: data.reason || (data.load_bearing ? 'Critical core assumption under test' : 'Peripheral assumption'),
             dialogue: data.reason || null,
           });
         } else if (event === 'finding_ready') {
-          // 4. finding_ready: Evaluator completes LLM evaluation and walks to judge table
+          // 4. finding_ready: Evaluator completes LLM evaluation and walks to steelman table
           const finding: any = data.finding || data;
           const agentId = normalizeEvaluatorId(String(finding.evaluator || data.evaluator || ''));
           const desk = AGENT_HOME_DESKS[agentId] || 'cubicle_1_desk';
@@ -150,11 +150,11 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
           const dialogueText = finding.result || finding.contradiction || 'Empirical evidence audit complete.';
           const confidencePercent = Math.round(confidenceVal * 100);
 
-          // Step 1: Walk to Judge approach
+          // Step 1: Walk to Steelman approach
           dispatchPacket({
             speaker_id: agentId,
             action: 'walk_to',
-            target: 'judge_approach',
+            target: 'steelman_approach',
             stage: 'Approaching Magistrate',
             thought: `Delivering finding: ${verdictStatus.toUpperCase()} (${confidencePercent}% objection)`,
             dialogue: null,
@@ -165,7 +165,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             dispatchPacket({
               speaker_id: agentId,
               action: 'inspect',
-              target: 'judge_approach',
+              target: 'steelman_approach',
               gesture: 'point',
               stage: 'Delivering Evidence Finding',
               verdict: verdictStatus,
@@ -176,11 +176,11 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
               evidence: finding.evidence || [],
             });
 
-            // Judge reviews finding
+            // Steelman reviews finding
             dispatchPacket({
-              speaker_id: 'judge',
+              speaker_id: 'steelman',
               action: 'inspect',
-              target: 'judge_chair',
+              target: 'steelman_chair',
               stage: `Reviewing Finding from ${agentId}`,
               thought: `Reviewing ${agentId} objection: ${verdictStatus.toUpperCase()} (${confidencePercent}%)`,
             });
@@ -209,16 +209,16 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             }, 700);
           }, 400);
         } else if (event === 'verdict_ready') {
-          // 5. verdict_ready: Judge reconciles findings for a single claim
+          // 5. verdict_ready: Steelman reconciles findings for a single claim
           const status = data.status || 'survived';
           const stageText = `Reconciling ${String(status).toUpperCase()}`;
           const dialogueText =
             data.verdict_reasoning || data.fatal_flaw || data.salvaged_claim || 'Claim reconciled.';
 
           dispatchPacket({
-            speaker_id: 'judge',
+            speaker_id: 'steelman',
             action: 'inspect',
-            target: 'judge_chair',
+            target: 'steelman_chair',
             cognitive_tag: '[Steel Man Reconciliation]',
             stage: stageText,
             verdict: status,
@@ -232,19 +232,19 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
           const decisionState = verdict.decision_state || 'proceed';
 
           dispatchPacket({
-            speaker_id: 'judge',
+            speaker_id: 'steelman',
             action: 'inspect',
-            target: 'judge_chair',
+            target: 'steelman_chair',
             gesture: 'point',
             stage: `Adjudicating Decision Memo: ${String(decisionState).toUpperCase()}`,
             verdict: decisionState,
             dialogue: verdict.summary || verdict.headline || 'Verdict delivered.',
           });
 
-          // After Judge delivers verdict, Judge walks to right chamber door to proceed to Decision Memo
+          // After Steelman delivers verdict, Steelman walks to right chamber door to proceed to Decision Memo
           setTimeout(() => {
             dispatchPacket({
-              speaker_id: 'judge',
+              speaker_id: 'steelman',
               action: 'walk_to',
               target: 'right_door',
               stage: 'Exiting Bullpen to Decision Memo',
@@ -254,7 +254,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
         } else if (event === 'run_complete') {
           // 7. run_complete: All evaluators return to seated workstations in standby
           Object.entries(AGENT_HOME_DESKS).forEach(([agentId, desk]) => {
-            if (agentId !== 'judge') {
+            if (agentId !== 'steelman') {
               dispatchPacket({
                 speaker_id: agentId,
                 action: 'sit',
@@ -324,7 +324,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
           dispatchPacket({
             speaker_id: agentId,
             action: 'walk_to',
-            target: 'judge_approach',
+            target: 'steelman_approach',
             stage: `Replay Finding #${idx + 1}`,
             thought: `Delivering finding: ${verdictStatus.toUpperCase()} (${confidencePercent}% objection)`,
             dialogue: null,
@@ -335,7 +335,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
             dispatchPacket({
               speaker_id: agentId,
               action: 'inspect',
-              target: 'judge_approach',
+              target: 'steelman_approach',
               gesture: 'point',
               stage: 'Reporting Finding',
               verdict: verdictStatus,
@@ -346,11 +346,11 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
               evidence: finding.evidence || [],
             });
 
-            // Judge reviews
+            // Steelman reviews
             dispatchPacket({
-              speaker_id: 'judge',
+              speaker_id: 'steelman',
               action: 'inspect',
-              target: 'judge_chair',
+              target: 'steelman_chair',
               stage: `Reviewing Finding #${idx + 1} from ${agentId}`,
               thought: `Reviewing ${agentId} objection: ${verdictStatus.toUpperCase()} (${confidencePercent}%)`,
             });
@@ -383,13 +383,13 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
       totalOffset += 1600;
     });
 
-    // After all findings, Judge summarizes and walks to right door
+    // After all findings, Steelman summarizes and walks to right door
     if (verdict) {
       setTimeout(() => {
         dispatchPacket({
-          speaker_id: 'judge',
+          speaker_id: 'steelman',
           action: 'inspect',
-          target: 'judge_chair',
+          target: 'steelman_chair',
           stage: `Adjudicating Decision Memo: ${String(verdict.decision_state || 'proceed').toUpperCase()}`,
           verdict: verdict.decision_state || 'drop',
           dialogue: verdict.summary || verdict.headline || 'All findings reconciled.',
@@ -397,7 +397,7 @@ export function useBackendLiveBridge({ onDispatchPacket }: UseBackendLiveBridgeP
 
         setTimeout(() => {
           dispatchPacket({
-            speaker_id: 'judge',
+            speaker_id: 'steelman',
             action: 'walk_to',
             target: 'right_door',
             stage: 'Exiting Bullpen to Decision Memo',

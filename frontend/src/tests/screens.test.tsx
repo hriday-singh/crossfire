@@ -822,11 +822,7 @@ describe("Screen Components", () => {
 
       render(<DashboardScreen />);
 
-      // Switch to Full Audit Trail tab to access claims table and sorting
-      const auditTabBtn = screen.getByRole("button", { name: /Full Audit Trail/i });
-      fireEvent.click(auditTabBtn);
-
-      // Expand all claims if collapsed
+      // The claims list is now rendered sequentially, no need to switch tabs      // Expand all claims if collapsed
       const expandClaimsBtn = screen.queryByRole("button", {
         name: /all 3 claims/i,
       });

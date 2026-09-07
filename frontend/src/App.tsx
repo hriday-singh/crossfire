@@ -11,6 +11,7 @@ import { LiveLogsDrawer } from "@/components/features/LiveLogsDrawer";
 import { HistoryModal } from "@/components/features/HistoryModal";
 import { FaqDrawer } from "@/components/features/FaqDrawer";
 import { SettingsModal } from "@/components/features/SettingsModal";
+import { ProvidersModal } from "@/components/features/ProvidersModal";
 import { DebugViewsToolbar } from "@/components/features/DebugViewsToolbar";
 import SpaceStarfield from "@/components/canvas/SpaceStarfield";
 const DiscussionApp = React.lazy(() => import("./components/DiscussionApp"));
@@ -76,6 +77,29 @@ export const AppContent: React.FC = () => {
 
       {/* System Settings Modal */}
       <SettingsModal />
+      {/* Provider & Model Management */}
+      <ProvidersModal />
+
+      {/* Floating Quick Access to Page 3 Live View (when on entry or confirm screen) */}
+      {state.activeScreen !== "runner" && state.activeScreen !== "dashboard" && (
+        <div className="fixed bottom-4 right-4 z-40">
+          <button
+            type="button"
+            onClick={() => {
+              if (!state.currentCase) {
+                dispatch({ type: "SET_PREVIEW_VIEW", payload: "runner" });
+              } else {
+                dispatch({ type: "NAVIGATE_SCREEN", payload: "runner" });
+              }
+            }}
+            className="flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-surface-container-high/95 hover:bg-surface-container border border-primary/50 text-primary hover:text-primary-container shadow-2xl backdrop-blur font-code-sm text-xs font-semibold tracking-wide transition-all cursor-pointer group"
+            title="Switch to Page 3 Live View"
+          >
+            <span className="w-2 h-2 rounded-full bg-verdict-survived animate-pulse" />
+            <span>03 Live View</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

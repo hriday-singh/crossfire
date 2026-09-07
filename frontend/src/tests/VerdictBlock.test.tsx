@@ -33,7 +33,7 @@ const baseCase = (verdict: CaseVerdict | null): Case => ({
     {
       claim_id: "c1",
       test_id: "t1",
-      evaluator: "receipts",
+      evaluator: "researcher",
       result: "Containment tops out at 45-65%.",
       evidence: [
         {
@@ -66,7 +66,7 @@ const verdict: CaseVerdict = {
   summary: "Real tier-1 containment tops out at 45-65%, not the 100% the plan assumes.",
   deciding_factor: {
     claim_id: "c1",
-    evaluator: "receipts",
+    evaluator: "researcher",
     the_fact: "Benchmarks put tier-1 containment at 45-65%, not 100%.",
     source_url: "https://example.com/cx-trends",
     source_title: "Zendesk CX Trends 2024",

@@ -1,6 +1,6 @@
 """
 Owner: Dev B. Tests for ingestion/pdf.py text extraction, scanned rejection,
-and context curation. See docs/03-dev-B-evidence-receipts.md hour 35+ stretch.
+and context curation. See docs/03-dev-B-evidence-researcher.md hour 35+ stretch.
 """
 from __future__ import annotations
 

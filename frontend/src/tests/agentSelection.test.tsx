@@ -15,7 +15,7 @@ describe("AgentSelectorPanel Component", () => {
       <AgentSelectorPanel
         agentMode="auto"
         onAgentModeChange={vi.fn()}
-        selectedAgents={["devils_advocate", "receipts", "builder", "operator"]}
+        selectedAgents={["devils_advocate", "researcher", "builder", "operator"]}
         onToggleAgent={vi.fn()}
         isExpanded={false}
         onToggleExpand={vi.fn()}
@@ -35,7 +35,7 @@ describe("AgentSelectorPanel Component", () => {
       <AgentSelectorPanel
         agentMode="auto"
         onAgentModeChange={vi.fn()}
-        selectedAgents={["devils_advocate", "receipts", "builder", "operator"]}
+        selectedAgents={["devils_advocate", "researcher", "builder", "operator"]}
         onToggleAgent={vi.fn()}
         isExpanded={false}
         onToggleExpand={handleExpand}
@@ -54,7 +54,7 @@ describe("AgentSelectorPanel Component", () => {
       <AgentSelectorPanel
         agentMode="auto"
         onAgentModeChange={handleModeChange}
-        selectedAgents={["devils_advocate", "receipts", "builder", "operator"]}
+        selectedAgents={["devils_advocate", "researcher", "builder", "operator"]}
         onToggleAgent={handleToggle}
         isExpanded={true}
         onToggleExpand={vi.fn()}
@@ -96,7 +96,7 @@ describe("AgentSelectorPanel Component", () => {
       <AgentSelectorPanel
         agentMode="custom"
         onAgentModeChange={handleModeChange}
-        selectedAgents={["devils_advocate", "receipts"]}
+        selectedAgents={["devils_advocate", "researcher"]}
         onToggleAgent={handleToggle}
         isExpanded={true}
         onToggleExpand={vi.fn()}
