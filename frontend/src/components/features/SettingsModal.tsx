@@ -5,7 +5,7 @@ import { GEMINI_WEB_MODELS, formatModelName, formatProviderName } from "@/lib/mo
 import { SerpApiIcon } from "@/components/ui/serpapi";
 
 export const SettingsModal: React.FC = () => {
-  const { state, dispatch, setActiveModal, resetCase, selectModel, setDebugMode, enterPreview } = useCase();
+  const { state, dispatch, setActiveModal, selectModel, setDebugMode, enterPreview } = useCase();
   const isOpen = state.activeModal === "settings";
   const [clearedNotice, setClearedNotice] = useState<string | null>(null);
   const [selectedNotice, setSelectedNotice] = useState<string | null>(null);
@@ -21,11 +21,6 @@ export const SettingsModal: React.FC = () => {
       setClearedNotice("History cleared successfully.");
       setTimeout(() => setClearedNotice(null), 3000);
     }
-  };
-
-  const handleResetCurrent = () => {
-    resetCase();
-    setActiveModal("none");
   };
 
   return (
@@ -250,24 +245,6 @@ export const SettingsModal: React.FC = () => {
                   className="font-code-sm text-code-sm px-space-3 py-1.5 rounded border border-error/40 text-error hover:bg-error/10 transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   Clear History
-                </button>
-              </div>
-
-              <div className="border-t border-outline-variant/40 pt-space-3 flex items-center justify-between">
-                <div>
-                  <p className="font-body-sm text-body-sm text-on-surface font-medium">
-                    Reset Current Canvas
-                  </p>
-                  <p className="font-code-sm text-code-sm text-outline">
-                    Clears the active decision proposal canvas
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleResetCurrent}
-                  className="font-code-sm text-code-sm px-space-3 py-1.5 rounded bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors cursor-pointer"
-                >
-                  Reset Canvas
                 </button>
               </div>
             </div>
