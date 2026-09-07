@@ -157,6 +157,12 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
       md += `> ${consequence.recommended_change}\n`;
     }
 
+    // Next validation experiment
+    if (consequence?.next_validation) {
+      md += `\n**Next Validation Experiment (Smallest Real-World Test):**  \n`;
+      md += `> **Next validation:** ${consequence.next_validation}\n`;
+    }
+
     // Steel Man Re-Architecture (Break to Rebuild)
     const fatalFlaw = claim.fatal_flaw || consequence?.fatal_flaw;
     const salvagedClaim = claim.salvaged_claim || consequence?.salvaged_claim;

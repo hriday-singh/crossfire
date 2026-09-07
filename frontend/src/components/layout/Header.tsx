@@ -16,7 +16,7 @@ export const Header: React.FC = () => {
     } else if (path === "live-runner-verdicts") {
       if (!state.currentCase) return;
       selectClaim(null);
-      navigateScreen("dashboard");
+      navigateScreen("runner");
     }
   };
 
@@ -32,7 +32,7 @@ export const Header: React.FC = () => {
     ? "01 Ingestion"
     : isClaimMapActive
     ? "02 Claim Map"
-    : "03 Verdicts";
+    : "03 Live View";
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
@@ -110,21 +110,22 @@ export const Header: React.FC = () => {
             02 Claim Map
           </button>
 
-          {hasActiveCase && (state.currentCase?.status === "testing" || state.currentCase?.status === "done") && (
-            <button
-              type="button"
-              onClick={() => handleNav("live-runner-verdicts")}
-              data-path="live-runner-verdicts"
-              aria-current={isLiveRunnerActive ? "page" : undefined}
-              className={`transition-colors flex items-center h-full ${
-                isLiveRunnerActive
-                  ? "text-on-surface border-b-2 border-primary-container font-medium cursor-pointer"
-                  : "text-on-surface-variant hover:text-on-surface cursor-pointer"
-              }`}
-            >
-              03 Live Runner &amp; Verdicts
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleNav("live-runner-verdicts")}
+            data-path="live-runner-verdicts"
+            disabled={!hasActiveCase}
+            aria-current={isLiveRunnerActive ? "page" : undefined}
+            className={`transition-colors flex items-center h-full ${
+              !hasActiveCase
+                ? "text-outline/40 cursor-not-allowed opacity-50"
+                : isLiveRunnerActive
+                ? "text-on-surface border-b-2 border-primary-container font-medium cursor-pointer"
+                : "text-on-surface-variant hover:text-on-surface cursor-pointer"
+            }`}
+          >
+            03 Live Runner (Live View)
+          </button>
         </nav>
 
         {/* Right Tools */}

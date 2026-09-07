@@ -10,12 +10,11 @@ import {
   VolumeX,
   Gauge,
   Sliders,
-  Sparkles,
   Wifi,
   WifiOff,
   ChevronDown,
   ChevronUp,
-  Send,
+  Sparkles,
   Activity,
   Mic,
   MicOff,
@@ -81,29 +80,6 @@ export function SideControlPanel({
   socketUrl,
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showDispatcher, setShowDispatcher] = useState(false);
-
-  // Manual Packet Dispatcher Form
-  const [manualSpeaker, setManualSpeaker] = useState('devils_advocate');
-  const [manualAction, setManualAction] = useState('type');
-  const [manualTarget, setManualTarget] = useState('cubicle_1_desk');
-  const [manualGesture, setManualGesture] = useState('idle');
-  const [manualVerdict, setManualVerdict] = useState('');
-  const [manualDialogue, setManualDialogue] = useState('Premise 2 contains an unstated regulatory assumption.');
-
-  const handleSendManual = (e) => {
-    e?.preventDefault();
-    if (!triggerManualEvent) return;
-    triggerManualEvent({
-      speaker_id: manualSpeaker,
-      action: manualAction,
-      target: manualTarget || null,
-      gesture: manualGesture || null,
-      verdict: manualVerdict || null,
-      dialogue: manualDialogue.trim() || null,
-      audio_url: null,
-    });
-  };
 
   const inspectedAgent = hoveredAgentId ? AGENT_MAP[hoveredAgentId] : null;
   const activeAgent = inspectedAgent || (lastEvent?.speaker_id ? AGENT_MAP[lastEvent.speaker_id] : null);
@@ -209,27 +185,15 @@ export function SideControlPanel({
             <button
               type="button"
               onClick={() => setIsMuted(!isMuted)}
-              className="text-[10px] font-mono text-outline hover:text-on-surface flex items-center gap-1 cursor-pointer"
+              className={`px-2 py-1 rounded text-xs font-mono font-semibold flex items-center gap-1.5 cursor-pointer border transition-colors ${
+                isMuted
+                  ? 'bg-surface-container-high text-error border-error/30'
+                  : 'bg-primary-container/20 text-verdict-survived border-verdict-survived/40'
+              }`}
             >
               {isMuted ? <VolumeX className="w-3.5 h-3.5 text-error" /> : <Volume2 className="w-3.5 h-3.5 text-verdict-survived" />}
-              <span>{isMuted ? 'Muted' : 'Unmuted'}</span>
+              <span>{isMuted ? 'AUDIO OFF' : 'AUDIO ON'}</span>
             </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              disabled={isMuted}
-              className="w-full accent-primary-container h-1.5 bg-surface-container-highest rounded-lg cursor-pointer disabled:opacity-40"
-            />
-            <span className="text-[11px] font-mono text-outline w-8 text-right">
-              {Math.round(volume * 100)}%
-            </span>
           </div>
 
           {/* Voice Readout (TTS) Option Toggle */}
@@ -241,8 +205,7 @@ export function SideControlPanel({
                 <MicOff className="w-3.5 h-3.5 text-outline" />
               )}
               <div>
-                <span className="text-xs font-sans text-on-surface block">Judge Voice (TTS)</span>
-                <span className="text-[9px] text-outline font-mono block">Arbiter only; AI evaluators silent</span>
+                <span className="text-xs font-sans text-on-surface block">Judge Voice</span>
               </div>
             </div>
             <button
@@ -258,29 +221,6 @@ export function SideControlPanel({
               {speechSynthesisEnabled ? 'ENABLED' : 'MUTED'}
             </button>
           </div>
-        </div>
-
-        {/* 4. Evaluation Scenario Switcher */}
-        <div className="space-y-1.5 pt-1 border-t border-outline-variant/50">
-          <label className="text-[11px] font-mono uppercase tracking-wider text-outline">
-            Evaluation Scenario
-          </label>
-          <select
-            value={currentScenarioKey}
-            onChange={(e) => setCurrentScenarioKey(e.target.value)}
-            className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-lg p-2 text-xs font-sans text-on-surface cursor-pointer focus:border-primary-container outline-hidden"
-          >
-            {Object.keys(scenarios).map((key) => (
-              <option key={key} value={key} className="bg-surface-container">
-                {scenarios[key].name}
-              </option>
-            ))}
-          </select>
-          {scenarios[currentScenarioKey]?.description && (
-            <p className="text-[11px] text-on-surface-variant leading-relaxed">
-              {scenarios[currentScenarioKey].description}
-            </p>
-          )}
         </div>
       </div>
 
@@ -374,7 +314,7 @@ export function SideControlPanel({
         )}
       </div>
 
-      {/* Quick Agent Presets & Dispatcher Collapsible */}
+      {/* Quick Agent Presets Collapsible */}
       <div className="bg-surface-container/95 backdrop-blur-md border border-outline-variant/70 rounded-xl p-4 shadow-xl flex flex-col gap-3">
         <button
           type="button"
@@ -382,7 +322,7 @@ export function SideControlPanel({
           className="flex items-center justify-between text-xs font-semibold text-on-surface hover:text-primary-container transition-colors cursor-pointer w-full"
         >
           <span className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-tertiary" />
+            <Sparkles className="w-3.5 h-3.5 text-primary-container" />
             <span>Quick Evaluator Actions</span>
           </span>
           {showAdvanced ? (
@@ -397,10 +337,10 @@ export function SideControlPanel({
             <button
               type="button"
               onClick={() =>
-                triggerManualEvent({
+                triggerManualEvent?.({
                   speaker_id: 'devils_advocate',
                   action: 'stand',
-                  target: 'cubicle_1_stand',
+                  target: 'cubicle_2_stand',
                   gesture: 'point',
                   dialogue: 'Inspecting assumption matrix on pinboard: unstated enterprise dependency found.',
                   verdict: 'weakened',
@@ -415,10 +355,10 @@ export function SideControlPanel({
             <button
               type="button"
               onClick={() =>
-                triggerManualEvent({
+                triggerManualEvent?.({
                   speaker_id: 'receipts',
                   action: 'type',
-                  target: 'cubicle_2_desk',
+                  target: 'cubicle_3_desk',
                   gesture: 'idle',
                   dialogue: 'Querying live market receipts and web citations on enterprise pilot churn.',
                   verdict: 'survived',
@@ -433,10 +373,10 @@ export function SideControlPanel({
             <button
               type="button"
               onClick={() =>
-                triggerManualEvent({
+                triggerManualEvent?.({
                   speaker_id: 'builder',
                   action: 'inspect',
-                  target: 'cubicle_3_desk',
+                  target: 'cubicle_1_desk',
                   gesture: 'idle',
                   dialogue: 'Benchmarking P99 GPU barrier overhead: within certified 4ms threshold.',
                   verdict: 'survived',
@@ -451,7 +391,7 @@ export function SideControlPanel({
             <button
               type="button"
               onClick={() =>
-                triggerManualEvent({
+                triggerManualEvent?.({
                   speaker_id: 'operator',
                   action: 'stand',
                   target: 'cubicle_4_stand',
@@ -469,7 +409,7 @@ export function SideControlPanel({
             <button
               type="button"
               onClick={() =>
-                triggerManualEvent({
+                triggerManualEvent?.({
                   speaker_id: 'judge',
                   action: 'inspect',
                   target: 'judge_desk',
@@ -483,98 +423,6 @@ export function SideControlPanel({
               <span>Crucible Arbiter → Synthesize</span>
               <span className="text-[10px] font-mono text-primary-container">Verdict</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => setShowDispatcher(!showDispatcher)}
-              className="w-full text-center py-1.5 text-[11px] font-mono text-outline hover:text-on-surface transition-colors"
-            >
-              {showDispatcher ? 'Hide Packet Dispatcher ▲' : 'Open Custom Packet Dispatcher ▼'}
-            </button>
-
-            {showDispatcher && (
-              <form onSubmit={handleSendManual} className="space-y-2 pt-2 border-t border-outline-variant/50">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-mono text-outline block mb-0.5">Evaluator</label>
-                    <select
-                      value={manualSpeaker}
-                      onChange={(e) => setManualSpeaker(e.target.value)}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-lg p-1.5 text-[11px] text-on-surface"
-                    >
-                      {AGENT_CONFIGS.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                      ))}
-                      <option value="judge">{JUDGE_CONFIG.name}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-mono text-outline block mb-0.5">Action</label>
-                    <select
-                      value={manualAction}
-                      onChange={(e) => setManualAction(e.target.value)}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-lg p-1.5 text-[11px] text-on-surface"
-                    >
-                      <option value="type">type (Keyboard)</option>
-                      <option value="inspect">inspect (Screen)</option>
-                      <option value="think">think (Analyze)</option>
-                      <option value="stand">stand (Stand Up)</option>
-                      <option value="sit">sit (Sit Down)</option>
-                      <option value="walk_to">walk_to</option>
-                      <option value="idle">idle</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-mono text-outline block mb-0.5">Station Target</label>
-                    <select
-                      value={manualTarget}
-                      onChange={(e) => setManualTarget(e.target.value)}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-lg p-1.5 text-[11px] text-on-surface"
-                    >
-                      {Object.keys(WAYPOINTS).map((wp) => (
-                        <option key={wp} value={wp}>{wp}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-mono text-outline block mb-0.5">Verdict Tag</label>
-                    <select
-                      value={manualVerdict}
-                      onChange={(e) => setManualVerdict(e.target.value)}
-                      className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-lg p-1.5 text-[11px] text-on-surface"
-                    >
-                      <option value="">None</option>
-                      <option value="survived">survived</option>
-                      <option value="weakened">weakened</option>
-                      <option value="broken">broken</option>
-                      <option value="unresolved">unresolved</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-mono text-outline block mb-0.5">Finding Note</label>
-                  <input
-                    type="text"
-                    value={manualDialogue}
-                    onChange={(e) => setManualDialogue(e.target.value)}
-                    placeholder="Enter evaluator finding..."
-                    className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-lg p-1.5 text-[11px] text-on-surface focus:border-primary-container outline-hidden"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-1.5 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Dispatch Evaluator Telemetry</span>
-                </button>
-              </form>
-            )}
           </div>
         )}
       </div>

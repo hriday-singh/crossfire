@@ -6,6 +6,7 @@ import { AGENT_CONFIGS, AGENT_MAP, JUDGE_CONFIG } from '../constants/agentConfig
 import { WAYPOINTS } from '../constants/roomLayout';
 import useSocketSimulation from '../hooks/useSocketSimulation';
 import useAudioPlayback from '../hooks/useAudioPlayback';
+import { useOptionalCase } from '../context/CaseContext';
 import {
   ShieldCheck,
   Terminal,
@@ -20,6 +21,9 @@ import {
  * Agents work at their dedicated cubicles independently without cross-talk.
  */
 export function DiscussionApp() {
+  const caseContext = useOptionalCase?.();
+  const currentCase = caseContext?.state?.currentCase;
+
   // Real-time character position tracker for UI overlays
   const [characterPositions, setCharacterPositions] = useState(() => {
     return AGENT_CONFIGS.reduce((acc, a) => {
@@ -117,82 +121,30 @@ export function DiscussionApp() {
   });
 
   return (
-    <div className="min-h-screen bg-surface-container-lowest text-on-surface flex flex-col font-sans selection:bg-primary-container/30">
-      {/* Top Application Navigation Bar - Crossfire Theme */}
-      <header className="border-b border-outline-variant/60 bg-surface-container-low/80 backdrop-blur-md sticky top-0 z-40 px-4 py-2.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-surface-container-highest border border-outline-variant flex items-center justify-center shadow-md">
-              <Terminal className="w-4 h-4 text-primary-container" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-on-surface tracking-tight">
-                  Crossfire Adversarial Bullpen
-                </h1>
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-surface-container-highest border border-outline-variant/60 text-primary-container font-semibold">
-                  Independent Evaluator Workstations
-                </span>
-              </div>
-              <p className="text-[11px] text-outline font-mono">
-                Judge Table & 4 Isolated Cubicle Workstations // 2.5D Real-Time Telemetry
-              </p>
-            </div>
-          </div>
-
-          {/* Crossfire Evaluator Badges in Header */}
-          <div className="hidden lg:flex items-center gap-2">
-            {AGENT_CONFIGS.map((agent) => {
-              const isActingNow = activeSpeakerId === agent.id;
-              return (
-                <div
-                  key={agent.id}
-                  className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border transition-all duration-200 ${
-                    isActingNow
-                      ? 'bg-surface-container border-primary-container shadow-md shadow-primary-container/10 scale-105'
-                      : 'bg-surface-container-low border-outline-variant/50 text-outline'
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${isActingNow ? 'animate-ping' : ''}`}
-                    style={{ backgroundColor: agent.color }}
-                  />
-                  <div className="text-[11px] leading-tight">
-                    <span className="font-semibold text-on-surface block truncate">{agent.name}</span>
-                    <span className="text-[9px] text-outline font-mono">
-                      {isActingNow ? 'Testing' : (agent.cubicle?.split(' ')[0] || 'Active')}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Judge Arbiter Badge */}
-            <div
-              className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border transition-all duration-200 ${
-                activeSpeakerId === 'judge'
-                  ? 'bg-surface-container border-primary-container shadow-md shadow-primary-container/10 scale-105'
-                  : 'bg-surface-container-low border-outline-variant/50 text-outline'
-              }`}
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${activeSpeakerId === 'judge' ? 'animate-ping bg-primary-container' : 'bg-outline'}`}
-              />
-              <div className="text-[11px] leading-tight">
-                <span className="font-semibold text-on-surface block">Judge</span>
-                <span className="text-[9px] text-outline font-mono">
-                  {activeSpeakerId === 'judge' ? 'Verdict' : 'Bench'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div className="w-full min-h-[calc(100vh-3.5rem)] bg-surface-container-lowest text-on-surface flex flex-col font-sans selection:bg-primary-container/30">
       {/* Main Content Area: Simulation Stage + Side Control Panel */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row items-start gap-6">
+      <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row items-start gap-6">
         {/* Simulation Canvas Stage with In-World Finding / Telemetry Card */}
         <section className="relative flex-1 w-full min-w-0">
+          {currentCase?.raw_input && (
+            <div className="mb-3 px-3.5 py-2 rounded-lg bg-surface-container-high border border-outline-variant/60 flex items-center justify-between text-xs font-code-sm shadow-sm">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <span className="text-outline uppercase tracking-wider font-semibold text-[10px] shrink-0">
+                  Decision Under Test:
+                </span>
+                <span className="text-on-surface font-medium truncate">
+                  {currentCase.raw_input}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-verdict-survived animate-pulse" />
+                <span className="text-primary-container font-mono text-[11px] font-medium">
+                  Live 2.5D Bullpen
+                </span>
+              </div>
+            </div>
+          )}
+
           <StageContainer
             agents={AGENT_CONFIGS}
             currentActionPacket={lastEvent}
@@ -240,7 +192,7 @@ export function DiscussionApp() {
           socketUrl={socketUrl}
           setSocketUrl={setSocketUrl}
         />
-      </main>
+      </div>
     </div>
   );
 }

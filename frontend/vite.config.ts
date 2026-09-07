@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "react-reconciler/constants": path.resolve(__dirname, "./node_modules/react-reconciler/constants.js"),
     },
   },
   server: {
@@ -55,11 +56,15 @@ export default defineConfig({
       },
     },
   },
-  // @ts-expect-error vitest config in vite config
   test: {
     globals: true,
     environment: "jsdom",
     setupFiles: "./src/tests/setup.ts",
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    server: {
+      deps: {
+        inline: ["@pixi/react"],
+      },
+    },
   },
 });

@@ -18,7 +18,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'devils_advocate',
       action: 'type',
-      target: 'cubicle_1_desk',
+      target: 'cubicle_2_desk',
       gesture: 'idle',
       stage: 'Auditing Assumptions',
       verdict: null,
@@ -48,7 +48,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'devils_advocate',
       action: 'walk_to',
-      target: 'cubicle_1_desk',
+      target: 'cubicle_2_desk',
       gesture: 'idle',
       stage: 'Returning to Workstation',
       verdict: null,
@@ -58,7 +58,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'devils_advocate',
       action: 'sit',
-      target: 'cubicle_1_desk',
+      target: 'cubicle_2_desk',
       gesture: 'idle',
       stage: 'Auditing Assumptions',
       verdict: null,
@@ -70,7 +70,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'receipts',
       action: 'type',
-      target: 'cubicle_2_desk',
+      target: 'cubicle_3_desk',
       gesture: 'idle',
       stage: 'Verifying Citations',
       verdict: null,
@@ -100,7 +100,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'receipts',
       action: 'walk_to',
-      target: 'cubicle_2_desk',
+      target: 'cubicle_3_desk',
       gesture: 'idle',
       stage: 'Returning to Workstation',
       verdict: null,
@@ -110,7 +110,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'receipts',
       action: 'sit',
-      target: 'cubicle_2_desk',
+      target: 'cubicle_3_desk',
       gesture: 'idle',
       stage: 'Verifying Citations',
       verdict: null,
@@ -122,7 +122,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'builder',
       action: 'type',
-      target: 'cubicle_3_desk',
+      target: 'cubicle_1_desk',
       gesture: 'idle',
       stage: 'Testing Feasibility',
       verdict: null,
@@ -152,7 +152,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'builder',
       action: 'walk_to',
-      target: 'cubicle_3_desk',
+      target: 'cubicle_1_desk',
       gesture: 'idle',
       stage: 'Returning to Workstation',
       verdict: null,
@@ -162,7 +162,7 @@ const B2B_COPILOT_SCENARIO = {
     {
       speaker_id: 'builder',
       action: 'sit',
-      target: 'cubicle_3_desk',
+      target: 'cubicle_1_desk',
       gesture: 'idle',
       stage: 'Testing Feasibility',
       verdict: null,
@@ -233,6 +233,16 @@ const B2B_COPILOT_SCENARIO = {
       dialogue: 'Crucible Magistrate Verdict: Decision is WEAKENED. 1 claim survived, 2 weakened, 1 broken.',
       audio_url: null,
     },
+    {
+      speaker_id: 'judge',
+      action: 'sit',
+      target: 'judge_chair',
+      gesture: 'idle',
+      stage: 'Crucible Synthesis',
+      verdict: null,
+      dialogue: null,
+      audio_url: null,
+    },
   ],
 };
 
@@ -264,7 +274,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
     {
       speaker_id: 'builder',
       action: 'walk_to',
-      target: 'cubicle_3_desk',
+      target: 'cubicle_1_desk',
       gesture: 'idle',
       stage: 'Returning to Workstation',
       verdict: null,
@@ -274,7 +284,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
     {
       speaker_id: 'builder',
       action: 'sit',
-      target: 'cubicle_3_desk',
+      target: 'cubicle_1_desk',
       gesture: 'idle',
       stage: 'Testing Feasibility',
       verdict: null,
@@ -306,7 +316,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
     {
       speaker_id: 'devils_advocate',
       action: 'walk_to',
-      target: 'cubicle_1_desk',
+      target: 'cubicle_2_desk',
       gesture: 'idle',
       stage: 'Returning to Workstation',
       verdict: null,
@@ -316,7 +326,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
     {
       speaker_id: 'devils_advocate',
       action: 'sit',
-      target: 'cubicle_1_desk',
+      target: 'cubicle_2_desk',
       gesture: 'idle',
       stage: 'Auditing Assumptions',
       verdict: null,
@@ -348,7 +358,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
     {
       speaker_id: 'receipts',
       action: 'walk_to',
-      target: 'cubicle_2_desk',
+      target: 'cubicle_3_desk',
       gesture: 'idle',
       stage: 'Returning to Workstation',
       verdict: null,
@@ -358,7 +368,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
     {
       speaker_id: 'receipts',
       action: 'sit',
-      target: 'cubicle_2_desk',
+      target: 'cubicle_3_desk',
       gesture: 'idle',
       stage: 'Verifying Citations',
       verdict: null,
@@ -417,6 +427,16 @@ const INFERENCE_PIPELINE_SCENARIO = {
       stage: 'Crucible Synthesis',
       verdict: 'survived',
       dialogue: 'Crucible Magistrate Verdict: Pipeline Feasibility SURVIVED. 3 claims survived, 1 weakened.',
+      audio_url: null,
+    },
+    {
+      speaker_id: 'judge',
+      action: 'sit',
+      target: 'judge_chair',
+      gesture: 'idle',
+      stage: 'Crucible Synthesis',
+      verdict: null,
+      dialogue: null,
       audio_url: null,
     },
   ],
@@ -536,6 +556,23 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
   // Restart scenario
   const resetScenario = useCallback(() => {
     setEventIndex(0);
+    // Return all bots back to their home workstations
+    const homeBots = [
+      { speaker_id: 'builder', target: 'cubicle_1_desk' },
+      { speaker_id: 'devils_advocate', target: 'cubicle_2_desk' },
+      { speaker_id: 'receipts', target: 'cubicle_3_desk' },
+      { speaker_id: 'operator', target: 'cubicle_4_desk' },
+      { speaker_id: 'judge', target: 'judge_chair' },
+    ];
+    homeBots.forEach((b) => {
+      dispatchEvent({
+        speaker_id: b.speaker_id,
+        action: 'sit',
+        target: b.target,
+        gesture: 'idle',
+      });
+    });
+
     const scenario = MOCK_SCENARIOS[currentScenarioKey];
     if (scenario && scenario.events.length > 0) {
       dispatchEvent(scenario.events[0]);

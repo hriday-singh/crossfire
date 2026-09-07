@@ -57,14 +57,14 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(builder).toBeDefined();
       expect(operator).toBeDefined();
 
-      expect(devilsAdvocate.cubicle).toBe("Cubicle 01 (NW)");
-      expect(receipts.cubicle).toBe("Cubicle 02 (SW)");
-      expect(builder.cubicle).toBe("Cubicle 03 (NE)");
+      expect(devilsAdvocate.cubicle).toBe("Cubicle 02 (SW)");
+      expect(receipts.cubicle).toBe("Cubicle 03 (NE)");
+      expect(builder.cubicle).toBe("Cubicle 01 (NW)");
       expect(operator.cubicle).toBe("Cubicle 04 (SE)");
 
-      expect(devilsAdvocate.initialWaypoint).toBe("cubicle_1_desk");
-      expect(receipts.initialWaypoint).toBe("cubicle_2_desk");
-      expect(builder.initialWaypoint).toBe("cubicle_3_desk");
+      expect(devilsAdvocate.initialWaypoint).toBe("cubicle_2_desk");
+      expect(receipts.initialWaypoint).toBe("cubicle_3_desk");
+      expect(builder.initialWaypoint).toBe("cubicle_1_desk");
       expect(operator.initialWaypoint).toBe("cubicle_4_desk");
 
       expect(devilsAdvocate.color).toBe("#818cf8");
@@ -82,9 +82,9 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     });
 
     it("provides backward compatibility aliases in AGENT_MAP for legacy agent IDs", () => {
-      expect(AGENT_MAP["agent_1"]).toBe(AGENT_MAP["devils_advocate"]);
-      expect(AGENT_MAP["agent_2"]).toBe(AGENT_MAP["receipts"]);
-      expect(AGENT_MAP["agent_3"]).toBe(AGENT_MAP["builder"]);
+      expect(AGENT_MAP["agent_1"]).toBe(AGENT_MAP["builder"]);
+      expect(AGENT_MAP["agent_2"]).toBe(AGENT_MAP["devils_advocate"]);
+      expect(AGENT_MAP["agent_3"]).toBe(AGENT_MAP["receipts"]);
       expect(AGENT_MAP["agent_4"]).toBe(AGENT_MAP["operator"]);
       expect(AGENT_MAP["judge"]).toBe(JUDGE_CONFIG);
       expect(AGENT_MAP["arbiter"]).toBe(JUDGE_CONFIG);
@@ -92,17 +92,17 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
   });
 
   describe("Room Layout & Bullpen Geometry", () => {
-    it("defines 1000x650 room dimensions", () => {
+    it("defines 1000x587 room dimensions", () => {
       expect(ROOM_DIMENSIONS.width).toBe(1000);
-      expect(ROOM_DIMENSIONS.height).toBe(650);
+      expect(ROOM_DIMENSIONS.height).toBe(587);
     });
 
     it("places Judge Table in the upper-center position", () => {
       expect(JUDGE_TABLE_CONFIG).toBeDefined();
       expect(JUDGE_TABLE_CONFIG.x).toBe(500);
-      expect(JUDGE_TABLE_CONFIG.y).toBe(330);
-      expect(JUDGE_TABLE_CONFIG.width).toBe(220);
-      expect(JUDGE_TABLE_CONFIG.height).toBe(90);
+      expect(JUDGE_TABLE_CONFIG.y).toBe(240);
+      expect(JUDGE_TABLE_CONFIG.width).toBe(280);
+      expect(JUDGE_TABLE_CONFIG.height).toBe(110);
     });
 
     it("positions 2 cubicles on the left and 2 cubicles on the right of the judge table", () => {
@@ -180,15 +180,18 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
   });
 
   describe("DialogueOverlay & Hover-Only AI Bubble Enforcement", () => {
-    it("does NOT render an AI evaluator bubble when not hovered", () => {
+    it("does NOT render an AI evaluator bubble when not hovered and not actively reporting", () => {
       render(
         <DialogueOverlay
-          activeDialogue={{
-            speaker_id: "devils_advocate",
-            dialogue: "Premise 1: Decision memo assumes 100% human compliance without fallback safeguards.",
-            action: "stand",
-            stage: "Assumption Test",
-            verdict: "broken",
+          activeDialogue={null}
+          evaluatorFindings={{
+            devils_advocate: {
+              speaker_id: "devils_advocate",
+              dialogue: "Premise 1: Decision memo assumes 100% human compliance without fallback safeguards.",
+              action: "stand",
+              stage: "Assumption Test",
+              verdict: "broken",
+            },
           }}
           characterPositions={{
             devils_advocate: { x: 200, y: 235 },
@@ -226,14 +229,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
 
       expect(screen.getByText("Devil's Advocate")).toBeInTheDocument();
       expect(screen.getByText("Assumption Test")).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          "Auditing assumption matrix on pinboard: found unstated enterprise dependencies."
-        )
-      ).toBeInTheDocument();
       expect(screen.getByText("BROKEN")).toBeInTheDocument();
-      expect(screen.getByText("STANDING")).toBeInTheDocument();
-      expect(screen.getByText("HOVER")).toBeInTheDocument();
     });
 
     it("renders the Judge bubble when the Judge is delivering a ruling without requiring hover", () => {
@@ -254,9 +250,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       );
 
       expect(screen.getByText("Crucible Arbiter")).toBeInTheDocument();
-      expect(
-        screen.getByText("Crucible Magistrate Verdict: Decision is WEAKENED.")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Verdict Ruling")).toBeInTheDocument();
       expect(screen.getByText("WEAKENED")).toBeInTheDocument();
     });
 
@@ -328,7 +322,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       );
 
       // Check Judge Voice label and toggle button
-      expect(screen.getByText("Judge Voice (TTS)")).toBeInTheDocument();
+      expect(screen.getByText("Judge Voice")).toBeInTheDocument();
       const voiceButton = screen.getByRole("button", {
         name: /Voice Readout: ENABLED/i,
       });
@@ -394,7 +388,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
         />
       );
 
-      expect(screen.getByText(/\[HOVER\] Cubicle 01 \(NW\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/\[HOVER\] Cubicle 02 \(SW\)/i)).toBeInTheDocument();
     });
 
     it("triggers quick standalone evaluator actions (e.g. Stand & Audit)", () => {

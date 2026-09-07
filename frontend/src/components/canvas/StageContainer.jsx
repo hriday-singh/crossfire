@@ -15,6 +15,15 @@ extend({
   Text,
 });
 
+const hasWebGL = typeof window !== 'undefined' && (() => {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+  } catch (e) {
+    return false;
+  }
+})();
+
 /**
  * StageContainer Component
  * Manages Pixi canvas initialization, fixed 1000x650 viewport aspect ratio,
@@ -43,51 +52,61 @@ export function StageContainer({
         backgroundRepeat: 'no-repeat',
       }}
     >
-      <Application
-        width={ROOM_DIMENSIONS.width}
-        height={ROOM_DIMENSIONS.height}
-        backgroundColor={0x0e0e11}
-        backgroundAlpha={0}
-        resolution={Math.min(window.devicePixelRatio || 1, 2)}
-        autoDensity={true}
-        antialias={true}
-        className="w-full h-full object-contain pointer-events-auto"
-      >
-        {/* Main Stage Sortable Container: sortableChildren ensures 2.5D dynamic depth layering */}
-        <pixiContainer sortableChildren={true}>
-          {/* Room Floor, Acoustic Partitions, Judge Monolith Desk, 4 Cubicles */}
-          <ConferenceRoom
-            activeSpeakerId={activeSpeakerId}
-            hoveredAgentId={hoveredAgentId}
-          />
+      {hasWebGL ? (
+        <Application
+          width={ROOM_DIMENSIONS.width}
+          height={ROOM_DIMENSIONS.height}
+          backgroundColor={0x0e0e11}
+          backgroundAlpha={0}
+          resolution={Math.min(window.devicePixelRatio || 1, 2)}
+          autoDensity={true}
+          antialias={true}
+          className="w-full h-full object-contain pointer-events-auto"
+        >
+          {/* Main Stage Sortable Container: sortableChildren ensures 2.5D dynamic depth layering */}
+          <pixiContainer sortableChildren={true}>
+            {/* Room Floor, Acoustic Partitions, Judge Monolith Desk, 4 Cubicles */}
+            <ConferenceRoom
+              activeSpeakerId={activeSpeakerId}
+              hoveredAgentId={hoveredAgentId}
+            />
 
-          {/* Crucible Arbiter (Judge) presiding at the center bench */}
-          <CharacterSprite
-            key="judge"
-            agent={JUDGE_CONFIG}
-            currentActionPacket={currentActionPacket?.speaker_id === 'judge' ? currentActionPacket : null}
-            isSpeaking={activeSpeakerId === 'judge'}
-            isHovered={hoveredAgentId === 'judge'}
-            onHover={onHoverAgent}
-            onPositionUpdate={onPositionUpdate}
-            playSfx={playSfx}
-          />
-
-          {/* Dynamic AI Evaluator Avatars at their dedicated cubicles */}
-          {agents.map((agent) => (
+            {/* Crucible Arbiter (Judge) presiding at the center bench */}
             <DevilBotSprite
-              key={agent.id}
-              agent={agent}
-              currentActionPacket={currentActionPacket}
-              isSpeaking={activeSpeakerId === agent.id}
-              isHovered={hoveredAgentId === agent.id}
+              key="judge"
+              agent={JUDGE_CONFIG}
+              currentActionPacket={currentActionPacket?.speaker_id === 'judge' ? currentActionPacket : null}
+              isSpeaking={activeSpeakerId === 'judge'}
+              isHovered={hoveredAgentId === 'judge'}
               onHover={onHoverAgent}
               onPositionUpdate={onPositionUpdate}
               playSfx={playSfx}
             />
-          ))}
-        </pixiContainer>
-      </Application>
+
+            {/* Dynamic AI Evaluator Avatars at their dedicated cubicles */}
+            {agents.map((agent) => (
+              <DevilBotSprite
+                key={agent.id}
+                agent={agent}
+                currentActionPacket={currentActionPacket}
+                isSpeaking={activeSpeakerId === agent.id}
+                isHovered={hoveredAgentId === agent.id}
+                onHover={onHoverAgent}
+                onPositionUpdate={onPositionUpdate}
+                playSfx={playSfx}
+              />
+            ))}
+          </pixiContainer>
+        </Application>
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-on-surface">
+          <span className="material-symbols-outlined text-4xl text-primary mb-2">view_in_ar</span>
+          <h3 className="font-code-md text-sm font-semibold text-on-surface mb-1">2.5D Evaluator Bullpen Stage</h3>
+          <p className="font-body-xs text-xs text-outline max-w-sm">
+            Canvas stage active. 4 Cubicle Workstations & Crucible Arbiter Bench.
+          </p>
+        </div>
+      )}
 
       {/* Render in-world HUD and overlays aligned to canvas coordinate space */}
       {children}

@@ -9,34 +9,125 @@ extend({
 });
 import gsap from 'gsap';
 import { WAYPOINTS } from '../../constants/roomLayout';
+import { getSpriteConfig } from '../../constants/spriteConfigs';
 
 /**
- * DevilBotSprite Component
- * Renders the Devil Bot sprite using the provided 1024x1024 spritesheet.
+ * DevilBotSprite (AgentBotSprite) Component
+ * Renders an animated 2.5D evaluator bot or Arbiter sprite using its dedicated spritesheet:
+ * - Devil's Advocate: /devil_thing.webp
+ * - Operator: /operator_thing.webp
+ * - Builder: /builder_thing.webp
+ * - Receipts / Researcher: /researcher_thing.webp
+ * - Crucible Arbiter / Judge: /judge_thing.webp
  */
+/**
+ * Calculates a collision-free waypoint path around the central table.
+ * Table bounds roughly: X [390, 610], Y [220, 335]
+ */
+function getPathPoints(startX, startY, targetWp) {
+  const targetX = targetWp.x;
+  const targetY = targetWp.y;
+
+  const isPodiumTarget = targetWp.id === 'podium_approach' || targetWp.id === 'judge_approach' || targetWp.id === 'presentation_podium';
+  const isStartingFromPodium = startY >= 310 && startY <= 380 && startX >= 430 && startX <= 570;
+
+  // Case 1: Top-Left cubicle <-> Podium (routes west around table)
+  if (isPodiumTarget && startX < 420 && startY < 235) {
+    return [
+      { x: 365, y: 230 },
+      { x: 365, y: 355 },
+      { x: 500, y: 355 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+  if (isStartingFromPodium && targetX < 420 && targetY < 235) {
+    return [
+      { x: 500, y: 355 },
+      { x: 365, y: 355 },
+      { x: 365, y: 230 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+
+  // Case 2: Top-Right cubicle <-> Podium (routes east around table)
+  if (isPodiumTarget && startX > 580 && startY < 235) {
+    return [
+      { x: 635, y: 230 },
+      { x: 635, y: 355 },
+      { x: 500, y: 355 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+  if (isStartingFromPodium && targetX > 580 && targetY < 235) {
+    return [
+      { x: 500, y: 355 },
+      { x: 635, y: 355 },
+      { x: 635, y: 230 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+
+  // Case 3: Bottom-Left cubicle <-> Podium
+  if (isPodiumTarget && startX < 420 && startY > 300) {
+    return [
+      { x: 365, y: 360 },
+      { x: 500, y: 360 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+  if (isStartingFromPodium && targetX < 420 && targetY > 300) {
+    return [
+      { x: 500, y: 360 },
+      { x: 365, y: 360 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+    ];
+  }
+
+  // Case 4: Bottom-Right cubicle <-> Podium
+  if (isPodiumTarget && startX > 580 && startY > 300) {
+    return [
+      { x: 635, y: 360 },
+      { x: 500, y: 360 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
+    ];
+  }
+  if (isStartingFromPodium && targetX > 580 && targetY > 300) {
+    return [
+      { x: 500, y: 360 },
+      { x: 635, y: 360 },
+      { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+    ];
+  }
+
+  // Default: Direct path
+  return [{ x: targetX, y: targetY, facing: targetWp.facing }];
+}
+
 export function DevilBotSprite({
   agent,
-  currentActionPacket,
-  isSpeaking,
+  currentActionPacket = null,
+  isSpeaking = false,
   isHovered = false,
   onHover = () => {},
-  onPositionUpdate,
-  playSfx,
+  onPositionUpdate = () => {},
+  playSfx = () => {},
 }) {
-  const initialWp = WAYPOINTS[agent.initialWaypoint] || WAYPOINTS.chair_north || { x: 400, y: 300, facing: 'south' };
+  const spriteConfig = getSpriteConfig(agent?.id);
+  const initialWp = (agent?.initialWaypoint && WAYPOINTS[agent.initialWaypoint]) || WAYPOINTS.chair_north || { x: 400, y: 300, facing: 'south' };
+  const initialFacing = agent?.initialFacing || initialWp.facing || 'south';
 
   // Track position in local state & ref for GSAP updates
   const [pos, setPos] = useState({
     x: initialWp.x,
     y: initialWp.y,
-    facing: initialWp.facing || 'south',
+    facing: initialFacing,
     state: 'idle', 
   });
 
   const posRef = useRef({
     x: initialWp.x,
     y: initialWp.y,
-    facing: initialWp.facing || 'south',
+    facing: initialFacing,
   });
 
   const walkTweenRef = useRef(null);
@@ -45,64 +136,43 @@ export function DevilBotSprite({
   const [texturesLoaded, setTexturesLoaded] = useState(false);
   const framesRef = useRef({ walk: [], turn: [] });
 
-  // Load the sprite sheet and slice frames on mount
+  // Load the sprite sheet and slice frames on mount or when sprite changes
   useEffect(() => {
     let isMounted = true;
+    setTexturesLoaded(false);
+
     const loadTextures = async () => {
-      // Load the base sprite sheet (assuming it's in public/assets/ or similar)
-      const baseTexture = await PIXI.Assets.load('/devil_thing.webp');
-      baseTexture.source.scaleMode = 'nearest'; // Keep pixel art sharp
+      try {
+        const baseTexture = await PIXI.Assets.load(spriteConfig.assetUrl);
+        if (baseTexture?.source) {
+          baseTexture.source.scaleMode = 'nearest'; // Keep pixel art sharp
+        }
 
-      // Helper function to carve out sub-textures
-      const sliceFrames = (boundsList) => {
-        return boundsList.map((b) => {
-          return new PIXI.Texture({
-            source: baseTexture.source,
-            frame: new PIXI.Rectangle(b.x, b.y, b.w, b.h),
+        // Helper function to carve out sub-textures
+        const sliceFrames = (boundsList) => {
+          return boundsList.map((b) => {
+            return new PIXI.Texture({
+              source: baseTexture.source,
+              frame: new PIXI.Rectangle(b.x, b.y, b.w, b.h),
+            });
           });
-        });
-      };
-
-      const walkBounds = [
-        // Row 1 (W-01 to W-05)
-        { x: 35,  y: 70,  w: 180, h: 205 },
-        { x: 228, y: 70,  w: 180, h: 205 },
-        { x: 422, y: 70,  w: 180, h: 205 },
-        { x: 616, y: 70,  w: 180, h: 205 },
-        { x: 808, y: 70,  w: 180, h: 205 },
-        // Row 2 (W-06 to W-10)
-        { x: 35,  y: 345, w: 180, h: 205 },
-        { x: 228, y: 345, w: 180, h: 205 },
-        { x: 422, y: 345, w: 180, h: 205 },
-        { x: 616, y: 345, w: 180, h: 205 },
-        { x: 808, y: 345, w: 180, h: 205 },
-      ];
-
-      const turnBounds = [
-        // Bottom Row (T-01 to T-08)
-        // Indices: 0: Front, 1: Right, 2: Side, 3: Right Profile, 4: Back, 5: Left, 6: 3/4 View, 7: Front
-        { x: 32,  y: 665, w: 124, h: 200 },
-        { x: 153, y: 665, w: 124, h: 200 },
-        { x: 271, y: 665, w: 124, h: 200 },
-        { x: 390, y: 665, w: 124, h: 200 },
-        { x: 508, y: 665, w: 124, h: 200 },
-        { x: 627, y: 665, w: 124, h: 200 },
-        { x: 746, y: 665, w: 124, h: 200 },
-        { x: 864, y: 665, w: 124, h: 200 },
-      ];
-
-      if (isMounted) {
-        framesRef.current = {
-          walk: sliceFrames(walkBounds),
-          turn: sliceFrames(turnBounds),
         };
-        setTexturesLoaded(true);
+
+        if (isMounted) {
+          framesRef.current = {
+            walk: sliceFrames(spriteConfig.walkBounds),
+            turn: sliceFrames(spriteConfig.turnBounds),
+          };
+          setTexturesLoaded(true);
+        }
+      } catch (err) {
+        console.error('Failed to load sprite textures for', agent?.id, err);
       }
     };
 
     loadTextures();
     return () => { isMounted = false; };
-  }, []);
+  }, [spriteConfig.assetUrl, agent?.id]);
 
   // Synchronize initial position
   useEffect(() => {
@@ -125,42 +195,14 @@ export function DevilBotSprite({
       const targetX = targetWp.x;
       const targetY = targetWp.y;
 
-      const dx = targetX - startX;
-      const dy = targetY - startY;
-      const distance = Math.hypot(dx, dy);
-
-      let newFacing = posRef.current.facing;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        newFacing = dx > 0 ? 'east' : 'west';
-      } else {
-        newFacing = dy > 0 ? 'south' : 'north';
-      }
-
-      posRef.current.facing = newFacing;
-      setPos((prev) => ({ ...prev, facing: newFacing, state: 'walking' }));
-
-      const walkingSpeed = 180;
-      const duration = Math.max(0.5, distance / walkingSpeed);
+      const walkingSpeed = 190;
+      const waypointsToVisit = getPathPoints(startX, startY, targetWp);
 
       if (walkTweenRef.current) walkTweenRef.current.kill();
 
-      walkTweenRef.current = gsap.to(posRef.current, {
-        x: targetX,
-        y: targetY,
-        duration: duration,
-        ease: 'none', // linear for pixel art walking
-        onUpdate: () => {
-          const curX = posRef.current.x;
-          const curY = posRef.current.y;
-          setPos((prev) => ({
-            ...prev,
-            x: curX,
-            y: curY,
-          }));
-          onPositionUpdate?.(agent.id, curX, curY);
-        },
+      const tl = gsap.timeline({
         onComplete: () => {
-          const finalFacing = targetWp.facing || newFacing;
+          const finalFacing = targetWp.facing || posRef.current.facing;
           posRef.current.facing = finalFacing;
           setPos({
             x: targetX,
@@ -171,10 +213,71 @@ export function DevilBotSprite({
           onPositionUpdate?.(agent.id, targetX, targetY);
         },
       });
+
+      let currentX = startX;
+      let currentY = startY;
+
+      waypointsToVisit.forEach((wp) => {
+        const segDx = wp.x - currentX;
+        const segDy = wp.y - currentY;
+        const segDist = Math.hypot(segDx, segDy);
+        if (segDist < 1) return;
+
+        let segFacing = posRef.current.facing;
+        if (Math.abs(segDx) > Math.abs(segDy)) {
+          segFacing = segDx > 0 ? 'east' : 'west';
+        } else {
+          segFacing = segDy > 0 ? 'south' : 'north';
+        }
+
+        const segDuration = Math.max(0.15, segDist / walkingSpeed);
+
+        tl.to(posRef.current, {
+          x: wp.x,
+          y: wp.y,
+          duration: segDuration,
+          ease: 'none',
+          onStart: () => {
+            posRef.current.facing = segFacing;
+            setPos((prev) => ({ ...prev, facing: segFacing, state: 'walking' }));
+          },
+          onUpdate: () => {
+            const curX = posRef.current.x;
+            const curY = posRef.current.y;
+            setPos((prev) => ({
+              ...prev,
+              x: curX,
+              y: curY,
+            }));
+            onPositionUpdate?.(agent.id, curX, curY);
+          },
+        });
+
+        currentX = wp.x;
+        currentY = wp.y;
+      });
+
+      walkTweenRef.current = tl;
     } else if (action === 'idle' || action === 'sit' || action === 'stand') {
-      setPos((prev) => ({ ...prev, state: 'idle' }));
+      const targetWp = target && WAYPOINTS[target] ? WAYPOINTS[target] : (action === 'sit' ? initialWp : null);
+      const finalFacing = targetWp?.facing || (target && WAYPOINTS[target]?.facing) || posRef.current.facing;
+      posRef.current.facing = finalFacing;
+
+      if (targetWp && (action === 'sit' || action === 'idle')) {
+        posRef.current.x = targetWp.x;
+        posRef.current.y = targetWp.y;
+        setPos({
+          x: targetWp.x,
+          y: targetWp.y,
+          state: 'idle',
+          facing: finalFacing,
+        });
+        onPositionUpdate?.(agent.id, targetWp.x, targetWp.y);
+      } else {
+        setPos((prev) => ({ ...prev, state: 'idle', facing: finalFacing }));
+      }
     }
-  }, [currentActionPacket, agent.id, onPositionUpdate]);
+  }, [currentActionPacket, agent.id, initialWp, onPositionUpdate]);
 
   // Cleanup tweens
   useEffect(() => {
@@ -183,11 +286,7 @@ export function DevilBotSprite({
     };
   }, []);
 
-  const zIndex = Math.round(pos.y);
-  
-  if (!texturesLoaded) {
-    return null; // Don't render until textures are sliced
-  }
+  const spriteRef = useRef(null);
 
   const isWalking = pos.state === 'walking';
   
@@ -203,24 +302,48 @@ export function DevilBotSprite({
     // Map facing to turn index:
     switch (pos.facing) {
       case 'north':
-        initialFrame = 4; // Back
+        initialFrame = 4; // Back View
         break;
       case 'east':
-        initialFrame = 2; // Side
+        initialFrame = 2; // Side (East)
         break;
       case 'west':
-        initialFrame = 2; // Side (needs scale.x = -1)
+        initialFrame = 2; // Side (West, mirrored)
         break;
       case 'south':
       default:
-        initialFrame = 0; // Front
+        initialFrame = 0; // Front View
         break;
     }
   }
 
+  // Synchronize frame with Pixi AnimatedSprite instance
+  useEffect(() => {
+    const sprite = spriteRef.current;
+    if (!sprite || !texturesLoaded) return;
+    if (isWalking) {
+      if (!sprite.playing && typeof sprite.play === 'function') {
+        sprite.play();
+      }
+    } else {
+      if (sprite.playing && typeof sprite.stop === 'function') {
+        sprite.stop();
+      }
+      if (typeof sprite.gotoAndStop === 'function') {
+        sprite.gotoAndStop(initialFrame);
+      }
+    }
+  }, [isWalking, initialFrame, texturesLoaded, currentTextures]);
+
+  const zIndex = Math.round(pos.y);
+  
+  if (!texturesLoaded) {
+    return null; // Don't render until textures are sliced
+  }
+
   // If facing west (left), flip the sprite horizontally
   const flipSprite = pos.facing === 'west';
-  const scale = 0.5; // Adjust this scale to fit your room's grid size
+  const scale = spriteConfig.scale || 0.5;
 
   return (
     <pixiContainer
@@ -233,6 +356,7 @@ export function DevilBotSprite({
       onpointerleave={() => onHover?.(null)}
     >
       <pixiAnimatedSprite
+        ref={spriteRef}
         textures={currentTextures}
         isPlaying={playing}
         initialFrame={initialFrame}
@@ -244,4 +368,5 @@ export function DevilBotSprite({
   );
 }
 
+export { DevilBotSprite as AgentBotSprite };
 export default DevilBotSprite;

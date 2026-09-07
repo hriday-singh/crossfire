@@ -14,20 +14,25 @@ import {
 export function ConferenceRoom({ activeSpeakerId, hoveredAgentId }) {
   const [floorTexture, setFloorTexture] = useState(() => {
     try {
-      return Texture.from('/flplan.webp');
+      return Texture.from('/flpan.webp');
     } catch {
-      return null;
+      try {
+        return Texture.from('/flplan.webp');
+      } catch {
+        return null;
+      }
     }
   });
 
   useEffect(() => {
     let isMounted = true;
-    Assets.load('/flplan.webp')
+    Assets.load('/flpan.webp')
+      .catch(() => Assets.load('/flplan.webp'))
       .then((tex) => {
         if (isMounted) setFloorTexture(tex);
       })
       .catch((err) => {
-        console.warn('Fallback: Assets.load /flplan.webp failed', err);
+        console.warn('Fallback: Assets.load /flpan.webp failed', err);
       });
     return () => {
       isMounted = false;

@@ -10,12 +10,33 @@
 
 export const AGENT_CONFIGS = [
   {
+    id: 'builder',
+    name: 'Builder',
+    testName: 'Feasibility Test',
+    role: 'Feasibility & Systems Architect',
+    shortRole: 'Engineering bottlenecks',
+    cubicle: 'Cubicle 01 (NW)',
+    organization: 'Architecture & Compute Operations',
+    color: '#fbbf24', // Verdict-weakened amber
+    primaryColorHex: 0xfbbf24,
+    accentColor: '#fde68a',
+    accentColorHex: 0xfde68a,
+    clothingColor: 0x92400e,
+    skinToneHex: 0xdeb887,
+    initialWaypoint: 'cubicle_1_desk',
+    initialFacing: 'north',
+    audioPitch: 0.85,
+    audioFrequency: 175,
+    avatarBadge: 'BL',
+    icon: 'construction',
+  },
+  {
     id: 'devils_advocate',
     name: "Devil's Advocate",
     testName: 'Assumption Test',
     role: 'Assumption Stress-Tester',
     shortRole: 'Premises & contradictions',
-    cubicle: 'Cubicle 01 (NW)',
+    cubicle: 'Cubicle 02 (SW)',
     organization: 'Adversarial Logic Core',
     color: '#818cf8', // Indigo/Purple
     primaryColorHex: 0x818cf8,
@@ -23,8 +44,8 @@ export const AGENT_CONFIGS = [
     accentColorHex: 0xc7d2fe,
     clothingColor: 0x312e81,
     skinToneHex: 0xf5d0b0,
-    initialWaypoint: 'cubicle_1_desk',
-    initialFacing: 'north',
+    initialWaypoint: 'cubicle_2_desk',
+    initialFacing: 'south',
     audioPitch: 1.05,
     audioFrequency: 240,
     avatarBadge: 'DA',
@@ -36,7 +57,7 @@ export const AGENT_CONFIGS = [
     testName: 'Evidence Test',
     role: 'Empirical Evidence Analyst',
     shortRole: 'Empirical market reality',
-    cubicle: 'Cubicle 02 (SW)',
+    cubicle: 'Cubicle 03 (NE)',
     organization: 'Market Signal & Citations Lab',
     color: '#34d399', // Verdict-survived emerald
     primaryColorHex: 0x34d399,
@@ -44,33 +65,12 @@ export const AGENT_CONFIGS = [
     accentColorHex: 0xa7f3d0,
     clothingColor: 0x065f46,
     skinToneHex: 0xf3c59a,
-    initialWaypoint: 'cubicle_2_desk',
+    initialWaypoint: 'cubicle_3_desk',
     initialFacing: 'north',
     audioPitch: 1.25,
     audioFrequency: 330,
     avatarBadge: 'RC',
     icon: 'fact_check',
-  },
-  {
-    id: 'builder',
-    name: 'Builder',
-    testName: 'Feasibility Test',
-    role: 'Feasibility & Systems Architect',
-    shortRole: 'Engineering bottlenecks',
-    cubicle: 'Cubicle 03 (NE)',
-    organization: 'Architecture & Compute Operations',
-    color: '#fbbf24', // Verdict-weakened amber
-    primaryColorHex: 0xfbbf24,
-    accentColor: '#fde68a',
-    accentColorHex: 0xfde68a,
-    clothingColor: 0x92400e,
-    skinToneHex: 0xdeb887,
-    initialWaypoint: 'cubicle_3_desk',
-    initialFacing: 'north',
-    audioPitch: 0.85,
-    audioFrequency: 175,
-    avatarBadge: 'BL',
-    icon: 'construction',
   },
   {
     id: 'operator',
@@ -87,7 +87,7 @@ export const AGENT_CONFIGS = [
     clothingColor: 0x1e40af,
     skinToneHex: 0xffdfc4,
     initialWaypoint: 'cubicle_4_desk',
-    initialFacing: 'north',
+    initialFacing: 'south',
     audioPitch: 1.35,
     audioFrequency: 380,
     avatarBadge: 'OP',
@@ -125,6 +125,9 @@ const baseAgentMap = {
 export const AGENT_MAP = AGENT_CONFIGS.reduce((acc, agent, idx) => {
   acc[agent.id] = agent;
   acc[`agent_${idx + 1}`] = agent; // backward compatibility
+  if (agent.id === 'receipts') {
+    acc.researcher = agent;
+  }
   return acc;
 }, baseAgentMap);
 

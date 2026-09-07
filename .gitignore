@@ -157,6 +157,7 @@ $RECYCLE.BIN/
 logs/
 tmp/
 temp/
+scratch/
 
 .venv/
 __pycache__/

@@ -62,4 +62,39 @@ describe('DevilBotSprite', () => {
       expect(onPositionUpdate).toHaveBeenCalled();
     });
   });
+
+  it('loads specific spritesheets for operator, builder, researcher, and judge', async () => {
+    render(<DevilBotSprite agent={{ id: 'operator', initialWaypoint: 'cubicle_4_desk' }} />);
+    await waitFor(() => {
+      expect(PIXI.Assets.load).toHaveBeenCalledWith('/operator_thing.webp');
+    });
+
+    render(<DevilBotSprite agent={{ id: 'builder', initialWaypoint: 'cubicle_3_desk' }} />);
+    await waitFor(() => {
+      expect(PIXI.Assets.load).toHaveBeenCalledWith('/builder_thing.webp');
+    });
+
+    render(<DevilBotSprite agent={{ id: 'receipts', initialWaypoint: 'cubicle_2_desk' }} />);
+    await waitFor(() => {
+      expect(PIXI.Assets.load).toHaveBeenCalledWith('/researcher_thing.webp');
+    });
+
+    render(<DevilBotSprite agent={{ id: 'judge', initialWaypoint: 'judge_chair' }} />);
+    await waitFor(() => {
+      expect(PIXI.Assets.load).toHaveBeenCalledWith('/judge_thing.webp');
+    });
+  });
+
+  it('sets initialFrame to 4 (back view) for agents situated at top desks facing north', async () => {
+    const { container } = render(
+      <DevilBotSprite agent={{ id: 'builder', initialWaypoint: 'cubicle_3_desk', initialFacing: 'north' }} />
+    );
+
+    await waitFor(() => {
+      const sprite = container.querySelector('pixianimatedsprite');
+      expect(sprite).toBeInTheDocument();
+      // In JSDOM with custom tags, initialFrame renders as attribute or prop
+      expect(sprite?.getAttribute('initialframe') || sprite?.getAttribute('initialFrame')).toBe('4');
+    });
+  });
 });
