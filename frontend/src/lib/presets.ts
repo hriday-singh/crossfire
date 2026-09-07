@@ -79,6 +79,7 @@ export const DEFAULT_COLLEGE_AI_CASE: Case = {
       statement: "Students will trust an AI to submit applications on their behalf.",
       load_bearing: true,
       status: "weakened",
+      weakened_kind: "contested",
     },
     {
       id: "C-02",

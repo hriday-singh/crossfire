@@ -11,7 +11,7 @@ Regression tests for the fixes derived from the 2026-09-07 calibration corpus
 """
 import pytest
 
-from core.models import Case, Claim, ClaimStatus, EvidenceItem, Finding
+from core.models import Case, Claim, ClaimStatus, EvidenceItem, Finding, WeakenedKind
 from core.cross_examination import (
     extract_critical_blocker,
     is_statutory_blocker,
@@ -103,6 +103,13 @@ def test_upgrade_to_survived_clears_the_salvage_fields():
 
 
 def _case(claims, findings=()):
+    from core.reconcile import classify_weakened
+    for c in claims:
+        if c.status == ClaimStatus.WEAKENED and c.weakened_kind is None:
+            c.weakened_kind = classify_weakened(
+                [f for f in findings if f.claim_id == c.id],
+                c.salvage_scope
+            )
     return Case(id="case-1", raw_input="A decision", claims=claims, findings=list(findings))
 
 
@@ -148,7 +155,7 @@ def test_one_unsalvageable_broken_claim_drops_the_case_even_beside_a_salvaged_on
 
 def test_weakened_on_trivial_objections_alone_still_reaches_proceed():
     case = _case(
-        [Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.WEAKENED)],
+        [Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.WEAKENED, weakened_kind=WeakenedKind.QUALIFIED)],
         findings=[_finding("c1", "builder", 0.1), _finding("c1", "operator", 0.2)],
     )
     assert _fallback_decision_state(case) == "proceed"

@@ -48,6 +48,22 @@ const STATUS_COLORS: Record<string, string> = {
   survived: "text-primary-container",
 };
 
+function getStatusWord(claim: Claim) {
+  if (claim.status === "weakened") {
+    if (claim.weakened_kind === "qualified") return "Holds, with limits";
+    if (claim.weakened_kind === "contested") return "Challenged";
+  }
+  return STATUS_WORDS[claim.status || ""] || "Untested";
+}
+
+function getStatusColor(claim: Claim) {
+  if (claim.status === "weakened") {
+    if (claim.weakened_kind === "qualified") return "text-tertiary";
+    if (claim.weakened_kind === "contested") return "text-error opacity-90";
+  }
+  return STATUS_COLORS[claim.status || ""] || "text-outline";
+}
+
 const EVALUATOR_NAMES: Record<string, string> = {
   devils_advocate: "Devil's Advocate",
   receipts: "Researcher",
@@ -285,10 +301,10 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                 {decidingClaim?.status && (
                   <span
                     className={`font-body-sm text-[14px] font-semibold shrink-0 pt-0.5 ${
-                      STATUS_COLORS[decidingClaim.status] || "text-outline"
+                      getStatusColor(decidingClaim)
                     }`}
                   >
-                    {STATUS_WORDS[decidingClaim.status] || "Untested"}
+                    {getStatusWord(decidingClaim)}
                   </span>
                 )}
               </div>
@@ -381,10 +397,10 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                         </span>
                         <span
                           className={`font-body-sm text-[14px] font-semibold shrink-0 pt-0.5 ${
-                            STATUS_COLORS[claim.status || ""] || "text-outline"
+                            getStatusColor(claim)
                           }`}
                         >
-                          {STATUS_WORDS[claim.status || ""] || "Untested"}
+                          {getStatusWord(claim)}
                         </span>
                       </div>
                       {briefReason && (

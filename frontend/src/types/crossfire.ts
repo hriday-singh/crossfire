@@ -3,6 +3,7 @@
  */
 
 export type ClaimStatus = "survived" | "weakened" | "broken" | "unresolved";
+export type WeakenedKind = "qualified" | "contested";
 
 export type FailureMode =
   | "assumption"
@@ -27,6 +28,7 @@ export interface Claim {
   load_bearing: boolean | null;
   load_bearing_reason?: string | null;
   status: ClaimStatus | null;
+  weakened_kind?: WeakenedKind | null;
   confidence?: number | null;
   fatal_flaw?: string | null;
   salvaged_claim?: string | null;
@@ -241,6 +243,7 @@ export interface SSEFindingReadyData {
 export interface SSEVerdictReadyData {
   claim_id: string;
   status: ClaimStatus;
+  weakened_kind?: WeakenedKind | null;
   verdict_reasoning?: string;
   fatal_flaw?: string | null;
   salvaged_claim?: string | null;

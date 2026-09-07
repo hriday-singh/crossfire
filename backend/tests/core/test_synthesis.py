@@ -3,7 +3,7 @@ Unit tests for core.synthesis (modularized synthesis layer).
 """
 import pytest
 from uuid import uuid4
-from core.models import Case, Claim, ClaimStatus, DecisionConsequence
+from core.models import Case, Claim, ClaimStatus, DecisionConsequence, WeakenedKind
 from core.synthesis import (
     build_consequences,
     clamp_decision_state,
@@ -277,3 +277,21 @@ def test_clamp_never_moves_downward_whatever_set_the_floor():
     for reason in ("broken", "unresolved", "weakened", "clean"):
         assert clamp_decision_state("drop", "proceed_with_changes", reason) == "proceed_with_changes"
         assert clamp_decision_state("hold", "proceed", reason) == "proceed"
+
+
+def test_derive_decision_state_qualified_only():
+    case = _ladder_case(
+        [
+            Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.WEAKENED, weakened_kind=WeakenedKind.QUALIFIED)
+        ]
+    )
+    assert _derive_decision_state(case) == ("proceed", "clean")
+
+
+def test_derive_decision_state_contested():
+    case = _ladder_case(
+        [
+            Claim(id="c1", statement="A", load_bearing=True, status=ClaimStatus.WEAKENED, weakened_kind=WeakenedKind.CONTESTED)
+        ]
+    )
+    assert _derive_decision_state(case) == ("proceed_with_changes", "weakened")

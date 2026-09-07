@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from core.models import Claim, ClaimStatus, Finding, EvidenceItem
 from core.loop import calculate_claim_confidence
 
@@ -11,10 +11,22 @@ def test_calculate_claim_confidence_survived():
     assert conf == 0.92
 
 def test_calculate_claim_confidence_weakened():
-    # 0.35 objection -> ~0.55
+    from core.models import WeakenedKind
+
+    # Legacy fallback: 0.35 objection -> ~0.55
     conf = calculate_claim_confidence(ClaimStatus.WEAKENED, 0.35)
     assert 0.40 <= conf <= 0.60
     assert conf == 0.55
+    
+    # Qualified: 0.60 to 0.75
+    conf_q = calculate_claim_confidence(ClaimStatus.WEAKENED, 0.35, WeakenedKind.QUALIFIED)
+    assert 0.60 <= conf_q <= 0.75
+    assert conf_q == 0.71
+    
+    # Contested: 0.35 to 0.55
+    conf_c = calculate_claim_confidence(ClaimStatus.WEAKENED, 0.35, WeakenedKind.CONTESTED)
+    assert 0.35 <= conf_c <= 0.55
+    assert conf_c == 0.50
 
 def test_calculate_claim_confidence_broken():
     # 0.95 fatal objection -> ~0.07

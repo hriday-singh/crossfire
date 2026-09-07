@@ -21,6 +21,13 @@ export const FAQ_ITEMS: FaqItem[] = [
       "No. A wrapper is one prompt in, one answer out. Crossfire never lets a single model call answer the question directly. It runs a fixed process: pull out the claims, test the important ones independently (pulling live evidence off the web powered by SerpApi), then a separate step weighs it all and decides. That's a process, not a prompt with a personality on it.",
   },
   {
+    id: "what-do-verdicts-mean",
+    category: "Architecture",
+    question: "What do the different claim verdicts mean?",
+    answer:
+      "Every tested claim receives one of four verdicts. 'Survived' means it held up. 'Broken' means the evidence refuted it. 'Unresolved' means the evidence isn't there to make a call. 'Weakened' means it took damage but didn't break. Weakened claims are split into two kinds: 'Holds, with limits' (the claim is true, but narrower than originally stated) and 'Challenged' (the claim is actively contested by a source, but not definitively refuted).",
+  },
+  {
     id: "serpapi-evidence-retrieval",
     category: "Architecture",
     question: "How does Crossfire search and retrieve real-world evidence?",

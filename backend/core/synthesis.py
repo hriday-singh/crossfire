@@ -18,6 +18,7 @@ from core.models import (
     DecisionConsequence,
     Finding,
     NextAction,
+    WeakenedKind,
 )
 from core.reconcile import rank_findings
 from core.textutil import clamp_sentences
@@ -47,6 +48,12 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
             continue  # not yet tested, nothing to report
 
         impact = _IMPACT_BY_STATUS[claim.status] if claim.load_bearing else "low"
+        if claim.status == ClaimStatus.WEAKENED:
+            if claim.weakened_kind == WeakenedKind.QUALIFIED:
+                impact = "low"
+            elif claim.weakened_kind == WeakenedKind.CONTESTED:
+                impact = "medium" if claim.load_bearing else "low"
+
         if claim.salvaged_claim:
             if claim.tradeoff_acknowledged:
                 recommended_change = (
@@ -56,9 +63,14 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
             else:
                 recommended_change = f"Salvaged claim: {claim.salvaged_claim}"
         else:
-            recommended_change = _RECOMMENDED_CHANGE_BY_STATUS[claim.status].format(
-                statement=claim.statement
-            )
+            if claim.status == ClaimStatus.WEAKENED and claim.weakened_kind == WeakenedKind.QUALIFIED:
+                recommended_change = f"Keep it, bounded: {claim.statement}"
+            elif claim.status == ClaimStatus.WEAKENED and claim.weakened_kind == WeakenedKind.CONTESTED:
+                recommended_change = f"Resolve before committing: {claim.statement}"
+            else:
+                recommended_change = _RECOMMENDED_CHANGE_BY_STATUS[claim.status].format(
+                    statement=claim.statement
+                )
 
         next_validation = None
         if claim.load_bearing and claim.status in (ClaimStatus.BROKEN, ClaimStatus.UNRESOLVED):
@@ -100,7 +112,7 @@ CONSEQUENCE_SYSTEM_PROMPT = (
     "changes as a result. The decision may be of any kind — a purchase, a treatment, a "
     "hire, a move, a build — so never assume a domain and never reach for business "
     "jargon that does not fit it.\n"
-    "1. 'impact': 'high' if load-bearing and broken/unresolved, 'medium' if weakened, else 'low'.\n"
+    "1. 'impact': 'high' if load-bearing and broken/unresolved, 'low' if the claim holds within a named boundary, 'medium' if a source pushes against it, else 'low'.\n"
     "2. 'recommended_change': one concrete change to this decision, in one or two "
     "sentences, referencing what specifically failed. Not 'rework the assumption'.\n"
     "3. 'next_validation': the smallest, cheapest real check that would settle it — "
@@ -295,7 +307,13 @@ def build_deciding_factor(case: Case) -> DecidingFactor | None:
     ]
     if not failed:
         return None
-    failed.sort(key=lambda c: (not c.load_bearing, _STATUS_SEVERITY.get(c.status, 99)))
+    failed.sort(
+        key=lambda c: (
+            not c.load_bearing,
+            _STATUS_SEVERITY.get(c.status, 99),
+            0 if getattr(c, "weakened_kind", None) == WeakenedKind.CONTESTED else 1
+        )
+    )
     target = failed[0]
 
     claim_findings = [f for f in case.findings if f.claim_id == target.id]
@@ -324,12 +342,9 @@ def _blocking_weakened(case: Case, claim: Claim) -> bool:
 
     Steel Man reaches for `weakened` on ordinary friction, so a claim whose whole
     panel scored in the `no objection`/`minor` bands would otherwise drag the case
-    to `proceed_with_changes` on nothing. 0.4 is the OBJECTION_SCALE line where a
-    finding starts claiming the decision needs a named fix."""
-    findings = [f for f in case.findings if f.claim_id == claim.id]
-    if not findings:
-        return True
-    return max((f.confidence for f in findings if f.confidence is not None), default=0.0) >= 0.4
+    to `proceed_with_changes` on nothing. The 0.4 max-objection scan moved into
+    classify_weakened; this just reads the derived kind."""
+    return claim.weakened_kind is not WeakenedKind.QUALIFIED
 
 
 def _salvage_survives_the_decision(claim: Claim) -> bool:

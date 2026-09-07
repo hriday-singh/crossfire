@@ -113,7 +113,11 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
   md += `## 2. Foundational Assumption Audit\n\n`;
 
   currentCase.claims.forEach((claim, idx) => {
-    const statusUpper = (claim.status || "UNTESTED").toUpperCase();
+    let statusUpper = (claim.status || "UNTESTED").toUpperCase();
+    if (claim.status === "weakened") {
+      if (claim.weakened_kind === "qualified") statusUpper = "WEAKENED (QUALIFIED)";
+      if (claim.weakened_kind === "contested") statusUpper = "WEAKENED (CONTESTED)";
+    }
     const tag = claim.load_bearing ? "CORE FOUNDATION" : "SUPPORTING ASSUMPTION";
     const findings = currentCase.findings.filter((f) => f.claim_id === claim.id);
     const consequence = currentCase.consequences.find((c) => c.claim_id === claim.id);

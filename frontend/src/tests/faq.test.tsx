@@ -19,7 +19,7 @@ const TestController = () => {
 
 describe("FAQ Data & Drawer Component", () => {
   it("contains all compiled FAQ items with questions and answers", () => {
-    expect(FAQ_ITEMS).toHaveLength(10);
+    expect(FAQ_ITEMS).toHaveLength(11);
 
     const questions = FAQ_ITEMS.map((item) => item.question);
     expect(questions).toContain("What is Crossfire, in one line?");

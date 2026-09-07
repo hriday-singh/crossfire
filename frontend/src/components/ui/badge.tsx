@@ -16,6 +16,7 @@ const badgeVariants = cva(
         outline: "text-foreground border-border",
         survived: "bg-emerald-950/40 text-emerald-400 border-emerald-500/30",
         weakened: "bg-amber-950/40 text-amber-400 border-amber-500/30",
+        contested: "bg-orange-950/40 text-orange-400 border-orange-500/30",
         broken: "bg-rose-950/40 text-rose-400 border-rose-500/30",
         unresolved: "bg-indigo-950/40 text-indigo-400 border-indigo-500/30",
       },

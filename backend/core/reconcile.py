@@ -279,7 +279,8 @@ def classify_weakened(findings: list[Finding], salvage_scope: str | None) -> Wea
         return WeakenedKind.CONTESTED
     if salvage_scope == "redesign":
         return WeakenedKind.CONTESTED
-    
+    if not findings:
+        return WeakenedKind.CONTESTED
     active_findings = [f for f in findings if f.confidence is not None and f.confidence > 0.0]
     max_obj = max((f.confidence for f in active_findings), default=0.0)
     if max_obj >= CONTESTED_OBJECTION_FLOOR:

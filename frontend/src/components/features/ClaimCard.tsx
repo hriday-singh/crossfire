@@ -70,6 +70,19 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
           classes: "text-error bg-surface-container-highest",
         };
       case "weakened":
+        if (claim.weakened_kind === "qualified") {
+          return {
+            label: "Holds, with limits",
+            icon: "warning",
+            classes: "text-tertiary bg-surface-container-highest",
+          };
+        } else if (claim.weakened_kind === "contested") {
+          return {
+            label: "Challenged",
+            icon: "error",
+            classes: "text-error opacity-90 bg-surface-container-highest", // muted text-error
+          };
+        }
         return {
           label: "Weakened",
           icon: "warning",
@@ -99,12 +112,14 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
   const FINDING_HEADLINES: Record<string, { label: string; icon: string; classes: string }> = {
     broken: { label: "Didn't hold up", icon: "cancel", classes: "text-error" },
     weakened: { label: "Held up only partly", icon: "warning", classes: "text-tertiary" },
+    weakened_qualified: { label: "Held up, within limits", icon: "warning", classes: "text-tertiary" },
+    weakened_contested: { label: "Challenged by a source", icon: "error", classes: "text-error opacity-90" },
     unresolved: { label: "Couldn't be settled", icon: "help", classes: "text-secondary" },
     survived: { label: "Held up", icon: "check_circle", classes: "text-primary-container" },
   };
 
-  const findingHeadline =
-    FINDING_HEADLINES[claim.status || "survived"] || FINDING_HEADLINES.survived;
+  const headlineKey = claim.status === "weakened" && claim.weakened_kind ? `weakened_${claim.weakened_kind}` : (claim.status || "survived");
+  const findingHeadline = FINDING_HEADLINES[headlineKey] || FINDING_HEADLINES.survived;
 
   const isActivelyTested =
     Boolean(isTestingMode) &&

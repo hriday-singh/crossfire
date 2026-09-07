@@ -364,6 +364,7 @@ def extract_summary(
                 "id": c.get("id"),
                 "statement": c.get("statement"),
                 "status": c.get("status"),
+                "weakened_kind": c.get("weakened_kind"),
                 "load_bearing": c.get("load_bearing"),
                 "load_bearing_reason": c.get("load_bearing_reason"),
                 "fatal_flaw": c.get("fatal_flaw"),

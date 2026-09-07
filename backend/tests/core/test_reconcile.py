@@ -34,6 +34,6 @@ def test_classify_weakened_below_boundary_qualified():
     findings = [_finding(confidence=0.39)]
     assert classify_weakened(findings, "parameter") == WeakenedKind.QUALIFIED
 
-def test_classify_weakened_empty_findings_qualified():
-    # empty findings gives qualified (nothing was raised)
-    assert classify_weakened([], "parameter") == WeakenedKind.QUALIFIED
+def test_classify_weakened_empty_findings_contested():
+    # empty findings gives contested (nothing was measured)
+    assert classify_weakened([], "parameter") == WeakenedKind.CONTESTED

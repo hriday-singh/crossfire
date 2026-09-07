@@ -28,6 +28,7 @@ from core.models import (
     Finding,
     NextAction,
     TestPlanItem,
+    WeakenedKind,
 )
 from core.textutil import clamp_sentences, one_line
 from core.activity import emit_activity
@@ -241,6 +242,7 @@ from core.reconcile import (  # noqa: F401
     apply_evidence_gate,
     apply_steelman_gate,
     rank_findings,
+    classify_weakened,
 )
 
 from core.synthesis import (  # noqa: F401
@@ -335,20 +337,29 @@ async def run_evaluators(
     return findings
 
 
-def calculate_claim_confidence(status: ClaimStatus, max_objection: float) -> float:
+def calculate_claim_confidence(status: ClaimStatus, max_objection: float, weakened_kind: WeakenedKind | None = None) -> float:
     """Calculates overall claim confidence (0.0 to 1.0) for UI display.
 
     This inverts and calibrates the adversarial panel's objection scores:
     - SURVIVED: 90% - 98% (sound, with minor objections causing slight drops)
-    - WEAKENED: 40% - 60% (substantive friction identified)
+    - WEAKENED (qualified): 60% - 75%
+    - WEAKENED (contested): 35% - 55%
+    - WEAKENED (unset): 40% - 60% (substantive friction identified)
     - BROKEN: 5% - 15% (fatal refutation)
-    - UNRESOLVED: 50% (neutral indeterminate)
+    - UNRESOLVED: 50% (neutral indeterminate). Note: intentionally overlaps contested numerically as it is an orthogonal state.
     """
     if status == ClaimStatus.SURVIVED:
         return round(max(0.90, min(0.98, 0.98 - (max_objection * 0.40))), 2)
     elif status == ClaimStatus.WEAKENED:
-        scaled = ((max(0.20, min(0.80, max_objection)) - 0.20) / 0.60) * 0.20
-        return round(max(0.40, min(0.60, 0.60 - scaled)), 2)
+        if weakened_kind == WeakenedKind.QUALIFIED:
+            scaled = ((max(0.20, min(0.80, max_objection)) - 0.20) / 0.60) * 0.15
+            return round(max(0.60, min(0.75, 0.75 - scaled)), 2)
+        elif weakened_kind == WeakenedKind.CONTESTED:
+            scaled = ((max(0.20, min(0.80, max_objection)) - 0.20) / 0.60) * 0.20
+            return round(max(0.35, min(0.55, 0.55 - scaled)), 2)
+        else:
+            scaled = ((max(0.20, min(0.80, max_objection)) - 0.20) / 0.60) * 0.20
+            return round(max(0.40, min(0.60, 0.60 - scaled)), 2)
     elif status == ClaimStatus.BROKEN:
         scaled = ((max(0.70, min(1.0, max_objection)) - 0.70) / 0.30) * 0.10
         return round(max(0.05, min(0.15, 0.15 - scaled)), 2)
@@ -442,20 +453,22 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     if isinstance(verdict, SteelManVerdict):
                         gated = apply_steelman_gate(verdict, claim_findings)
                         clm.status = gated.status
+                        clm.weakened_kind = classify_weakened(claim_findings, verdict.salvage_scope) if clm.status == ClaimStatus.WEAKENED else None
                         clm.fatal_flaw = gated.fatal_flaw
                         clm.salvaged_claim = gated.salvaged_claim
                         clm.tradeoff_acknowledged = gated.tradeoff_acknowledged
                         clm.missing_input = gated.missing_input
                         clm.salvage_scope = gated.salvage_scope
                         max_obj = max((f.confidence for f in claim_findings if f.confidence is not None), default=0.0)
-                        clm.confidence = calculate_claim_confidence(clm.status, max_obj)
+                        clm.confidence = calculate_claim_confidence(clm.status, max_obj, clm.weakened_kind)
                         reasoning = gated.reasoning
                     else:
                         st, rsn = verdict
                         gated_st, gated_rsn = apply_evidence_gate(st, rsn, claim_findings)
                         clm.status = gated_st
+                        clm.weakened_kind = classify_weakened(claim_findings, None) if clm.status == ClaimStatus.WEAKENED else None
                         max_obj = max((f.confidence for f in claim_findings if f.confidence is not None), default=0.0)
-                        clm.confidence = calculate_claim_confidence(clm.status, max_obj)
+                        clm.confidence = calculate_claim_confidence(clm.status, max_obj, clm.weakened_kind)
                         reasoning = gated_rsn
                 except Exception as exc:
                     steelman_errors.append(exc)
@@ -475,6 +488,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 {
                     "claim_id": clm.id,
                     "status": clm.status.value,
+                    "weakened_kind": clm.weakened_kind.value if clm.weakened_kind else None,
                     "confidence": clm.confidence,
                     "verdict_reasoning": reasoning,
                     "fatal_flaw": clm.fatal_flaw,

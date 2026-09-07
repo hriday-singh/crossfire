@@ -33,6 +33,7 @@ export const MOCK_PREVIEW_CASE: Case = {
         "Procurement cycles will accelerate by over 60% compared to traditional internal legal review queues.",
       load_bearing: true,
       status: "weakened",
+      weakened_kind: "contested",
       fatal_flaw:
         "Turnaround bottleneck shifts from first-pass redline drafting to attorney clause verification.",
       salvaged_claim:

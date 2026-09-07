@@ -47,7 +47,7 @@ export interface VerdictConfig {
   hex: string;
 }
 
-export function getVerdictConfig(status: ClaimStatus | null | undefined): VerdictConfig {
+export function getVerdictConfig(status: ClaimStatus | null | undefined, weakenedKind?: import("@/types/crossfire").WeakenedKind | null): VerdictConfig {
   switch (status) {
     case "survived":
       return {
@@ -59,6 +59,25 @@ export function getVerdictConfig(status: ClaimStatus | null | undefined): Verdic
         hex: "#34d399",
       };
     case "weakened":
+      if (weakenedKind === "qualified") {
+        return {
+          label: "Holds, with limits",
+          badgeBg: "bg-amber-950/40",
+          badgeText: "text-amber-400",
+          badgeBorder: "border-amber-500/30",
+          dotColor: "bg-amber-400",
+          hex: "#fbbf24",
+        };
+      } else if (weakenedKind === "contested") {
+        return {
+          label: "Challenged",
+          badgeBg: "bg-orange-950/40",
+          badgeText: "text-orange-400",
+          badgeBorder: "border-orange-500/30",
+          dotColor: "bg-orange-400",
+          hex: "#f97316",
+        };
+      }
       return {
         label: "Weakened",
         badgeBg: "bg-amber-950/40",

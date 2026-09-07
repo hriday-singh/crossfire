@@ -57,6 +57,19 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
           classes: "bg-error-container/30 border-error/40 text-error",
         };
       case "weakened":
+        if (claim.weakened_kind === "qualified") {
+          return {
+            label: "Holds, with limits",
+            icon: "warning",
+            classes: "bg-tertiary-container/30 border-tertiary/40 text-tertiary",
+          };
+        } else if (claim.weakened_kind === "contested") {
+          return {
+            label: "Challenged",
+            icon: "error",
+            classes: "bg-error-container/20 border-error/30 text-error",
+          };
+        }
         return {
           label: "Weakened",
           icon: "warning",
