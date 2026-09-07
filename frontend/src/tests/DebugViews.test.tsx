@@ -162,6 +162,10 @@ describe("Debug Views Preview & View Catalog", () => {
 
     // 6. Evidence Drawer view
     fireEvent.click(screen.getByTestId("preview-btn-evidence"));
+    const evidenceBtn = screen.queryByRole("button", { name: /evidence test/i });
+    if (evidenceBtn) {
+      fireEvent.click(evidenceBtn);
+    }
     // The drawer and the verdict block's source credit both name it.
     expect(screen.getAllByText(/ABA Formal Opinion 512/i).length).toBeGreaterThan(0);
 

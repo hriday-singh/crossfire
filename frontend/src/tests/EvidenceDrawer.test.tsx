@@ -123,7 +123,7 @@ describe("EvidenceDrawer", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders claim details, audit trail, and findings when claim is selected", () => {
+  it("renders claim details, audit trail, and 4 collapsible test windows", () => {
     render(
       <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
     );
@@ -133,11 +133,26 @@ describe("EvidenceDrawer", () => {
       screen.getByText(/Law firms will pay \$500\/month for document summaries/i)
     ).toBeInTheDocument();
     expect(screen.getByText("Broken")).toBeInTheDocument();
+
+    // Verify all 4 test windows are present
+    expect(screen.getByRole("button", { name: /assumption test/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /evidence test/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /feasibility test/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /operational friction test/i })).toBeInTheDocument();
+
+    // Click Evidence Test to open it
+    const evidenceBtn = screen.getByRole("button", { name: /evidence test/i });
+    fireEvent.click(evidenceBtn);
+
     expect(screen.getByText("Legal Tech Pricing Report 2026")).toBeInTheDocument();
     expect(
       screen.getByText(/Industry median pricing for AI summarizers sits at \$49\/mo/i)
     ).toBeInTheDocument();
     expect(screen.getByText(/Pivot to seat-based \$49 tier/i)).toBeInTheDocument();
+
+    // Click to collapse again
+    fireEvent.click(evidenceBtn);
+    expect(screen.queryByText("Legal Tech Pricing Report 2026")).not.toBeInTheDocument();
   });
 
   it("renders load-bearing indicator for load bearing claims", () => {
@@ -149,7 +164,7 @@ describe("EvidenceDrawer", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the judge's reasoning and evaluator badge", () => {
+  it("renders the judge's reasoning and test suite headers", () => {
     render(
       <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
     );
@@ -157,10 +172,10 @@ describe("EvidenceDrawer", () => {
     expect(
       screen.getByText("Clear price resistance found in benchmark studies.")
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/\[evidence test\]/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /evidence test/i })).toBeInTheDocument();
   });
 
-  it("renders SerpApi badge for evidence items when provider is duckduckgo", () => {
+  it("renders SerpApi badge for evidence items when evidence window is opened", () => {
     const caseWithDdg: Case = {
       ...mockCase,
       findings: [
@@ -183,8 +198,39 @@ describe("EvidenceDrawer", () => {
       <EvidenceDrawer claimId="claim-test-1" currentCase={caseWithDdg} onClose={() => {}} />
     );
 
-    expect(screen.getByTitle("Verified live web result via SerpApi")).toBeInTheDocument();
+    // Open Evidence Test window
+    const evidenceBtn = screen.getByRole("button", { name: /evidence test/i });
+    fireEvent.click(evidenceBtn);
+
+    expect(screen.getAllByTitle("Verified live web result via SerpApi").length).toBeGreaterThan(0);
     expect(screen.queryByText(/via DuckDuckGo Lite/i)).not.toBeInTheDocument();
+  });
+
+  it("renders summarized findings for each test window when opened", () => {
+    render(
+      <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
+    );
+
+    // Open Assumption Test
+    const assumptionBtn = screen.getByRole("button", { name: /assumption test/i });
+    fireEvent.click(assumptionBtn);
+    expect(
+      screen.getByText(/No contradictory premises or logical flaws found/i)
+    ).toBeInTheDocument();
+
+    // Open Feasibility Test
+    const feasibilityBtn = screen.getByRole("button", { name: /feasibility test/i });
+    fireEvent.click(feasibilityBtn);
+    expect(
+      screen.getByText(/No engineering bottlenecks, API limits/i)
+    ).toBeInTheDocument();
+
+    // Open Operational Friction Test
+    const opFrictionBtn = screen.getByRole("button", { name: /operational friction test/i });
+    fireEvent.click(opFrictionBtn);
+    expect(
+      screen.getByText(/No significant adoption inertia/i)
+    ).toBeInTheDocument();
   });
 
   describe("Interactive Retest & Counter-Evidence", () => {
