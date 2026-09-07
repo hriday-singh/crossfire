@@ -23,6 +23,8 @@ describe("useCaseStream hook", () => {
       dispatch: mockDispatch,
       startExtracting: vi.fn(),
       confirmAndRun: vi.fn(),
+      clarify: vi.fn(),
+      acceptProvisionalClaim: vi.fn(),
       selectClaim: vi.fn(),
       resetCase: vi.fn(),
       loadPreset: vi.fn(),

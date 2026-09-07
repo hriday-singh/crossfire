@@ -307,6 +307,8 @@ describe("ConfirmScreen Agent Integration", () => {
     const mockConfirm = vi.fn();
 
     vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
+      clarify: vi.fn(),
+      acceptProvisionalClaim: vi.fn(),
       state: {
         ...INITIAL_STATE,
         activeScreen: "confirm",

@@ -1,14 +1,24 @@
 """
 Owner: Dev A. Provider registry/factory — the one place that maps a provider
-name to a concrete LLMProvider. Add a new provider by adding one line to
-_REGISTRY; nothing else in the codebase should hardcode which provider it's
-talking to (docs/00-CONTRACTS.md #2).
+name to a concrete LLMProvider. Add a new provider by adding one entry to
+providers/catalog.py; nothing else in the codebase should hardcode which
+provider it's talking to (docs/00-CONTRACTS.md #2).
+
+`get_provider()` returns a RoutingProvider built from the user's saved
+settings: their active provider, its saved model, its stored API keys as a
+rotating pool, and their fallback chain behind it. The instance is cached and
+rebuilt only when the settings change, so key cooldown state and httpx
+connection pools survive across requests.
 """
 from __future__ import annotations
 
+import logging
+
 from config import get_settings
+from providers import keyring
 from providers.anthropic import AnthropicProvider
 from providers.base import LLMProvider
+from providers.catalog import CATALOG, DEFAULT_PROVIDER, ProviderSpec, get_spec
 from providers.gemini import GeminiProvider
 from providers.openai_compat import (
     LLMConnectionError,
@@ -17,35 +27,184 @@ from providers.openai_compat import (
     LLMTimeoutError,
     OpenAICompatibleProvider,
 )
+from providers.pool import KeyPool, KeySlot, PoolExhaustedError
+from providers.routing import AllProvidersFailedError, RoutingProvider, Target
 
-_REGISTRY: dict[str, type] = {
-    "gemini": GeminiProvider,
-    "anthropic": AnthropicProvider,
+logger = logging.getLogger(__name__)
+
+_WIRE_CLASSES: dict[str, type] = {
     "openai_compat": OpenAICompatibleProvider,
+    "anthropic": AnthropicProvider,
 }
 
+# Legacy LLM_PROVIDER value, kept so existing .env files still boot. Everything
+# else resolves straight to a providers/catalog.py id.
+_LEGACY_ALIASES = {"openai_compat": DEFAULT_PROVIDER}
+
 __all__ = [
+    "AllProvidersFailedError",
     "AnthropicProvider",
     "GeminiProvider",
+    "KeyPool",
     "LLMConnectionError",
     "LLMFormatError",
     "LLMProvider",
     "LLMProviderError",
     "LLMTimeoutError",
     "OpenAICompatibleProvider",
+    "PoolExhaustedError",
+    "RoutingProvider",
+    "Target",
+    "build_target",
     "get_provider",
+    "invalidate_cache",
 ]
+
+_cached: RoutingProvider | None = None
+_cached_version: int = -1
+
+
+def _env_keys(spec: ProviderSpec) -> list[str]:
+    """Keys from .env, used when the encrypted store has none for this provider.
+
+    Keeps existing single-key .env installs working, and lets a developer seed
+    the whole Gemini rotation pool with GEMINI_API_KEYS=key1,key2,key3.
+    """
+    settings = get_settings()
+    raw: list[str] = []
+    if spec.id == "gemini":
+        raw.extend(k for k in getattr(settings, "gemini_api_keys", "").split(",") if k.strip())
+        raw.append(settings.gemini_api_key)
+    elif spec.id == "openai":
+        raw.append(settings.openai_api_key)
+    elif spec.id == "anthropic":
+        raw.append(settings.anthropic_api_key)
+    if spec.id == DEFAULT_PROVIDER:
+        raw.append(settings.llm_api_key)
+    seen: list[str] = []
+    for key in raw:
+        key = key.strip()
+        if key and key not in seen:
+            seen.append(key)
+    return seen
+
+
+def build_target(provider_id: str, max_inflight_per_key: int | None = None) -> Target:
+    """One entry of the fallback chain: saved model/base_url plus a key pool."""
+    spec = get_spec(provider_id)
+    config = keyring.get_config(provider_id)
+
+    stored = keyring.secrets_for(provider_id)
+    if not stored:
+        stored = [(-(i + 1), key) for i, key in enumerate(_env_keys(spec))]
+
+    pool: KeyPool | None = None
+    if stored:
+        slots = [
+            KeySlot(key_id=key_id, secret=secret, label=keyring.mask(secret))
+            for key_id, secret in stored
+        ]
+        settings = get_settings()
+        pool = KeyPool(
+            provider=provider_id,
+            slots=slots,
+            rpm=config.rpm,
+            max_inflight_per_key=max_inflight_per_key
+            or getattr(settings, "key_pool_max_inflight", 2),
+        )
+
+    return Target(
+        provider=provider_id,
+        wire=spec.wire,
+        model=config.model or spec.default_model,
+        base_url=config.base_url or spec.base_url,
+        pool=pool,
+    )
+
+
+def _is_usable(provider_id: str, target: Target) -> bool:
+    spec = get_spec(provider_id)
+    if spec.requires_key and target.pool is None:
+        return False
+    if not target.base_url:
+        return False
+    return True
+
+
+def build_chain() -> list[Target]:
+    """Active provider first, then every configured fallback that has credentials."""
+    active = keyring.get_active_provider()
+    ordered = [active] + [p for p in keyring.get_fallback_chain() if p != active]
+
+    targets: list[Target] = []
+    for provider_id in ordered:
+        target = build_target(provider_id)
+        if not _is_usable(provider_id, target):
+            logger.info("Skipping provider %s in chain: no API key or base URL configured", provider_id)
+            continue
+        targets.append(target)
+
+    if not targets:
+        # The bundled proxy needs no credentials, so there is always something
+        # to fall back to rather than 500-ing at request time.
+        targets.append(build_target(DEFAULT_PROVIDER))
+    return targets
+
+
+def invalidate_cache() -> None:
+    global _cached, _cached_version
+    _cached = None
+    _cached_version = -1
 
 
 def get_provider(name: str | None = None, api_key: str | None = None) -> LLMProvider:
-    """Build the LLMProvider named by `name` (defaults to settings.llm_provider),
-    optionally overriding its API key (defaults to settings.llm_api_key, falling
-    back to that provider's own *_API_KEY env var)."""
-    settings = get_settings()
-    name = (name or settings.llm_provider).lower()
-    key = api_key or settings.llm_api_key or None
-    try:
-        provider_cls = _REGISTRY[name]
-    except KeyError:
-        raise ValueError(f"unknown LLM provider {name!r} — choices: {sorted(_REGISTRY)}") from None
-    return provider_cls(api_key=key) if key else provider_cls()
+    """The LLMProvider the pipeline should use.
+
+    With no arguments: the user's saved provider chain, key rotation included.
+    With `name`/`api_key`: a single bare adapter for that provider — used by the
+    settings "test this key" endpoint and by scripts that pin one provider.
+    """
+    if name is None and api_key is None:
+        return get_routing_provider()
+
+    provider_id = _LEGACY_ALIASES.get((name or "").lower(), (name or "").lower()) or DEFAULT_PROVIDER
+    if provider_id not in CATALOG:
+        raise ValueError(f"unknown LLM provider {name!r} — choices: {sorted(CATALOG)}")
+    return build_adapter(provider_id, api_key=api_key)
+
+
+def build_adapter(
+    provider_id: str,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+) -> LLMProvider:
+    """A single-key adapter with no pooling or fallback (key validation, scripts)."""
+    spec = get_spec(provider_id)
+    config = keyring.get_config(provider_id)
+    if not api_key:
+        stored = keyring.secrets_for(provider_id)
+        api_key = stored[0][1] if stored else (_env_keys(spec) or [None])[0]
+
+    cls = _WIRE_CLASSES[spec.wire]
+    return cls(
+        api_key=api_key,
+        base_url=base_url or config.base_url or spec.base_url,
+        model=model or config.model or spec.default_model,
+    )
+
+
+def get_routing_provider() -> RoutingProvider:
+    global _cached, _cached_version
+    version = keyring.config_version()
+    if _cached is None or _cached_version != version:
+        _cached = RoutingProvider(build_chain())
+        _cached_version = version
+        logger.info(
+            "LLM chain: %s",
+            " -> ".join(
+                f"{t.provider}/{t.model}" + (f"({len(t.pool)} keys)" if t.pool else "")
+                for t in _cached.targets
+            ),
+        )
+    return _cached

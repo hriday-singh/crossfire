@@ -407,4 +407,28 @@ export async function improvePrompt(
   return (await res.json()) as ImprovePromptResponse;
 }
 
+export async function clarifyCase(
+  caseId: string,
+  answer: string,
+  baseUrl: string = DEFAULT_API_BASE
+): Promise<{ case: Case; auto_started: boolean }> {
+  const url = `${baseUrl}/cases/${encodeURIComponent(caseId)}/clarify`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ answer }),
+  });
 
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new CrossfireApiError(
+      errorBody?.detail || `Failed to clarify case (${res.status})`,
+      res.status,
+      errorBody
+    );
+  }
+
+  return (await res.json()) as { case: Case; auto_started: boolean };
+}

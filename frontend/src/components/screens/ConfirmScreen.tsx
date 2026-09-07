@@ -6,11 +6,13 @@ import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 import { SerpApiIcon } from "@/components/ui/serpapi";
 
 export const ConfirmScreen: React.FC = () => {
-  const { state, dispatch, confirmAndRun, navigateScreen, toggleAgentSelection } = useCase();
+  const { state, dispatch, confirmAndRun, navigateScreen, toggleAgentSelection, acceptProvisionalClaim } = useCase();
   const [editingClaimId, setEditingClaimId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [newClaimText, setNewClaimText] = useState("");
+  const [clarifyText, setClarifyText] = useState("");
+  const { clarify } = useCase();
 
   const currentCase = state.currentCase;
   if (!currentCase) return null;
@@ -53,38 +55,117 @@ export const ConfirmScreen: React.FC = () => {
     confirmAndRun();
   };
 
+  const handleClarifySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clarifyText.trim()) return;
+    clarify(clarifyText.trim());
+  };
+
   return (
     <div className="flex flex-col w-full min-h-[calc(100vh-3.5rem)] justify-between">
       <div className="flex flex-col w-full">
         <div className="w-full max-w-[760px] mx-auto py-10 px-4">
 
-          {/* Header Title & Subtext with Judge Bot Head on the right */}
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight mb-1.5">
-                We identified{" "}
-                <span className="text-primary-container" id="claim-count">
-                  {currentCase.claims.length}
-                </span>{" "}
-                claims to test
-              </h1>
-              <p className="font-body-md text-body-md text-on-surface-variant">
-                Review the extracted assumptions below. You can edit, remove, or add claims before running tests.
-              </p>
-            </div>
+          {/* Header Title & Subtext */}
+          <div className="mb-6">
+            {currentCase.status === "needs_input" ? (
+              <div className="space-y-4 mb-4">
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6">
+                  <div className="flex items-center gap-2 mb-3 text-amber-600 dark:text-amber-500 font-semibold font-label-mono uppercase tracking-wider text-xs">
+                    <span className="material-symbols-outlined text-[16px]">info</span>
+                    Clarification Required
+                  </div>
+                  <h1 className="font-headline-sm text-headline-sm font-semibold text-on-surface mb-2">
+                    {currentCase.gate_message}
+                  </h1>
+                  {currentCase.clarify_interpretation && (
+                    <p className="text-on-surface-variant font-body-sm text-sm mb-4 leading-relaxed">
+                      {currentCase.clarify_interpretation}
+                    </p>
+                  )}
+                  {currentCase.clarify_missing && currentCase.clarify_missing.length > 0 && (
+                    <ul className="list-disc pl-5 text-sm text-on-surface-variant mb-5 space-y-1">
+                      {currentCase.clarify_missing.map((missing, i) => (
+                        <li key={i}>{missing}</li>
+                      ))}
+                    </ul>
+                  )}
+                  
+                  <form onSubmit={handleClarifySubmit} className="mt-4 flex flex-col gap-3">
+                    <textarea
+                      value={clarifyText}
+                      onChange={(e) => setClarifyText(e.target.value)}
+                      placeholder="Add this detail..."
+                      className="w-full bg-surface-container-lowest text-on-surface p-3 font-body-sm rounded-lg border border-outline-variant outline-none focus:border-primary-container"
+                      rows={3}
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={!clarifyText.trim() || state.isConfirming || state.isStreaming}
+                      className="w-fit bg-primary-container hover:brightness-110 text-on-primary-container transition-colors shadow-sm self-end disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {state.isConfirming || state.isStreaming ? (
+                        <>
+                          <span className="material-symbols-outlined text-[18px] animate-spin">
+                            progress_activity
+                          </span>
+                          <span>Updating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Add this detail</span>
+                          <span className="material-symbols-outlined text-[18px]">send</span>
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </div>
+                {currentCase.clarify_round && currentCase.clarify_round >= 1 && currentCase.claims.length === 0 && (
+                  <div className="text-center">
+                    <p className="text-primary-container font-medium text-sm mb-2">
+                      Alternatively, specify your own hypotheses directly:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsAdding(true)}
+                      className="text-sm font-medium text-on-surface-variant hover:text-on-surface flex items-center justify-center gap-1.5 mx-auto py-1 px-3 rounded hover:bg-surface-container transition-colors border border-outline-variant/40 hover:border-outline-variant"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">add</span>
+                      + Add an assumption
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h1 className="font-headline-lg text-headline-lg font-semibold text-on-surface tracking-tight mb-1.5">
+                    We identified{" "}
+                    <span className="text-primary-container" id="claim-count">
+                      {currentCase.claims.length}
+                    </span>{" "}
+                    claims to test
+                  </h1>
+                  <p className="font-body-md text-body-md text-on-surface-variant">
+                    Review the extracted assumptions below. You can edit, remove, or add claims before running tests.
+                  </p>
+                </div>
 
-            {/* Prominent Judge Bot Head on the right */}
-            <div className="flex flex-col items-center shrink-0 p-2.5 rounded-xl bg-surface-container-low border border-red-500/30 shadow-lg" title="Crucible Arbiter / Judge Bot">
-              <div className="relative group cursor-pointer">
-                <div className="w-14 h-14 rounded-xl bg-surface-container border border-red-500/40 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.3)] group-hover:border-red-500/70 transition-colors">
-                  <img
-                    src="/judge_head.webp"
-                    alt="Judge Bot Head"
-                    className="w-11 h-11 object-contain drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] group-hover:scale-110 transition-transform"
-                  />
+                {/* Prominent Judge Bot Head on the right */}
+                <div className="flex flex-col items-center shrink-0 p-2.5 rounded-xl bg-surface-container-low border border-red-500/30 shadow-lg" title="Crucible Arbiter / Judge Bot">
+                  <div className="relative group cursor-pointer">
+                    <div className="w-14 h-14 rounded-xl bg-surface-container border border-red-500/40 flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(239,68,68,0.3)] group-hover:border-red-500/70 transition-colors">
+                      <img
+                        src="/judge_head.webp"
+                        alt="Judge Bot Head"
+                        className="w-11 h-11 object-contain drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] group-hover:scale-110 transition-transform"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Clean Decision Echo Card */}
@@ -109,22 +190,6 @@ export const ConfirmScreen: React.FC = () => {
             )}
           </div>
 
-          {/* Input Gate Advisory Banner (if needs_input returned a redirect guidance) */}
-          {currentCase.gate_message && (
-            <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-body-sm flex items-start gap-3">
-              <span className="material-symbols-outlined text-[20px] text-amber-500 shrink-0 mt-0.5">info</span>
-              <div className="space-y-1">
-                <p className="font-semibold text-on-surface">Specific Decision Guidance</p>
-                <p className="text-on-surface-variant leading-relaxed">{currentCase.gate_message}</p>
-                {currentCase.claims.length === 0 && (
-                  <p className="text-primary-container font-medium text-xs mt-1">
-                    Please use "+ Add an assumption" below to specify your hypothesis before running tests.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Section Header */}
           <div className="flex items-center justify-between mb-4 px-1 flex-wrap gap-2">
             <span className="font-label-mono text-label-mono uppercase tracking-wider text-on-surface-variant font-semibold">
@@ -146,7 +211,11 @@ export const ConfirmScreen: React.FC = () => {
                 <div
                   key={claim.id}
                   data-id={String(itemNumber)}
-                  className="claim-card bg-surface-container border border-outline-variant/40 rounded-xl p-5 flex items-start justify-between group transition-all duration-150 hover:border-outline-variant hover:bg-surface-container-high"
+                  className={`claim-card bg-surface-container border rounded-xl p-5 flex items-start justify-between group transition-all duration-150 ${
+                    claim.provisional
+                      ? "border-amber-400/60 bg-amber-500/5 hover:border-amber-400 hover:bg-amber-500/10"
+                      : "border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container-high"
+                  }`}
                 >
                   <div className="flex items-start min-w-0 pr-4 flex-1">
                     <span className="font-code-md text-code-md text-primary-container font-semibold mr-3 select-none shrink-0 pt-0.5">
@@ -154,6 +223,15 @@ export const ConfirmScreen: React.FC = () => {
                     </span>
 
                     <div className="flex-1 min-w-0">
+                      {claim.provisional && !isEditing && (
+                        <div className="mb-2">
+                          <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
+                            <span className="material-symbols-outlined text-[14px]">psychology</span>
+                            Provisional
+                          </span>
+                        </div>
+                      )}
+                      
                       {isEditing ? (
                         <div className="space-y-2">
                           <textarea
@@ -219,6 +297,20 @@ export const ConfirmScreen: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                    {claim.provisional && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          acceptProvisionalClaim(claim.id);
+                        }}
+                        className="p-2 text-amber-600 hover:text-amber-500 hover:bg-amber-500/10 transition-colors rounded min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+                        title="Accept inferred claim"
+                        aria-label="Accept provisional claim"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() =>
@@ -312,7 +404,7 @@ export const ConfirmScreen: React.FC = () => {
           />
 
           {/* Bottom Actions Row */}
-          <div className="flex items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/30">
+          <div className="flex items-center justify-between gap-4 mt-8 pt-4 border-t border-outline-variant/30 flex-wrap">
             <button
               type="button"
               onClick={() => navigateScreen("entry")}
@@ -322,41 +414,51 @@ export const ConfirmScreen: React.FC = () => {
               <span>Back</span>
             </button>
 
-              <Button
-                type="button"
-                id="confirm-run-btn"
-                variant="primary"
-                onClick={handleConfirmAndRun}
-                disabled={
-                  currentCase.claims.length === 0 ||
-                  state.isConfirming ||
-                  state.isStreaming ||
-                  currentCase.status === "testing" ||
-                  (currentCase.selected_agents && currentCase.selected_agents.length === 0)
-                }
-                className="bg-primary-container hover:brightness-110 text-on-primary-container font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg active:scale-[0.99] transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
-              >
-                {state.isConfirming || state.isStreaming || currentCase.status === "testing" ? (
-                  <>
-                    <span className="material-symbols-outlined text-[18px] animate-spin">
-                      progress_activity
-                    </span>
-                    <span>Test already running</span>
-                  </>
-                ) : currentCase.status === "done" ? (
-                  <>
-                    <span>Rerun</span>
-                    <span className="sr-only">Rerun Tests</span>
-                    <span className="material-symbols-outlined text-[18px]">replay</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Run Tests</span>
-                    <span className="sr-only">Confirm & Run Tests</span>
-                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-                  </>
+            {currentCase.status !== "needs_input" && (
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  type="button"
+                  id="confirm-run-btn"
+                  variant="primary"
+                  onClick={handleConfirmAndRun}
+                  disabled={
+                    currentCase.claims.length === 0 ||
+                    currentCase.claims.some((c) => c.provisional) ||
+                    state.isConfirming ||
+                    state.isStreaming ||
+                    currentCase.status === "testing" ||
+                    (currentCase.selected_agents && currentCase.selected_agents.length === 0)
+                  }
+                  className="bg-primary-container hover:brightness-110 text-on-primary-container font-body-sm text-body-sm font-semibold px-6 py-2.5 rounded-lg active:scale-[0.99] transition-colors flex items-center justify-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {state.isConfirming || state.isStreaming || currentCase.status === "testing" ? (
+                    <>
+                      <span className="material-symbols-outlined text-[18px] animate-spin">
+                        progress_activity
+                      </span>
+                      <span>Test already running</span>
+                    </>
+                  ) : currentCase.status === "done" ? (
+                    <>
+                      <span>Rerun</span>
+                      <span className="sr-only">Rerun Tests</span>
+                      <span className="material-symbols-outlined text-[18px]">replay</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Run Tests</span>
+                      <span className="sr-only">Confirm & Run Tests</span>
+                      <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                    </>
+                  )}
+                </Button>
+                {currentCase.claims.some((c) => c.provisional) && (
+                  <span className="text-[11px] text-amber-600 dark:text-amber-500 font-medium">
+                    Confirm or remove the inferred claims first.
+                  </span>
                 )}
-              </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

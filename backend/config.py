@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_base_url: str = Field(default="http://localhost:8081/v1", alias="LLM_BASE_URL")
     llm_model: str = Field(default="gemini-3.7-flash", alias="LLM_MODEL")
+    # Comma-separated Gemini keys seeding the rotation pool when the encrypted
+    # store is empty. Keys added in the web UI take precedence over these.
+    gemini_api_keys: str = Field(default="", alias="GEMINI_API_KEYS")
+    # Concurrent in-flight requests allowed per API key (providers/pool.py).
+    key_pool_max_inflight: int = Field(default=2, alias="KEY_POOL_MAX_INFLIGHT")
     curation_llm_model: str = Field(default="gemini-3.7-flash", alias="CURATION_LLM_MODEL")
     port: int = Field(default=8000, alias="PORT")
     cors_allowed_origins: list[str] | str = Field(

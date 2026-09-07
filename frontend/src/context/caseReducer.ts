@@ -228,12 +228,32 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       if (!state.currentCase) return state;
       const updatedClaims = state.currentCase.claims.map((c) =>
         c.id === action.payload.claimId
-          ? { ...c, statement: action.payload.statement }
+          ? { ...c, statement: action.payload.statement, provisional: false }
           : c
       );
       return {
         ...state,
         currentCase: { ...state.currentCase, claims: updatedClaims },
+      };
+    }
+
+    case "ACCEPT_PROVISIONAL_CLAIM": {
+      if (!state.currentCase) return state;
+      const updatedClaims = state.currentCase.claims.map((c) =>
+        c.id === action.payload.claimId ? { ...c, provisional: false } : c
+      );
+      return {
+        ...state,
+        currentCase: { ...state.currentCase, claims: updatedClaims },
+      };
+    }
+
+    case "CLARIFY_SUCCESS": {
+      return {
+        ...state,
+        currentCase: action.payload.case,
+        isStreaming: action.payload.autoStarted,
+        activeScreen: action.payload.autoStarted ? "dashboard" : "confirm",
       };
     }
 

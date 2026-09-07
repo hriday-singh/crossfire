@@ -177,3 +177,7 @@ cookie.txt
 /CLAUDE.md
 .worktrees/
 .superpowers/
+
+# Fernet master key for the encrypted provider-key store (backend/providers/keyring.py)
+.crossfire_key
+backend/.crossfire_key

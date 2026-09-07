@@ -25,6 +25,7 @@ class WeakenedKind(str, Enum):
 class Claim(BaseModel):
     id: str
     statement: str
+    provisional: bool = False              # inferred during zero-claim recovery; must be human-accepted
     load_bearing: bool | None = None       # set after the load-bearing question runs
     load_bearing_reason: str | None = None # why this claim is load-bearing or secondary
     status: ClaimStatus | None = None
@@ -155,6 +156,9 @@ class Case(BaseModel):
     case_verdict: CaseVerdict | None = None  # set at the end of the run
     status: str = "extracting"              # extracting | needs_input | awaiting_confirmation | testing | done | error
     gate_message: str | None = None         # set when the input was too open-ended to test
+    clarify_missing: list[str] = []        # what is absent, 2-3 short bullets
+    clarify_interpretation: str | None = None  # "Reading it as: ..." or None
+    clarify_round: int = 0                 # 0 = first extraction, 1+ = after clarify
     agent_mode: str = "auto"                # "auto" | "custom"
     selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, receipts, builder, operator
         "devils_advocate",
@@ -164,3 +168,4 @@ class Case(BaseModel):
     ]
     agent_rationales: dict[str, str] = {}   # rationales explaining why agents were auto-selected
     telemetry: CaseTelemetry | None = None  # token usage & cost telemetry
+

@@ -327,12 +327,15 @@ def test_cors_preflight_allows_configured_origin(client):
     assert response.headers.get("access-control-allow-credentials") == "true"
 
 
-def test_get_llm_provider_resolves_from_settings():
+def test_get_llm_provider_resolves_from_saved_provider_settings():
+    """The dependency now hands the pipeline the routing chain built from the
+    user's saved provider choice, not a single env-configured adapter."""
     from api.routes import get_llm_provider
-    from providers.openai_compat import OpenAICompatibleProvider
+    from providers.routing import RoutingProvider
 
     provider = get_llm_provider()
-    assert isinstance(provider, OpenAICompatibleProvider)
+    assert isinstance(provider, RoutingProvider)
+    assert provider.primary.provider == "gemini_proxy"
 
 
 def test_stream_completed_case_terminates_immediately(client, sample_case):
@@ -465,23 +468,25 @@ def test_post_ingest_pdf_scanned_rejected(client, monkeypatch):
 
 
 def test_health_and_ready_endpoints(client):
-    from config import get_settings
+    # /health reports the provider the user selected in settings, not .env.
+    from providers import keyring
 
-    settings = get_settings()
+    active = keyring.get_active_provider()
+    config = keyring.get_config(active)
 
     res_health = client.get("/health")
     assert res_health.status_code == 200
     data_health = res_health.json()
     assert data_health["status"] == "ok"
-    assert data_health["provider"] == settings.llm_provider
-    assert data_health["model"] == settings.llm_model
+    assert data_health["provider"] == active
+    assert data_health["model"] == config.model
 
     res_ready = client.get("/ready")
     assert res_ready.status_code == 200
     data_ready = res_ready.json()
     assert data_ready["status"] == "ok"
-    assert data_ready["provider"] == settings.llm_provider
-    assert data_ready["model"] == settings.llm_model
+    assert data_ready["provider"] == active
+    assert data_ready["model"] == config.model
 
 
 def test_post_ingest_image_success(client, monkeypatch):
@@ -749,3 +754,99 @@ def test_baseline_returns_a_plain_answer(client, fake_provider_factory):
         assert provider.calls[0]["response_schema"] is None
     finally:
         app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_clarify_success_starts_pipeline(client, fake_provider_factory, monkeypatch):
+    import store
+    from core.models import Case
+    from core.loop import ExtractedClaims
+    from api.routes import get_llm_provider
+    from main import app
+
+    case = Case(id="clarify-1", raw_input="Initial input", status="needs_input", gate_message="Be specific", clarify_round=0)
+    store.set(case)
+
+    provider = fake_provider_factory(
+        responses=[
+            ExtractedClaims(statements=["Now it is clear"])
+        ]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    async def mock_handle_confirm(case_id):
+        pass
+    monkeypatch.setattr("api.routes.handle_confirm", mock_handle_confirm)
+
+    try:
+        response = client.post("/cases/clarify-1/clarify", json={"answer": "I mean X"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["auto_started"] is True
+        
+        updated = store.get("clarify-1")
+        assert updated.status == "testing"
+        assert len(updated.claims) == 1
+        assert "Initial input" in updated.raw_input
+        assert "I mean X" in updated.raw_input
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_clarify_failure_updates_gate_message(client, fake_provider_factory, monkeypatch):
+    import store
+    from core.models import Case
+    from core.loop import ExtractedClaims
+    from api.routes import get_llm_provider
+    from main import app
+    from core.recovery import RecoveryResult
+
+    case = Case(id="clarify-2", raw_input="Initial input", status="needs_input", gate_message="Be specific", clarify_round=0)
+    store.set(case)
+    
+    async def mock_run_recovery(*args, **kwargs):
+        return RecoveryResult(clarifying_question="Still not clear.", missing=[], provisional_claims=[])
+
+    monkeypatch.setattr("core.loop.run_recovery", mock_run_recovery)
+
+    provider = fake_provider_factory(
+        responses=[
+            ExtractedClaims(testable=False, statements=[], redirect="ignored")
+        ]
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: provider
+
+    try:
+        response = client.post("/cases/clarify-2/clarify", json={"answer": "I dunno"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["auto_started"] is False
+        
+        updated = store.get("clarify-2")
+        assert updated.status == "needs_input"
+        assert updated.clarify_round == 1
+        assert "Still not clear" in updated.gate_message
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+def test_clarify_wrong_status_rejected(client):
+    import store
+    from core.models import Case
+    
+    case = Case(id="clarify-3", raw_input="input", status="testing")
+    store.set(case)
+
+    response = client.post("/cases/clarify-3/clarify", json={"answer": "stuff"})
+    assert response.status_code == 400
+
+
+def test_confirm_provisional_claim_rejected(client):
+    import store
+    from core.models import Case, Claim
+
+    case = Case(id="prov-1", raw_input="i", status="awaiting_confirmation", claims=[Claim(id="c1", statement="A", provisional=True)])
+    store.set(case)
+
+    response = client.post("/cases/prov-1/confirm", json={"claims": [{"id": "c1", "statement": "A", "provisional": True}]})
+    assert response.status_code == 400
+    assert "Confirm or remove the inferred claims" in response.text

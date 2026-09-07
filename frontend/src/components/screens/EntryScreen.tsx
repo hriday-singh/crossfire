@@ -50,15 +50,7 @@ export const EntryScreen: React.FC = () => {
   const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Sync with global state when starting a new case
-  useEffect(() => {
-    if (!state.currentCase) {
-      setRawInput("");
-      setAttachments([]);
-      setAgentMode("auto");
-      setSelectedAgents([...DEFAULT_AGENT_IDS]);
-    }
-  }, [state.currentCase]);
+
 
   // Sync when an improved prompt is loaded back into starting screen
   useEffect(() => {

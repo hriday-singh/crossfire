@@ -60,6 +60,7 @@ from core.agent_panel import (  # noqa: F401
     EXTRACTION_SYSTEM_PROMPT,
     build_test_plan,
 )
+from core.recovery import run_recovery
 
 
 async def extract_claims(
@@ -68,6 +69,9 @@ async def extract_claims(
     context: str | None = None,
     agent_mode: str = "auto",
     selected_agents: list[str] | None = None,
+    case_id: str | None = None,
+    clarify_round: int = 0,
+    previous_question: str | None = None,
 ) -> Case:
     user_content = raw_input
     if context:
@@ -103,24 +107,33 @@ async def extract_claims(
     # Input gate (Stage 5 / direction doc §3): an untestable input is redirected,
     # not silently turned into invented claims.
     if not getattr(result, "testable", True) or not statements:
+        recovery = await run_recovery(raw_input, context, provider, clarify_round, previous_question)
+        provisional = [
+            Claim(id=str(uuid4()), statement=s, provisional=True)
+            for s in (recovery.provisional_claims if recovery else [])[:3]
+        ]
         return Case(
-            id=str(uuid4()),
+            id=case_id or str(uuid4()),
             raw_input=raw_input,
             context=context,
-            claims=[],
+            claims=provisional,
             status="needs_input",
             gate_message=one_line(
-                getattr(result, "redirect", None)
+                (recovery.clarifying_question if recovery else None)
+                or getattr(result, "redirect", None)
                 or "Name the specific decision you are weighing, and what you would do if it went wrong.",
                 240,
             ),
+            clarify_missing=(recovery.missing[:3] if recovery else []),
+            clarify_interpretation=(recovery.interpretation if recovery else None),
+            clarify_round=clarify_round,
             agent_mode=final_mode,
             selected_agents=active_agents,
             agent_rationales=rationales,
         )
 
     return Case(
-        id=str(uuid4()),
+        id=case_id or str(uuid4()),
         raw_input=raw_input,
         context=context,
         claims=claims_list,

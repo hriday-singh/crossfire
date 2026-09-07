@@ -9,9 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import store
+from api.provider_routes import router as provider_router
 from api.routes import router
 from config import get_settings
 from providers import LLMFormatError, LLMProviderError
+from providers import keyring
 
 logger = logging.getLogger("crossfire")
 
@@ -89,16 +91,22 @@ async def http_status_exception_handler(request: Request, exc: httpx.HTTPStatusE
 @app.get("/health")
 @app.get("/ready")
 def health_check():
+    # Provider/model come from the saved settings, not .env — the user picks
+    # them in the UI (api/provider_routes.py).
+    active = keyring.get_active_provider()
+    config = keyring.get_config(active)
     return {
         "status": "ok",
-        "provider": settings.llm_provider,
-        "model": settings.llm_model,
-        "llm_base_url": settings.llm_base_url,
+        "provider": active,
+        "model": config.model,
+        "llm_base_url": config.base_url,
+        "fallback_chain": keyring.get_fallback_chain(),
         "backend_port": settings.port,
     }
 
 
 app.include_router(router)
+app.include_router(provider_router)
 
 
 if __name__ == "__main__":
