@@ -65,7 +65,7 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Query backend engine health on mount
+  // Query backend engine health on mount and periodically so backend going live is detected automatically
   useEffect(() => {
     let isMounted = true;
     const checkHealth = async () => {
@@ -86,8 +86,10 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     checkHealth();
+    const interval = setInterval(checkHealth, 5000);
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, []);
 
