@@ -627,6 +627,31 @@ export const CubeSpinner: React.FC = () => {
 
   return (
     <div className="fixed inset-0 w-screen h-screen select-none overflow-hidden bg-[#09090b]">
+      <style>
+        {`
+          @keyframes ellipsis {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+          }
+          .animated-dots::after {
+            content: '';
+            animation: ellipsis 1.5s infinite steps(1, end);
+            display: inline-block;
+            width: 1.5em;
+            text-align: left;
+          }
+        `}
+      </style>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 text-center px-4">
+        <h2 className="text-primary font-headline-md text-2xl tracking-widest font-bold uppercase drop-shadow-md">
+          Extracting Core Assumptions<span className="animated-dots"></span>
+        </h2>
+        <p className="text-outline mt-3 font-code-sm uppercase tracking-widest animate-pulse">
+          Deconstructing decision framework
+        </p>
+      </div>
       <span className="sr-only">Extracting Core Assumptions...</span>
       {/* Fullscreen 3D Blueprint Space Shuttle Flight Arena */}
       <canvas

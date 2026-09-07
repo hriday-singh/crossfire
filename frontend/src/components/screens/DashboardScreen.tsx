@@ -363,6 +363,16 @@ export const DashboardScreen: React.FC = () => {
               setClaimsExpanded(true);
             }}
           />
+          {/* Live Activity Feed */}
+          <div className="mt-space-6">
+            {(isTesting || state.activities.length > 0 || (currentCase?.activities && currentCase.activities.length > 0)) && (
+              <LiveActivityFeed
+                activities={state.activities.length > 0 ? state.activities : (currentCase?.activities || [])}
+                isStreaming={isTesting}
+              />
+            )}
+          </div>
+
           {/* Claims in Detail Section */}
           <div id="claims-in-detail" className="rounded-xl border border-outline-variant/60 bg-surface-container-lowest overflow-hidden mt-space-6 shadow-sm">
             {/* Header / Expand Collapse */}
@@ -482,16 +492,6 @@ export const DashboardScreen: React.FC = () => {
               />
             </div>
           )}
-
-          {/* Live Activity Feed */}
-          <div className="mt-space-6">
-            {(isTesting || state.activities.length > 0 || (currentCase?.activities && currentCase.activities.length > 0)) && (
-              <LiveActivityFeed
-                activities={state.activities.length > 0 ? state.activities : (currentCase?.activities || [])}
-                isStreaming={isTesting}
-              />
-            )}
-          </div>
         </div>
       </div>
 

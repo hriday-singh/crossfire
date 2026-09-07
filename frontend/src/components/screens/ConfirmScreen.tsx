@@ -68,49 +68,57 @@ export const ConfirmScreen: React.FC = () => {
 
           {/* Header Title & Subtext */}
           <div className="mb-6">
-            {currentCase.status === "needs_input" ? (
+                  {currentCase.status === "needs_input" ? (
               <div className="space-y-4 mb-4">
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6">
-                  <div className="flex items-center gap-2 mb-3 text-amber-600 dark:text-amber-500 font-semibold font-label-mono uppercase tracking-wider text-xs">
-                    <span className="material-symbols-outlined text-[16px]">info</span>
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-7 relative overflow-hidden shadow-sm">
+                  {/* Decorative background glow */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+                  
+                  <div className="flex items-center gap-2 mb-4 text-amber-600 dark:text-amber-500 font-semibold font-label-mono uppercase tracking-wider text-xs">
+                    <span className="material-symbols-outlined text-[18px]">info</span>
                     Clarification Required
                   </div>
-                  <h1 className="font-headline-sm text-headline-sm font-semibold text-on-surface mb-2">
-                    {currentCase.gate_message}
+                  
+                  <h1 className="font-headline-sm text-headline-sm font-semibold text-on-surface mb-3 relative z-10">
+                    {currentCase.gate_message?.replace(/—/g, '')}
                   </h1>
+                  
                   {currentCase.clarify_interpretation && (
-                    <p className="text-on-surface-variant font-body-sm text-sm mb-4 leading-relaxed">
-                      {currentCase.clarify_interpretation}
+                    <p className="text-on-surface-variant font-body-sm text-sm mb-5 leading-relaxed relative z-10">
+                      {currentCase.clarify_interpretation?.replace(/—/g, '')}
                     </p>
                   )}
+                  
                   {currentCase.clarify_missing && currentCase.clarify_missing.length > 0 && (
-                    <ul className="list-disc pl-5 text-sm text-on-surface-variant mb-5 space-y-1">
-                      {currentCase.clarify_missing.map((missing, i) => (
-                        <li key={i}>{missing}</li>
-                      ))}
-                    </ul>
+                    <div className="bg-surface-container-lowest/50 rounded-xl p-4 mb-5 border border-amber-500/10 relative z-10">
+                      <ul className="list-disc pl-4 text-sm text-on-surface-variant space-y-2 marker:text-amber-500/50">
+                        {currentCase.clarify_missing.map((missing, i) => (
+                          <li key={i} className="pl-1">{missing.replace(/—/g, '').replace(/^[-*•]\s*/, '')}</li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                   
-                  <form onSubmit={handleClarifySubmit} className="mt-4 flex flex-col gap-3">
+                  <form onSubmit={handleClarifySubmit} className="mt-2 flex flex-col gap-3 relative z-10">
                     <textarea
                       value={clarifyText}
                       onChange={(e) => setClarifyText(e.target.value)}
                       placeholder="Add this detail..."
-                      className="w-full bg-surface-container-lowest text-on-surface p-3 font-body-sm rounded-lg border border-outline-variant outline-none focus:border-primary-container"
+                      className="w-full bg-surface-container-lowest text-on-surface p-4 font-body-sm rounded-xl border border-outline-variant/60 outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-on-surface-variant/50"
                       rows={3}
                     />
                     <Button
                       type="submit"
                       variant="primary"
-                      disabled={!clarifyText.trim() || state.isConfirming || state.isStreaming}
-                      className="w-fit bg-primary-container hover:brightness-110 text-on-primary-container transition-colors shadow-sm self-end disabled:opacity-50 flex items-center gap-2"
+                      disabled={!clarifyText.trim() || state.isConfirming || state.isStreaming || isSubmittingDetail}
+                      className="w-fit bg-amber-600 hover:bg-amber-700 text-white transition-all shadow-sm self-end disabled:opacity-50 flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium"
                     >
-                      {state.isConfirming || state.isStreaming ? (
+                      {state.isConfirming || state.isStreaming || isSubmittingDetail ? (
                         <>
                           <span className="material-symbols-outlined text-[18px] animate-spin">
                             progress_activity
                           </span>
-                          <span>Updating...</span>
+                          <span>Processing...</span>
                         </>
                       ) : (
                         <>
@@ -122,17 +130,17 @@ export const ConfirmScreen: React.FC = () => {
                   </form>
                 </div>
                 {currentCase.clarify_round && currentCase.clarify_round >= 1 && currentCase.claims.length === 0 && (
-                  <div className="text-center">
-                    <p className="text-primary-container font-medium text-sm mb-2">
+                  <div className="text-center pt-2">
+                    <p className="text-on-surface-variant font-medium text-sm mb-3">
                       Alternatively, specify your own hypotheses directly:
                     </p>
                     <button
                       type="button"
                       onClick={() => setIsAdding(true)}
-                      className="text-sm font-medium text-on-surface-variant hover:text-on-surface flex items-center justify-center gap-1.5 mx-auto py-1 px-3 rounded hover:bg-surface-container transition-colors border border-outline-variant/40 hover:border-outline-variant"
+                      className="text-sm font-medium text-on-surface flex items-center justify-center gap-1.5 mx-auto py-2 px-4 rounded-lg hover:bg-surface-container transition-all border border-outline-variant/40 hover:border-outline-variant shadow-sm bg-surface-container-lowest"
                     >
-                      <span className="material-symbols-outlined text-[16px]">add</span>
-                      + Add an assumption
+                      <span className="material-symbols-outlined text-[18px]">add</span>
+                      Add an assumption manually
                     </button>
                   </div>
                 )}
