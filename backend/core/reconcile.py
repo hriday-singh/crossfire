@@ -115,12 +115,14 @@ STEEL_MAN_SYSTEM_PROMPT = (
 RECONCILE_SYSTEM_PROMPT = STEEL_MAN_SYSTEM_PROMPT
 
 
-def objection_band(confidence: float) -> str:
+def objection_band(confidence: float | None) -> str:
     """Axiom 1 forbids averaging confidences, so the judge never sees the raw floats.
 
     Handing it `confidence=0.8` invites exactly the arithmetic the prompt bans —
     the model anchors on numbers whatever it is told. A word carries the same
     ordering without being addable."""
+    if confidence is None:
+        return "system error / timeout"
     if confidence <= 0.0:
         return "abstained (neutral)"
     if confidence >= 0.9:
@@ -134,9 +136,23 @@ def objection_band(confidence: float) -> str:
     return "no objection"
 
 
+def has_evaluator_error(findings: list[Finding]) -> bool:
+    """Returns True if any finding suffered an execution timeout or system error."""
+    return any(f.confidence is None or f.result == "System Error / Timeout" for f in findings)
+
+
 async def reconcile(
     claim: Claim, findings: list[Finding], provider: LLMProvider
 ) -> SteelManVerdict:
+    if has_evaluator_error(findings):
+        return SteelManVerdict(
+            status=ClaimStatus.UNRESOLVED,
+            reasoning="Evaluator execution failure (system error or timeout) occurred during evaluation. Claim status downgraded to unresolved due to incomplete adversarial scrutiny.",
+            fatal_flaw=None,
+            salvaged_claim=None,
+            tradeoff_acknowledged=None,
+        )
+
     findings_summary = "\n".join(
         f"- evaluator={f.evaluator}, result={f.result!r}, evidence_count={len(f.evidence)}, "
         f"sources={[e.source_url for e in f.evidence] or 'none'}, "
@@ -212,17 +228,23 @@ def apply_evidence_gate(
     carrying both evidence and a contradiction. Reasoning-only evaluators can weaken;
     they cannot break.
 
+    Error: any evaluator execution failure (timeout/error) forces ClaimStatus.UNRESOLVED.
+
     Upward: a `weakened` where every finding scored in the `no objection` band is the
     judge manufacturing a downgrade to look rigorous. OBJECTION_SCALE gave the panel a
     way to say "nothing here"; without this branch nothing downstream ever reads it, and
     `survived` stays unreachable (0/15 in the 2026-09-07 calibration corpus)."""
+    if has_evaluator_error(findings):
+        note = "Downgraded to unresolved: evaluator execution failure (system error or timeout) occurred during evaluation."
+        return ClaimStatus.UNRESOLVED, f"{reasoning} {note}".strip()
+
     if status is ClaimStatus.BROKEN and not has_sourced_contradiction(findings):
         note = (
             "Downgraded from broken to weakened: no finding carried a contradiction "
             "traceable to a source, and absence of evidence is not refutation."
         )
         return ClaimStatus.WEAKENED, f"{reasoning} {note}".strip()
-    active_findings = [f for f in findings if f.confidence > 0.0]
+    active_findings = [f for f in findings if f.confidence is not None and f.confidence > 0.0]
     max_obj = max((f.confidence for f in active_findings), default=0.0)
     if (
         status is ClaimStatus.WEAKENED
@@ -271,7 +293,8 @@ def rank_findings(findings: list[Finding]) -> list[Finding]:
             bool(f.evidence and (f.contradiction or "").strip()),
             bool((f.contradiction or "").strip()),
             len(f.evidence),
-            f.confidence,
+            f.confidence is not None,
+            f.confidence if f.confidence is not None else -1.0,
         ),
         reverse=True,
     )

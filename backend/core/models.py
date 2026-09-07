@@ -54,7 +54,7 @@ class Finding(BaseModel):
     result: str
     evidence: list[EvidenceItem] = []
     reasoning: str
-    confidence: float                       # objection strength: how hard this finding argues
+    confidence: float | None = None         # objection strength: how hard this finding argues
                                             # AGAINST the claim. 0.0 = no objection. One scale for
                                             # all four evaluators — see textutil.OBJECTION_SCALE.
                                             # Not "how sure the evaluator is": that is unrankable

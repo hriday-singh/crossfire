@@ -325,7 +325,7 @@ def _blocking_weakened(case: Case, claim: Claim) -> bool:
     findings = [f for f in case.findings if f.claim_id == claim.id]
     if not findings:
         return True
-    return max(f.confidence for f in findings) >= 0.4
+    return max((f.confidence for f in findings if f.confidence is not None), default=0.0) >= 0.4
 
 
 def _fallback_decision_state(case: Case) -> str:

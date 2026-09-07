@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from core.textutil import is_empirical_claim
 from core.agent_panel import build_test_plan
 from core.models import Case, Claim
@@ -44,5 +44,6 @@ def test_build_test_plan_selective_dispatch():
     assert "feasibility" in c2_modes
     assert "operational_friction" in c2_modes
 
-    # Non-empirical secondary claim gets fallback single-pass (assumption/devils_advocate), not evidence
-    assert c3_modes == ["assumption"]
+    # Non-empirical secondary claim gets multi-persona reasoning evaluators, but NOT receipts/evidence
+    assert "evidence" not in c3_modes
+    assert set(c3_modes) == {"assumption", "feasibility", "operational_friction"}
