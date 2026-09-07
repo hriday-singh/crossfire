@@ -493,11 +493,49 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             # Steelman reasoning only exists here, so it gets threaded in.
             if consequence.claim_id in reasonings:
                 consequence.verdict_reasoning = reasonings[consequence.claim_id]
+            matching_claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
+            if matching_claim:
+                consequence.fatal_flaw = matching_claim.fatal_flaw
+                consequence.salvaged_claim = matching_claim.salvaged_claim
+                consequence.tradeoff_acknowledged = matching_claim.tradeoff_acknowledged
+
+        # Overlap consequence LLM refinement and case verdict synthesis concurrently
+        async def _synthesize_consequences_task() -> list[DecisionConsequence]:
+            try:
+                await emit_activity(
+                    case.id,
+                    "Synthesis",
+                    "Formulating strategic adaptations and next validation steps...",
+                    action="consequences",
+                )
+                return await synthesize_consequences(case, provider, reasonings=reasonings)
+            except Exception as exc:
+                logger.debug("Synthesizing consequences fallback: %s", exc)
+                return case.consequences
+
+        async def _synthesize_case_verdict_task() -> CaseVerdict:
+            return await synthesize_case_verdict(case, provider)
+
+        synthesized_consequences, synthesized_verdict = await asyncio.gather(
+            _synthesize_consequences_task(),
+            _synthesize_case_verdict_task(),
+        )
+        case.consequences = synthesized_consequences
+        case.case_verdict = synthesized_verdict
+
+        for consequence in case.consequences:
+            matching_claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
+            if matching_claim:
+                if matching_claim.fatal_flaw and not consequence.fatal_flaw:
+                    consequence.fatal_flaw = matching_claim.fatal_flaw
+                if matching_claim.salvaged_claim and not consequence.salvaged_claim:
+                    consequence.salvaged_claim = matching_claim.salvaged_claim
+                if matching_claim.tradeoff_acknowledged and not consequence.tradeoff_acknowledged:
+                    consequence.tradeoff_acknowledged = matching_claim.tradeoff_acknowledged
             await events.publish(
                 case.id, "consequence_ready", {"consequence": consequence.model_dump()}
             )
 
-        case.case_verdict = await synthesize_case_verdict(case, provider)
         await events.publish(
             case.id, "case_verdict", {"case_verdict": case.case_verdict.model_dump()}
         )

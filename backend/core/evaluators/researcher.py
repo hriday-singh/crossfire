@@ -201,7 +201,37 @@ async def run_researcher(
         except Exception:
             pass
 
-    evidence_items = await search_evidence(claim)
+    # Competitor Triangulation: if the claim asserts uniqueness or competitive superiority,
+    # perform the competitor search in parallel with primary search or immediately after.
+    is_uniqueness = _is_uniqueness_claim(claim.statement)
+    if is_uniqueness:
+        comp_query = build_competitor_query(claim.statement)
+        if case_id:
+            try:
+                from core.activity import emit_activity
+                await emit_activity(
+                    case_id,
+                    tag="Evidence Test",
+                    text=f'Competitor Triangulation: Searching alternatives "{comp_query}"',
+                    claim_id=claim.id,
+                    action="search",
+                )
+            except Exception:
+                pass
+        search_res = await asyncio.gather(
+            search_evidence(claim),
+            search_evidence(claim, query_override=comp_query),
+            return_exceptions=True,
+        )
+        evidence_items = search_res[0] if not isinstance(search_res[0], BaseException) else []
+        comp_items = search_res[1] if not isinstance(search_res[1], BaseException) else []
+        existing_urls = {ev.source_url for ev in evidence_items}
+        for item_ev in comp_items:
+            if item_ev.source_url not in existing_urls:
+                evidence_items.append(item_ev)
+                existing_urls.add(item_ev.source_url)
+    else:
+        evidence_items = await search_evidence(claim)
 
     # Authority Pass: if the first sweep returned nothing but ordinary web copy,
     # ask again in the vocabulary that surfaces the party who sets the fact. A
@@ -236,32 +266,6 @@ async def run_researcher(
                 evidence_items = promoted + evidence_items
         except Exception as exc:
             logger.warning(f"Authority pass search failed: {exc}")
-
-    # Competitor Triangulation: if the claim asserts uniqueness or competitive superiority,
-    # perform a secondary search targeting market leaders or alternatives.
-    if _is_uniqueness_claim(claim.statement):
-        comp_query = build_competitor_query(claim.statement)
-        if case_id:
-            try:
-                from core.activity import emit_activity
-                await emit_activity(
-                    case_id,
-                    tag="Evidence Test",
-                    text=f'Competitor Triangulation: Searching alternatives "{comp_query}"',
-                    claim_id=claim.id,
-                    action="search",
-                )
-            except Exception:
-                pass
-        try:
-            comp_items = await search_evidence(claim, query_override=comp_query)
-            existing_urls = {ev.source_url for ev in evidence_items}
-            for item_ev in comp_items:
-                if item_ev.source_url not in existing_urls:
-                    evidence_items.append(item_ev)
-                    existing_urls.add(item_ev.source_url)
-        except Exception as exc:
-            logger.warning(f"Competitor triangulation search failed: {exc}")
 
     # Iterative Search Loop (ReAct / Query Reformulation):
     # If the initial search (and competitor check) returned 0 sources,
@@ -313,29 +317,32 @@ async def run_researcher(
         except Exception:
             pass
 
-    # Adaptive Scrutiny: deep-fetch top 1-2 URLs only if load_bearing and snippet is thin
+    # Adaptive Scrutiny: deep-fetch top 1-2 URLs in parallel if load_bearing and snippet is thin
     if claim.load_bearing is True and evidence_items:
-        for ev in evidence_items[:2]:
-            if _is_thin_snippet(ev.snippet):
-                try:
-                    import urllib.parse
-                    domain = urllib.parse.urlparse(ev.source_url).hostname or ev.source_url
-                    from core.activity import emit_activity
-                    await emit_activity(
-                        case_id,
-                        tag="Evidence Test",
-                        text=f"Deep-fetching {domain} to inspect policy text...",
-                        claim_id=claim.id,
-                        action="fetch",
-                    )
-                except Exception:
-                    pass
-                try:
-                    full_text = await fetch_page(ev.source_url)
-                    if full_text:
-                        ev.snippet = full_text
-                except Exception as exc:
-                    logger.debug(f"Deep fetch skipped or failed for {ev.source_url}: {exc}")
+        async def _fetch_single_thin(ev: EvidenceItem) -> None:
+            if not _is_thin_snippet(ev.snippet):
+                return
+            try:
+                import urllib.parse
+                domain = urllib.parse.urlparse(ev.source_url).hostname or ev.source_url
+                from core.activity import emit_activity
+                await emit_activity(
+                    case_id,
+                    tag="Evidence Test",
+                    text=f"Deep-fetching {domain} to inspect policy text...",
+                    claim_id=claim.id,
+                    action="fetch",
+                )
+            except Exception:
+                pass
+            try:
+                full_text = await fetch_page(ev.source_url)
+                if full_text:
+                    ev.snippet = full_text
+            except Exception as exc:
+                logger.debug(f"Deep fetch skipped or failed for {ev.source_url}: {exc}")
+
+        await asyncio.gather(*(_fetch_single_thin(ev) for ev in evidence_items[:2]))
 
 
 

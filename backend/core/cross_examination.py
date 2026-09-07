@@ -230,12 +230,10 @@ async def run_cross_examination_probes(
     findings: list[Finding],
     provider: LLMProvider,
 ) -> list[Finding]:
-    """Runs targeted empirical probes for load-bearing claims with unverified blockers."""
-    probed_findings: list[Finding] = []
-
-    for claim in case.claims:
+    """Runs targeted empirical probes for load-bearing claims with unverified blockers in parallel."""
+    async def _probe_single(claim: Claim) -> Finding | None:
         if not claim.load_bearing:
-            continue
+            return None
 
         claim_findings = [f for f in findings if f.claim_id == claim.id]
         # If researcher already has strong empirical evidence with a contradiction, no probe needed
@@ -244,14 +242,17 @@ async def run_cross_examination_probes(
             for f in claim_findings
         )
         if has_evidence_contradiction:
-            continue
+            return None
 
         blocker = extract_critical_blocker(claim_findings)
         if not blocker:
-            continue
+            return None
 
-        probe_finding = await probe_blocker(claim, blocker, case, provider)
-        if probe_finding:
-            probed_findings.append(probe_finding)
+        return await probe_blocker(claim, blocker, case, provider)
 
-    return probed_findings
+    probe_tasks = [_probe_single(c) for c in case.claims]
+    if not probe_tasks:
+        return []
+
+    probe_results = await asyncio.gather(*probe_tasks)
+    return [pf for pf in probe_results if pf is not None]

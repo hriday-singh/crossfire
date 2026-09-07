@@ -81,15 +81,55 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
   isTesting,
 }) => {
   const verdict = currentCase.case_verdict;
+  const totalClaims = currentCase.claims.length;
+  const adjudicatedClaims = currentCase.claims.filter((c) => c.status != null);
+  const survivedClaims = currentCase.claims.filter((c) => c.status === "survived");
+  const flaggedTestingClaims = currentCase.claims.filter(
+    (c) => c.status === "broken" || c.status === "weakened" || c.status === "unresolved"
+  );
 
   if (!verdict) {
     return (
-      <div className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-5">
-        <p className="font-body-md text-body-md text-on-surface-variant">
-          {isTesting
-            ? "The call lands here once every claim has been tested."
-            : "No verdict for this run."}
-        </p>
+      <div className="rounded-xl border border-outline-variant bg-surface-container-low px-space-5 py-space-5 transition-all">
+        {isTesting ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-primary-container animate-spin">
+                  progress_activity
+                </span>
+                <span className="font-title-sm text-title-sm font-semibold text-on-surface">
+                  {adjudicatedClaims.length > 0
+                    ? `Adjudicating claims (${adjudicatedClaims.length}/${totalClaims} resolved)`
+                    : "Testing claims in parallel..."}
+                </span>
+              </div>
+              {totalClaims > 0 && (
+                <span className="font-code-sm text-code-sm text-outline">
+                  {Math.round((adjudicatedClaims.length / totalClaims) * 100)}% complete
+                </span>
+              )}
+            </div>
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              The call lands here once every claim has been tested.
+            </p>
+            {adjudicatedClaims.length > 0 && (
+              <div className="flex items-center gap-space-2 pt-1 font-code-sm text-code-sm text-on-surface-variant">
+                <span className="text-verdict-survived font-medium">
+                  {survivedClaims.length} held up
+                </span>
+                <span>•</span>
+                <span className="text-verdict-weakened font-medium">
+                  {flaggedTestingClaims.length} flagged / weakened
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="font-body-md text-body-md text-on-surface-variant">
+            No verdict for this run.
+          </p>
+        )}
       </div>
     );
   }
