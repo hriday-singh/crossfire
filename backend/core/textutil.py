@@ -77,3 +77,27 @@ def one_line(text: str, max_chars: int = 140) -> str:
         return text
     head, _, _ = text[:max_chars].rpartition(" ")
     return (head or text[:max_chars]).rstrip(",;:") + "…"
+
+
+def format_concise_rationale(text: str, max_chars: int = 120) -> str:
+    """Format an agent recommendation rationale into exactly one concise, clear sentence."""
+    text = " ".join((text or "").split()).strip()
+    if not text:
+        return ""
+    # Strip common redundant prefixes if present
+    text = re.sub(
+        r"^(?:why (?:selected|chosen|recommended):\s*|(?:agent )?rationale:\s*)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    # Extract only the first sentence
+    sentences = [s.strip() for s in _SENTENCE_SPLIT.split(text) if s.strip()]
+    first_sentence = sentences[0] if sentences else text
+    if len(first_sentence) > max_chars:
+        head, _, _ = first_sentence[:max_chars].rpartition(" ")
+        first_sentence = (head or first_sentence[:max_chars]).rstrip(",;:") + "…"
+    elif not first_sentence.endswith((".", "!", "?", "…")):
+        first_sentence += "."
+    return first_sentence
+

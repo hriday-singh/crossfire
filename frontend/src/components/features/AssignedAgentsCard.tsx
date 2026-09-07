@@ -8,6 +8,17 @@ interface AssignedAgentsCardProps {
   onToggleAgent: (agentId: string) => void;
 }
 
+export function formatConciseRationale(text?: string): string {
+  if (!text) return "";
+  const cleaned = text.trim().replace(/\s+/g, " ");
+  const stripped = cleaned.replace(
+    /^(?:why (?:selected|chosen|recommended):\s*|(?:agent )?rationale:\s*)/i,
+    "",
+  );
+  const match = stripped.match(/^.*?[.!?](?:\s|$)/);
+  return match ? match[0].trim() : stripped;
+}
+
 export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
   agentMode = "auto",
   selectedAgents,
@@ -38,10 +49,14 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
           const isSelected = selectedAgents.some(
             (id) => (id === "receipts" ? "researcher" : id === "overthinker" ? "operator" : id) === agent.id
           );
-          const rationale =
+          const rawRationale =
             agentRationales[agent.id] ||
             (agent.id === "researcher" ? agentRationales["receipts"] : undefined) ||
-            (agent.id === "operator" ? agentRationales["overthinker"] || "Stress-tests organizational friction, adoption inertia, enterprise gatekeeping, and regulatory liability." : undefined);
+            (agent.id === "operator"
+              ? agentRationales["overthinker"] ||
+                "Stress-tests operational friction, adoption inertia, and regulatory hurdles."
+              : undefined);
+          const rationale = rawRationale ? formatConciseRationale(rawRationale) : undefined;
 
           return (
             <div
@@ -101,7 +116,10 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
 
                 {/* Show auto rationale if available, otherwise agent general description */}
                 {isAuto && rationale ? (
-                  <p className="font-body-xs text-body-xs text-primary-container bg-primary-container/10 border border-primary-container/20 rounded p-1.5 leading-snug">
+                  <p
+                    title={rationale}
+                    className="font-body-xs text-body-xs text-primary-container bg-primary-container/10 border border-primary-container/20 rounded p-1.5 leading-snug line-clamp-2"
+                  >
                     <span className="font-medium">Why selected: </span>
                     {rationale}
                   </p>

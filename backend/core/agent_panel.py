@@ -7,7 +7,7 @@ from __future__ import annotations
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from core.models import Case, TestPlanItem
-from core.textutil import one_line
+from core.textutil import format_concise_rationale, one_line
 
 KNOWN_AGENTS: tuple[str, ...] = ("devils_advocate", "receipts", "builder", "operator")
 
@@ -37,7 +37,7 @@ DEFAULT_RATIONALES: dict[str, str] = {
     "devils_advocate": "Stress-tests implicit premises, unstated assumptions, and logical contradictions.",
     "receipts": "Checks the claim against external sources and real-world evidence.",
     "builder": "Evaluates what execution actually requires and what blocks it in practice.",
-    "operator": "Stress-tests organizational friction, adoption inertia, enterprise gatekeeping, and regulatory liability.",
+    "operator": "Stress-tests operational friction, adoption inertia, and regulatory hurdles.",
 }
 
 # Receipts is the single-pass default for secondary claims: it is the only
@@ -48,7 +48,9 @@ SINGLE_PASS_PRIORITY: tuple[str, ...] = ("receipts", "devils_advocate", "builder
 
 class AgentPick(BaseModel):
     agent: str = Field(description="One of: devils_advocate, receipts, builder, operator")
-    rationale: str = Field(description="One sentence on why this decision needs that test")
+    rationale: str = Field(
+        description="Exactly one concise sentence (crisp, clear, under 100 characters) explaining why this decision needs this test."
+    )
 
 
 class ExtractedClaims(BaseModel):
@@ -84,7 +86,7 @@ def normalize_agents(picks: list[AgentPick]) -> tuple[list[str], dict[str, str]]
             agent = "receipts"
         if agent in KNOWN_AGENTS and agent not in selected:
             selected.append(agent)
-            rationales[agent] = one_line(pick.rationale) or DEFAULT_RATIONALES[agent]
+            rationales[agent] = format_concise_rationale(pick.rationale) or DEFAULT_RATIONALES[agent]
 
     if "devils_advocate" not in selected:
         selected.insert(0, "devils_advocate")
@@ -110,8 +112,9 @@ EXTRACTION_SYSTEM_PROMPT = (
     "assertion that could independently turn out true or false. Include both what the "
     "user asserted outright AND the unstated assumptions the proposal silently depends "
     "on. Write each claim so it stands on its own without the original wording.\n\n"
-    "Then pick which adversarial tests this specific decision needs, with a one-sentence "
-    "rationale each:\n"
+    "Then pick which adversarial tests this specific decision needs. For each chosen agent, "
+    "provide exactly ONE concise sentence (under 100 characters) that is crisp, clear, and "
+    "explains why this decision needs that test. Avoid run-on sentences, generic filler, or fluff:\n"
     "- devils_advocate: unstated premises, counter-incentives, motivated reasoning.\n"
     "- receipts: claims checkable against outside sources, prices, rules, records, precedent.\n"
     "- builder: whether execution is actually achievable with the time, money, skill or access available.\n"

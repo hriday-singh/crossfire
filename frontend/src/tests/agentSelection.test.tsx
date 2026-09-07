@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { AgentSelectorPanel } from "@/components/features/AgentSelectorPanel";
-import { AssignedAgentsCard } from "@/components/features/AssignedAgentsCard";
+import {
+  AssignedAgentsCard,
+  formatConciseRationale,
+} from "@/components/features/AssignedAgentsCard";
 import * as CaseContextModule from "@/context/CaseContext";
 import { ConfirmScreen } from "@/components/screens/ConfirmScreen";
 import { INITIAL_STATE } from "@/context/caseReducer";
@@ -191,6 +194,50 @@ describe("AssignedAgentsCard Component", () => {
         "Core critical assumptions identified in market thesis.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("formats rationale into one concise sentence, stripping extra sentences and redundant prefixes", () => {
+    // Strips redundant prefix and limits to first sentence
+    const verbose =
+      "Why selected: Core critical assumptions identified in market thesis. Furthermore we need to stress test competitors.";
+    expect(formatConciseRationale(verbose)).toBe(
+      "Core critical assumptions identified in market thesis.",
+    );
+
+    // Handles single sentence without prefix
+    expect(
+      formatConciseRationale("External vendor pricing is publicly verifiable."),
+    ).toBe("External vendor pricing is publicly verifiable.");
+
+    // Handles empty input
+    expect(formatConciseRationale("")).toBe("");
+    expect(formatConciseRationale(undefined)).toBe("");
+  });
+
+  it("renders only the first concise sentence in AssignedAgentsCard when rationale is verbose", () => {
+    const handleToggle = vi.fn();
+    const verboseRationales: Record<string, string> = {
+      builder:
+        "Architecture requires substantial API integration work. There is also potential latency risks.",
+    };
+
+    render(
+      <AssignedAgentsCard
+        agentMode="auto"
+        selectedAgents={["builder"]}
+        agentRationales={verboseRationales}
+        onToggleAgent={handleToggle}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Architecture requires substantial API integration work.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/There is also potential latency risks/i),
+    ).not.toBeInTheDocument();
   });
 
   it("allows selecting and deselecting agents", () => {

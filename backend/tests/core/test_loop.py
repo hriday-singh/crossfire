@@ -711,6 +711,35 @@ def test_normalize_agents_falls_back_to_the_full_panel():
     assert rationales["devils_advocate"]
 
 
+def test_format_concise_rationale_and_normalize_single_sentence():
+    from core.loop import AgentPick, normalize_agents
+    from core.textutil import format_concise_rationale
+
+    # Test format_concise_rationale helper directly
+    multi_sentence = "Why selected: Pricing is publicly listed on vendor pages. Second sentence should be omitted."
+    formatted = format_concise_rationale(multi_sentence)
+    assert formatted == "Pricing is publicly listed on vendor pages."
+    assert "Second sentence" not in formatted
+    assert not formatted.lower().startswith("why selected:")
+
+    # Test normalize_agents cleans multi-sentence verbose picks to one concise sentence
+    agents, rationales = normalize_agents(
+        [
+            AgentPick(
+                agent="receipts",
+                rationale="Why selected: Pricing is publicly verifiable. We also verified historical contracts.",
+            ),
+            AgentPick(
+                agent="builder",
+                rationale="Architecture requires substantial API integration work",
+            ),
+        ]
+    )
+    assert rationales["receipts"] == "Pricing is publicly verifiable."
+    assert rationales["builder"] == "Architecture requires substantial API integration work."
+
+
+
 def test_build_test_plan_filters_strictly_by_active_agents(sample_case):
     from core.loop import build_test_plan
 
