@@ -326,7 +326,7 @@ export const ConfirmScreen: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px] animate-spin">
                       progress_activity
                     </span>
-                    <span>INITIALIZING RUNNER...</span>
+                    <span>Running Live Runner...</span>
                   </>
                 ) : (
                   <>

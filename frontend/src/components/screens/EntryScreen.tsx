@@ -34,17 +34,17 @@ const isMarkdownFile = (filename: string): boolean => {
 
 export const EntryScreen: React.FC = () => {
   const { state, startExtracting, setActiveModal } = useCase();
-  const [rawInput, setRawInput] = useState("");
+  const [rawInput, setRawInput] = useState(state.currentCase?.raw_input || "");
   const [attachments, setAttachments] = useState<EntryAttachment[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
   const [ingestError, setIngestError] = useState<string | null>(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState("");
   const [smartNotice, setSmartNotice] = useState<string | null>(null);
-  const [agentMode, setAgentMode] = useState<"auto" | "custom">("auto");
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([
-    ...DEFAULT_AGENT_IDS,
-  ]);
+  const [agentMode, setAgentMode] = useState<"auto" | "custom">(state.currentCase?.agent_mode || "auto");
+  const [selectedAgents, setSelectedAgents] = useState<string[]>(
+    state.currentCase?.selected_agents || [...DEFAULT_AGENT_IDS]
+  );
   const [isAgentPanelExpanded, setIsAgentPanelExpanded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -663,13 +663,17 @@ export const EntryScreen: React.FC = () => {
                 type="submit"
                 id="submit-run-btn"
                 variant="primary"
-                disabled={!canRunTest}
+                disabled={!canRunTest || state.isStreaming || state.currentCase?.status === "testing"}
                 className="inline-flex items-center justify-center gap-space-2 bg-primary-container hover:bg-blue-600 text-white font-headline-sm text-headline-sm px-space-6 py-space-2 rounded transition-colors active:scale-[0.98] shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[18px]">
-                  play_arrow
+                  {state.isStreaming || state.currentCase?.status === "testing" ? "progress_activity" : "play_arrow"}
                 </span>
-                <span>Run stress test</span>
+                <span>
+                  {state.isStreaming || state.currentCase?.status === "testing"
+                    ? "Stress test is running..."
+                    : "Run stress test"}
+                </span>
                 <span className="sr-only">Test Decision</span>
               </Button>
             </div>

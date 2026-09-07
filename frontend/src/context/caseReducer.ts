@@ -172,11 +172,21 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
     case "TOGGLE_AGENT_SELECTION": {
       if (!state.currentCase) return state;
       const agentId = action.payload;
+      
+      const backendIdMap: Record<string, string> = {
+        researcher: "receipts",
+        operator: "overthinker"
+      };
+      
+      const mappedId = backendIdMap[agentId] || agentId;
       const currentSelected = state.currentCase.selected_agents || [...DEFAULT_AGENT_IDS];
-      const isSelected = currentSelected.includes(agentId);
+      
+      const isSelected = currentSelected.includes(agentId) || currentSelected.includes(mappedId);
+      
       const updated = isSelected
-        ? currentSelected.filter((id) => id !== agentId)
+        ? currentSelected.filter((id) => id !== agentId && id !== mappedId)
         : [...currentSelected, agentId];
+
       return {
         ...state,
         currentCase: {
