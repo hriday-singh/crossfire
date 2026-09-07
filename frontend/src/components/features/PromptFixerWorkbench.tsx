@@ -46,60 +46,57 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
 
   return (
     <section
-      aria-label="Steel Man Prompt Fixer Workbench"
+      aria-label="Revise Proposal"
       id="prompt-fixer-workbench"
       className={cn(
-        "rounded-xl border border-primary-container/40 bg-surface-container-low p-space-6 space-y-space-5 shadow-lg text-left",
+        "rounded-xl border border-outline-variant/60 bg-surface-container-lowest p-space-8 space-y-space-8 shadow-sm text-left mt-space-8",
         className
       )}
     >
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-3 pb-space-4 border-b border-outline-variant/60">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="material-symbols-outlined text-primary-container text-[22px]">
-              auto_fix_high
-            </span>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-4 pb-space-6 border-b border-outline-variant/40">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 flex-wrap">
             <h2 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
-              Fix Original Prompt with Steel Man Solutions
+              Revise Proposal
             </h2>
-            <span className="font-code-sm text-code-sm px-2 py-0.5 rounded-full bg-primary-container/15 text-primary-container border border-primary-container/30 font-semibold">
-              {selectedCount} of {totalSalvageable} fix{totalSalvageable > 1 ? "es" : ""} selected
+            <span className="font-code-sm text-xs px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-medium">
+              {selectedCount} of {totalSalvageable} revisions selected
             </span>
           </div>
-          <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-            Select the solutions proposed by the Steel Man to replace failed claims, then load the improved prompt back into the starting screen to test again.
+          <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed max-w-2xl">
+            Select the suggested fixes to replace failed claims, then test the updated proposal.
           </p>
         </div>
 
         {/* Batch selection buttons */}
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        <div className="flex items-center gap-3 shrink-0 flex-wrap mt-4 md:mt-0">
           <button
             type="button"
             onClick={isAllSelected ? onClearAll : onSelectAll}
-            className="px-3 py-1.5 rounded-lg border border-outline-variant hover:border-outline bg-surface-container hover:bg-surface-container-high text-xs font-code-sm text-on-surface font-medium transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-lg border border-outline-variant hover:border-outline bg-surface-container-low hover:bg-surface-container text-xs font-code-sm text-on-surface font-medium transition-colors cursor-pointer"
           >
-            {isAllSelected ? "Deselect All" : "Select All Failed"}
+            {isAllSelected ? "Deselect All" : "Select All Revisions"}
           </button>
           {hasChanges && (
             <button
               type="button"
               onClick={onResetPrompt}
-              className="px-3 py-1.5 rounded-lg border border-outline-variant hover:border-outline bg-surface-container hover:bg-surface-container-high text-xs font-code-sm text-outline hover:text-on-surface transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-lg text-xs font-code-sm text-outline hover:text-on-surface transition-colors cursor-pointer"
               title="Reset prompt back to original statement"
             >
-              Reset to Original
+              Reset
             </button>
           )}
         </div>
       </div>
 
       {/* Failed Claims Checklist */}
-      <div className="space-y-space-3">
-        <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold block">
-          Failed Claims & Steel Man Replacements:
-        </span>
-        <div className="space-y-2.5">
+      <div className="space-y-space-4">
+        <h3 className="font-title-sm text-title-sm text-on-surface font-medium">
+          Available Revisions
+        </h3>
+        <div className="grid gap-space-4">
           {salvageableClaims.map((claim, idx) => {
             const isSelected = selectedClaimIds.has(claim.id);
             const salvageText = getClaimSalvagedText(claim, currentCase);
@@ -111,64 +108,64 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
                 key={claim.id}
                 onClick={() => onToggleClaim(claim.id)}
                 className={cn(
-                  "p-space-3.5 rounded-lg border transition-all cursor-pointer select-none",
+                  "p-space-6 rounded-xl border transition-all cursor-pointer select-none",
                   isSelected
-                    ? "bg-primary-container/10 border-primary-container/60 shadow-xs"
-                    : "bg-surface-container border-outline-variant/60 hover:border-outline"
+                    ? "bg-primary-container/5 border-primary-container/40 ring-1 ring-primary-container/20"
+                    : "bg-surface-container-low border-outline-variant/60 hover:border-outline-variant hover:bg-surface-container"
                 )}
               >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggleClaim(claim.id)}
-                    aria-label={`Replace claim ${displayNum}`}
-                    className="mt-1 w-4 h-4 rounded border-outline-variant text-primary-container focus:ring-primary-container accent-blue-600 shrink-0 cursor-pointer"
-                  />
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-code-sm text-xs font-semibold px-2 py-0.5 rounded bg-surface-container-highest text-outline">
-                        Claim #{displayNum}
+                <div className="flex items-start gap-4">
+                  <div className="mt-1 flex items-center justify-center">
+                    <div className={cn(
+                      "w-5 h-5 rounded border flex items-center justify-center transition-colors",
+                      isSelected 
+                        ? "bg-primary-container border-primary-container text-on-primary-container" 
+                        : "border-outline-variant bg-surface-container-lowest"
+                    )}>
+                      {isSelected && <span className="material-symbols-outlined text-[14px] font-bold">check</span>}
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap mb-4">
+                      <span className="font-code-sm text-xs font-medium text-on-surface-variant">
+                        Claim {displayNum}
                       </span>
                       {claim.status === "broken" ? (
-                        <span className="font-code-sm text-xs font-semibold px-2 py-0.5 rounded bg-error-container/30 text-error border border-error/30">
+                        <span className="font-code-sm text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-error-container/30 text-error">
                           Refuted
                         </span>
                       ) : (
-                        <span className="font-code-sm text-xs font-semibold px-2 py-0.5 rounded bg-tertiary-container/30 text-tertiary border border-tertiary/30">
+                        <span className="font-code-sm text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-tertiary-container/30 text-tertiary">
                           Weakened
                         </span>
                       )}
-                      {claim.fatal_flaw && (
-                        <span className="font-body-xs text-xs text-error/90 truncate">
-                          [Flaw: {cleanUiText(claim.fatal_flaw)}]
-                        </span>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Original Claim */}
+                      <div>
+                        <div className="font-label-mono text-[10px] uppercase tracking-wider text-outline mb-1.5">Original</div>
+                        <div className={cn("font-body-sm text-sm text-on-surface-variant", isSelected && "line-through opacity-50")}>
+                          <SerpApiText text={cleanUiText(claim.statement)} />
+                        </div>
+                      </div>
+
+                      {/* Proposed Fix */}
+                      <div>
+                        <div className="font-label-mono text-[10px] uppercase tracking-wider text-primary mb-1.5">Proposed Fix</div>
+                        <div className={cn("font-body-sm text-sm font-medium", isSelected ? "text-on-surface" : "text-on-surface-variant")}>
+                          <SerpApiText text={cleanUiText(salvageText)} />
+                        </div>
+                      </div>
+
+                      {claim.tradeoff_acknowledged && (
+                        <div className="mt-4 inline-flex items-start gap-2 text-xs font-mono text-outline/90 bg-surface-container p-3 rounded-lg border border-outline-variant/30">
+                          <span className="material-symbols-outlined text-[14px] mt-0.5 opacity-70">info</span>
+                          <span className="leading-relaxed">{cleanUiText(claim.tradeoff_acknowledged)}</span>
+                        </div>
                       )}
                     </div>
-
-                    {/* Original Claim (strikethrough when selected) */}
-                    <div className="font-body-sm text-xs text-on-surface-variant flex items-baseline gap-1.5">
-                      <span className="text-outline shrink-0 font-mono">Original:</span>
-                      <span className={cn(isSelected && "line-through opacity-70")}>
-                        <SerpApiText text={cleanUiText(claim.statement)} />
-                      </span>
-                    </div>
-
-                    {/* Steel Man Salvaged Claim */}
-                    <div className="font-body-sm text-sm text-on-surface flex items-baseline gap-1.5">
-                      <span className="text-primary-container font-semibold font-mono shrink-0">
-                        Steel Man Solution:
-                      </span>
-                      <span className="font-medium text-on-surface">
-                        <SerpApiText text={cleanUiText(salvageText)} />
-                      </span>
-                    </div>
-
-                    {claim.tradeoff_acknowledged && (
-                      <div className="text-[11px] font-mono text-outline">
-                        Trade-off: {cleanUiText(claim.tradeoff_acknowledged)}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -178,31 +175,30 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
       </div>
 
       {/* Editable Prompt Area */}
-      <div className="space-y-2 pt-1">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="space-y-space-4 pt-space-4 border-t border-outline-variant/40">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <label
             htmlFor="improved-prompt-textarea"
-            className="font-label-mono text-label-mono uppercase tracking-wider text-on-surface font-semibold flex items-center gap-1.5"
+            className="font-title-sm text-title-sm text-on-surface font-medium"
           >
-            <span className="material-symbols-outlined text-[15px] text-primary-container">edit_note</span>
-            <span>Improved Decision Prompt (Editable):</span>
+            Updated Proposal
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             {onRefineWithAi && (
               <button
                 type="button"
                 disabled={isRefiningAi || selectedCount === 0}
                 onClick={onRefineWithAi}
-                className="px-2.5 py-1 rounded bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant text-xs font-code-sm text-primary-container font-medium flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
-                title="Use Crossfire LLM to naturally polish and re-weave the proposal prose"
+                className="px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container border border-outline-variant text-xs font-code-sm text-on-surface-variant hover:text-on-surface font-medium flex items-center gap-2 cursor-pointer disabled:opacity-40 transition-colors"
+                title="Smooth the prose flow"
               >
-                <span className="material-symbols-outlined text-[14px]">
-                  {isRefiningAi ? "progress_activity" : "magic_button"}
+                <span className="material-symbols-outlined text-[16px]">
+                  {isRefiningAi ? "progress_activity" : "edit_document"}
                 </span>
-                <span>{isRefiningAi ? "Polishing..." : "Refine with AI"}</span>
+                <span>{isRefiningAi ? "Polishing..." : "Smooth Prose"}</span>
               </button>
             )}
-            <span className="font-code-sm text-xs text-outline">
+            <span className="font-code-sm text-xs text-outline font-medium">
               {improvedPrompt.length} chars
             </span>
           </div>
@@ -212,9 +208,9 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
           id="improved-prompt-textarea"
           value={improvedPrompt}
           onChange={(e) => onChangeImprovedPrompt(e.target.value)}
-          rows={4}
-          className="w-full bg-surface-container-lowest text-on-surface p-3.5 font-body-md text-sm rounded-lg border border-outline-variant focus:border-primary-container outline-none leading-relaxed transition-colors resize-y shadow-inner"
-          placeholder="Your improved decision proposal..."
+          rows={5}
+          className="w-full bg-surface-container-lowest text-on-surface p-5 font-body-md text-sm rounded-xl border border-outline-variant focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none leading-relaxed transition-all resize-y shadow-sm"
+          placeholder="Your revised decision proposal..."
         />
 
         {refineError && (
@@ -223,20 +219,16 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
       </div>
 
       {/* Action Row */}
-      <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-outline-variant/60">
-        <span className="font-body-xs text-xs text-on-surface-variant">
-          Puts the improved prompt into the starting screen textarea for a fresh run.
-        </span>
-
+      <div className="pt-space-2 flex justify-end">
         <button
           type="button"
           id="put-into-starting-screen-btn"
           onClick={onPutIntoStartingScreen}
           disabled={!improvedPrompt.trim()}
-          className="px-5 py-2.5 rounded-lg bg-primary-container hover:bg-blue-600 text-white font-body-sm text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99] disabled:opacity-40"
+          className="px-6 py-3 rounded-lg bg-on-surface hover:bg-on-surface/90 text-surface font-body-sm text-sm font-medium transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-sm active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         >
-          <span className="material-symbols-outlined text-[18px]">replay</span>
-          <span>Put Improved Prompt into Starting Screen</span>
+          <span>Test Revised Proposal</span>
+          <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
         </button>
       </div>
     </section>

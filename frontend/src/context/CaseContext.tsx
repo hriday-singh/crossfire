@@ -13,6 +13,7 @@ interface CaseContextValue {
     agentMode?: "auto" | "custom",
     selectedAgents?: string[]
   ) => Promise<void>;
+  cancelExtraction: () => void;
   confirmAndRun: () => Promise<void>;
   toggleAgentSelection: (agentId: string) => void;
   setAgentMode: (mode: "auto" | "custom") => void;
@@ -131,6 +132,8 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: "SET_SELECTED_AGENTS", payload: agents });
   };
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const startExtracting = async (
     rawInput: string,
     context?: string | null,
@@ -142,10 +145,23 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       payload: { rawInput, context, agentMode, selectedAgents },
     });
 
+    abortControllerRef.current = new AbortController();
+
     try {
-      const result = await createCase(rawInput, context, agentMode, selectedAgents);
+      const result = await createCase(
+        rawInput,
+        context,
+        agentMode,
+        selectedAgents,
+        undefined,
+        abortControllerRef.current.signal
+      );
       dispatch({ type: "EXTRACTING_SUCCESS", payload: result });
     } catch (err: unknown) {
+      if ((err as Error).name === "AbortError") {
+        // Ignored, we handle state reset in cancelExtraction
+        return;
+      }
       const errorObj = err as { stage?: string; message?: string };
       dispatch({
         type: "EXTRACTING_ERROR",
@@ -155,7 +171,20 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
           details: err,
         },
       });
+    } finally {
+      abortControllerRef.current = null;
     }
+  };
+
+  const cancelExtraction = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    // Delete case is handled implicitly since the backend will not store it.
+    // Reset the frontend state so user goes back to the entry screen safely.
+    dispatch({ type: "RESET_CASE" });
+    dispatch({ type: "NAVIGATE_SCREEN", payload: "entry" });
   };
 
   const isConfirmingRef = useRef(false);
@@ -266,6 +295,7 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         state,
         dispatch,
         startExtracting,
+        cancelExtraction,
         confirmAndRun,
         toggleAgentSelection,
         setAgentMode,

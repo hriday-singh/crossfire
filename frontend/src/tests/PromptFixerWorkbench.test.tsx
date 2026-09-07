@@ -67,7 +67,7 @@ describe("PromptFixerWorkbench", () => {
     );
 
     expect(
-      screen.getByText(/Fix Original Prompt with Steel Man Solutions/i)
+      screen.getByText(/Revise Proposal/i)
     ).toBeInTheDocument();
     expect(screen.getByText("We will launch without trial")).toBeInTheDocument();
     expect(
@@ -91,10 +91,8 @@ describe("PromptFixerWorkbench", () => {
       />
     );
 
-    const checkbox = screen.getByRole("checkbox", {
-      name: /Replace claim 1/i,
-    });
-    fireEvent.click(checkbox);
+    const claimCard = screen.getByText("We will launch without trial").closest("div.border");
+    if (claimCard) fireEvent.click(claimCard);
     expect(handleToggle).toHaveBeenCalledWith("c1");
   });
 
@@ -116,7 +114,7 @@ describe("PromptFixerWorkbench", () => {
       />
     );
 
-    const selectAllBtn = screen.getByRole("button", { name: /Select All Failed/i });
+    const selectAllBtn = screen.getByRole("button", { name: /Select All Revisions/i });
     fireEvent.click(selectAllBtn);
     expect(handleSelectAll).toHaveBeenCalledTimes(1);
 
@@ -157,7 +155,7 @@ describe("PromptFixerWorkbench", () => {
     );
 
     const rerunBtn = screen.getByRole("button", {
-      name: /Put Improved Prompt into Starting Screen/i,
+      name: /Test Revised Proposal/i,
     });
     fireEvent.click(rerunBtn);
     expect(handlePut).toHaveBeenCalledTimes(1);
@@ -179,7 +177,7 @@ describe("PromptFixerWorkbench", () => {
       />
     );
 
-    const textarea = screen.getByPlaceholderText(/Your improved decision proposal\.\.\./i);
+    const textarea = screen.getByPlaceholderText(/Your revised decision proposal\.\.\./i);
     fireEvent.change(textarea, { target: { value: "Manually edited prompt" } });
     expect(handleChange).toHaveBeenCalledWith("Manually edited prompt");
   });

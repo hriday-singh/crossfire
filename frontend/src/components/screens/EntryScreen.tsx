@@ -33,7 +33,7 @@ const isMarkdownFile = (filename: string): boolean => {
 };
 
 export const EntryScreen: React.FC = () => {
-  const { state, startExtracting, setActiveModal } = useCase();
+  const { state, startExtracting, setActiveModal, cancelExtraction } = useCase();
   const [rawInput, setRawInput] = useState(state.currentCase?.raw_input || "");
   const [attachments, setAttachments] = useState<EntryAttachment[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
@@ -473,8 +473,14 @@ export const EntryScreen: React.FC = () => {
 
   if (state.isExtracting) {
     return (
-      <div className="flex flex-col w-full items-center justify-center py-24 px-space-4">
+      <div className="flex flex-col w-full items-center justify-center py-24 px-space-4 gap-6">
         <CubeSpinner />
+        <button
+          onClick={cancelExtraction}
+          className="px-6 py-2 rounded-full bg-error text-on-error font-body-sm font-semibold hover:bg-error/90 transition-colors shadow-sm"
+        >
+          Cancel
+        </button>
       </div>
     );
   }

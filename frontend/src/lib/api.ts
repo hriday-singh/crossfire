@@ -41,7 +41,8 @@ export async function createCase(
   context?: string | null,
   agentMode?: "auto" | "custom",
   selectedAgents?: string[],
-  baseUrl: string = DEFAULT_API_BASE
+  baseUrl: string = DEFAULT_API_BASE,
+  signal?: AbortSignal
 ): Promise<Case> {
   const payload: CreateCaseRequest = {
     raw_input: rawInput,
@@ -57,6 +58,7 @@ export async function createCase(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal,
   });
 
   if (!res.ok) {

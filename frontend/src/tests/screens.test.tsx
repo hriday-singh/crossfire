@@ -909,7 +909,7 @@ describe("Screen Components", () => {
 
       // Verify PromptFixerWorkbench is rendered
       expect(
-        screen.getByText(/Fix Original Prompt with Steel Man Solutions/i)
+        screen.getByText(/Revise Proposal/i)
       ).toBeInTheDocument();
       expect(
         screen.getAllByText("We will charge $50 without free trial").length
@@ -917,10 +917,9 @@ describe("Screen Components", () => {
       expect(
         screen.getAllByText(/Charge \$29 with 14-day trial/i).length
       ).toBeGreaterThanOrEqual(1);
-
-      // Click "Put Improved Prompt into Starting Screen"
+      // Click "Test Revised Proposal"
       const putIntoEntryBtn = screen.getByRole("button", {
-        name: /Put Improved Prompt into Starting Screen/i,
+        name: /Test Revised Proposal/i,
       });
       fireEvent.click(putIntoEntryBtn);
 
