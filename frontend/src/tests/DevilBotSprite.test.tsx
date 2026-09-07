@@ -136,7 +136,7 @@ describe('DevilBotSprite', () => {
     expect(calls[0][0]).toBe('builder');
   });
 
-  it('only allows Steelman to exit chamber when isSynthesisDone is true', async () => {
+  it('only allows Steelman to exit chamber when isSynthesisDone and loading 100% are true', async () => {
     const mockExitPacket = {
       id: 'steelman_exit_1',
       speaker_id: 'steelman',
@@ -149,6 +149,7 @@ describe('DevilBotSprite', () => {
       <DevilBotSprite
         agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }}
         isSynthesisDone={false}
+        isLoadingDone={false}
         currentActionPacket={mockExitPacket}
       />
     );
@@ -157,12 +158,14 @@ describe('DevilBotSprite', () => {
       expect(PIXI.Assets.load).toHaveBeenCalledWith('/judge_thing.webp');
     });
 
-    // When isSynthesisDone is true
+    // When isSynthesisDone is true and loading is 100%
     rerender(
       <DevilBotSprite
         agent={{ id: 'steelman', initialWaypoint: 'steelman_chair' }}
         isSynthesisDone={true}
-        currentActionPacket={{ ...mockExitPacket, id: 'steelman_exit_2', isSynthesisDone: true }}
+        isLoadingDone={true}
+        loadingProgress={100}
+        currentActionPacket={{ ...mockExitPacket, id: 'steelman_exit_2', isSynthesisDone: true, isLoadingDone: true, progress: 100 }}
       />
     );
   });

@@ -244,6 +244,8 @@ const B2B_COPILOT_SCENARIO = {
       dialogue: null,
       audio_url: null,
       isSynthesisDone: true,
+      isLoadingDone: true,
+      progress: 100,
     },
   ],
 };
@@ -442,6 +444,8 @@ const INFERENCE_PIPELINE_SCENARIO = {
       dialogue: null,
       audio_url: null,
       isSynthesisDone: true,
+      isLoadingDone: true,
+      progress: 100,
     },
   ],
 };

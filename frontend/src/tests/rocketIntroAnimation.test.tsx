@@ -25,10 +25,8 @@ describe("3D Mechanical Rocket Blueprint Linear Animation System", () => {
       // Check that flame is NOT present
       const flameGroup = container.querySelector(".blueprint-flame-group");
       expect(flameGroup).not.toBeInTheDocument();
-      // Check CAD telemetry text elements
-      expect(screen.getByText(/CAD STAGE-01/i)).toBeInTheDocument();
-      expect(screen.getByText(/LOX TANK/i)).toBeInTheDocument();
-      expect(screen.getByText(/RP-1 CELL/i)).toBeInTheDocument();
+      // Rocket renders cleanly without text clutter
+      expect(container.querySelectorAll("text")).toHaveLength(0);
     });
 
     it("applies custom scale transform correctly", () => {
@@ -40,7 +38,7 @@ describe("3D Mechanical Rocket Blueprint Linear Animation System", () => {
     it("renders seamlessly through RocketIllustration wrapper without booster", () => {
       const { container } = render(<RocketIllustration isThrusting={false} />);
       expect(container.querySelector("svg")).toBeInTheDocument();
-      expect(screen.getByText(/CAD STAGE-01/i)).toBeInTheDocument();
+      expect(container.querySelectorAll("text")).toHaveLength(0);
       expect(container.querySelector(".blueprint-flame-group")).not.toBeInTheDocument();
     });
   });

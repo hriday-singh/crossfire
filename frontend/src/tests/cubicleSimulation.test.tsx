@@ -285,154 +285,47 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     });
   });
 
-  describe("SideControlPanel Controls & Audio Toggle", () => {
-    it("renders Steelman Voice Readout toggle button and responds to toggle", () => {
-      const mockToggleAudio = vi.fn();
-      const mockSetAutoPlaying = vi.fn();
-      const mockSetSpeed = vi.fn();
-      const mockSetMuted = vi.fn();
-      const mockSetVolume = vi.fn();
-      const mockSetScenario = vi.fn();
-      const mockStepForward = vi.fn();
-      const mockResetScenario = vi.fn();
-      const mockTriggerManual = vi.fn();
-
+  describe("SideControlPanel Active Workstation Feed", () => {
+    it("renders Active Workstation Feed and displays active evaluator finding telemetry", () => {
       render(
         <SideControlPanel
-          isAutoPlaying={false}
-          setIsAutoPlaying={mockSetAutoPlaying}
-          playbackSpeed={1}
-          setPlaybackSpeed={mockSetSpeed}
-          isMuted={false}
-          setIsMuted={mockSetMuted}
-          speechSynthesisEnabled={true}
-          setSpeechSynthesisEnabled={mockToggleAudio}
-          volume={0.8}
-          setVolume={mockSetVolume}
-          currentScenarioKey="b2b_copilot_stress_test"
-          setCurrentScenarioKey={mockSetScenario}
-          scenarios={MOCK_SCENARIOS}
-          stepForward={mockStepForward}
-          resetScenario={mockResetScenario}
-          lastEvent={null}
-          triggerManualEvent={mockTriggerManual}
-          connectionStatus="mock_mode"
-          socketUrl="http://localhost:4000"
+          lastEvent={{
+            speaker_id: "builder",
+            dialogue: "Benchmarking GPU latency: under 4ms verified.",
+            verdict: "survived",
+            cognitive_tag: "[Latency Benchmark]",
+          }}
+          hoveredAgentId={null}
         />
       );
 
-      // Check Steelman Voice label and toggle button
-      expect(screen.getByText("Steelman Voice")).toBeInTheDocument();
-      const voiceButton = screen.getByRole("button", {
-        name: /Voice Readout: ENABLED/i,
-      });
-      expect(voiceButton).toBeInTheDocument();
-
-      fireEvent.click(voiceButton);
-      expect(mockToggleAudio).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Active Workstation Feed")).toBeInTheDocument();
+      expect(screen.getByText("Builder")).toBeInTheDocument();
+      expect(screen.getByText(/survived/i)).toBeInTheDocument();
+      expect(screen.getByText("Benchmarking GPU latency: under 4ms verified.")).toBeInTheDocument();
     });
 
-    it("displays MUTED state when voice readout is disabled", () => {
+    it("displays standby message when no event has been received", () => {
       render(
         <SideControlPanel
-          isAutoPlaying={true}
-          setIsAutoPlaying={vi.fn()}
-          playbackSpeed={1}
-          setPlaybackSpeed={vi.fn()}
-          isMuted={false}
-          setIsMuted={vi.fn()}
-          speechSynthesisEnabled={false}
-          setSpeechSynthesisEnabled={vi.fn()}
-          volume={0.8}
-          setVolume={vi.fn()}
-          currentScenarioKey="b2b_copilot_stress_test"
-          setCurrentScenarioKey={vi.fn()}
-          scenarios={MOCK_SCENARIOS}
-          stepForward={vi.fn()}
-          resetScenario={vi.fn()}
           lastEvent={null}
-          triggerManualEvent={vi.fn()}
-          connectionStatus="mock_mode"
-          socketUrl="http://localhost:4000"
+          hoveredAgentId={null}
         />
       );
 
-      expect(
-        screen.getByRole("button", { name: /Voice Readout: MUTED/i })
-      ).toBeInTheDocument();
+      expect(screen.getByText("Active Workstation Feed")).toBeInTheDocument();
+      expect(screen.getByText(/Awaiting evaluator telemetry/i)).toBeInTheDocument();
     });
 
     it("highlights hovered agent in active workstation feed", () => {
       render(
         <SideControlPanel
-          isAutoPlaying={false}
-          setIsAutoPlaying={vi.fn()}
-          playbackSpeed={1}
-          setPlaybackSpeed={vi.fn()}
-          isMuted={false}
-          setIsMuted={vi.fn()}
-          speechSynthesisEnabled={true}
-          setSpeechSynthesisEnabled={vi.fn()}
-          volume={0.8}
-          setVolume={vi.fn()}
-          currentScenarioKey="b2b_copilot_stress_test"
-          setCurrentScenarioKey={vi.fn()}
-          scenarios={MOCK_SCENARIOS}
-          stepForward={vi.fn()}
-          resetScenario={vi.fn()}
           lastEvent={null}
           hoveredAgentId="devils_advocate"
-          triggerManualEvent={vi.fn()}
-          connectionStatus="mock_mode"
-          socketUrl="http://localhost:4000"
         />
       );
 
       expect(screen.getByText(/\[HOVER\] Cubicle 02 \(SW\)/i)).toBeInTheDocument();
-    });
-
-    it("triggers quick standalone evaluator actions (e.g. Stand & Audit)", () => {
-      const mockTriggerManual = vi.fn();
-      render(
-        <SideControlPanel
-          isAutoPlaying={false}
-          setIsAutoPlaying={vi.fn()}
-          playbackSpeed={1}
-          setPlaybackSpeed={vi.fn()}
-          isMuted={false}
-          setIsMuted={vi.fn()}
-          speechSynthesisEnabled={true}
-          setSpeechSynthesisEnabled={vi.fn()}
-          volume={0.8}
-          setVolume={vi.fn()}
-          currentScenarioKey="b2b_copilot_stress_test"
-          setCurrentScenarioKey={vi.fn()}
-          scenarios={MOCK_SCENARIOS}
-          stepForward={vi.fn()}
-          resetScenario={vi.fn()}
-          lastEvent={null}
-          triggerManualEvent={mockTriggerManual}
-          connectionStatus="mock_mode"
-          socketUrl="http://localhost:4000"
-        />
-      );
-
-      // Expand Quick Evaluator Actions accordion
-      const accordionToggle = screen.getByRole("button", {
-        name: /Quick Evaluator Actions/i,
-      });
-      fireEvent.click(accordionToggle);
-
-      const standAuditBtn = screen.getByRole("button", {
-        name: /Stand & Audit/i,
-      });
-      expect(standAuditBtn).toBeInTheDocument();
-
-      fireEvent.click(standAuditBtn);
-      expect(mockTriggerManual).toHaveBeenCalled();
-      const dispatchedEvent = mockTriggerManual.mock.calls[0][0];
-      expect(dispatchedEvent.speaker_id).toBe("devils_advocate");
-      expect(dispatchedEvent.action).toBe("stand");
     });
   });
 });

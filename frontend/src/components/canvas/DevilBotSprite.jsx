@@ -276,6 +276,8 @@ export function DevilBotSprite({
   agent,
   isSelected = true,
   isSynthesisDone = false,
+  isLoadingDone = false,
+  loadingProgress = 0,
   characterPositions = {},
   currentActionPacket = null,
   isSpeaking = false,
@@ -374,14 +376,23 @@ export function DevilBotSprite({
 
     const { action, target } = currentActionPacket;
 
-    // Restriction: Only let Steelman continue with exit animation when synthesis is done
+    // Restriction: Only let Steelman move out of the judge table when synthesis AND loading 100% are complete
     if (agent.id === 'steelman' && action === 'walk_to' && (target === 'right_door' || target === 'right_door_exit')) {
       const packetHasSynthesisDone =
-        currentActionPacket.isSynthesisDone ||
-        currentActionPacket.stage?.includes('Synthesis') ||
-        currentActionPacket.stage?.includes('Synthesis Complete');
-      if (!isSynthesisDone && !packetHasSynthesisDone) {
-        return; // Retain seated posture at crucible chair until synthesis is delivered
+        Boolean(currentActionPacket.isSynthesisDone) ||
+        Boolean(currentActionPacket.stage?.includes('Synthesis')) ||
+        Boolean(currentActionPacket.stage?.includes('Synthesis Complete'));
+
+      const packetHasLoading100 =
+        Boolean(currentActionPacket.isLoadingDone) ||
+        (typeof currentActionPacket.progress === 'number' && currentActionPacket.progress >= 100) ||
+        (typeof currentActionPacket.loadingProgress === 'number' && currentActionPacket.loadingProgress >= 100);
+
+      const synthesisSatisfied = Boolean(isSynthesisDone || packetHasSynthesisDone);
+      const loadingSatisfied = Boolean(isLoadingDone || loadingProgress >= 100 || packetHasLoading100);
+
+      if (!synthesisSatisfied || !loadingSatisfied) {
+        return; // Retain seated posture at judge table until BOTH synthesis is delivered and loading is 100%
       }
     }
 

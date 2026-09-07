@@ -33,6 +33,8 @@ export function StageContainer({
   agents = [],
   selectedAgentIds = null,
   isSynthesisDone = false,
+  isLoadingDone = false,
+  loadingProgress = 0,
   characterPositions = {},
   currentActionPacket = null,
   activeSpeakerId = null,
@@ -83,6 +85,8 @@ export function StageContainer({
               agent={STEELMAN_CONFIG}
               isSelected={true}
               isSynthesisDone={isSynthesisDone}
+              isLoadingDone={isLoadingDone}
+              loadingProgress={loadingProgress}
               characterPositions={characterPositions}
               currentActionPacket={currentActionPacket?.speaker_id === 'steelman' ? currentActionPacket : null}
               isSpeaking={activeSpeakerId === 'steelman'}

@@ -287,7 +287,7 @@ export function useBackendLiveBridge({
             isSynthesisDone: true,
           });
 
-          // Steelman leaves the judge room ONLY when synthesis is completed
+          // Steelman leaves the judge room ONLY when synthesis is completed AND loading is 100%
           addTimer(() => {
             dispatchPacket({
               speaker_id: 'steelman',
@@ -296,6 +296,8 @@ export function useBackendLiveBridge({
               stage: 'Synthesis Complete // Exiting Chamber',
               thought: 'Adjudication synthesis completed. Exiting chamber...',
               isSynthesisDone: true,
+              isLoadingDone: true,
+              progress: 100,
             });
           }, Math.round(2500 * speedMultiplier));
         } else if (event === 'run_complete') {
@@ -309,6 +311,9 @@ export function useBackendLiveBridge({
                 stage: 'Run Complete',
                 thought: null,
                 dialogue: null,
+                isSynthesisDone: true,
+                isLoadingDone: true,
+                progress: 100,
               });
             }
           });
@@ -461,6 +466,8 @@ export function useBackendLiveBridge({
             stage: 'Synthesis Complete // Exiting Chamber',
             thought: 'All findings reconciled. Exiting chamber...',
             isSynthesisDone: true,
+            isLoadingDone: true,
+            progress: 100,
           });
           setIsReplaying(false);
         }, Math.round(2500 * speedMultiplier));

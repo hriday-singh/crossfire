@@ -81,37 +81,19 @@ export const MechanicalBlueprintRocket: React.FC<MechanicalBlueprintRocketProps>
           <line x1="95" y1="36" x2="445" y2="36" stroke="#38bdf8" strokeWidth="1" strokeDasharray="3 3" />
           <line x1="95" y1="30" x2="95" y2="42" stroke="#38bdf8" strokeWidth="1.2" />
           <line x1="445" y1="30" x2="445" y2="42" stroke="#38bdf8" strokeWidth="1.2" />
-          <text x="240" y="32" fill="#38bdf8" fontSize="9" textAnchor="middle" letterSpacing="0.1em">
-            L = 42.80m [CAD STAGE-01]
-          </text>
 
           {/* Dimension Caliper Vertical */}
           <line x1="480" y1="80" x2="480" y2="180" stroke="#38bdf8" strokeWidth="1" strokeDasharray="3 3" />
           <line x1="474" y1="80" x2="486" y2="80" stroke="#38bdf8" strokeWidth="1.2" />
           <line x1="474" y1="180" x2="486" y2="180" stroke="#38bdf8" strokeWidth="1.2" />
-          <text x="492" y="133" fill="#38bdf8" fontSize="8" letterSpacing="0.08em">
-            Ø 4.20m
-          </text>
 
-          {/* Blueprint Telemetry Callouts */}
+          {/* Blueprint Telemetry Callout lines */}
           <g>
-            <text x="360" y="58" fill="#7dd3fc" fontSize="8">
-              [STAGE: PROPULSION-CORE]
-            </text>
-            <text x="360" y="68" fill="#38bdf8" fontSize="7.5" opacity="0.8">
-              DELTA-V: 9.82 km/s · 480 kN
-            </text>
             <polyline points="352,62 335,62 320,85" stroke="#38bdf8" strokeWidth="0.8" fill="none" />
             <circle cx="320" cy="85" r="2" fill="#38bdf8" />
           </g>
 
           <g>
-            <text x="135" y="215" fill="#7dd3fc" fontSize="8">
-              [GIMBAL HYDRAULIC ACTUATOR]
-            </text>
-            <text x="135" y="225" fill="#38bdf8" fontSize="7.5" opacity="0.8">
-              VECTOR RANGE: ±8.5°
-            </text>
             <polyline points="205,210 185,210 160,175" stroke="#38bdf8" strokeWidth="0.8" fill="none" />
             <circle cx="160" cy="175" r="2" fill="#38bdf8" />
           </g>
@@ -241,9 +223,6 @@ export const MechanicalBlueprintRocket: React.FC<MechanicalBlueprintRocketProps>
           <ellipse cx="155" cy="130" rx="9" ry="40" fill="url(#bpHatchPattern)" opacity="0.35" />
           {/* Cryogenic Piping */}
           <line x1="120" y1="130" x2="220" y2="130" stroke="#67e8f9" strokeWidth="2" strokeDasharray="6 3" />
-          <text x="140" y="105" fill="#7dd3fc" fontSize="7" opacity="0.8">
-            LOX TANK
-          </text>
         </g>
 
         {/* Interstage Ring Bulkhead (3D Ring) */}
@@ -256,9 +235,6 @@ export const MechanicalBlueprintRocket: React.FC<MechanicalBlueprintRocketProps>
         <g>
           <ellipse cx="295" cy="130" rx="10" ry="34" fill="none" stroke="#38bdf8" strokeWidth="1.5" />
           <ellipse cx="295" cy="130" rx="10" ry="34" fill="url(#bpHatchPattern)" opacity="0.25" />
-          <text x="280" y="105" fill="#7dd3fc" fontSize="7" opacity="0.8">
-            RP-1 CELL
-          </text>
         </g>
 
         {/* Forward Bulkhead & Avionics Bay */}

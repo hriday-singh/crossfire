@@ -48,6 +48,11 @@ export function DiscussionApp() {
   const [isSteelmanExiting, setIsSteelmanExiting] = useState(false);
   const [isPageTransitionActive, setIsPageTransitionActive] = useState(false);
   const exitTriggeredRef = useRef(false);
+  const progressRef = useRef(0);
+  const isSynthesisDoneRef = useRef(false);
+  const hasSynthesizedRef = useRef(false);
+  const maxProgressRef = useRef(0);
+  const prevCaseIdRef = useRef(currentCase?.id);
 
   // Audio Playback Hook with Voice Readout (TTS) state
   const {
@@ -71,9 +76,9 @@ export function DiscussionApp() {
       [agentId]: { x, y },
     }));
 
-    // If Steelman reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation ONLY when synthesis is done
+    // If Steelman reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation ONLY when synthesis is done AND loading is 100%
     if (agentId === 'steelman' && x >= 840 && !exitTriggeredRef.current) {
-      const isDone = currentCase?.status === 'done' || !!currentCase?.case_verdict;
+      const isDone = (currentCase?.status === 'done' || !!currentCase?.case_verdict || isSynthesisDoneRef.current) && (progressRef.current >= 100);
       if (isDone) {
         exitTriggeredRef.current = true;
         setIsPageTransitionActive(true);
@@ -85,13 +90,14 @@ export function DiscussionApp() {
   const handleEventReceived = useCallback((eventPacket) => {
     const speakerId = eventPacket.speaker_id;
 
-    // Detect Steelman exit event - strictly when synthesis is done
+    // Detect Steelman exit event - strictly when synthesis is done AND loading is 100%
     if (speakerId === 'steelman' && eventPacket.target === 'right_door') {
       const isDone =
-        currentCase?.status === 'done' ||
+        Boolean(currentCase?.status === 'done' ||
         !!currentCase?.case_verdict ||
         eventPacket.isSynthesisDone ||
-        eventPacket.stage?.includes('Synthesis');
+        eventPacket.stage?.includes('Synthesis')) &&
+        Boolean(progressRef.current >= 100 || eventPacket.isLoadingDone || (typeof eventPacket.progress === 'number' && eventPacket.progress >= 100));
       if (isDone) {
         setIsSteelmanExiting(true);
       }
@@ -190,17 +196,31 @@ export function DiscussionApp() {
     }
   }, [caseContext]);
 
+  // Reset persistent latches when a new case proposal is loaded
+  if (prevCaseIdRef.current !== currentCase?.id) {
+    prevCaseIdRef.current = currentCase?.id;
+    hasSynthesizedRef.current = false;
+    maxProgressRef.current = 0;
+    exitTriggeredRef.current = false;
+  }
+
   // Calculate live progress and stage
   const caseStatus = currentCase?.status;
-  const isFinished = caseStatus === 'done' && !isLiveBackendActive;
-  const isTesting = isLiveBackendActive || caseStatus === 'testing';
-  const isSynthesisDone =
-    isFinished ||
+  const rawSynthesisDone =
+    caseStatus === 'done' ||
     !!currentCase?.case_verdict ||
-    lastEvent?.isSynthesisDone ||
-    lastEvent?.stage?.includes('Crucible Synthesis') ||
-    lastEvent?.stage?.includes('Synthesis Complete') ||
+    Boolean(lastEvent?.isSynthesisDone) ||
+    Boolean(lastEvent?.stage?.includes('Synthesis')) ||
+    Boolean(lastEvent?.stage?.includes('Synthesis Complete')) ||
     false;
+
+  if (rawSynthesisDone) {
+    hasSynthesizedRef.current = true;
+  }
+
+  const isSynthesisDone = hasSynthesizedRef.current;
+  const isFinished = isSynthesisDone || (caseStatus === 'done' && !isLiveBackendActive);
+  const isTesting = !isFinished && (isLiveBackendActive || caseStatus === 'testing');
 
   const claimsCount = currentCase?.claims?.length || 0;
   const findingsCount = currentCase?.findings?.length || 0;
@@ -212,10 +232,11 @@ export function DiscussionApp() {
   let progressPercent = 0;
   let phaseDetail = 'Awaiting pipeline dispatch...';
 
-  if (isFinished) {
+  if (isFinished || isSynthesisDone) {
     currentPhase = 'Evaluation Complete';
     progressPercent = 100;
     phaseDetail = 'Decision memo assembled & final verdict synthesized.';
+    maxProgressRef.current = 100;
   } else if (isTesting) {
     if (reconciledCount > 0) {
       currentPhase = 'Phase 3: Steelman Reconciliation';
@@ -232,24 +253,39 @@ export function DiscussionApp() {
       progressPercent = Math.min(24, 14 + eventActivityBonus);
       phaseDetail = 'Steelman evaluating critical core premises...';
     }
+    maxProgressRef.current = Math.max(maxProgressRef.current, progressPercent);
+    progressPercent = maxProgressRef.current;
   } else if (isReplaying) {
     currentPhase = 'Replaying Findings in Bullpen';
     progressPercent = 100;
     phaseDetail = 'Reviewing telemetry and delivered verdicts.';
+    maxProgressRef.current = 100;
   } else if (isAutoPlaying || eventHistory?.length > 0) {
     const currentScenario = scenarios?.[currentScenarioKey];
     const totalScenarioEvents = currentScenario?.events?.length || 12;
     const currentMockIndex = Math.min(totalScenarioEvents, Math.max(1, (eventHistory?.length || 1)));
-    progressPercent = Math.min(95, Math.max(12, Math.round((currentMockIndex / totalScenarioEvents) * 100)));
-    currentPhase = lastEvent?.stage || 'Simulation Live Stream';
-    phaseDetail = lastEvent?.thought || lastEvent?.dialogue || 'Autonomous evaluators auditing proposal in bullpen...';
+    if (currentMockIndex >= totalScenarioEvents || lastEvent?.isSynthesisDone) {
+      progressPercent = 100;
+      currentPhase = 'Evaluation Complete';
+      phaseDetail = 'Decision memo assembled & final verdict synthesized.';
+      maxProgressRef.current = 100;
+    } else {
+      progressPercent = Math.min(95, Math.max(12, Math.round((currentMockIndex / totalScenarioEvents) * 100)));
+      currentPhase = lastEvent?.stage || 'Simulation Live Stream';
+      phaseDetail = lastEvent?.thought || lastEvent?.dialogue || 'Autonomous evaluators auditing proposal in bullpen...';
+      maxProgressRef.current = Math.max(maxProgressRef.current, progressPercent);
+      progressPercent = maxProgressRef.current;
+    }
   } else {
     currentPhase = 'Pipeline Standby';
-    progressPercent = 8;
+    progressPercent = Math.max(8, maxProgressRef.current);
     phaseDetail = 'Ready to launch adversarial evaluation...';
   }
 
   const clampedProgress = Math.max(0, Math.min(100, progressPercent));
+  const isLoadingDone = clampedProgress >= 100;
+  progressRef.current = clampedProgress;
+  isSynthesisDoneRef.current = isSynthesisDone;
 
   return (
     <div className="w-full min-h-[calc(100vh-3.5rem)] bg-transparent text-on-surface flex flex-col font-sans selection:bg-primary-container/30">
@@ -369,6 +405,8 @@ export function DiscussionApp() {
             agents={AGENT_CONFIGS}
             selectedAgentIds={selectedAgentIds}
             isSynthesisDone={isSynthesisDone}
+            isLoadingDone={isLoadingDone}
+            loadingProgress={clampedProgress}
             characterPositions={characterPositions}
             currentActionPacket={lastEvent}
             activeSpeakerId={activeSpeakerId}
@@ -397,36 +435,11 @@ export function DiscussionApp() {
           />
         </section>
 
-        {/* Side Controls: Play/Pause, Speed, Volume, Voice TTS, Scenarios, and Presets */}
+        {/* Side Panel: Exclusively Active Workstation Feed */}
         <SideControlPanel
-          isAutoPlaying={isAutoPlaying}
-          setIsAutoPlaying={setIsAutoPlaying}
-          playbackSpeed={playbackSpeed}
-          setPlaybackSpeed={setPlaybackSpeed}
-          isMuted={isMuted}
-          setIsMuted={setIsMuted}
-          speechSynthesisEnabled={speechSynthesisEnabled}
-          setSpeechSynthesisEnabled={setSpeechSynthesisEnabled}
-          volume={volume}
-          setVolume={setVolume}
-          currentScenarioKey={currentScenarioKey}
-          setCurrentScenarioKey={setCurrentScenarioKey}
-          scenarios={scenarios}
-          stepForward={stepForward}
-          resetScenario={resetScenario}
           lastEvent={lastEvent}
           activeSpeakerId={activeSpeakerId}
           hoveredAgentId={hoveredAgentId}
-          triggerManualEvent={triggerManualEvent}
-          connectionStatus={connectionStatus}
-          connectSocket={connectSocket}
-          disconnectSocket={disconnectSocket}
-          socketUrl={socketUrl}
-          setSocketUrl={setSocketUrl}
-          isLiveBackendActive={isLiveBackendActive}
-          isReplaying={isReplaying}
-          replayCaseInBullpen={replayCaseInBullpen}
-          hasCaseFindings={Boolean(currentCase?.findings?.length)}
         />
       </div>
     </div>
