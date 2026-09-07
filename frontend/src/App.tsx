@@ -81,8 +81,8 @@ export const AppContent: React.FC = () => {
       {/* System Settings Modal */}
       <SettingsModal />
 
-      {/* Floating Quick Access to Page 3 Live View (when on entry or confirm screen) */}
-      {state.activeScreen !== "runner" && state.activeScreen !== "dashboard" && (
+      {/* Floating Quick Access to Page 3 Live View (when on entry or confirm screen, but not during slide 1b extraction) */}
+      {state.activeScreen !== "runner" && state.activeScreen !== "dashboard" && !state.isExtracting && (
         <div className="fixed bottom-4 right-4 z-40">
           <button
             type="button"
