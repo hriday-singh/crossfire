@@ -917,6 +917,12 @@ describe("Screen Components", () => {
       expect(
         screen.getAllByText(/Charge \$29 with 14-day trial/i).length
       ).toBeGreaterThanOrEqual(1);
+
+      // Select the revision
+      const claimCards = screen.getAllByText("We will charge $50 without free trial");
+      const claimCard = claimCards[0].closest("div.border");
+      if (claimCard) fireEvent.click(claimCard);
+
       // Click "Test Revised Proposal"
       const putIntoEntryBtn = screen.getByRole("button", {
         name: /Test Revised Proposal/i,

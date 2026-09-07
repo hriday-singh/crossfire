@@ -114,35 +114,33 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
                     : "bg-surface-container-low border-outline-variant/60 hover:border-outline-variant hover:bg-surface-container"
                 )}
               >
-                <div className="flex items-start gap-4">
-                  <div className="mt-1 flex items-center justify-center">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3 flex-wrap mb-4">
                     <div className={cn(
-                      "w-5 h-5 rounded border flex items-center justify-center transition-colors",
+                      "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
                       isSelected 
                         ? "bg-primary-container border-primary-container text-on-primary-container" 
                         : "border-outline-variant bg-surface-container-lowest"
                     )}>
                       {isSelected && <span className="material-symbols-outlined text-[14px] font-bold">check</span>}
                     </div>
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap mb-4">
-                      <span className="font-code-sm text-xs font-medium text-on-surface-variant">
-                        Claim {displayNum}
+                    
+                    <span className="font-title-md text-title-md font-semibold text-on-surface">
+                      Claim {displayNum}
+                    </span>
+                    
+                    {claim.status === "broken" ? (
+                      <span className="font-code-sm text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-error-container/30 text-error">
+                        Refuted
                       </span>
-                      {claim.status === "broken" ? (
-                        <span className="font-code-sm text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-error-container/30 text-error">
-                          Refuted
-                        </span>
-                      ) : (
-                        <span className="font-code-sm text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-tertiary-container/30 text-tertiary">
-                          Weakened
-                        </span>
-                      )}
-                    </div>
+                    ) : (
+                      <span className="font-code-sm text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-tertiary-container/30 text-tertiary">
+                        Weakened
+                      </span>
+                    )}
+                  </div>
 
-                    <div className="space-y-4">
+                  <div className="space-y-4 pl-8">
                       {/* Original Claim */}
                       <div>
                         <div className="font-label-mono text-[10px] uppercase tracking-wider text-outline mb-1.5">Original</div>
@@ -161,14 +159,13 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
 
                       {claim.tradeoff_acknowledged && (
                         <div className="mt-4 inline-flex items-start gap-2 text-xs font-mono text-outline/90 bg-surface-container p-3 rounded-lg border border-outline-variant/30">
-                          <span className="material-symbols-outlined text-[14px] mt-0.5 opacity-70">info</span>
+                          <span className="font-semibold text-on-surface-variant shrink-0">Trade-off:</span>
                           <span className="leading-relaxed">{cleanUiText(claim.tradeoff_acknowledged)}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
             );
           })}
         </div>

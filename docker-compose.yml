@@ -10,6 +10,13 @@ services:
     depends_on:
       - backend
 
+  gemini-web2api:
+    build:
+      context: ./tools/gemini-web2api
+      dockerfile: Dockerfile
+    container_name: gemini-web2api
+    restart: unless-stopped
+
   backend:
     build:
       context: ./backend
@@ -22,10 +29,13 @@ services:
       - SQLITE_DB_PATH=/app/data/crossfire.db
       - PORT=8000
       - LLM_PROVIDER=${LLM_PROVIDER:-openai_compat}
-      - LLM_BASE_URL=${LLM_BASE_URL:-http://host.docker.internal:8081/v1}
+      # Reachable over the compose network by service name. Do NOT use
+      # host.docker.internal: the proxy is a sibling container, not a host process.
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://gemini-web2api:8081/v1}
+      - LLM_API_KEY=${LLM_API_KEY:-sk-gemini}
       - CORS_ALLOWED_ORIGINS=https://crossfire.stratizone.com,http://localhost:5173,http://127.0.0.1:5173
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - gemini-web2api
     volumes:
       - crossfire-data:/app/data
 

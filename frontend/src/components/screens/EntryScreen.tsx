@@ -477,7 +477,7 @@ export const EntryScreen: React.FC = () => {
         <CubeSpinner />
         <button
           onClick={cancelExtraction}
-          className="px-6 py-2 rounded-full bg-error text-on-error font-body-sm font-semibold hover:bg-error/90 transition-colors shadow-sm"
+          className="px-6 py-2 rounded-md bg-error text-on-error font-body-sm font-semibold hover:bg-error/90 transition-colors shadow-sm"
         >
           Cancel
         </button>

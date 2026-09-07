@@ -36,17 +36,10 @@ export const DashboardScreen: React.FC = () => {
   const isTesting = state.isStreaming || currentCase?.status === "testing";
 
   // Steel Man prompt fixer state
-  const [selectedFixClaimIds, setSelectedFixClaimIds] = useState<Set<string>>(() => {
-    if (!currentCase) return new Set();
-    const salvageable = getSalvageableClaims(currentCase);
-    return new Set(salvageable.map((c) => c.id));
-  });
+  const [selectedFixClaimIds, setSelectedFixClaimIds] = useState<Set<string>>(() => new Set());
 
   const [improvedPrompt, setImprovedPrompt] = useState<string>(() => {
-    if (!currentCase) return "";
-    const salvageable = getSalvageableClaims(currentCase);
-    const ids = new Set(salvageable.map((c) => c.id));
-    return generateImprovedPrompt(currentCase.raw_input, currentCase.claims, ids, currentCase);
+    return currentCase?.raw_input || "";
   });
 
   const [isRefiningAi, setIsRefiningAi] = useState(false);
@@ -55,12 +48,8 @@ export const DashboardScreen: React.FC = () => {
   // Sync when case changes
   useEffect(() => {
     if (currentCase) {
-      const salvageable = getSalvageableClaims(currentCase);
-      const ids = new Set(salvageable.map((c) => c.id));
-      setSelectedFixClaimIds(ids);
-      setImprovedPrompt(
-        generateImprovedPrompt(currentCase.raw_input, currentCase.claims, ids, currentCase)
-      );
+      setSelectedFixClaimIds(new Set());
+      setImprovedPrompt(currentCase.raw_input);
     }
   }, [currentCase?.id]);
 
@@ -114,6 +103,14 @@ export const DashboardScreen: React.FC = () => {
     setIsRefiningAi(true);
     setRefineError(null);
     try {
+      if (currentCase.id.startsWith("case-preview-")) {
+        // Mock the AI polishing delay for preview cases
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        // We just keep the locally generated prompt as the "polished" one for the demo
+        setImprovedPrompt((prev) => prev);
+        return;
+      }
+
       const res = await improvePrompt(currentCase.id, Array.from(selectedFixClaimIds));
       if (res.improved_prompt) {
         setImprovedPrompt(res.improved_prompt);
@@ -395,30 +392,7 @@ export const DashboardScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Floating Sticky Action Bar for Prompt Improvement */}
-      {!isTesting && selectedFixClaimIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[92%] sm:w-auto">
-          <div className="bg-surface-container-high/95 backdrop-blur-md border border-primary-container/60 rounded-full px-4 py-2.5 shadow-2xl flex items-center justify-between gap-4 text-on-surface">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="material-symbols-outlined text-primary-container text-[20px] shrink-0">
-                auto_fix_high
-              </span>
-              <span className="font-code-sm text-xs font-semibold text-on-surface truncate">
-                {selectedFixClaimIds.size} Steel Man fix{selectedFixClaimIds.size > 1 ? "es" : ""} selected
-              </span>
-            </div>
 
-            <button
-              type="button"
-              onClick={handlePutIntoStartingScreen}
-              className="px-4 py-1.5 rounded-full bg-primary-container hover:bg-blue-600 text-white font-code-sm text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
-            >
-              <span>Put into Starting Screen</span>
-              <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Slide-over Evidence Drawer */}
       <EvidenceDrawer
