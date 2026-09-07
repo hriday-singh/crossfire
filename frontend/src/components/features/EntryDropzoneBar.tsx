@@ -64,7 +64,9 @@ export const EntryDropzoneBar: React.FC<EntryDropzoneBarProps> = ({
           >
             {showUrlInput ? "Close" : "+ Web URL"}
           </button>
-          <span className="font-code-sm text-code-sm text-outline">Optional</span>
+          <span className="font-code-sm text-code-sm text-outline">
+            (Optional)
+          </span>
         </div>
       </div>
 
