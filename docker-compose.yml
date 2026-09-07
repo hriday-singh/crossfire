@@ -21,21 +21,11 @@ services:
     environment:
       - SQLITE_DB_PATH=/app/data/crossfire.db
       - PORT=8000
-      - LLM_PROVIDER=openai_compat
-      - LLM_BASE_URL=http://gemini-proxy:8081/v1
-      - CORS_ALLOWED_ORIGINS=["https://crossfire.stratizone.com","http://localhost:5173","http://127.0.0.1:5173"]
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai_compat}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://host.docker.internal:8081/v1}
+      - CORS_ALLOWED_ORIGINS=https://crossfire.stratizone.com,http://localhost:5173,http://127.0.0.1:5173
     volumes:
       - crossfire-data:/app/data
-    depends_on:
-      - gemini-proxy
-
-  gemini-proxy:
-    build:
-      context: https://github.com/Sophomoresty/gemini-web2api.git#main
-    container_name: crossfire-proxy
-    restart: unless-stopped
-    ports:
-      - "0.0.0.0:9127:8081"
 
 volumes:
   crossfire-data:
