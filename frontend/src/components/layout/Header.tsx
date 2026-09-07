@@ -110,21 +110,22 @@ export const Header: React.FC = () => {
             02 Claim Map
           </button>
 
-          {hasActiveCase && (state.currentCase?.status === "testing" || state.currentCase?.status === "done") && (
-            <button
-              type="button"
-              onClick={() => handleNav("live-runner-verdicts")}
-              data-path="live-runner-verdicts"
-              aria-current={isLiveRunnerActive ? "page" : undefined}
-              className={`transition-colors flex items-center h-full ${
-                isLiveRunnerActive
-                  ? "text-on-surface border-b-2 border-primary-container font-medium cursor-pointer"
-                  : "text-on-surface-variant hover:text-on-surface cursor-pointer"
-              }`}
-            >
-              03 Live Runner &amp; Verdicts
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleNav("live-runner-verdicts")}
+            data-path="live-runner-verdicts"
+            disabled={!hasActiveCase || (state.currentCase?.status !== "testing" && state.currentCase?.status !== "done")}
+            aria-current={isLiveRunnerActive ? "page" : undefined}
+            className={`transition-colors flex items-center h-full ${
+              !hasActiveCase || (state.currentCase?.status !== "testing" && state.currentCase?.status !== "done")
+                ? "text-outline/40 cursor-not-allowed opacity-50"
+                : isLiveRunnerActive
+                ? "text-on-surface border-b-2 border-primary-container font-medium cursor-pointer"
+                : "text-on-surface-variant hover:text-on-surface cursor-pointer"
+            }`}
+          >
+            03 Live Runner &amp; Verdicts
+          </button>
         </nav>
 
         {/* Right Tools */}
