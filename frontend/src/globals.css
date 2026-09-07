@@ -51,7 +51,34 @@
 
 /* Custom scrollbar and hidden scrollbar utility */
 ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--outline-variant);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--outline);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--outline-variant) transparent;
+}
+
+.scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
 }
 
 /* Accessibility: honor prefers-reduced-motion */

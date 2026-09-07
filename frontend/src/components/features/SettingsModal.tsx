@@ -44,9 +44,6 @@ export const SettingsModal: React.FC = () => {
             <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-normal">
               System Settings
             </h2>
-            <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5 rounded border border-outline-variant">
-              Runtime
-            </span>
           </div>
 
           <button
@@ -60,7 +57,7 @@ export const SettingsModal: React.FC = () => {
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-space-6 space-y-space-6">
+        <div className="flex-1 overflow-y-auto p-space-6 space-y-space-6 scrollbar-visible">
           {clearedNotice && (
             <div className="bg-primary-container/20 border border-primary-container/40 text-primary-container px-space-4 py-space-2 rounded text-body-sm">
               {clearedNotice}
@@ -73,11 +70,11 @@ export const SettingsModal: React.FC = () => {
             </div>
           )}
 
-          {/* Active LLM Provider & Model Section */}
+          {/* LLM Provider & Model Section */}
           <div className="space-y-space-3">
             <div className="flex items-center justify-between">
               <h3 className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold">
-                Active LLM Provider &amp; Model
+                LLM Provider &amp; Model
               </h3>
               <span className="flex items-center gap-1.5 font-code-sm text-code-sm text-verdict-survived">
                 <span className="w-2 h-2 rounded-full bg-verdict-survived inline-block" />
@@ -109,15 +106,9 @@ export const SettingsModal: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center justify-between text-body-sm">
-                <span className="text-on-surface-variant">Gemini Proxy Endpoint:</span>
+                <span className="text-on-surface-variant">LLM Endpoint:</span>
                 <span className="font-mono text-outline">
                   {state.engineInfo?.llm_base_url?.replace(/\/v1\/?$/, "") || "http://localhost:8081"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-body-sm">
-                <span className="text-on-surface-variant">Backend API Endpoint:</span>
-                <span className="font-mono text-outline">
-                  {state.engineInfo?.backend_port ? `http://localhost:${state.engineInfo.backend_port}` : "http://localhost:8000"}
                 </span>
               </div>
             </div>

@@ -100,6 +100,38 @@ describe("FAQ Data & Drawer Component", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("minimizes other items when an item is expanded (true accordion behavior)", () => {
+    render(
+      <CaseProvider>
+        <TestController />
+        <FaqDrawer />
+      </CaseProvider>
+    );
+
+    fireEvent.click(screen.getByText("Open FAQ"));
+
+    // First question is open initially
+    expect(
+      screen.getByText(/It takes a decision you're about to commit to/i)
+    ).toBeInTheDocument();
+
+    // Click second question
+    const secondQuestionBtn = screen.getByRole("button", {
+      name: /Isn't this just a wrapper around an AI model\?/i,
+    });
+    fireEvent.click(secondQuestionBtn);
+
+    // Second question answer is now open
+    expect(
+      screen.getByText(/No\. A wrapper is one prompt in, one answer out\./i)
+    ).toBeInTheDocument();
+
+    // First question answer is now minimized/collapsed
+    expect(
+      screen.queryByText(/It takes a decision you're about to commit to/i)
+    ).not.toBeInTheDocument();
+  });
+
   it("filters FAQ items by search keyword", () => {
     render(
       <CaseProvider>

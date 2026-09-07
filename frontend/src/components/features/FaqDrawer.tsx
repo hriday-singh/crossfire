@@ -7,20 +7,15 @@ export const FaqDrawer: React.FC = () => {
   const { state, setActiveModal } = useCase();
   const isOpen = state.activeModal === "faq";
 
-  // Initially open the first item
-  const [openIds, setOpenIds] = useState<Record<string, boolean>>({
-    "what-is-crossfire": true,
-  });
+  // Initially open the first item (only one item can be expanded at a time)
+  const [expandedId, setExpandedId] = useState<string | null>("what-is-crossfire");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
 
   const categories = ["All", "Overview", "Architecture", "Comparisons"];
 
   const toggleItem = (id: string) => {
-    setOpenIds((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
   const filteredItems = useMemo(() => {
@@ -116,7 +111,7 @@ export const FaqDrawer: React.FC = () => {
         </div>
 
         {/* FAQ Items List (Accordion) */}
-        <div className="flex-1 overflow-y-auto p-space-6 space-y-space-3">
+        <div className="flex-1 overflow-y-auto p-space-6 space-y-space-3 scrollbar-visible">
           {filteredItems.length === 0 ? (
             <div className="py-12 text-center text-outline">
               <span className="material-symbols-outlined text-[32px] mb-2 opacity-60">
@@ -136,7 +131,7 @@ export const FaqDrawer: React.FC = () => {
             </div>
           ) : (
             filteredItems.map((item: FaqItem) => {
-              const isExpanded = Boolean(openIds[item.id]);
+              const isExpanded = expandedId === item.id;
 
               return (
                 <div

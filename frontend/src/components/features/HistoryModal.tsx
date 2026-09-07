@@ -61,123 +61,135 @@ export const HistoryModal: React.FC = () => {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setActiveModal("none")}
-            aria-label="Close history modal"
-            className="text-on-surface-variant hover:text-on-surface transition-colors p-2 rounded hover:bg-surface-container-high flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
-          >
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
-
-        {/* System Status Banner */}
-        <div className="px-space-6 py-space-3 bg-surface-container border-b border-outline-variant/60 flex items-center justify-between text-xs font-mono">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-verdict-survived" />
-            <span className="text-on-surface">API Target:</span>
-            <span className="text-outline">/cases (Live Engine)</span>
-          </div>
-          {state.caseHistory.length > 0 && (
+          <div className="flex items-center gap-1">
+            {state.caseHistory.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearHistory}
+                aria-label="Clear history"
+                title="Clear history"
+                className="text-on-surface-variant hover:text-error transition-colors p-2 rounded hover:bg-surface-container-high flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+              >
+                <span className="material-symbols-outlined text-[20px]">delete</span>
+              </button>
+            )}
             <button
               type="button"
-              onClick={handleClearHistory}
-              className="text-error hover:underline cursor-pointer"
+              onClick={() => setActiveModal("none")}
+              aria-label="Close history modal"
+              className="text-on-surface-variant hover:text-on-surface transition-colors p-2 rounded hover:bg-surface-container-high flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
             >
-              Clear history
+              <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
-          )}
+          </div>
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-space-6 space-y-space-6">
-          {/* Prior Case Runs */}
-          <div>
-            <h3 className="font-label-mono text-label-mono uppercase tracking-wider text-outline mb-space-3 font-semibold">
-              Recent Decision Runs
-            </h3>
+        <div className="flex-1 overflow-y-auto p-space-6 space-y-space-4 scrollbar-visible">
+          {state.caseHistory.length === 0 ? (
+            <div className="bg-surface-container border border-outline-variant/60 rounded-xl p-space-6 text-center text-outline">
+              <span className="material-symbols-outlined text-[28px] mb-2 text-outline">
+                history_toggle_off
+              </span>
+              <p className="font-body-sm text-body-sm text-on-surface-variant font-medium">
+                No prior cases saved in local storage.
+              </p>
+              <p className="font-code-sm text-code-sm text-outline mt-1">
+                Completed decision tests automatically archive here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-space-3">
+              {state.caseHistory.map((item) => {
+                const brokenCount = item.claims.filter((c) => c.status === "broken").length;
+                const survivedCount = item.claims.filter((c) => c.status === "survived").length;
+                const weakenedCount = item.claims.filter((c) => c.status === "weakened").length;
+                const isCurrent = state.currentCase?.id === item.id;
 
-            {state.caseHistory.length === 0 ? (
-              <div className="bg-surface-container border border-outline-variant/60 rounded-xl p-space-6 text-center text-outline">
-                <span className="material-symbols-outlined text-[28px] mb-2 text-outline">
-                  history_toggle_off
-                </span>
-                <p className="font-body-sm text-body-sm text-on-surface-variant font-medium">
-                  No prior cases saved in local storage.
-                </p>
-                <p className="font-code-sm text-code-sm text-outline mt-1">
-                  Completed decision tests automatically archive here.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-space-3">
-                {state.caseHistory.map((item) => {
-                  const brokenCount = item.claims.filter((c) => c.status === "broken").length;
-                  const survivedCount = item.claims.filter((c) => c.status === "survived").length;
-                  const weakenedCount = item.claims.filter((c) => c.status === "weakened").length;
-                  const isCurrent = state.currentCase?.id === item.id;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className={`bg-surface-container border rounded-xl p-space-4 transition-all hover:border-outline-variant ${
-                        isCurrent
-                          ? "border-primary-container/60 bg-surface-container-high"
-                          : "border-outline-variant/40"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1 min-w-0 flex-1">
+                return (
+                  <div
+                    key={item.id}
+                    tabIndex={0}
+                    onClick={() => handleSelectCase(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleSelectCase(item);
+                      }
+                    }}
+                    aria-label={`Case: ${item.raw_input}`}
+                    className={`bg-surface-container border rounded-xl p-space-4 transition-all cursor-pointer hover:border-outline-variant hover:bg-surface-container-high focus:outline-none focus:ring-1 focus:ring-primary-container ${
+                      isCurrent
+                        ? "border-primary-container/60 bg-surface-container-high"
+                        : "border-outline-variant/40"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        {isCurrent && (
                           <div className="flex items-center gap-2">
-                            <span className="font-code-sm text-code-sm text-primary-container font-semibold">
-                              #{item.id.slice(0, 8).toUpperCase()}
+                            <span className="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-primary-container/20 text-primary-container font-medium">
+                              Active Case
                             </span>
-                            {isCurrent && (
-                              <span className="font-code-sm text-code-sm px-1.5 py-0.2 rounded bg-primary-container/20 text-primary-container font-medium">
-                                Active Case
-                              </span>
-                            )}
                           </div>
-                          <p className="font-body-sm text-body-sm text-on-surface font-medium line-clamp-2">
-                            {item.raw_input}
-                          </p>
-                          <div className="flex items-center gap-2 pt-1 font-code-sm text-code-sm text-outline flex-wrap">
-                            <span>{item.claims.length} claims</span>
-                            <span>·</span>
-                            <span className="text-verdict-broken">{brokenCount} broken</span>
-                            <span>·</span>
-                            <span className="text-tertiary">{weakenedCount} weakened</span>
-                            <span>·</span>
-                            <span className="text-verdict-survived">{survivedCount} survived</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteItem(e, item.id)}
-                            aria-label={`Delete run ${item.id}`}
-                            className="text-outline hover:text-error p-1.5 rounded hover:bg-surface-container-highest transition-colors cursor-pointer"
-                            title="Delete from history"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">delete</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleSelectCase(item)}
-                            className="font-code-sm text-code-sm px-space-3 py-1.5 rounded bg-primary-container text-on-primary-container hover:brightness-110 transition-all font-semibold shrink-0 cursor-pointer"
-                          >
-                            View Memo
-                          </button>
+                        )}
+                        <p className="font-body-sm text-body-sm text-on-surface font-medium line-clamp-2">
+                          {item.raw_input}
+                        </p>
+                        <div className="flex items-center gap-2 pt-1 font-code-sm text-code-sm text-outline flex-wrap">
+                          <span>
+                            {item.claims.length} {item.claims.length === 1 ? "claim" : "claims"}
+                          </span>
+                          {brokenCount > 0 && (
+                            <>
+                              <span>·</span>
+                              <span className="text-verdict-broken">{brokenCount} broken</span>
+                            </>
+                          )}
+                          {weakenedCount > 0 && (
+                            <>
+                              <span>·</span>
+                              <span className="text-tertiary">{weakenedCount} weakened</span>
+                            </>
+                          )}
+                          {survivedCount > 0 && (
+                            <>
+                              <span>·</span>
+                              <span className="text-verdict-survived">{survivedCount} survived</span>
+                            </>
+                          )}
                         </div>
                       </div>
+
+                      {/* Actions: View Memo on left, Small Dustbin on right */}
+                      <div className="flex items-center gap-2 shrink-0 self-center">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectCase(item);
+                          }}
+                          className="font-code-sm text-code-sm px-space-3 py-1.5 rounded bg-primary-container text-on-primary-container hover:brightness-110 transition-all font-semibold shrink-0 cursor-pointer"
+                        >
+                          View Memo
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteItem(e, item.id)}
+                          aria-label={`Delete run ${item.id}`}
+                          title="Delete from history"
+                          className="text-outline hover:text-error p-1.5 rounded hover:bg-surface-container-highest transition-colors cursor-pointer flex items-center justify-center min-h-[32px] min-w-[32px]"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

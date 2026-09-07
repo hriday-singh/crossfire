@@ -120,181 +120,173 @@ export const ConfirmScreen: React.FC = () => {
             </span>
           </div>
 
-          {/* Assumptions Table */}
-          <div className="overflow-hidden rounded-xl border border-outline-variant/60 bg-surface-container-low shadow-xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-outline-variant/40 bg-surface-container text-label-mono font-label-mono text-xs uppercase tracking-wider text-outline select-none">
-                  <th scope="col" className="py-3 px-4 w-12 text-center font-medium">#</th>
-                  <th scope="col" className="py-3 px-4 font-medium">Assumption</th>
-                  <th scope="col" className="py-3 px-4 w-36 text-center font-medium">Type</th>
-                  <th scope="col" className="py-3 px-4 w-24 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="claims-container" className="divide-y divide-outline-variant/30">
-                {currentCase.claims.map((claim, index) => {
-                  const isEditing = editingClaimId === claim.id;
-                  const isLoadBearing = claim.load_bearing ?? true;
-                  const itemNumber = index + 1;
+          {/* Vertical Stack of Assumption Cards */}
+          <div className="flex flex-col gap-3" id="claims-container">
+            {currentCase.claims.map((claim, index) => {
+              const isEditing = editingClaimId === claim.id;
+              const itemNumber = index + 1;
+              const isLoadBearing = claim.load_bearing ?? true;
 
-                  return (
-                    <tr
-                      key={claim.id}
-                      data-id={String(itemNumber)}
-                      className="claim-card hover:bg-surface-container-high/60 transition-colors group"
-                    >
-                      <td className="py-3.5 px-4 text-center align-top font-code-md text-code-md text-primary-container font-semibold select-none">
-                        {itemNumber}
-                      </td>
+              return (
+                <div
+                  key={claim.id}
+                  data-id={String(itemNumber)}
+                  className="claim-card bg-surface-container border border-outline-variant/40 rounded-xl p-5 flex items-start justify-between group transition-all duration-150 hover:border-outline-variant hover:bg-surface-container-high"
+                >
+                  <div className="flex items-start min-w-0 pr-4 flex-1">
+                    <span className="font-code-md text-code-md text-primary-container font-semibold mr-3 select-none shrink-0 pt-0.5">
+                      {itemNumber}
+                    </span>
 
-                      <td className="py-3.5 px-4 align-top min-w-0">
-                        {isEditing ? (
-                          <div className="space-y-2">
-                            <textarea
-                              value={editingText}
-                              onChange={(e) => setEditingText(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handleSaveEdit(claim.id);
-                                } else if (e.key === "Escape") {
-                                  setEditingClaimId(null);
-                                }
-                              }}
-                              className="w-full rounded-lg bg-surface-container-lowest text-on-surface p-2 font-body-md border border-outline-variant outline-none focus:border-primary-container"
-                              rows={2}
-                              autoFocus
-                            />
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={() => handleSaveEdit(claim.id)}
-                                className="h-7 text-xs bg-primary-container hover:bg-blue-600 text-white transition-colors"
-                              >
-                                Save
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setEditingClaimId(null)}
-                                className="h-7 text-xs text-outline hover:text-on-surface"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
+                    <div className="flex-1 min-w-0">
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSaveEdit(claim.id);
+                              } else if (e.key === "Escape") {
+                                setEditingClaimId(null);
+                              }
+                            }}
+                            className="w-full rounded-lg bg-surface-container-lowest text-on-surface p-2 font-body-md border border-outline-variant outline-none focus:border-primary-container"
+                            rows={3}
+                            autoFocus
+                          />
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => handleSaveEdit(claim.id)}
+                              className="h-7 text-xs bg-primary-container hover:bg-blue-600 text-white transition-colors"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingClaimId(null)}
+                              className="h-7 text-xs text-outline hover:text-on-surface"
+                            >
+                              Cancel
+                            </Button>
                           </div>
-                        ) : (
-                          <div
-                            onClick={() => handleStartEdit(claim.id, claim.statement)}
-                            className="claim-text font-body-md text-body-md font-medium text-on-surface leading-normal outline-none cursor-pointer hover:text-primary transition-colors"
-                            title="Click to edit assumption"
-                          >
-                            {claim.statement}
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="py-3.5 px-4 text-center align-top whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={(e) => handleToggleLoadBearing(e, claim.id)}
-                          title="Click to toggle load-bearing"
-                          className={`px-2 py-0.5 rounded font-code-sm text-code-sm font-medium border transition-colors cursor-pointer ${
-                            isLoadBearing
-                              ? "bg-primary-container/10 text-primary-container border-primary-container/20 hover:bg-primary-container/20"
-                              : "bg-surface-container-high text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-highest"
-                          }`}
+                        </div>
+                      ) : (
+                        <div
+                          onClick={() => handleStartEdit(claim.id, claim.statement)}
+                          className="claim-text font-body-md text-body-md font-medium text-on-surface leading-normal outline-none cursor-pointer"
                         >
-                          {isLoadBearing ? "Load-bearing" : "Secondary"}
-                        </button>
-                      </td>
+                          {claim.statement}
+                        </div>
+                      )}
 
-                      <td className="py-3.5 px-4 text-right align-top whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                      {!isEditing && (
+                        <div className="mt-2.5 flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() =>
-                              isEditing
-                                ? handleSaveEdit(claim.id)
-                                : handleStartEdit(claim.id, claim.statement)
-                            }
-                            className="btn-edit p-1.5 text-outline hover:text-primary transition-colors rounded hover:bg-surface-container min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
-                            title={isEditing ? "Save Claim" : "Edit Claim"}
-                            aria-label={isEditing ? `Save claim ${itemNumber}` : `Edit claim ${itemNumber}`}
+                            onClick={(e) => handleToggleLoadBearing(e, claim.id)}
+                            title="Click to toggle load-bearing"
+                            className={`px-2 py-0.5 rounded font-code-sm text-code-sm font-medium border transition-colors cursor-pointer ${
+                              isLoadBearing
+                                ? "bg-primary-container/10 text-primary-container border-primary-container/20 hover:bg-primary-container/20"
+                                : "bg-surface-container-high text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-highest"
+                            }`}
                           >
-                            <span className="material-symbols-outlined text-[18px]">
-                              {isEditing ? "check" : "edit"}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteClaim(e, claim.id)}
-                            className="btn-delete p-1.5 text-outline hover:text-error transition-colors rounded hover:bg-surface-container min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
-                            title="Remove Claim"
-                            aria-label={`Remove claim ${itemNumber}`}
-                          >
-                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                            {isLoadBearing ? "Load-bearing" : "Secondary"}
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Table Footer: Add Assumption Button / Inline Form */}
-            <div className="p-3 bg-surface-container/30 border-t border-outline-variant/40">
-              {!isAdding ? (
-                <button
-                  type="button"
-                  id="add-claim-btn"
-                  onClick={() => setIsAdding(true)}
-                  className="font-body-sm text-body-sm text-on-surface-variant hover:text-primary flex items-center gap-1.5 cursor-pointer py-1.5 px-3 rounded-lg hover:bg-surface-container transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
-                  <span>Add an assumption</span>
-                </button>
-              ) : (
-                <form
-                  onSubmit={handleAddClaimSubmit}
-                  className="space-y-3 p-3 bg-surface-container rounded-lg border border-dashed border-outline-variant"
-                >
-                  <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider font-semibold text-xs">
-                    Add New Hypothesis Statement
-                  </span>
-                  <input
-                    type="text"
-                    value={newClaimText}
-                    onChange={(e) => setNewClaimText(e.target.value)}
-                    placeholder="Enter testable hypothesis or architectural assertion..."
-                    autoFocus
-                    className="w-full bg-surface-container-lowest text-on-surface p-2.5 font-body-md rounded-lg border border-outline-variant outline-none focus:border-primary-container"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="primary"
-                      className="bg-primary-container hover:bg-blue-600 text-white transition-colors"
-                    >
-                      Save Hypothesis
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsAdding(false)}
-                      className="text-outline hover:text-on-surface"
-                    >
-                      Cancel
-                    </Button>
+                      )}
+                    </div>
                   </div>
-                </form>
-              )}
-            </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isEditing
+                          ? handleSaveEdit(claim.id)
+                          : handleStartEdit(claim.id, claim.statement)
+                      }
+                      className="btn-edit p-2 text-outline hover:text-primary transition-colors rounded hover:bg-surface-container-lowest min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+                      title={isEditing ? "Save Claim" : "Edit Claim"}
+                      aria-label={isEditing ? `Save claim ${itemNumber}` : `Edit claim ${itemNumber}`}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        {isEditing ? "check" : "edit"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteClaim(e, claim.id)}
+                      className="btn-delete p-2 text-outline hover:text-error transition-colors rounded hover:bg-surface-container-lowest min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
+                      title="Remove Claim"
+                      aria-label={`Remove claim ${itemNumber}`}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
+
+          {/* Add Assumption Button */}
+          {!isAdding && (
+            <div className="mt-3">
+              <button
+                type="button"
+                id="add-claim-btn"
+                onClick={() => setIsAdding(true)}
+                className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface flex items-center gap-2 cursor-pointer py-2 px-3 rounded-lg hover:bg-surface-container transition-colors justify-center sm:justify-start border border-outline-variant/40 hover:border-outline-variant w-fit"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                <span>Add an assumption</span>
+              </button>
+            </div>
+          )}
+
+          {/* Inline Add Claim Form */}
+          {isAdding && (
+            <form
+              onSubmit={handleAddClaimSubmit}
+              className="mt-4 bg-surface-container border border-dashed border-outline-variant rounded-xl p-4 space-y-3"
+            >
+              <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider font-semibold">
+                Add New Hypothesis Statement
+              </span>
+              <input
+                type="text"
+                value={newClaimText}
+                onChange={(e) => setNewClaimText(e.target.value)}
+                placeholder="Enter testable hypothesis or architectural assertion..."
+                autoFocus
+                className="w-full bg-surface-container-lowest text-on-surface p-3 font-body-md rounded-lg border border-outline-variant outline-none focus:border-primary-container"
+              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="primary"
+                  className="bg-primary-container hover:bg-blue-600 text-white transition-colors"
+                >
+                  Save Hypothesis
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsAdding(false)}
+                  className="text-outline hover:text-on-surface"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
 
           {/* Assigned Adversarial Agents Suite & Decision Callout */}
           <AssignedAgentsCard

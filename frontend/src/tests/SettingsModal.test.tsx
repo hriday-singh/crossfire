@@ -34,12 +34,13 @@ describe("SettingsModal", () => {
 
     fireEvent.click(screen.getByText("Open Settings"));
     expect(screen.getByRole("heading", { name: "System Settings" })).toBeInTheDocument();
-    expect(screen.getByText(/Active LLM Provider & Model/i)).toBeInTheDocument();
+    expect(screen.queryByText("Runtime")).not.toBeInTheDocument();
+    expect(screen.getByText(/LLM Provider & Model/i)).toBeInTheDocument();
     expect(screen.getByText(/Available Gemini Web Models/i)).toBeInTheDocument();
     expect(screen.queryByText(/Adversarial Evaluator Suite/i)).not.toBeInTheDocument();
   });
 
-  it("displays model and provider information from engineInfo", () => {
+  it("displays model, provider protocol, and LLM endpoint while excluding backend API endpoint", () => {
     render(
       <CaseProvider>
         <TestWrapper />
@@ -52,7 +53,7 @@ describe("SettingsModal", () => {
     expect(screen.getByText("gemini-3.7-flash")).toBeInTheDocument();
     expect(screen.getByText("openai_compat")).toBeInTheDocument();
     expect(screen.getByText("http://localhost:8081")).toBeInTheDocument();
-    expect(screen.getByText("http://localhost:8000")).toBeInTheDocument();
+    expect(screen.queryByText("http://localhost:8000")).not.toBeInTheDocument();
   });
 
   it("closes when close button is clicked", () => {

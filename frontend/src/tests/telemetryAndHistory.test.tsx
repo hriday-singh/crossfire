@@ -93,7 +93,20 @@ describe("Telemetry & History Modals", () => {
     expect(screen.getByTestId("active-modal").textContent).toBe("none");
   });
 
-  it("opens history modal, renders cases, and allows loading a past case", () => {
+  it("opens history modal, renders cases, suppresses zero counts and IDs, and uses dustbin buttons", () => {
+    localStorage.setItem(
+      "crossfire_case_history",
+      JSON.stringify([
+        {
+          ...mockCase,
+          claims: [
+            { id: "c-1", statement: "Claim 1", load_bearing: true, status: "survived" },
+            { id: "c-2", statement: "Claim 2", load_bearing: false, status: "weakened" },
+          ],
+        },
+      ])
+    );
+
     render(
       <CaseProvider>
         <TestController />
@@ -104,11 +117,32 @@ describe("Telemetry & History Modals", () => {
     fireEvent.click(screen.getByText("Open History"));
     expect(screen.getByText("Case History")).toBeInTheDocument();
     expect(screen.queryByText("Example Decision Models")).not.toBeInTheDocument();
+    expect(screen.queryByText(/API Target/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Recent Decision Runs/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Saved decision tests/i)).not.toBeInTheDocument();
 
-    // Close history
-    const closeBtn = screen.getByLabelText("Close history modal");
-    fireEvent.click(closeBtn);
-    expect(screen.getByTestId("active-modal").textContent).toBe("none");
+    // Verify case ID #CASE-HIST-1 is removed
+    expect(screen.queryByText(/#CASE-HIST/i)).not.toBeInTheDocument();
+
+    // Verify claims stats: 2 claims, 1 weakened, 1 survived, but 0 broken is omitted
+    expect(screen.getByText(/2 claims/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 weakened/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 survived/i)).toBeInTheDocument();
+    expect(screen.queryByText(/broken/i)).not.toBeInTheDocument();
+
+    // Verify action buttons: View Memo on left, small dustbin on right
+    expect(screen.getByRole("button", { name: /view memo/i })).toBeInTheDocument();
+    const deleteBtn = screen.getByLabelText("Delete run case-hist-1");
+    expect(deleteBtn).toBeInTheDocument();
+    expect(screen.queryByLabelText(/options for case/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("more_vert")).not.toBeInTheDocument();
+
+    // Clear history dustbin button in header
+    expect(screen.getByLabelText("Clear history")).toBeInTheDocument();
+
+    // Clicking full card loads case
+    fireEvent.click(screen.getByText("Launch AI Coding IDE"));
+    expect(screen.getByTestId("current-case-id").textContent).toBe("case-hist-1");
   });
 
   it("Header integrates with logs and history modals without fake telemetry pings", () => {
