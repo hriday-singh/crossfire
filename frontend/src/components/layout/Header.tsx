@@ -64,12 +64,6 @@ export const Header: React.FC = () => {
               }`}
             />
             <span className="text-on-surface font-medium truncate flex items-center gap-1.5">
-              {state.engineInfo && (
-                <span className="text-[10px] font-bold text-verdict-survived uppercase tracking-wider">
-                  LIVE
-                </span>
-              )}
-              {state.engineInfo && <span className="text-outline/40">·</span>}
               <span className="truncate">
                 {formatModelName(state.engineInfo?.model)}
               </span>
