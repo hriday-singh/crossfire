@@ -259,3 +259,91 @@ async def test_openai_compat_provider_context_manager(monkeypatch):
     assert client.is_closed
 
 
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_retries_once_when_upstream_returns_non_json(monkeypatch, sample_claim):
+    """gemini-web2api sometimes answers 200 with its own failure text instead of the
+    completion. One retry recovers the claim instead of losing it to `unresolved`."""
+    import httpx
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    contents = [
+        "Sorry, something went wrong. Please try your request again.",
+        sample_claim.model_dump_json(),
+    ]
+
+    class MockResponse:
+        def __init__(self, content):
+            self._content = content
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": self._content}}]}
+
+    calls = []
+
+    async def mock_post(*args, **kwargs):
+        calls.append(kwargs)
+        return MockResponse(contents[len(calls) - 1])
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    result = await provider.generate(
+        system_prompt="sys",
+        messages=[{"role": "user", "content": "reconcile"}],
+        response_schema=type(sample_claim),
+    )
+    assert result == sample_claim
+    assert len(calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_raises_readable_error_after_two_bad_responses(monkeypatch, sample_claim):
+    import httpx
+    from providers.openai_compat import LLMFormatError, OpenAICompatibleProvider
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "choices": [
+                    {"message": {"content": "Sorry, something went wrong. Please try your request again."}}
+                ]
+            }
+
+    calls = []
+
+    async def mock_post(*args, **kwargs):
+        calls.append(kwargs)
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    with pytest.raises(LLMFormatError) as excinfo:
+        await provider.generate(
+            system_prompt="sys",
+            messages=[{"role": "user", "content": "reconcile"}],
+            response_schema=type(sample_claim),
+        )
+
+    message = str(excinfo.value)
+    assert len(calls) == 2
+    assert "Sorry, something went wrong" in message
+    assert "validation error" not in message
+    assert "pydantic.dev" not in message
+
+
+def test_snippet_flattens_and_truncates():
+    from providers.openai_compat import _snippet
+
+    assert _snippet("") == "(empty response)"
+    assert _snippet("  a\n b  ") == "a b"
+    assert _snippet("x" * 200).endswith("...")
+    assert len(_snippet("x" * 200)) == 163

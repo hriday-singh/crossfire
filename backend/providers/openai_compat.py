@@ -9,9 +9,16 @@ import re
 from typing import Any
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from config import get_settings
+
+
+class LLMFormatError(RuntimeError):
+    """Upstream returned something that is not the requested JSON schema.
+
+    Usually the proxy leaking its own failure text ("Sorry, something went wrong...")
+    as a 200 completion, not the model actually misformatting."""
 
 
 def _clean_json_markdown(text: str) -> str:
@@ -34,6 +41,14 @@ def _clean_json_markdown(text: str) -> str:
     if brace_start != -1 and brace_end > brace_start:
         return text[brace_start : brace_end + 1].strip()
     return text
+
+
+def _snippet(text: str, limit: int = 160) -> str:
+    """One-line, bounded quote of upstream output — safe to surface in a UI reason string."""
+    flat = " ".join(text.split())
+    if not flat:
+        return "(empty response)"
+    return flat if len(flat) <= limit else f"{flat[:limit]}..."
 
 
 class OpenAICompatibleProvider:
@@ -95,6 +110,27 @@ class OpenAICompatibleProvider:
             else:
                 formatted_messages.insert(0, {"role": "system", "content": instruction})
 
+        if response_schema is None:
+            return await self._complete(formatted_messages)
+
+        # One retry: a proxy that answers "Sorry, something went wrong" with a 200
+        # is usually fine on the next call, and losing a claim to a transient blip
+        # is worse than one extra request.
+        last_error: ValidationError | None = None
+        last_content = ""
+        for _ in range(2):
+            last_content = await self._complete(formatted_messages)
+            try:
+                return response_schema.model_validate_json(_clean_json_markdown(last_content))
+            except ValidationError as exc:
+                last_error = exc
+
+        raise LLMFormatError(
+            f"{self._model} did not return valid {response_schema.__name__} JSON "
+            f"after 2 attempts; upstream said: {_snippet(last_content)}"
+        ) from last_error
+
+    async def _complete(self, formatted_messages: list[dict[str, Any]]) -> str:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
@@ -113,11 +149,5 @@ class OpenAICompatibleProvider:
         resp.raise_for_status()
         data = resp.json()
 
-        content = data["choices"][0]["message"]["content"] or ""
-
-        if response_schema is not None:
-            cleaned = _clean_json_markdown(content)
-            return response_schema.model_validate_json(cleaned)
-
-        return content
+        return data["choices"][0]["message"]["content"] or ""
 
