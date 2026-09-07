@@ -222,7 +222,7 @@ const B2B_COPILOT_SCENARIO = {
       audio_url: null,
     },
 
-    // 5. Crucible Arbiter (Judge) delivers synthesis ruling
+    // 5. Crucible Arbiter (Judge) delivers synthesis ruling and exits via right door
     {
       speaker_id: 'judge',
       action: 'stand',
@@ -235,10 +235,10 @@ const B2B_COPILOT_SCENARIO = {
     },
     {
       speaker_id: 'judge',
-      action: 'sit',
-      target: 'judge_chair',
+      action: 'walk_to',
+      target: 'right_door',
       gesture: 'idle',
-      stage: 'Crucible Synthesis',
+      stage: 'Exiting Bullpen to Decision Memo',
       verdict: null,
       dialogue: null,
       audio_url: null,
@@ -418,7 +418,7 @@ const INFERENCE_PIPELINE_SCENARIO = {
       audio_url: null,
     },
 
-    // 5. Judge Ruling
+    // 5. Judge Ruling and exit via right door
     {
       speaker_id: 'judge',
       action: 'stand',
@@ -431,10 +431,10 @@ const INFERENCE_PIPELINE_SCENARIO = {
     },
     {
       speaker_id: 'judge',
-      action: 'sit',
-      target: 'judge_chair',
+      action: 'walk_to',
+      target: 'right_door',
       gesture: 'idle',
-      stage: 'Crucible Synthesis',
+      stage: 'Exiting Bullpen to Decision Memo',
       verdict: null,
       dialogue: null,
       audio_url: null,

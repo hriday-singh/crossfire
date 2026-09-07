@@ -16,10 +16,10 @@ export const ROOM_DIMENSIONS = {
 
 export const JUDGE_TABLE_CONFIG = {
   x: 500,
-  y: 240,
-  width: 280,
-  height: 110,
-  depthY: 240,
+  y: 281,
+  width: 240,
+  height: 120,
+  depthY: 281,
 };
 
 // Backward-compatible alias for existing components
@@ -33,10 +33,10 @@ export const CUBICLE_LAYOUTS = [
     testName: 'Feasibility Test',
     side: 'left',
     row: 'top',
-    bounds: { x: 210, y: 63, width: 195, height: 170 },
-    desk: { x: 295, y: 145, width: 90, height: 40 },
-    chair: { x: 321, y: 156 },
-    stand: { x: 352, y: 195 },
+    bounds: { x: 185, y: 60, width: 200, height: 170 },
+    desk: { x: 275, y: 140, width: 90, height: 40 },
+    chair: { x: 284, y: 159 },
+    stand: { x: 329, y: 200 },
     colorHex: 0xfbbf24,
     accentHex: 0xfde68a,
   },
@@ -47,10 +47,10 @@ export const CUBICLE_LAYOUTS = [
     testName: 'Assumption Test',
     side: 'left',
     row: 'bottom',
-    bounds: { x: 210, y: 330, width: 195, height: 180 },
-    desk: { x: 295, y: 440, width: 90, height: 40 },
-    chair: { x: 310, y: 425 },
-    stand: { x: 352, y: 385 },
+    bounds: { x: 185, y: 340, width: 200, height: 180 },
+    desk: { x: 240, y: 405, width: 90, height: 40 },
+    chair: { x: 236, y: 421 },
+    stand: { x: 329, y: 381 },
     colorHex: 0x818cf8,
     accentHex: 0xc7d2fe,
   },
@@ -61,10 +61,10 @@ export const CUBICLE_LAYOUTS = [
     testName: 'Evidence Test',
     side: 'right',
     row: 'top',
-    bounds: { x: 595, y: 63, width: 195, height: 170 },
-    desk: { x: 705, y: 145, width: 90, height: 40 },
-    chair: { x: 679, y: 156 },
-    stand: { x: 648, y: 195 },
+    bounds: { x: 615, y: 60, width: 200, height: 170 },
+    desk: { x: 715, y: 140, width: 90, height: 40 },
+    chair: { x: 718, y: 159 },
+    stand: { x: 670, y: 200 },
     colorHex: 0x34d399,
     accentHex: 0xa7f3d0,
   },
@@ -75,10 +75,10 @@ export const CUBICLE_LAYOUTS = [
     testName: 'Operational Friction Test',
     side: 'right',
     row: 'bottom',
-    bounds: { x: 595, y: 330, width: 195, height: 180 },
-    desk: { x: 705, y: 440, width: 90, height: 40 },
-    chair: { x: 690, y: 425 },
-    stand: { x: 648, y: 385 },
+    bounds: { x: 615, y: 340, width: 200, height: 180 },
+    desk: { x: 760, y: 405, width: 90, height: 40 },
+    chair: { x: 766, y: 421 },
+    stand: { x: 670, y: 381 },
     colorHex: 0x60a5fa,
     accentHex: 0xbfdbfe,
   },
@@ -89,147 +89,147 @@ export const WAYPOINTS = {
   cubicle_1_desk: {
     id: 'cubicle_1_desk',
     name: 'Cubicle 01 Desk (Builder)',
-    x: 321,
-    y: 156,
+    x: 284,
+    y: 159,
     facing: 'north',
     isChair: true,
-    depth: 156,
+    depth: 159,
   },
   cubicle_1_stand: {
     id: 'cubicle_1_stand',
     name: 'Cubicle 01 Architecture Stand',
-    x: 352,
-    y: 195,
+    x: 329,
+    y: 200,
     facing: 'south',
     isChair: false,
-    depth: 195,
+    depth: 200,
   },
 
   // Cubicle 2: Devil's Advocate (SW)
   cubicle_2_desk: {
     id: 'cubicle_2_desk',
     name: "Cubicle 02 Desk (Devil's Advocate)",
-    x: 310,
-    y: 425,
+    x: 236,
+    y: 421,
     facing: 'south',
     isChair: true,
-    depth: 425,
+    depth: 421,
   },
   cubicle_2_stand: {
     id: 'cubicle_2_stand',
     name: "Cubicle 02 Pinboard Stand",
-    x: 352,
-    y: 385,
-    facing: 'south',
+    x: 329,
+    y: 381,
+    facing: 'north',
     isChair: false,
-    depth: 385,
+    depth: 381,
   },
 
   // Cubicle 3: Receipts / Researcher (NE)
   cubicle_3_desk: {
     id: 'cubicle_3_desk',
     name: 'Cubicle 03 Desk (Receipts)',
-    x: 679,
-    y: 156,
+    x: 718,
+    y: 159,
     facing: 'north',
     isChair: true,
-    depth: 156,
+    depth: 159,
   },
   cubicle_3_stand: {
     id: 'cubicle_3_stand',
     name: 'Cubicle 03 Citations Stand',
-    x: 648,
-    y: 195,
+    x: 670,
+    y: 200,
     facing: 'south',
     isChair: false,
-    depth: 195,
+    depth: 200,
   },
 
   // Cubicle 4: Operator (SE)
   cubicle_4_desk: {
     id: 'cubicle_4_desk',
     name: 'Cubicle 04 Desk (Operator)',
-    x: 690,
-    y: 425,
+    x: 766,
+    y: 421,
     facing: 'south',
     isChair: true,
-    depth: 425,
+    depth: 421,
   },
   cubicle_4_stand: {
     id: 'cubicle_4_stand',
     name: 'Cubicle 04 Policy Stand',
-    x: 648,
-    y: 385,
+    x: 670,
+    y: 381,
+    facing: 'north',
+    isChair: false,
+    depth: 381,
+  },
+
+  // Center: Crucible Judge Table & Arbiter Bench
+  judge_chair: {
+    id: 'judge_chair',
+    name: 'Crucible Judge Bench Chair',
+    x: 500,
+    y: 215,
+    facing: 'south',
+    isChair: true,
+    depth: 215,
+  },
+  judge_desk: {
+    id: 'judge_desk',
+    name: 'Crucible Judge Station',
+    x: 500,
+    y: 281,
     facing: 'south',
     isChair: false,
-    depth: 385,
+    depth: 281,
   },
 
   // Safe Navigation Corridors (around the central table)
   corridor_nw: {
     id: 'corridor_nw',
     name: 'North-West Corridor',
-    x: 365,
-    y: 230,
+    x: 355,
+    y: 200,
     facing: 'south',
     isChair: false,
-    depth: 230,
+    depth: 200,
   },
   corridor_ne: {
     id: 'corridor_ne',
     name: 'North-East Corridor',
-    x: 635,
-    y: 230,
+    x: 645,
+    y: 200,
     facing: 'south',
     isChair: false,
-    depth: 230,
+    depth: 200,
   },
   corridor_west: {
     id: 'corridor_west',
     name: 'West Corridor',
-    x: 365,
-    y: 355,
+    x: 355,
+    y: 380,
     facing: 'south',
     isChair: false,
-    depth: 355,
+    depth: 380,
   },
   corridor_east: {
     id: 'corridor_east',
     name: 'East Corridor',
-    x: 635,
-    y: 355,
+    x: 645,
+    y: 380,
     facing: 'south',
     isChair: false,
-    depth: 355,
+    depth: 380,
   },
   corridor_south: {
     id: 'corridor_south',
     name: 'South Corridor',
     x: 500,
-    y: 360,
+    y: 380,
     facing: 'north',
     isChair: false,
-    depth: 360,
-  },
-
-  // Center: Crucible Judge Table
-  judge_chair: {
-    id: 'judge_chair',
-    name: 'Crucible Judge Bench Chair',
-    x: 500,
-    y: 195,
-    facing: 'south',
-    isChair: true,
-    depth: 195,
-  },
-  judge_desk: {
-    id: 'judge_desk',
-    name: 'Crucible Judge Station',
-    x: 500,
-    y: 275,
-    facing: 'south',
-    isChair: false,
-    depth: 275,
+    depth: 380,
   },
 
   // Central Walkway and Room Entrance
@@ -237,133 +237,199 @@ export const WAYPOINTS = {
     id: 'center_floor',
     name: 'Central Bullpen Hallway',
     x: 500,
-    y: 370,
+    y: 380,
     facing: 'north',
     isChair: false,
-    depth: 370,
+    depth: 380,
   },
   doorway: {
     id: 'doorway',
     name: 'Bullpen Main Entrance',
     x: 500,
-    y: 520,
+    y: 535,
     facing: 'north',
     isChair: false,
-    depth: 520,
+    depth: 535,
   },
 
   // Backward compatibility aliases for legacy scenarios
   chair_north: {
     id: 'chair_north',
     name: 'North Workstation (Cubicle 1)',
-    x: 321,
-    y: 156,
+    x: 284,
+    y: 159,
     facing: 'south',
     isChair: true,
-    depth: 156,
+    depth: 159,
   },
   chair_west: {
     id: 'chair_west',
     name: 'West Workstation (Cubicle 2)',
-    x: 310,
-    y: 425,
+    x: 236,
+    y: 421,
     facing: 'north',
     isChair: true,
-    depth: 425,
+    depth: 421,
   },
   chair_east: {
     id: 'chair_east',
     name: 'East Workstation (Cubicle 3)',
-    x: 679,
-    y: 156,
+    x: 718,
+    y: 159,
     facing: 'south',
     isChair: true,
-    depth: 156,
+    depth: 159,
   },
   chair_south: {
     id: 'chair_south',
     name: 'South Workstation (Cubicle 4)',
-    x: 690,
-    y: 425,
+    x: 766,
+    y: 421,
     facing: 'north',
     isChair: true,
-    depth: 425,
+    depth: 421,
   },
   whiteboard: {
     id: 'whiteboard',
     name: 'Cubicle 1 Pinboard',
-    x: 352,
-    y: 195,
+    x: 329,
+    y: 200,
     facing: 'south',
     isChair: false,
-    depth: 195,
+    depth: 200,
   },
   presentation_podium: {
     id: 'presentation_podium',
     name: 'Crucible Judge Monolith',
     x: 500,
-    y: 275,
+    y: 281,
     facing: 'south',
     isChair: false,
-    depth: 275,
+    depth: 281,
   },
   podium_approach: {
     id: 'podium_approach',
     name: 'Judge Approach',
     x: 500,
-    y: 345,
+    y: 360,
     facing: 'north',
     isChair: false,
-    depth: 345,
+    depth: 360,
   },
   judge_approach: {
     id: 'judge_approach',
     name: 'Judge Approach',
     x: 500,
-    y: 345,
+    y: 360,
     facing: 'north',
     isChair: false,
-    depth: 345,
+    depth: 360,
   },
   judge_approach_west: {
     id: 'judge_approach_west',
     name: 'West Judge Table Approach',
-    x: 430,
-    y: 285,
+    x: 395,
+    y: 245,
     facing: 'east',
     isChair: false,
-    depth: 285,
+    depth: 245,
   },
   judge_approach_east: {
     id: 'judge_approach_east',
     name: 'East Judge Table Approach',
-    x: 570,
-    y: 285,
+    x: 605,
+    y: 245,
     facing: 'west',
     isChair: false,
-    depth: 285,
+    depth: 245,
   },
   judge_approach_south: {
     id: 'judge_approach_south',
     name: 'South Judge Approach (Overflow)',
     x: 500,
-    y: 410,
+    y: 400,
     facing: 'north',
     isChair: false,
-    depth: 410,
+    depth: 400,
   },
   whiteboard_approach: {
     id: 'whiteboard_approach',
     name: 'Cubicle 1 Approach',
-    x: 352,
-    y: 195,
+    x: 329,
+    y: 200,
     facing: 'north',
     isChair: false,
-    depth: 195,
+    depth: 200,
+  },
+
+  // Dedicated Table Spots per AI Evaluator (Diagonal clearance spots around Judge table)
+  judge_spot_builder: {
+    id: 'judge_spot_builder',
+    name: 'Judge Table NW Spot (Builder)',
+    x: 395,
+    y: 245,
+    facing: 'east',
+    isChair: false,
+    depth: 245,
+  },
+  judge_spot_devils_advocate: {
+    id: 'judge_spot_devils_advocate',
+    name: "Judge Table SW Spot (Devil's Advocate)",
+    x: 415,
+    y: 335,
+    facing: 'east',
+    isChair: false,
+    depth: 335,
+  },
+  judge_spot_receipts: {
+    id: 'judge_spot_receipts',
+    name: 'Judge Table NE Spot (Receipts)',
+    x: 605,
+    y: 245,
+    facing: 'west',
+    isChair: false,
+    depth: 245,
+  },
+  judge_spot_operator: {
+    id: 'judge_spot_operator',
+    name: 'Judge Table SE Spot (Operator)',
+    x: 585,
+    y: 335,
+    facing: 'west',
+    isChair: false,
+    depth: 335,
+  },
+
+  // Right Chamber Door (Exit for Judge upon discussion completion)
+  right_door: {
+    id: 'right_door',
+    name: 'Right Chamber Door (Exit)',
+    x: 897,
+    y: 246,
+    facing: 'east',
+    isChair: false,
+    depth: 246,
   },
 };
 
+export const AGENT_JUDGE_SPOTS = {
+  builder: 'judge_spot_builder',
+  agent_1: 'judge_spot_builder',
+  devils_advocate: 'judge_spot_devils_advocate',
+  agent_2: 'judge_spot_devils_advocate',
+  receipts: 'judge_spot_receipts',
+  researcher: 'judge_spot_receipts',
+  agent_3: 'judge_spot_receipts',
+  operator: 'judge_spot_operator',
+  agent_4: 'judge_spot_operator',
+  judge: 'judge_chair',
+};
+
 export const JUDGE_APPROACH_SPOTS = [
+  'judge_spot_builder',
+  'judge_spot_devils_advocate',
+  'judge_spot_receipts',
+  'judge_spot_operator',
   'judge_approach',
   'judge_approach_west',
   'judge_approach_east',
@@ -375,37 +441,28 @@ export const JUDGE_APPROACH_ALIASES = [
   'presentation_podium',
   'judge_approach',
   'judge_desk',
+  'judge_table',
+  'judge_spot_builder',
+  'judge_spot_devils_advocate',
+  'judge_spot_receipts',
+  'judge_spot_operator',
 ];
 
 /**
- * Resolves the best collision-free spot around the judge table.
- * If another AI agent is already occupying the primary center spot,
- * routes the incoming agent to west, east, or south overflow spots.
+ * Resolves the dedicated, deterministic spot at the judge table for each AI agent.
+ * Each AI evaluator goes to their assigned spot every single time using the shortest path.
  */
 export function resolveApproachSpot(agentId, characterPositions, requestedTargetId) {
+  if (requestedTargetId === 'right_door') {
+    return 'right_door';
+  }
+
   if (!requestedTargetId || !JUDGE_APPROACH_ALIASES.includes(requestedTargetId)) {
     return requestedTargetId;
   }
 
-  if (!characterPositions) {
-    return 'judge_approach';
-  }
-
-  const OCCUPANCY_RADIUS = 42;
-
-  const isSpotOccupied = (spotId) => {
-    const spotWp = WAYPOINTS[spotId];
-    if (!spotWp) return false;
-    return Object.entries(characterPositions).some(([id, pos]) => {
-      if (id === agentId || id === 'judge' || !pos) return false;
-      return Math.hypot(pos.x - spotWp.x, pos.y - spotWp.y) < OCCUPANCY_RADIUS;
-    });
-  };
-
-  for (const spotId of JUDGE_APPROACH_SPOTS) {
-    if (!isSpotOccupied(spotId)) {
-      return spotId;
-    }
+  if (agentId && AGENT_JUDGE_SPOTS[agentId]) {
+    return AGENT_JUDGE_SPOTS[agentId];
   }
 
   return 'judge_approach';
@@ -429,5 +486,6 @@ export default {
   TABLE_CONFIG,
   CUBICLE_LAYOUTS,
   WAYPOINTS,
+  AGENT_JUDGE_SPOTS,
   CHAIR_IDS,
 };

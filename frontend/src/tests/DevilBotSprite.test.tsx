@@ -9,7 +9,8 @@ vi.mock('pixi.js', () => ({
   Texture: vi.fn().mockImplementation(() => ({})),
   Rectangle: vi.fn(),
   AnimatedSprite: class {},
-  Container: class {}
+  Container: class {},
+  Graphics: class {}
 }));
 
 vi.mock('@pixi/react', () => ({

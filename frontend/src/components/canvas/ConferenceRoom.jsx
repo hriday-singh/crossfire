@@ -11,35 +11,30 @@ import {
  * Renders the high-resolution isometric floor plan from public/flplan.webp
  * and provides interactive station illumination when an evaluator or Judge is active or hovered.
  */
-export function ConferenceRoom({ activeSpeakerId, hoveredAgentId }) {
+export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isJudgeExiting = false }) {
   const [floorTexture, setFloorTexture] = useState(() => {
     try {
-      return Texture.from('/flpan.webp');
+      return Texture.from('/bg.png');
     } catch {
-      try {
-        return Texture.from('/flplan.webp');
-      } catch {
-        return null;
-      }
+      return null;
     }
   });
 
   useEffect(() => {
     let isMounted = true;
-    Assets.load('/flpan.webp')
-      .catch(() => Assets.load('/flplan.webp'))
+    Assets.load('/bg.png')
       .then((tex) => {
         if (isMounted) setFloorTexture(tex);
       })
       .catch((err) => {
-        console.warn('Fallback: Assets.load /flpan.webp failed', err);
+        console.warn('Fallback: Assets.load /bg.png failed', err);
       });
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // Subtle interactive neon lighting over workstations when hovered or active
+  // Subtle interactive neon lighting over workstations and door when hovered or active
   const drawHighlights = useCallback(
     (g) => {
       g.clear();
@@ -80,8 +75,27 @@ export function ConferenceRoom({ activeSpeakerId, hoveredAgentId }) {
           alpha: isJudgeHovered ? 0.1 : 0.05,
         });
       }
+
+      // 3. Right Chamber Door exit portal aura (when Judge is exiting or hovered)
+      if (isJudgeExiting) {
+        // Outer pulsing portal ring
+        g.ellipse(897, 246, 30, 48).stroke({
+          width: 3,
+          color: 0x34d399,
+          alpha: 0.9,
+        });
+        // Inner portal radiance
+        g.ellipse(897, 246, 26, 44).fill({
+          color: 0x34d399,
+          alpha: 0.25,
+        });
+        g.ellipse(897, 246, 12, 24).fill({
+          color: 0xffffff,
+          alpha: 0.4,
+        });
+      }
     },
-    [hoveredAgentId, activeSpeakerId]
+    [hoveredAgentId, activeSpeakerId, isJudgeExiting]
   );
 
   return (

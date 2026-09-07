@@ -36,6 +36,7 @@ export function StageContainer({
   currentActionPacket = null,
   activeSpeakerId = null,
   hoveredAgentId = null,
+  isJudgeExiting = false,
   onHoverAgent = () => {},
   onPositionUpdate = () => {},
   playSfx = () => {},
@@ -68,7 +69,7 @@ export function StageContainer({
       onMouseLeave={handlePointerLeave}
       className="relative w-full aspect-[1000/587] max-w-[1200px] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-surface-container-lowest flex items-center justify-center select-none"
       style={{
-        backgroundImage: "url('/flpan.webp')",
+        backgroundImage: "url('/bg.png')",
         backgroundSize: '100% 100%',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -102,6 +103,7 @@ export function StageContainer({
             <ConferenceRoom
               activeSpeakerId={activeSpeakerId}
               hoveredAgentId={hoveredAgentId}
+              isJudgeExiting={isJudgeExiting}
             />
 
             {/* Crucible Arbiter (Judge) presiding at the center bench */}

@@ -3,8 +3,8 @@
     Pending:
 
     AI 1 :
-        [] when the discussion done the judge will walk to the right side door and "go to the next page" which will be an animation (u can use stitch and any other animation skill u have)
-
+        [] the judge when done will go the next page but have the transition like the bot just goes to the next page and then ill tell no pop up tho it should a smooth transition to the next page
 
     AI 2 (backend logic):
 
+        [] tell how the backend logic actually work like will there be a claim every 2 second?  
