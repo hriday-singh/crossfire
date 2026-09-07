@@ -114,10 +114,10 @@ export const Header: React.FC = () => {
             type="button"
             onClick={() => handleNav("live-runner-verdicts")}
             data-path="live-runner-verdicts"
-            disabled={!hasActiveCase}
+            disabled={!hasActiveCase || (state.currentCase?.status !== "testing" && state.currentCase?.status !== "done")}
             aria-current={isLiveRunnerActive ? "page" : undefined}
             className={`transition-colors flex items-center h-full ${
-              !hasActiveCase
+              !hasActiveCase || (state.currentCase?.status !== "testing" && state.currentCase?.status !== "done")
                 ? "text-outline/40 cursor-not-allowed opacity-50"
                 : isLiveRunnerActive
                 ? "text-on-surface border-b-2 border-primary-container font-medium cursor-pointer"

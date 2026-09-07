@@ -11,9 +11,17 @@ import {
 } from "@/types/crossfire";
 
 // Default API base points to /cases, which Vite proxies to http://localhost:8000/cases
-// Can be overridden via VITE_API_BASE_URL (e.g. http://localhost:8000)
-const DEFAULT_API_BASE =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "";
+// Can be overridden via VITE_API_BASE_URL (e.g. https://api.mydomain.com)
+// If running on localhost, we force relative paths ("") to ensure local DB/backend is used instead of external Cloudflare deployment.
+const getApiBase = () => {
+  if (typeof window === "undefined") return "";
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    return "";
+  }
+  return (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "";
+};
+
+const DEFAULT_API_BASE = getApiBase();
 
 export class CrossfireApiError extends Error {
   status: number;
