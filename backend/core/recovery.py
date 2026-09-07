@@ -2,7 +2,7 @@ import logging
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from backend.providers.base import LLMProvider
+from providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,6 @@ async def run_recovery(
     previous_question: str | None = None,
 ) -> RecoveryResult | None:
     try:
-        messages = [
-            {"role": "system", "content": RECOVERY_SYSTEM_PROMPT}
-        ]
-        
         user_prompt = f"User input: {raw_input}"
         if context:
             user_prompt += f"\n\nContext provided by user: {context}"
@@ -41,13 +37,10 @@ async def run_recovery(
         if clarify_round >= 1 and previous_question:
             user_prompt += f"\n\nNote: The user already answered once. Ask about something *different* and more concrete. Do not repeat the previous question: '{previous_question}'"
             
-        messages.append({"role": "user", "content": user_prompt})
-        
-        response = await provider.generate_structured(
-            messages=messages,
-            schema=RecoveryResult,
-            temperature=0.7,
-            agent_id="recovery",
+        response = await provider.generate(
+            system_prompt=RECOVERY_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
+            response_schema=RecoveryResult,
         )
         return response
     except Exception as e:

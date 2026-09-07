@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 import providers
 from providers import keyring
+from providers.catalog import GEMINI_MODELS
 
 
 @pytest.fixture
@@ -96,48 +97,82 @@ def test_disabling_and_deleting_a_key(client):
     assert client.delete(f"/providers/keys/{created['id']}").status_code == 404
 
 
-def test_selecting_provider_and_model_is_what_the_pipeline_then_uses(client):
-    client.post("/providers/anthropic/keys", json={"api_key": "sk-ant-abcdefgh12345678"})
+def test_gemini_proxy_and_gemini_api_offer_the_same_models(client):
+    body = client.get("/providers").json()
+    by_id = {p["id"]: p for p in body["providers"]}
 
+    # Same model id means the same thing whichever way Crossfire reaches Gemini.
+    assert by_id["gemini"]["models"] == GEMINI_MODELS
+    assert set(by_id["gemini_proxy"]["models"]) == set(GEMINI_MODELS)
+
+
+def test_selecting_a_model_is_what_the_pipeline_then_uses(client):
     body = client.put(
-        "/providers/active", json={"provider": "anthropic", "model": "claude-opus-5"}
+        "/providers/active", json={"provider": "gemini_proxy", "model": "gemini-3.6-flash"}
     ).json()
 
+    assert body["active"] == "gemini_proxy"
+    assert providers.get_provider().targets[0].model == "gemini-3.6-flash"
+
+
+def test_the_running_provider_is_pinned_whatever_is_selected(client):
+    client.post("/providers/anthropic/keys", json={"api_key": "sk-ant-abcdefgh12345678"})
+    client.put("/providers/active", json={"provider": "anthropic", "model": "claude-opus-5"})
+    client.put("/providers/fallback", json={"chain": ["openai", "anthropic"]})
+
+    # The selection is stored for the UI, but every target is the locked
+    # provider: cross-provider routing is off while LOCKED_PROVIDER is pinned.
+    body = client.get("/providers").json()
     assert body["active"] == "anthropic"
-    chain = providers.get_provider().targets
-    assert chain[0].provider == "anthropic"
-    assert chain[0].model == "claude-opus-5"
+    assert body["locked_provider"] == "gemini_proxy"
+    assert {t.provider for t in providers.get_provider().targets} == {"gemini_proxy"}
 
 
-def test_fallback_chain_is_applied_in_order(client):
-    client.post("/providers/gemini/keys", json={"api_key": "AIzaSyFALLBACK00001"})
-    client.post("/providers/openai/keys", json={"api_key": "sk-fallback-000000002"})
-    client.put("/providers/active", json={"provider": "gemini"})
+def test_enabled_models_are_the_fallback_order(client):
+    client.put("/providers/active", json={"provider": "gemini_proxy", "model": "gemini-3.6-flash"})
 
-    client.put("/providers/fallback", json={"chain": ["openai", "gemini_proxy"]})
+    body = client.put(
+        "/providers/gemini_proxy/models",
+        json={"models": ["gemini-flash-lite", "gemini-3.7-flash"]},
+    ).json()
 
-    assert [t.provider for t in providers.get_provider().targets] == [
-        "gemini",
-        "openai",
-        "gemini_proxy",
+    # Primary first, then the enabled models in the order they were sent.
+    assert body["enabled_models"] == [
+        "gemini-3.6-flash",
+        "gemini-flash-lite",
+        "gemini-3.7-flash",
     ]
+    assert [t.model for t in providers.get_provider().targets] == body["enabled_models"]
 
 
-def test_providers_without_credentials_are_dropped_from_the_chain(client):
-    client.put("/providers/fallback", json={"chain": ["anthropic"]})
+def test_disabled_models_leave_the_chain(client):
+    client.put("/providers/gemini_proxy/models", json={"models": []})
 
-    # anthropic requires a key and has none, so it must not enter the chain.
-    assert [t.provider for t in providers.get_provider().targets] == ["gemini_proxy"]
+    body = client.get("/providers").json()
+    proxy = next(p for p in body["providers"] if p["id"] == "gemini_proxy")
+
+    # Everything disabled still leaves the primary: it is the selected model.
+    assert proxy["enabled_models"] == [proxy["model"]]
+    assert [t.model for t in providers.get_provider().targets] == [proxy["model"]]
 
 
 def test_every_configured_key_becomes_a_pool_slot(client):
     for i in range(4):
-        client.post("/providers/gemini/keys", json={"api_key": f"AIzaSyPOOLKEY0000{i}"})
-    client.put("/providers/active", json={"provider": "gemini"})
+        client.post("/providers/gemini_proxy/keys", json={"api_key": f"AIzaSyPOOLKEY0000{i}"})
 
     status = client.get("/providers/pool/status").json()
     assert status["chain"][0]["keys"] == 4
     assert status["chain"][0]["capacity"] == 8  # 4 keys x KEY_POOL_MAX_INFLIGHT
+
+
+def test_all_models_share_one_key_pool(client):
+    client.post("/providers/gemini_proxy/keys", json={"api_key": "AIzaSySHAREDPOOL01"})
+
+    targets = providers.get_provider().targets
+
+    # One pool per provider, not per model: a key benched on one model stays
+    # benched for the retry on the next.
+    assert len({id(t.pool) for t in targets}) == 1
 
 
 def test_custom_endpoint_accepts_a_user_supplied_base_url(client):
@@ -211,26 +246,16 @@ def test_custom_endpoint_name_must_contain_something_usable(client):
     assert _custom(client, "---", "http://a/v1").status_code == 400
 
 
-def test_custom_endpoints_take_their_place_in_the_fallback_order(client):
+def test_custom_endpoints_keep_their_own_url_and_model(client):
     _custom(client, "First Backup", "http://one/v1", model="m1")
     _custom(client, "Second Backup", "http://two/v1", model="m2")
-    client.post("/providers/gemini/keys", json={"api_key": "AIzaSyCHAINORDER01"})
-    client.put("/providers/active", json={"provider": "gemini"})
 
-    client.put(
-        "/providers/fallback",
-        json={"chain": ["custom:first-backup", "custom:second-backup", "gemini_proxy"]},
-    )
-
-    chain = providers.get_provider().targets
-    assert [t.provider for t in chain] == [
-        "gemini",
-        "custom:first-backup",
-        "custom:second-backup",
-        "gemini_proxy",
-    ]
-    assert [t.base_url for t in chain[1:3]] == ["http://one/v1", "http://two/v1"]
-    assert [t.model for t in chain[1:3]] == ["m1", "m2"]
+    # Not in the running chain while the provider is pinned, but still stored
+    # and still buildable, so unpinning needs none of this re-entered.
+    first = providers.build_target("custom:first-backup")
+    second = providers.build_target("custom:second-backup")
+    assert (first.base_url, first.model) == ("http://one/v1", "m1")
+    assert (second.base_url, second.model) == ("http://two/v1", "m2")
 
 
 def test_deleting_a_custom_endpoint_removes_its_keys_and_chain_entry(client):
@@ -263,11 +288,11 @@ def test_builtin_providers_cannot_be_deleted(client):
 
 
 class _StubAdapter:
-    """Answers 'ok' unless its base_url is on the dead list."""
+    """Answers 'ok' unless what it was built for is on the dead list."""
 
-    def __init__(self, provider_id, base_url):
-        self._model = f"{provider_id}-model"
-        self._dead = "dead" in base_url
+    def __init__(self, model, base_url):
+        self._model = model
+        self._dead = "dead" in base_url or "lite" in model
 
     async def generate(self, system_prompt, messages, response_schema=None):
         if self._dead:
@@ -275,34 +300,36 @@ class _StubAdapter:
         return "ok"
 
 
-def test_testing_the_chain_reports_one_row_per_link_in_order(client, monkeypatch):
-    _custom(client, "Good Backup", "http://good/v1")
-    _custom(client, "Dead Backup", "http://dead/v1")
+def test_testing_the_chain_reports_one_row_per_enabled_model(client, monkeypatch):
+    client.put("/providers/active", json={"provider": "gemini_proxy", "model": "gemini-3.7-flash"})
     client.put(
-        "/providers/fallback", json={"chain": ["custom:good-backup", "custom:dead-backup"]}
+        "/providers/gemini_proxy/models",
+        json={"models": ["gemini-3.6-flash", "gemini-flash-lite"]},
     )
 
     monkeypatch.setattr(
         providers,
         "build_adapter",
-        lambda provider_id, **kw: _StubAdapter(provider_id, keyring.get_config(provider_id).base_url),
+        lambda provider_id, model=None, **kw: _StubAdapter(model or "", ""),
     )
 
     rows = client.post("/providers/test").json()
 
-    assert [(r["provider"], r["ok"]) for r in rows] == [
-        ("gemini_proxy", True),
-        ("custom:good-backup", True),
-        ("custom:dead-backup", False),
+    assert [(r["model"], r["ok"]) for r in rows] == [
+        ("gemini-3.7-flash", True),
+        ("gemini-3.6-flash", True),
+        ("gemini-flash-lite", False),
     ]
     assert "ConnectionError" in rows[2]["detail"]
 
 
 def test_a_single_provider_can_be_tested_with_an_unsaved_key(client, monkeypatch):
     monkeypatch.setattr(
-        providers, "build_adapter", lambda provider_id, **kw: _StubAdapter(provider_id, "http://x/v1")
+        providers,
+        "build_adapter",
+        lambda provider_id, model=None, **kw: _StubAdapter("gpt-5.6-luna", "http://x/v1"),
     )
 
     body = client.post("/providers/openai/test", json={"api_key": "sk-unsaved-00000001"}).json()
 
-    assert body == {"ok": True, "provider": "openai", "model": "openai-model", "detail": "ok"}
+    assert body == {"ok": True, "provider": "openai", "model": "gpt-5.6-luna", "detail": "ok"}

@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 import providers
 from providers import keyring
-from providers.catalog import OLLAMA, custom_id, get_spec, is_custom
+from providers.catalog import LOCKED_PROVIDER, OLLAMA, custom_id, get_spec, is_custom
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,8 @@ class ProviderOut(BaseModel):
     base_url: str
     model: str
     models: list[str]
+    #: models this provider may run, in fallback order, primary first
+    enabled_models: list[str]
     rpm: int
     key_count: int
     configured: bool
@@ -59,6 +61,8 @@ class ProvidersResponse(BaseModel):
     active: str
     fallback_chain: list[str]
     providers: list[ProviderOut]
+    #: provider the pipeline actually runs on right now, whatever `active` says
+    locked_provider: str = LOCKED_PROVIDER
 
 
 class AddKeyRequest(BaseModel):
@@ -78,6 +82,14 @@ class ProviderConfigRequest(BaseModel):
 
 class ActiveProviderRequest(ProviderConfigRequest):
     provider: str
+
+
+class EnabledModelsRequest(BaseModel):
+    models: list[str] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Models the provider may run, in fallback order. The primary model is always kept.",
+    )
 
 
 class FallbackChainRequest(BaseModel):
@@ -124,6 +136,7 @@ def _provider_out(provider_id: str) -> ProviderOut:
         base_url=config.base_url,
         model=config.model,
         models=list(spec.models),
+        enabled_models=keyring.get_enabled_models(provider_id),
         rpm=config.rpm,
         key_count=key_count,
         configured=bool(config.base_url) and (key_count > 0 or not spec.requires_key),
@@ -134,7 +147,12 @@ def _provider_out(provider_id: str) -> ProviderOut:
 
 @router.get("", response_model=ProvidersResponse)
 def list_providers() -> ProvidersResponse:
-    """Everything the provider/model dropdowns need, in one call."""
+    """Everything the provider/model settings screen needs, in one call.
+
+    Every provider is listed and stays configurable, but the pipeline currently
+    runs on `locked_provider` regardless of `active` — see
+    catalog.LOCKED_PROVIDER and providers.build_chain().
+    """
     return ProvidersResponse(
         active=keyring.get_active_provider(),
         fallback_chain=keyring.get_fallback_chain(),
@@ -184,7 +202,11 @@ async def ollama_models() -> dict:
 
 @router.put("/active", response_model=ProvidersResponse)
 def set_active(payload: ActiveProviderRequest) -> ProvidersResponse:
-    """Select the provider (and optionally its model) the pipeline runs on."""
+    """Select the provider (and optionally its model) the pipeline runs on.
+
+    The selection is stored, but while catalog.LOCKED_PROVIDER is pinned only
+    that provider's models are actually used at run time.
+    """
     _require_known(payload.provider)
     keyring.set_config(
         payload.provider, model=payload.model, base_url=payload.base_url, rpm=payload.rpm
@@ -243,6 +265,19 @@ def delete_custom_provider(provider_id: str) -> None:
     if not keyring.delete_provider(provider_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Endpoint not found")
     providers.invalidate_cache()
+
+
+@router.put("/{provider_id}/models", response_model=ProviderOut)
+def set_enabled_models(provider_id: str, payload: EnabledModelsRequest) -> ProviderOut:
+    """Enable/disable models and set the order they are tried in.
+
+    Unlisted models are disabled. The primary model stays enabled regardless —
+    disabling it means selecting a different primary first.
+    """
+    _require_known(provider_id)
+    keyring.set_enabled_models(provider_id, payload.models)
+    providers.invalidate_cache()
+    return _provider_out(provider_id)
 
 
 @router.put("/{provider_id}/config", response_model=ProviderOut)
@@ -329,13 +364,16 @@ async def _ping(
 
 @router.post("/test", response_model=list[TestProviderResponse])
 async def test_chain() -> list[TestProviderResponse]:
-    """Ping the active provider and every fallback, in the order they'd be used.
+    """Ping every link of the live chain, in the order it would be used.
 
-    One row per link, so a chain that looks configured but isn't shows up here
-    rather than three hours into a panel run.
+    One row per link — with the provider pinned, that is one row per enabled
+    model — so a model the proxy will not serve shows up here rather than three
+    hours into a panel run.
     """
-    chain = [target.provider for target in providers.get_routing_provider().targets]
-    return [await _ping(provider_id) for provider_id in chain]
+    return [
+        await _ping(target.provider, model=target.model, base_url=target.base_url)
+        for target in providers.get_routing_provider().targets
+    ]
 
 
 @router.post("/{provider_id}/test", response_model=TestProviderResponse)

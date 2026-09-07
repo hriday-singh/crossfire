@@ -25,6 +25,7 @@ from providers.catalog import CATALOG, CUSTOM_PREFIX, DEFAULT_PROVIDER, get_spec
 
 _ACTIVE_PROVIDER = "active_provider"
 _FALLBACK_CHAIN = "fallback_chain"
+_ENABLED_MODELS = "enabled_models"  # one row per provider: "enabled_models:<id>"
 
 _lock = threading.Lock()
 _initialized: set[str] = set()
@@ -400,6 +401,41 @@ def set_fallback_chain(providers: list[str]) -> list[str]:
             cleaned.append(provider)
     _set_setting(_FALLBACK_CHAIN, json.dumps(cleaned))
     return cleaned
+
+
+def get_enabled_models(provider: str) -> list[str]:
+    """The models this provider may run, in fallback order, primary first.
+
+    The primary (provider_config.model) is always the head of the list — a
+    model cannot be disabled while it is the selected one. Providers the user
+    has never touched default to their whole catalog list, so the fallback is
+    useful before anyone opens the settings screen.
+    """
+    spec = get_spec(provider)
+    primary = get_config(provider).model
+    raw = _get_setting(f"{_ENABLED_MODELS}:{provider}")
+    if raw is None:
+        stored = list(spec.models)
+    else:
+        try:
+            values = json.loads(raw)
+        except json.JSONDecodeError:
+            values = []
+        stored = [v.strip() for v in values if isinstance(v, str) and v.strip()]
+    ordered = [primary, *[m for m in stored if m != primary]]
+    return [m for m in ordered if m]
+
+
+def set_enabled_models(provider: str, models: list[str]) -> list[str]:
+    """Replace the enabled-model list. Order is the fallback order."""
+    get_spec(provider)
+    cleaned: list[str] = []
+    for model in models:
+        model = model.strip()
+        if model and model not in cleaned:
+            cleaned.append(model)
+    _set_setting(f"{_ENABLED_MODELS}:{provider}", json.dumps(cleaned))
+    return get_enabled_models(provider)
 
 
 def clear() -> None:

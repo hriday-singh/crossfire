@@ -18,7 +18,7 @@ from config import get_settings
 from providers import keyring
 from providers.anthropic import AnthropicProvider
 from providers.base import LLMProvider
-from providers.catalog import CATALOG, DEFAULT_PROVIDER, ProviderSpec, get_spec
+from providers.catalog import CATALOG, DEFAULT_PROVIDER, LOCKED_PROVIDER, ProviderSpec, get_spec
 from providers.gemini import GeminiProvider
 from providers.openai_compat import (
     LLMConnectionError,
@@ -122,33 +122,32 @@ def build_target(provider_id: str, max_inflight_per_key: int | None = None) -> T
     )
 
 
-def _is_usable(provider_id: str, target: Target) -> bool:
-    spec = get_spec(provider_id)
-    if spec.requires_key and target.pool is None:
-        return False
-    if not target.base_url:
-        return False
-    return True
-
-
 def build_chain() -> list[Target]:
-    """Active provider first, then every configured fallback that has credentials."""
-    active = keyring.get_active_provider()
-    ordered = [active] + [p for p in keyring.get_fallback_chain() if p != active]
+    """One target per enabled model of the locked provider, primary first.
 
-    targets: list[Target] = []
-    for provider_id in ordered:
-        target = build_target(provider_id)
-        if not _is_usable(provider_id, target):
-            logger.info("Skipping provider %s in chain: no API key or base URL configured", provider_id)
-            continue
-        targets.append(target)
+    Crossfire is pinned to the bundled Gemini proxy (catalog.LOCKED_PROVIDER),
+    so the chain is a *model* fallback rather than a provider fallback: if the
+    primary model errors or rate-limits, the same proxy is retried on the next
+    enabled model. The cross-provider machinery still exists and still works —
+    unpinning means reading keyring.get_active_provider()/get_fallback_chain()
+    here again.
+    """
+    provider_id = LOCKED_PROVIDER
+    base = build_target(provider_id)
+    models = keyring.get_enabled_models(provider_id) or [base.model]
 
-    if not targets:
-        # The bundled proxy needs no credentials, so there is always something
-        # to fall back to rather than 500-ing at request time.
-        targets.append(build_target(DEFAULT_PROVIDER))
-    return targets
+    # One Target per model, sharing the provider's key pool: the keys and their
+    # cooldowns are the same whichever model is being asked for.
+    return [
+        Target(
+            provider=provider_id,
+            wire=base.wire,
+            model=model,
+            base_url=base.base_url,
+            pool=base.pool,
+        )
+        for model in models
+    ]
 
 
 def invalidate_cache() -> None:

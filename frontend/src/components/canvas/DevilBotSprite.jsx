@@ -549,6 +549,16 @@ export function DevilBotSprite({
 
   const zIndex = Math.round(pos.y);
 
+  const graphicsRef = useRef(null);
+  
+  useEffect(() => {
+    if (graphicsRef.current && texturesLoaded) {
+      if (typeof graphicsRef.current.clear === 'function') {
+        drawShadowAndAura(graphicsRef.current);
+      }
+    }
+  }, [drawShadowAndAura, texturesLoaded, isSpeaking, isHovered]);
+
   if (!texturesLoaded) {
     return null; // Don't render until textures are sliced
   }
@@ -567,7 +577,7 @@ export function DevilBotSprite({
       onpointerenter={() => onHover?.(agent.id)}
       onpointerleave={() => onHover?.(null)}
     >
-      <pixiGraphics draw={drawShadowAndAura} />
+      <pixiGraphics ref={graphicsRef} />
       <pixiAnimatedSprite
         ref={spriteRef}
         textures={currentTextures}

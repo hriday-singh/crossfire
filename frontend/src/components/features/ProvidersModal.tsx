@@ -15,6 +15,7 @@ import {
   listProviderKeys,
   listProviders,
   setActiveProvider,
+  setEnabledModels,
   setFallbackChain,
   setKeyEnabled,
   setProviderConfig,
@@ -142,6 +143,8 @@ export const ProvidersModal: React.FC = () => {
     };
   }, [isOpen, selectedId, data]);
 
+  //: while the backend pins one provider, everything else is configuration only
+  const locked = data?.locked_provider || null;
   const inFallback = selected ? (data?.fallback_chain || []).includes(selected.id) : false;
   const isActive = selected ? data?.active === selected.id : false;
 
@@ -167,6 +170,31 @@ export const ProvidersModal: React.FC = () => {
     if (!selected) return [];
     return Array.from(new Set([...(selected.models || []), ...discovered].filter(Boolean)));
   }, [selected, discovered]);
+
+  /** Enabled models first, in the order they are tried, then the disabled rest. */
+  const enabledModels = useMemo(() => selected?.enabled_models || [], [selected]);
+  const modelRows = useMemo(
+    () => [...enabledModels, ...modelOptions.filter((m) => !enabledModels.includes(m))],
+    [enabledModels, modelOptions]
+  );
+
+  const saveModels = (models: string[], message: string) =>
+    selected && void run(() => setEnabledModels(selected.id, models), message);
+
+  const toggleModel = (model: string, enabled: boolean) =>
+    saveModels(
+      enabled ? enabledModels.filter((m) => m !== model) : [...enabledModels, model],
+      enabled ? `${model} disabled` : `${model} enabled`
+    );
+
+  /** Reorder the fallback order. Index 0 is the primary and does not move. */
+  const moveModel = (index: number, delta: number) => {
+    const order = [...enabledModels];
+    const target = index + delta;
+    if (index < 1 || target < 1 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    saveModels(order, "Fallback order updated");
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && setActiveModal("none")}>
@@ -420,12 +448,31 @@ export const ProvidersModal: React.FC = () => {
                       {selected.notes}
                     </p>
                   )}
+                  {locked && (
+                    <p
+                      className="font-body-sm text-body-sm text-on-surface-variant border border-outline-variant/60 rounded px-space-3 py-2"
+                      data-testid="locked-notice"
+                    >
+                      {selected.id === locked ? (
+                        <>
+                          <span className="text-primary-container font-semibold">PINNED</span> —
+                          every run goes through this provider. Its enabled models below are the
+                          whole fallback order.
+                        </>
+                      ) : (
+                        <>
+                          Runs are pinned to <span className="text-on-surface">{locked}</span> for
+                          now. Keys and models saved here are kept, but not used yet.
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
 
                 {/* Models */}
                 <div className="space-y-space-3">
                   <div className="flex items-center justify-between">
-                    <h4 className={SECTION_LABEL}>Model</h4>
+                    <h4 className={SECTION_LABEL}>Models</h4>
                     {selected.id === "ollama" && (
                       <button
                         type="button"
@@ -448,32 +495,82 @@ export const ProvidersModal: React.FC = () => {
                   </div>
 
                   <div className={`${CARD} space-y-space-3`}>
-                    <div className="flex flex-wrap gap-space-2">
-                      {modelOptions.map((model) => {
-                        const current = model === modelDraft;
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      The primary model runs first. Enabled models below it are the fallback
+                      order — a rate-limited or failing model retries on the next one.
+                    </p>
+
+                    <div className="space-y-space-2">
+                      {modelRows.map((model) => {
+                        const isPrimary = model === selected.model;
+                        const order = enabledModels.indexOf(model);
+                        const enabled = order >= 0;
                         return (
-                          <button
+                          <div
                             key={model}
-                            type="button"
-                            data-testid={`model-chip-${model}`}
-                            onClick={() => {
-                              setModelDraft(model);
-                              void run(
-                                () => setProviderConfig(selected.id, { model }),
-                                `Model set to ${model}`
-                              );
-                            }}
-                            className={`font-code-sm text-code-sm px-space-3 py-1.5 rounded border transition-colors cursor-pointer ${
-                              current
-                                ? "bg-primary-container/15 border-primary-container/60 text-primary-container font-semibold"
-                                : "bg-surface-container-low border-outline-variant/50 text-on-surface-variant hover:border-outline-variant hover:text-on-surface"
+                            data-testid={`model-row-${model}`}
+                            className={`flex items-center gap-space-3 rounded border px-space-3 py-2 transition-colors ${
+                              isPrimary
+                                ? "bg-primary-container/15 border-primary-container/60"
+                                : "bg-surface-container-low border-outline-variant/50"
                             }`}
                           >
-                            {model}
-                          </button>
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              disabled={busy || isPrimary}
+                              aria-label={`Enable ${model}`}
+                              onChange={() => toggleModel(model, enabled)}
+                              className="accent-primary-container cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            <button
+                              type="button"
+                              data-testid={`model-chip-${model}`}
+                              disabled={busy || isPrimary}
+                              onClick={() => {
+                                setModelDraft(model);
+                                void run(
+                                  () => setProviderConfig(selected.id, { model }),
+                                  `Model set to ${model}`
+                                );
+                              }}
+                              className={`flex-1 min-w-0 text-left font-code-sm text-code-sm truncate cursor-pointer disabled:cursor-default ${
+                                isPrimary
+                                  ? "text-primary-container font-semibold"
+                                  : enabled
+                                    ? "text-on-surface hover:text-primary-container"
+                                    : "text-outline hover:text-on-surface-variant"
+                              }`}
+                            >
+                              {model}
+                            </button>
+                            <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline shrink-0">
+                              {isPrimary ? "PRIMARY" : enabled ? `FB ${order}` : "OFF"}
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                aria-label={`Move ${model} up`}
+                                disabled={busy || order < 2}
+                                onClick={() => moveModel(order, -1)}
+                                className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                              >
+                                <ArrowUp size={14} aria-hidden />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Move ${model} down`}
+                                disabled={busy || !enabled || isPrimary || order === enabledModels.length - 1}
+                                onClick={() => moveModel(order, 1)}
+                                className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                              >
+                                <ArrowDown size={14} aria-hidden />
+                              </button>
+                            </div>
+                          </div>
                         );
                       })}
-                      {modelOptions.length === 0 && (
+                      {modelRows.length === 0 && (
                         <span className="font-code-sm text-code-sm text-outline">
                           No catalog models — type one below.
                         </span>

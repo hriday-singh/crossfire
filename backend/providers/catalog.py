@@ -24,6 +24,16 @@ CUSTOM = "custom"
 CUSTOM_PREFIX = "custom:"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 
+#: The model ids the bundled gemini-web2api proxy serves, in the order the UI
+#: lists them. Google's own REST API is offered the same list on purpose: the
+#: model a user picks means the same thing whichever way Crossfire reaches it.
+GEMINI_MODELS = [
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-thinking",
+    "gemini-flash-lite",
+]
+
 
 @dataclass(frozen=True)
 class ProviderSpec:
@@ -52,7 +62,7 @@ CATALOG: dict[str, ProviderSpec] = {
         requires_key=False,
         editable_base_url=True,
         default_model=get_settings().llm_model,
-        models=list(dict.fromkeys([get_settings().llm_model, "gemini-3.8-flash", "gemini-3.5-pro", "gemini-3.1-pro"])),
+        models=list(dict.fromkeys([get_settings().llm_model, *GEMINI_MODELS])),
         notes="Crossfire's bundled gemini-web2api proxy. No API key needed.",
     ),
     GEMINI: ProviderSpec(
@@ -63,13 +73,8 @@ CATALOG: dict[str, ProviderSpec] = {
         base_url="https://generativelanguage.googleapis.com/v1beta/openai",
         requires_key=True,
         editable_base_url=False,
-        default_model="gemini-3.8-flash",
-        models=[
-            "gemini-3.8-flash",
-            "gemini-3.5-pro",
-            "gemini-3.1-pro",
-            "gemini-3.5-flash-lite",
-        ],
+        default_model=GEMINI_MODELS[0],
+        models=list(GEMINI_MODELS),
         default_rpm=10,
         notes="Free-tier keys rate-limit hard; add several and Crossfire shards across them.",
     ),
@@ -118,6 +123,13 @@ CATALOG: dict[str, ProviderSpec] = {
 }
 
 DEFAULT_PROVIDER = GEMINI_PROXY
+
+#: Crossfire currently runs on the Gemini proxy and nothing else: provider
+#: selection is pinned here rather than read from the keyring. The catalog,
+#: key pools and cross-provider fallback below still work — flipping this back
+#: to `keyring.get_active_provider()` in providers/__init__.build_chain() is
+#: all that unpinning takes.
+LOCKED_PROVIDER = GEMINI_PROXY
 
 
 def slugify(name: str) -> str:

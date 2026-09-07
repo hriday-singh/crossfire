@@ -22,6 +22,8 @@ export interface ProviderInfo {
   base_url: string;
   model: string;
   models: string[];
+  /** Models this provider may run, in fallback order. The primary is first. */
+  enabled_models: string[];
   rpm: number;
   key_count: number;
   configured: boolean;
@@ -34,6 +36,8 @@ export interface ProvidersResponse {
   active: string;
   fallback_chain: string[];
   providers: ProviderInfo[];
+  /** Provider the pipeline actually runs on right now, whatever `active` says. */
+  locked_provider?: string;
 }
 
 export interface ProviderConfigPatch {
@@ -122,6 +126,19 @@ export function setProviderConfig(
   return request<ProviderInfo>(
     `/providers/${seg(providerId)}/config`,
     { method: "PUT", body: JSON.stringify(patch) },
+    baseUrl
+  );
+}
+
+/** Enable/disable models and set the order they are tried in. */
+export function setEnabledModels(
+  providerId: string,
+  models: string[],
+  baseUrl?: string
+): Promise<ProviderInfo> {
+  return request<ProviderInfo>(
+    `/providers/${seg(providerId)}/models`,
+    { method: "PUT", body: JSON.stringify({ models }) },
     baseUrl
   );
 }

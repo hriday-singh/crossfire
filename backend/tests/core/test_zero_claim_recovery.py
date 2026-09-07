@@ -61,9 +61,26 @@ async def test_recovery_provider_raises(mock_provider):
 
 @pytest.mark.asyncio
 async def test_run_recovery_catches_exception(mock_provider):
-    mock_provider.generate_structured.side_effect = Exception("API Error")
+    mock_provider.generate.side_effect = Exception("API Error")
     result = await run_recovery("raw", None, mock_provider)
     assert result is None
+
+@pytest.mark.asyncio
+async def test_run_recovery_happy_path(mock_provider):
+    mock_recovery_result = RecoveryResult(
+        clarifying_question="What?",
+        missing=[],
+        provisional_claims=["It costs $5"]
+    )
+    mock_provider.generate.return_value = mock_recovery_result
+    
+    result = await run_recovery("raw input", "some context", mock_provider, clarify_round=1, previous_question="Why?")
+    
+    assert result == mock_recovery_result
+    mock_provider.generate.assert_called_once()
+    _, kwargs = mock_provider.generate.call_args
+    assert kwargs["response_schema"] == RecoveryResult
+    assert "Note: The user already answered once" in kwargs["messages"][0]["content"]
 
 @pytest.mark.asyncio
 async def test_loop_handles_none_recovery(mock_provider):
