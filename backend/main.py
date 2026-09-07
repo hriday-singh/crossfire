@@ -40,7 +40,7 @@ app.add_middleware(
 async def timeout_exception_handler(request: Request, exc: httpx.TimeoutException):
     logger.error("Request timed out on %s %s: %s", request.method, request.url.path, exc)
     return JSONResponse(
-        status_code=504,
+        status_code=408,
         content={"detail": "Upstream LLM provider request timed out. Please retry."},
     )
 
@@ -49,7 +49,7 @@ async def timeout_exception_handler(request: Request, exc: httpx.TimeoutExceptio
 async def connect_exception_handler(request: Request, exc: httpx.ConnectError):
     logger.error("Connection error on %s %s: %s", request.method, request.url.path, exc)
     return JSONResponse(
-        status_code=502,
+        status_code=424,
         content={"detail": "Unable to connect to upstream LLM provider. Ensure the provider service is running."},
     )
 
@@ -58,7 +58,7 @@ async def connect_exception_handler(request: Request, exc: httpx.ConnectError):
 async def format_exception_handler(request: Request, exc: LLMFormatError):
     logger.error("LLM format error on %s %s: %s", request.method, request.url.path, exc)
     return JSONResponse(
-        status_code=502,
+        status_code=424,
         content={"detail": str(exc)},
     )
 
@@ -67,7 +67,7 @@ async def format_exception_handler(request: Request, exc: LLMFormatError):
 async def provider_exception_handler(request: Request, exc: LLMProviderError):
     logger.error("LLM provider error on %s %s: %s", request.method, request.url.path, exc)
     return JSONResponse(
-        status_code=502,
+        status_code=424,
         content={"detail": str(exc)},
     )
 
@@ -76,7 +76,7 @@ async def provider_exception_handler(request: Request, exc: LLMProviderError):
 async def http_status_exception_handler(request: Request, exc: httpx.HTTPStatusError):
     logger.error("Upstream HTTP error on %s %s: %s", request.method, request.url.path, exc)
     is_rate_limit = exc.response.status_code == 429 or "429" in exc.response.text
-    status_code = 429 if is_rate_limit else 502
+    status_code = 429 if is_rate_limit else 424
     return JSONResponse(
         status_code=status_code,
         content={

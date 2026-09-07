@@ -78,7 +78,7 @@ async def create_case(
     except httpx.HTTPStatusError as exc:
         logger.error("Claim extraction upstream error: %s", exc)
         is_rate_limit = exc.response.status_code == 429 or "429" in exc.response.text
-        code = status.HTTP_429_TOO_MANY_REQUESTS if is_rate_limit else status.HTTP_502_BAD_GATEWAY
+        code = status.HTTP_429_TOO_MANY_REQUESTS if is_rate_limit else status.HTTP_424_FAILED_DEPENDENCY
         raise HTTPException(
             status_code=code,
             detail=f"Claim extraction failed: {exc.response.text}",
@@ -86,7 +86,7 @@ async def create_case(
     except Exception as exc:
         logger.error("Claim extraction failed: %s", exc)
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail=f"Claim extraction failed: {exc}",
         ) from exc
 
