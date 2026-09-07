@@ -11,14 +11,15 @@ import {
 } from "@/types/crossfire";
 
 // Default API base points to /cases, which Vite proxies to http://localhost:8000/cases
-// Can be overridden via VITE_API_BASE_URL (e.g. https://api.mydomain.com)
-// If running on localhost, we force relative paths ("") to ensure local DB/backend is used instead of external Cloudflare deployment.
+// Can be overridden via VITE_API_BASE_URL.
 const getApiBase = () => {
-  if (typeof window === "undefined") return "";
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "";
+  if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
   }
-  return (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "https://api.crossfire.stratizone.com";
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return ""; // use relative (vite proxy) for local development
+  }
+  return "https://crossfire-api.stratizone.com"; // default for production deployment
 };
 
 const DEFAULT_API_BASE = getApiBase();
