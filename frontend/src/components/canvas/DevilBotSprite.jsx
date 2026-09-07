@@ -272,6 +272,22 @@ export function getPathPoints(startX, startY, targetWp) {
   return [{ x: targetX, y: targetY, facing: targetWp.facing }];
 }
 
+/**
+ * @param {{
+ *   agent?: any;
+ *   isSelected?: boolean;
+ *   isSynthesisDone?: boolean;
+ *   isLoadingDone?: boolean;
+ *   loadingProgress?: number;
+ *   characterPositions?: Record<string, any>;
+ *   currentActionPacket?: any;
+ *   isSpeaking?: boolean;
+ *   isHovered?: boolean;
+ *   onHover?: (hovered: boolean) => void;
+ *   onPositionUpdate?: (pos: any) => void;
+ *   playSfx?: (name: string) => void;
+ * }} props
+ */
 export function DevilBotSprite({
   agent,
   isSelected = true,

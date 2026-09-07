@@ -7,7 +7,6 @@ import {
   CUBICLE_LAYOUTS,
   WAYPOINTS,
 } from "../constants/roomLayout";
-import { MOCK_SCENARIOS } from "../hooks/useSocketSimulation";
 import { useAudioPlayback } from "../hooks/useAudioPlayback";
 import { DialogueOverlay } from "../components/ui/DialogueOverlay";
 import { SideControlPanel } from "../components/ui/SideControlPanel";
