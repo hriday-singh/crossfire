@@ -69,3 +69,11 @@ def test_cors_allowed_origins_and_curation_settings(monkeypatch):
     assert settings.cors_allowed_origins == ["http://localhost:3000", "http://example.com"]
     assert settings.use_llm_curation is True
 
+
+def test_steelman_concurrency_default():
+    from config import Settings
+    s = Settings()
+    assert hasattr(s, "steelman_concurrency")
+    assert s.steelman_concurrency == 3
+
+

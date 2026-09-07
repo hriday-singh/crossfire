@@ -350,6 +350,37 @@ def _fallback_decision_state(case: Case) -> str:
     return "proceed"
 
 
+_STATE_PERMISSIVENESS = {
+    "drop": 0,
+    "hold": 1,
+    "proceed_with_changes": 2,
+    "proceed": 3,
+}
+_PERMISSIVENESS_TO_STATE = {v: k for k, v in _STATE_PERMISSIVENESS.items()}
+
+
+def clamp_decision_state(llm_state: str, derived: str) -> str:
+    """`_fallback_decision_state` is the floor, not the fallback.
+
+    It was reachable only when the synthesis call raised, so every correction made
+    to it — the salvage-aware branch, `_blocking_weakened` — was invisible in
+    practice: the model's own state won whenever the call succeeded, and the model
+    reliably talks itself down a rung to sound rigorous.
+
+    The clamp is one-directional and bounded. The model may be more permissive than
+    the ladder by one rung, because it sees the salvage text and the actual
+    reasoning; it may never be harsher, because that is the exact regression the
+    ladder fixes, and it may not jump two rungs, because `proceed` over a ladder
+    that computed `drop` means a load-bearing claim was refuted and unsalvaged."""
+    if llm_state not in _STATE_PERMISSIVENESS:
+        return derived
+    floor = _STATE_PERMISSIVENESS[derived]
+    proposed = _STATE_PERMISSIVENESS[llm_state]
+    if proposed < floor:
+        return derived
+    return _PERMISSIVENESS_TO_STATE[min(proposed, floor + 1)]
+
+
 CASE_VERDICT_SYSTEM_PROMPT = (
     "You close out an adversarial review of one decision. Every claim it rests on has "
     "already been judged individually. Produce the case-level answer, not a restatement "
@@ -357,6 +388,15 @@ CASE_VERDICT_SYSTEM_PROMPT = (
     "- 'decision_state': 'proceed' (nothing load-bearing failed), 'proceed_with_changes' "
     "(it survives with named modifications), 'hold' (a load-bearing claim is unproven and "
     "must be settled first), 'drop' (a load-bearing claim was refuted by a source).\n"
+    "  'proceed' is a real outcome and you are expected to use it. If every load-bearing "
+    "claim survived, the answer is 'proceed' — a decision that was checked and held up "
+    "must be allowed to say so, and attaching changes to it to look thorough is a "
+    "failure, not caution. Ordinary friction that the panel scored as minor is not a "
+    "modification.\n"
+    "  You are given a state derived mechanically from the claim verdicts. Do not go "
+    "below it. Every load-bearing failure it counted is real, and a claim that was "
+    "refuted but carries a workable salvage is 'proceed_with_changes', not 'drop' — "
+    "'drop' means there is nothing left to do here.\n"
     "- 'headline': the call itself, as a short, punchy heading of generally 3 to 6 words "
     "(it can be slightly more, up to 7-8 words max, but never a big line). Deliver the core call "
     "or decisive factor in one brief phrase (e.g., 'Don't proceed as written', 'Requires human legal review', "
@@ -390,8 +430,9 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         if c.status in (ClaimStatus.WEAKENED, ClaimStatus.UNRESOLVED)
     ]
 
+    derived_state = _fallback_decision_state(case)
     verdict = CaseVerdict(
-        decision_state=_fallback_decision_state(case),
+        decision_state=derived_state,
         summary="",
         survived=survived,
         broken=broken,
@@ -434,7 +475,8 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
                     "content": (
                         f"Decision: {case.raw_input}\n\n"
                         f"Claim verdicts:\n{claim_lines}\n\n"
-                        f"Per-claim changes already proposed:\n{consequence_lines or 'none'}"
+                        f"Per-claim changes already proposed:\n{consequence_lines or 'none'}\n\n"
+                        f"State derived from the claim verdicts (do not go below it): {derived_state}"
                     ),
                 }
             ],
@@ -442,7 +484,7 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         )
         state = (getattr(result, "decision_state", "") or "").strip().lower()
         if state in _DECISION_STATES:
-            verdict.decision_state = state
+            verdict.decision_state = clamp_decision_state(state, derived_state)
         verdict.headline = sanitize_headline(
             getattr(result, "headline", "") or "", verdict.decision_state
         )

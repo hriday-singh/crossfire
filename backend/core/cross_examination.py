@@ -67,11 +67,11 @@ PROBE_SYSTEM_PROMPT = (
 # to `weakened`. Probing these first is what converts the panel's citation into the
 # sourced contradiction the gate requires.
 _STATUTORY_BLOCKER = re.compile(
-    r"(\d+\s*(?:CFR|C\.F\.R\.|U\.?S\.?C\.?)|§|section\s+\d|"
-    r"(?:statut\w+|regulat\w+|ordinance|licen[cs]\w+|unlicensed|unregistered|"
-    r"illegal|unlawful|prohibited|non-compliant|noncompliance|felony|misdemeanor)|"
-    r"(?:HIPAA|FMCSA|FMCSR|GDPR|CCPA|OSHA|SEC|FDA|FINRA|FinCEN|DOT|EEOC|FTC|"
-    r"PCI[- ]DSS|SOX|COPPA|Howey)|municipal code|federal law)",
+    r"(\b\d+\s*(?:CFR|C\.F\.R\.|U\.?S\.?C\.?)\b|§|\bsection\s+\d|"
+    r"\b(?:statut\w+|regulat\w+|ordinance|licen[cs]\w+|unlicensed|unregistered|"
+    r"illegal|unlawful|prohibited|non-compliant|noncompliance|felony|misdemeanor)\b|"
+    r"\b(?:HIPAA|FMCSA|FMCSR|GDPR|CCPA|OSHA|SEC|FDA|FINRA|FinCEN|DOT|EEOC|FTC|"
+    r"PCI[- ]DSS|SOX|COPPA|Howey)\b|\bmunicipal code\b|\bfederal law\b)",
     re.IGNORECASE,
 )
 

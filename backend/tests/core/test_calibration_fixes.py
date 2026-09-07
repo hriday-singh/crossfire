@@ -12,8 +12,21 @@ Regression tests for the fixes derived from the 2026-09-07 calibration corpus
 import pytest
 
 from core.models import Case, Claim, ClaimStatus, EvidenceItem, Finding
-from core.reconcile import apply_evidence_gate, apply_steelman_gate, SteelManVerdict
-from core.synthesis import _fallback_decision_state
+from core.cross_examination import (
+    extract_critical_blocker,
+    is_statutory_blocker,
+)
+from core.reconcile import (
+    STEEL_MAN_SYSTEM_PROMPT,
+    apply_evidence_gate,
+    apply_steelman_gate,
+    SteelManVerdict,
+)
+from core.synthesis import (
+    CASE_VERDICT_SYSTEM_PROMPT,
+    _fallback_decision_state,
+    clamp_decision_state,
+)
 
 
 def _finding(claim_id: str, evaluator: str, confidence: float, *, evidence=(), contradiction=None):
@@ -173,3 +186,135 @@ def test_a_broken_secondary_claim_does_not_sink_a_sound_case():
         ]
     )
     assert _fallback_decision_state(case) == "proceed"
+
+
+# --- G1: statutory blockers reach the cross-examination probe -------------
+#
+# b1-phi-google-drive and b2-14-hour-shifts both named their statute correctly and
+# still lost `broken`, because the only findings carrying a citation were
+# reasoning-only and `extract_critical_blocker` never looked at Operator, which is
+# where `friction_type="regulatory_liability"` lands.
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Link sharing defeats access control under 45 CFR 164.312",
+        "49 CFR 395.3 caps property-carrying drivers at 11 hours",
+        "Denver municipal code 38-86 bans overnight camping",
+        "A guaranteed 8% return is an unregistered security under Howey",
+        "Operating without a state money transmitter license",
+        "Apple rejects this under section 4.2 of the review guidelines",
+    ],
+)
+def test_statutory_blockers_are_recognised(text):
+    assert is_statutory_blocker(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The vendor API rate limit is 100 requests per second",
+        "Engineers will resist the new tagging workflow",
+        "Two seconds of latency per page render",
+        "The dotted line reporting structure adds a week",
+        None,
+        "",
+    ],
+)
+def test_ordinary_blockers_are_not_mistaken_for_statutory(text):
+    assert not is_statutory_blocker(text)
+
+
+def test_operator_regulatory_blocker_is_now_probed():
+    findings = [
+        _finding("c1", "operator", 0.85, contradiction="Violates 45 CFR 164.312 access control"),
+    ]
+    assert extract_critical_blocker(findings) == "Violates 45 CFR 164.312 access control"
+
+
+def test_statutory_blocker_outranks_a_harder_non_statutory_one():
+    findings = [
+        _finding("c1", "devils_advocate", 0.95, contradiction="Nobody on the team wants this"),
+        _finding("c1", "operator", 0.70, contradiction="49 CFR 395.3 caps driving at 11 hours"),
+    ]
+    assert extract_critical_blocker(findings) == "49 CFR 395.3 caps driving at 11 hours"
+
+
+def test_hardest_blocker_wins_when_none_are_statutory():
+    findings = [
+        _finding("c1", "builder", 0.65, contradiction="[Day-1 Blocker] no export API"),
+        _finding("c1", "devils_advocate", 0.90, contradiction="Assumes the counterparty agrees"),
+    ]
+    assert extract_critical_blocker(findings) == "Assumes the counterparty agrees"
+
+
+def test_blockers_below_their_persona_floor_are_not_probed():
+    findings = [
+        _finding("c1", "builder", 0.5, contradiction="minor friction"),
+        _finding("c1", "devils_advocate", 0.65, contradiction="a soft premise"),
+        _finding("c1", "operator", 0.4, contradiction="some paperwork"),
+    ]
+    assert extract_critical_blocker(findings) is None
+
+
+def test_a_finding_that_already_has_sources_is_not_probed_again():
+    findings = [
+        _finding(
+            "c1",
+            "researcher",
+            0.9,
+            evidence=[_evidence()],
+            contradiction="49 CFR 395.3 caps driving at 11 hours",
+        ),
+    ]
+    assert extract_critical_blocker(findings) is None
+
+
+# --- G2: `weakened` must stop absorbing `unresolved` ----------------------
+#
+# Band C put 66.7% of its claims in `weakened`, including c3-head-of-sales-timing,
+# a pure counterfactual that no fact can settle. The discriminator lives in the
+# judge prompt; this pins that it is actually in there.
+
+
+def test_steel_man_prompt_discriminates_weakened_from_unresolved():
+    prompt = STEEL_MAN_SYSTEM_PROMPT
+    assert "counterfactual" in prompt
+    assert "cannot tell" in prompt
+    assert "name the exact missing input" in prompt
+
+
+# --- G3: the ladder is the floor, not a dead fallback --------------------
+
+
+def test_llm_may_not_go_below_the_derived_state():
+    assert clamp_decision_state("drop", "proceed_with_changes") == "proceed_with_changes"
+    assert clamp_decision_state("hold", "proceed") == "proceed"
+    assert clamp_decision_state("proceed_with_changes", "proceed") == "proceed"
+
+
+def test_llm_may_go_one_rung_more_permissive():
+    assert clamp_decision_state("proceed", "proceed_with_changes") == "proceed"
+    assert clamp_decision_state("proceed_with_changes", "hold") == "proceed_with_changes"
+
+
+def test_llm_may_not_jump_two_rungs_past_the_ladder():
+    assert clamp_decision_state("proceed", "drop") == "hold"
+    assert clamp_decision_state("proceed", "hold") == "proceed_with_changes"
+
+
+def test_an_unrecognised_state_falls_back_to_the_derived_one():
+    assert clamp_decision_state("", "hold") == "hold"
+    assert clamp_decision_state("maybe", "drop") == "drop"
+
+
+def test_agreement_with_the_ladder_is_preserved():
+    for state in ("drop", "hold", "proceed_with_changes", "proceed"):
+        assert clamp_decision_state(state, state) == state
+
+
+def test_case_verdict_prompt_permits_proceed_and_names_the_floor():
+    prompt = CASE_VERDICT_SYSTEM_PROMPT
+    assert "'proceed' is a real outcome" in prompt
+    assert "Do not go below it" in prompt

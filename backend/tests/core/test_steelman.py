@@ -250,3 +250,59 @@ async def test_pipeline_steelman_salvage_integration(sample_case):
     activity_events = [e for e in received_events if e.get("event") == "activity"]
     steelman_activities = [e for e in activity_events if e["data"].get("tag") == "Steelman"]
     assert len(steelman_activities) >= 1
+
+
+@pytest.mark.asyncio
+async def test_reconcile_emits_verdict_ready_progressively(sample_case):
+    import asyncio
+    import events
+    import store
+    from core.loop import run_pipeline, ReconcileVerdict
+    from core.models import Claim, ClaimStatus
+    from tests.core.test_loop import SchemaProvider
+
+    c1 = Claim(id="c1", statement="Fast claim")
+    c2 = Claim(id="c2", statement="Slow claim")
+    sample_case.claims = [c1, c2]
+    store.set(sample_case)
+    events.reset()
+
+    c1_emitted_while_c2_running = False
+
+    async def slow_reconcile_gen(messages):
+        nonlocal c1_emitted_while_c2_running
+        prompt_text = str(messages)
+        if "Slow claim" in prompt_text:
+            await asyncio.sleep(0.05)
+            history = events.get_history(sample_case.id)
+            c1_events = [
+                e for e in history
+                if e.get("event") == "verdict_ready" and e.get("data", {}).get("claim_id") == "c1"
+            ]
+            if c1_events:
+                c1_emitted_while_c2_running = True
+        return ReconcileVerdict(
+            status=ClaimStatus.SURVIVED,
+            reasoning="Reasoning",
+            salvaged_claim="Salvaged",
+            fatal_flaw="Flaw",
+            tradeoff_acknowledged="Tradeoff",
+        )
+
+    provider = SchemaProvider()
+    original_generate = provider.generate
+
+    async def custom_generate(system_prompt, messages, response_schema=None):
+        if getattr(response_schema, "__name__", None) in ("SteelManVerdict", "ReconcileVerdict"):
+            return await slow_reconcile_gen(messages)
+        return await original_generate(system_prompt, messages, response_schema=response_schema)
+
+    provider.generate = custom_generate
+
+    await run_pipeline(sample_case.id, provider=provider)
+    history = events.get_history(sample_case.id)
+    verdict_events = [e for e in history if e.get("event") == "verdict_ready"]
+    assert len(verdict_events) == 2
+    assert c1_emitted_while_c2_running, "verdict_ready for c1 should emit before c2 completes"
+
+

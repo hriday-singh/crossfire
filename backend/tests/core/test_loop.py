@@ -478,6 +478,9 @@ class SchemaProvider:
             "ReceiptsAssessment": lambda: ReceiptsAssessment(
                 result="No source found", reasoning="Nothing relevant returned.", confidence=0.2
             ),
+            "ResearcherAssessment": lambda: ReceiptsAssessment(
+                result="Authority checked", reasoning="No statutory blocker.", confidence=0.7
+            ),
             "SteelManVerdict": lambda: ReconcileVerdict(
                 status=ClaimStatus.WEAKENED,
                 reasoning="Holds with caveats.",

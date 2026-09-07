@@ -1,4 +1,4 @@
-﻿"""
+"""
 Unit tests for core.synthesis (modularized synthesis layer).
 """
 import pytest
@@ -91,6 +91,33 @@ async def test_synthesize_case_verdict_llm():
     case = Case(id="c", raw_input="Test proposal", claims=[c1], consequences=[])
     provider = MockProvider()
     verdict = await synthesize_case_verdict(case, provider)
-    assert verdict.decision_state == "proceed_with_changes"
+    # The mock returns "proceed_with_changes", but the only load-bearing claim
+    # survived, so the derived ladder floor is "proceed" and `clamp_decision_state`
+    # refuses the downgrade. A checked decision that held up has to be able to say
+    # so — `proceed` was returned 0/15 times in the 2026-09-07 corpus.
+    assert verdict.decision_state == "proceed"
     assert "survived with minor" in verdict.summary
     assert len(verdict.next_actions) == 1
+
+
+def test_build_consequences_preserves_all_steelman_fields():
+    from core.models import Case, Claim, ClaimStatus
+    from core.synthesis import build_consequences
+    claim = Claim(
+        id="c1",
+        statement="High load system",
+        status=ClaimStatus.BROKEN,
+        load_bearing=True,
+        fatal_flaw="Single point of failure in DB",
+        salvaged_claim="Use read replicas",
+        tradeoff_acknowledged="Adds replication lag",
+    )
+    case = Case(id="case-1", raw_input="Deploy system", claims=[claim])
+    consequences = build_consequences(case)
+    assert len(consequences) == 1
+    c = consequences[0]
+    assert c.fatal_flaw == "Single point of failure in DB"
+    assert c.salvaged_claim == "Use read replicas"
+    assert c.tradeoff_acknowledged == "Adds replication lag"
+    assert "Salvaged claim: Use read replicas" in c.recommended_change
+

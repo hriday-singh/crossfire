@@ -409,10 +409,11 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             logger.warning("Cross-examination stage failed (%s); proceeding with original findings.", exc)
 
         # Steelman: parallel reconcile across claims, seeing all findings for each claim.
-        # One claim failing degrades that claim; every claim failing means the
-        # provider is down, and a run of nothing but UNRESOLVED is worse to serve
-        # than an `error` the frontend can actually show.
+        # Bounded by configurable semaphore to prevent upstream proxy queuing.
+        settings = get_settings()
+        steelman_limit = asyncio.Semaphore(getattr(settings, "steelman_concurrency", 3))
         steelman_errors: list[BaseException] = []
+        reasonings: dict[str, str] = {}
 
         async def _reconcile_single(clm: Claim) -> tuple[Claim, ClaimStatus, str]:
             claim_findings = [f for f in case.findings if f.claim_id == clm.id]
@@ -422,55 +423,43 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                 clm.fatal_flaw = None
                 clm.salvaged_claim = None
                 clm.tradeoff_acknowledged = None
-                return clm, ClaimStatus.UNRESOLVED, "No evaluator produced a finding for this claim."
-            await emit_activity(
-                case.id,
-                "Steelman",
-                f"Reconciling evidence for: {clm.statement[:55]}...",
-                claim_id=clm.id,
-                action="reconciling",
-            )
-            try:
-                verdict = await reconcile(clm, claim_findings, provider)
-            except Exception as exc:
-                steelman_errors.append(exc)
-                clm.status = ClaimStatus.UNRESOLVED
-                clm.confidence = calculate_claim_confidence(ClaimStatus.UNRESOLVED, 0.0)
-                clm.fatal_flaw = None
-                clm.salvaged_claim = None
-                clm.tradeoff_acknowledged = None
-                return (
-                    clm,
-                    ClaimStatus.UNRESOLVED,
-                    f"Reconciliation error ({exc}); marked unresolved.",
-                )
-
-            if isinstance(verdict, SteelManVerdict):
-                gated = apply_steelman_gate(verdict, claim_findings)
-                clm.status = gated.status
-                clm.fatal_flaw = gated.fatal_flaw
-                clm.salvaged_claim = gated.salvaged_claim
-                clm.tradeoff_acknowledged = gated.tradeoff_acknowledged
-                max_obj = max((f.confidence for f in claim_findings), default=0.0)
-                clm.confidence = calculate_claim_confidence(clm.status, max_obj)
-                return clm, gated.status, gated.reasoning
+                reasoning = "No evaluator produced a finding for this claim."
             else:
-                st, rsn = verdict
-                gated_st, gated_rsn = apply_evidence_gate(st, rsn, claim_findings)
-                clm.status = gated_st
-                max_obj = max((f.confidence for f in claim_findings), default=0.0)
-                clm.confidence = calculate_claim_confidence(clm.status, max_obj)
-                return clm, gated_st, gated_rsn
+                await emit_activity(
+                    case.id,
+                    "Steelman",
+                    f"Reconciling evidence for: {clm.statement[:55]}...",
+                    claim_id=clm.id,
+                    action="reconciling",
+                )
+                try:
+                    async with steelman_limit:
+                        verdict = await reconcile(clm, claim_findings, provider)
+                    if isinstance(verdict, SteelManVerdict):
+                        gated = apply_steelman_gate(verdict, claim_findings)
+                        clm.status = gated.status
+                        clm.fatal_flaw = gated.fatal_flaw
+                        clm.salvaged_claim = gated.salvaged_claim
+                        clm.tradeoff_acknowledged = gated.tradeoff_acknowledged
+                        max_obj = max((f.confidence for f in claim_findings), default=0.0)
+                        clm.confidence = calculate_claim_confidence(clm.status, max_obj)
+                        reasoning = gated.reasoning
+                    else:
+                        st, rsn = verdict
+                        gated_st, gated_rsn = apply_evidence_gate(st, rsn, claim_findings)
+                        clm.status = gated_st
+                        max_obj = max((f.confidence for f in claim_findings), default=0.0)
+                        clm.confidence = calculate_claim_confidence(clm.status, max_obj)
+                        reasoning = gated_rsn
+                except Exception as exc:
+                    steelman_errors.append(exc)
+                    clm.status = ClaimStatus.UNRESOLVED
+                    clm.confidence = calculate_claim_confidence(ClaimStatus.UNRESOLVED, 0.0)
+                    clm.fatal_flaw = None
+                    clm.salvaged_claim = None
+                    clm.tradeoff_acknowledged = None
+                    reasoning = f"Reconciliation error ({exc}); marked unresolved."
 
-        reconcile_results = await asyncio.gather(
-            *(_reconcile_single(clm) for clm in case.claims)
-        )
-        if case.claims and len(steelman_errors) == len(case.claims):
-            raise steelman_errors[0]
-
-        reasonings: dict[str, str] = {}
-        for clm, st, reasoning in reconcile_results:
-            clm.status = st
             reasonings[clm.id] = reasoning
             await events.publish(
                 case.id,
@@ -485,6 +474,11 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     "tradeoff_acknowledged": clm.tradeoff_acknowledged,
                 },
             )
+            return clm, clm.status, reasoning
+
+        await asyncio.gather(*(_reconcile_single(clm) for clm in case.claims))
+        if case.claims and len(steelman_errors) == len(case.claims):
+            raise steelman_errors[0]
 
         # The drawer reads case.findings in order; lead with what moved the verdict.
         case.findings = [
@@ -499,32 +493,6 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             # Steelman reasoning only exists here, so it gets threaded in.
             if consequence.claim_id in reasonings:
                 consequence.verdict_reasoning = reasonings[consequence.claim_id]
-            matching_claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
-            if matching_claim:
-                consequence.fatal_flaw = matching_claim.fatal_flaw
-                consequence.salvaged_claim = matching_claim.salvaged_claim
-                consequence.tradeoff_acknowledged = matching_claim.tradeoff_acknowledged
-
-        try:
-            await emit_activity(
-                case.id,
-                "Synthesis",
-                "Formulating strategic adaptations and next validation steps...",
-                action="consequences",
-            )
-            case.consequences = await synthesize_consequences(case, provider, reasonings=reasonings)
-        except Exception as exc:
-            logger.debug("Synthesizing consequences fallback: %s", exc)
-
-        for consequence in case.consequences:
-            matching_claim = next((c for c in case.claims if c.id == consequence.claim_id), None)
-            if matching_claim:
-                if matching_claim.fatal_flaw and not consequence.fatal_flaw:
-                    consequence.fatal_flaw = matching_claim.fatal_flaw
-                if matching_claim.salvaged_claim and not consequence.salvaged_claim:
-                    consequence.salvaged_claim = matching_claim.salvaged_claim
-                if matching_claim.tradeoff_acknowledged and not consequence.tradeoff_acknowledged:
-                    consequence.tradeoff_acknowledged = matching_claim.tradeoff_acknowledged
             await events.publish(
                 case.id, "consequence_ready", {"consequence": consequence.model_dump()}
             )
