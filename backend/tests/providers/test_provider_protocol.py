@@ -347,3 +347,60 @@ def test_snippet_flattens_and_truncates():
     assert _snippet("  a\n b  ") == "a b"
     assert _snippet("x" * 200).endswith("...")
     assert len(_snippet("x" * 200)) == 163
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_retries_on_timeout_and_succeeds(monkeypatch):
+    import httpx
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    class MockResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "choices": [
+                    {"message": {"content": "Answer after retry"}}
+                ]
+            }
+
+    attempts = 0
+
+    async def mock_post(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ReadTimeout("Socket read timed out")
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    result = await provider.generate(system_prompt="", messages=[{"role": "user", "content": "hi"}])
+    assert result == "Answer after retry"
+    assert attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_raises_llm_timeout_error_after_retries(monkeypatch):
+    import httpx
+    from providers.openai_compat import LLMTimeoutError, OpenAICompatibleProvider
+
+    attempts = 0
+
+    async def mock_post(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ReadTimeout("Socket read timed out")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    with pytest.raises(LLMTimeoutError) as exc_info:
+        await provider.generate(system_prompt="", messages=[{"role": "user", "content": "hi"}])
+
+    assert attempts == 2
+    assert isinstance(exc_info.value, httpx.TimeoutException)
+    assert "timed out" in str(exc_info.value)
+

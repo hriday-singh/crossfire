@@ -7,13 +7,17 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 import events
 import store
+
+logger = logging.getLogger(__name__)
 from api.schemas import (
     BaselineRequest,
     BaselineResponse,
@@ -57,13 +61,35 @@ async def create_case(
     POST /cases: Extract claims from raw input, store case with status awaiting_confirmation,
     and publish claim_map_ready + awaiting_confirmation SSE events per docs/00-CONTRACTS.md §3.
     """
-    case = await extract_claims(
-        payload.raw_input,
-        provider,
-        context=payload.context,
-        agent_mode=payload.agent_mode or "auto",
-        selected_agents=payload.selected_agents,
-    )
+    try:
+        case = await extract_claims(
+            payload.raw_input,
+            provider,
+            context=payload.context,
+            agent_mode=payload.agent_mode or "auto",
+            selected_agents=payload.selected_agents,
+        )
+    except (httpx.TimeoutException, TimeoutError) as exc:
+        logger.warning("Claim extraction timed out: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Claim extraction timed out waiting for upstream LLM provider.",
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        logger.error("Claim extraction upstream error: %s", exc)
+        is_rate_limit = exc.response.status_code == 429 or "429" in exc.response.text
+        code = status.HTTP_429_TOO_MANY_REQUESTS if is_rate_limit else status.HTTP_502_BAD_GATEWAY
+        raise HTTPException(
+            status_code=code,
+            detail=f"Claim extraction failed: {exc.response.text}",
+        ) from exc
+    except Exception as exc:
+        logger.error("Claim extraction failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Claim extraction failed: {exc}",
+        ) from exc
+
     store.set(case)
 
     # An input that named no concrete decision never enters the pipeline — the
@@ -239,8 +265,29 @@ async def create_baseline(
     This exists so "better than a good prompt" is demonstrable rather than
     asserted (direction doc §10). It is deliberately not sandbagged.
     """
-    answer = await run_baseline(payload.raw_input, provider, context=payload.context)
-    return BaselineResponse(raw_input=payload.raw_input, answer=answer)
+    try:
+        answer = await run_baseline(payload.raw_input, provider, context=payload.context)
+        return BaselineResponse(raw_input=payload.raw_input, answer=answer)
+    except (httpx.TimeoutException, TimeoutError) as exc:
+        logger.warning("Baseline generation timed out: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Baseline generation timed out waiting for upstream LLM provider.",
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        logger.error("Baseline generation upstream error: %s", exc)
+        is_rate_limit = exc.response.status_code == 429 or "429" in exc.response.text
+        code = status.HTTP_429_TOO_MANY_REQUESTS if is_rate_limit else status.HTTP_502_BAD_GATEWAY
+        raise HTTPException(
+            status_code=code,
+            detail=f"Baseline generation failed: {exc.response.text}",
+        ) from exc
+    except Exception as exc:
+        logger.error("Baseline generation failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Baseline generation failed: {exc}",
+        ) from exc
 
 
 @router.post(

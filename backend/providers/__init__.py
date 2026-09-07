@@ -10,13 +10,31 @@ from config import get_settings
 from providers.anthropic import AnthropicProvider
 from providers.base import LLMProvider
 from providers.gemini import GeminiProvider
-from providers.openai_compat import OpenAICompatibleProvider
+from providers.openai_compat import (
+    LLMConnectionError,
+    LLMFormatError,
+    LLMProviderError,
+    LLMTimeoutError,
+    OpenAICompatibleProvider,
+)
 
 _REGISTRY: dict[str, type] = {
     "gemini": GeminiProvider,
     "anthropic": AnthropicProvider,
     "openai_compat": OpenAICompatibleProvider,
 }
+
+__all__ = [
+    "AnthropicProvider",
+    "GeminiProvider",
+    "LLMConnectionError",
+    "LLMFormatError",
+    "LLMProvider",
+    "LLMProviderError",
+    "LLMTimeoutError",
+    "OpenAICompatibleProvider",
+    "get_provider",
+]
 
 
 def get_provider(name: str | None = None, api_key: str | None = None) -> LLMProvider:

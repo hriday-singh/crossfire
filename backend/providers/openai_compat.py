@@ -4,7 +4,9 @@ Supports local proxies (gemini-web2api, Ollama, vLLM) and OpenAI-compatible endp
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import re
 from typing import Any
 
@@ -12,6 +14,28 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from config import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+class LLMProviderError(RuntimeError):
+    """Base error for upstream LLM provider failures."""
+
+
+class LLMTimeoutError(LLMProviderError, httpx.TimeoutException):
+    """Upstream LLM provider timed out."""
+
+    def __init__(self, message: str, request: httpx.Request | None = None) -> None:
+        super().__init__(message)
+        self.request = request
+
+
+class LLMConnectionError(LLMProviderError, httpx.ConnectError):
+    """Unable to connect to upstream LLM provider."""
+
+    def __init__(self, message: str, request: httpx.Request | None = None) -> None:
+        super().__init__(message)
+        self.request = request
 
 
 class LLMFormatError(RuntimeError):
@@ -43,6 +67,13 @@ def _clean_json_markdown(text: str) -> str:
     return text
 
 
+def _safe_request(exc: Exception) -> httpx.Request | None:
+    try:
+        return getattr(exc, "request", None)
+    except Exception:
+        return None
+
+
 def _snippet(text: str, limit: int = 160) -> str:
     """One-line, bounded quote of upstream output — safe to surface in a UI reason string."""
     flat = " ".join(text.split())
@@ -58,11 +89,13 @@ class OpenAICompatibleProvider:
         base_url: str | None = None,
         model: str | None = None,
         client: httpx.AsyncClient | None = None,
+        timeout: float | None = None,
     ) -> None:
         settings = get_settings()
         self._api_key = api_key or settings.llm_api_key or settings.openai_api_key or "none"
         self._base_url = (base_url or settings.llm_base_url or "http://localhost:8081/v1").rstrip("/")
         self._model = model or settings.llm_model or "gemini-3.7-flash"
+        self._timeout = timeout or getattr(settings, "llm_timeout_seconds", 90.0)
         self._client = client
         self._owns_client = client is None
 
@@ -70,17 +103,32 @@ class OpenAICompatibleProvider:
         """Returns a persistent pooled httpx.AsyncClient, lazily initializing if needed."""
         if self._client is None or self._client.is_closed:
             limits = httpx.Limits(max_keepalive_connections=20, max_connections=50)
+            timeout_config = httpx.Timeout(
+                timeout=self._timeout,
+                connect=15.0,
+                read=self._timeout,
+                write=15.0,
+                pool=15.0,
+            )
             self._client = httpx.AsyncClient(
-                timeout=120.0,
+                timeout=timeout_config,
                 limits=limits,
             )
             self._owns_client = True
         return self._client
 
+    async def _reset_client(self) -> None:
+        """Closes and resets the pooled client on network error or timeout."""
+        if self._owns_client and self._client is not None:
+            try:
+                await self._client.aclose()
+            except Exception:
+                pass
+            self._client = None
+
     async def aclose(self) -> None:
         """Closes the underlying pooled client if owned by this provider."""
-        if self._owns_client and self._client is not None and not self._client.is_closed:
-            await self._client.aclose()
+        await self._reset_client()
 
     async def __aenter__(self) -> OpenAICompatibleProvider:
         return self
@@ -111,15 +159,87 @@ class OpenAICompatibleProvider:
                 formatted_messages.insert(0, {"role": "system", "content": instruction})
 
         if response_schema is None:
-            return await self._complete(formatted_messages)
+            for attempt in range(2):
+                try:
+                    return await self._complete(formatted_messages)
+                except httpx.TimeoutException as exc:
+                    if attempt == 0:
+                        logger.warning(
+                            "LLM completion attempt 1 timed out after %.1fs; resetting connection and retrying...",
+                            self._timeout,
+                        )
+                        await self._reset_client()
+                        await asyncio.sleep(1.0)
+                        continue
+                    raise LLMTimeoutError(
+                        f"{self._model} timed out after {self._timeout}s: {_snippet(str(exc))}",
+                        request=_safe_request(exc),
+                    ) from exc
+                except httpx.ConnectError as exc:
+                    if attempt == 0:
+                        logger.warning("LLM connection failed; resetting client and retrying: %s", exc)
+                        await self._reset_client()
+                        await asyncio.sleep(1.0)
+                        continue
+                    raise LLMConnectionError(
+                        f"Failed to connect to LLM at {self._base_url}: {_snippet(str(exc))}",
+                        request=_safe_request(exc),
+                    ) from exc
+                except httpx.HTTPStatusError as exc:
+                    if attempt == 0 and exc.response.status_code in (429, 500, 502, 503, 504):
+                        logger.warning(
+                            "LLM completion attempt 1 returned HTTP %d; resetting client and retrying in 2s...",
+                            exc.response.status_code,
+                        )
+                        await self._reset_client()
+                        await asyncio.sleep(2.0)
+                        continue
+                    raise
 
         # One retry: a proxy that answers "Sorry, something went wrong" with a 200
-        # is usually fine on the next call, and losing a claim to a transient blip
-        # is worse than one extra request.
-        last_error: ValidationError | None = None
+        # or transient timeout is retried once.
+        last_error: ValidationError | Exception | None = None
         last_content = ""
-        for _ in range(2):
-            last_content = await self._complete(formatted_messages)
+        for attempt in range(2):
+            try:
+                last_content = await self._complete(formatted_messages)
+            except httpx.TimeoutException as exc:
+                last_error = exc
+                if attempt == 0:
+                    logger.warning(
+                        "LLM structured completion attempt 1 timed out after %.1fs; retrying...",
+                        self._timeout,
+                    )
+                    await self._reset_client()
+                    await asyncio.sleep(1.0)
+                    continue
+                raise LLMTimeoutError(
+                    f"{self._model} timed out after {self._timeout}s: {_snippet(str(exc))}",
+                    request=_safe_request(exc),
+                ) from exc
+            except httpx.ConnectError as exc:
+                last_error = exc
+                if attempt == 0:
+                    logger.warning("LLM structured completion connection failed; retrying: %s", exc)
+                    await self._reset_client()
+                    await asyncio.sleep(1.0)
+                    continue
+                raise LLMConnectionError(
+                    f"Failed to connect to LLM at {self._base_url}: {_snippet(str(exc))}",
+                    request=_safe_request(exc),
+                ) from exc
+            except httpx.HTTPStatusError as exc:
+                last_error = exc
+                if attempt == 0 and exc.response.status_code in (429, 500, 502, 503, 504):
+                    logger.warning(
+                        "LLM structured completion attempt 1 returned HTTP %d; retrying in 2s...",
+                        exc.response.status_code,
+                    )
+                    await self._reset_client()
+                    await asyncio.sleep(2.0)
+                    continue
+                raise
+
             try:
                 return response_schema.model_validate_json(_clean_json_markdown(last_content))
             except ValidationError as exc:

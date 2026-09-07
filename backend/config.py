@@ -37,8 +37,9 @@ class Settings(BaseSettings):
     use_llm_curation: bool = Field(default=False, alias="USE_LLM_CURATION")
 
     # Fan-out control: a full panel over 5 claims is ~20 concurrent LLM calls.
-    evaluator_concurrency: int = Field(default=12, alias="EVALUATOR_CONCURRENCY")
+    evaluator_concurrency: int = Field(default=8, alias="EVALUATOR_CONCURRENCY")
     evaluator_timeout_seconds: float = Field(default=60.0, alias="EVALUATOR_TIMEOUT_SECONDS")
+    llm_timeout_seconds: float = Field(default=90.0, alias="LLM_TIMEOUT_SECONDS")
     steelman_concurrency: int = Field(default=3, alias="STEELMAN_CONCURRENCY")
 
     model_config = ConfigDict(populate_by_name=True)
