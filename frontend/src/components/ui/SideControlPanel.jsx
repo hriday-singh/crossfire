@@ -78,6 +78,10 @@ export function SideControlPanel({
   triggerManualEvent,
   connectionStatus,
   socketUrl,
+  isLiveBackendActive = false,
+  isReplaying = false,
+  replayCaseInBullpen = null,
+  hasCaseFindings = false,
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -99,14 +103,61 @@ export function SideControlPanel({
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/50 text-[11px] font-mono">
             <span
               className={`w-2 h-2 rounded-full ${
-                isAutoPlaying ? 'bg-verdict-survived animate-pulse' : 'bg-verdict-weakened'
+                isLiveBackendActive
+                  ? 'bg-primary-container animate-ping'
+                  : isAutoPlaying
+                  ? 'bg-verdict-survived animate-pulse'
+                  : 'bg-verdict-weakened'
               }`}
             />
-            <span className={isAutoPlaying ? 'text-verdict-survived font-medium' : 'text-verdict-weakened'}>
-              {isAutoPlaying ? 'RUNNING' : 'PAUSED'}
+            <span
+              className={
+                isLiveBackendActive
+                  ? 'text-primary-container font-semibold'
+                  : isAutoPlaying
+                  ? 'text-verdict-survived font-medium'
+                  : 'text-verdict-weakened'
+              }
+            >
+              {isLiveBackendActive ? 'LIVE STREAM' : isAutoPlaying ? 'RUNNING' : 'PAUSED'}
             </span>
           </div>
         </div>
+
+        {/* Live Backend Stream Status Banner */}
+        {isLiveBackendActive && (
+          <div className="p-3 rounded-lg bg-primary-container/15 border border-primary-container/40 flex items-start gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-primary-container mt-1 shrink-0 animate-ping" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-primary-container flex items-center justify-between">
+                <span>Backend Pipeline Active</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider bg-primary-container/20 px-1.5 py-0.5 rounded text-on-surface">
+                  SSE Stream
+                </span>
+              </div>
+              <p className="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                Live evaluator telemetry streaming from FastAPI. Findings report to the Judge table in real time.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Replay Tested Case Action */}
+        {hasCaseFindings && !isLiveBackendActive && (
+          <button
+            type="button"
+            onClick={replayCaseInBullpen}
+            disabled={isReplaying}
+            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg font-medium text-xs transition-all shadow-sm cursor-pointer border ${
+              isReplaying
+                ? 'bg-primary-container/20 text-primary-container border-primary-container/40 opacity-70 cursor-wait'
+                : 'bg-surface-container-high hover:bg-surface-container-highest text-primary-container border-outline-variant hover:border-primary-container/60'
+            }`}
+          >
+            <Play className={`w-3.5 h-3.5 ${isReplaying ? 'animate-pulse' : ''}`} />
+            <span>{isReplaying ? 'Replaying Findings in Bullpen...' : 'Replay Tested Case in Bullpen'}</span>
+          </button>
+        )}
 
         {/* 1. Play / Pause & Step Navigation */}
         <div className="space-y-1.5">
@@ -274,9 +325,8 @@ export function SideControlPanel({
                 <span className="text-xs font-semibold text-on-surface block truncate">
                   {activeAgent.name}
                 </span>
-                <span className="text-[10px] text-outline font-mono">
-                  {lastEvent?.action ? `Status: ${lastEvent.action}` : 'Active'}
-                  {lastEvent?.target ? ` → ${lastEvent.target.replace(/_/g, ' ')}` : ''}
+                <span className="text-[10px] text-primary-container font-mono truncate block">
+                  {lastEvent?.cognitive_tag || (activeAgent.id === 'judge' ? '[Steelman]' : `[${activeAgent.testName || 'Hypothesis Scrutiny'}]`)}
                 </span>
               </div>
             </div>
@@ -301,9 +351,17 @@ export function SideControlPanel({
               <div className="p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface/90 leading-relaxed font-sans">
                 {lastEvent.dialogue}
               </div>
+            ) : lastEvent?.thought || lastEvent?.stage ? (
+              <div className="p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface/90 leading-relaxed font-sans">
+                <div className="flex items-center gap-1.5 text-[10px] font-mono text-outline mb-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
+                  <span>ACTIVE COGNITION / THOUGHT</span>
+                </div>
+                {lastEvent.thought || lastEvent.stage}
+              </div>
             ) : (
-              <div className="p-2 rounded-lg bg-surface-container-lowest/50 border border-outline-variant/40 text-[11px] text-outline font-mono italic">
-                Performing workstation routine...
+              <div className="p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/40 text-[11px] text-on-surface/80 font-sans italic">
+                Stress-testing foundational assumptions and querying evidence...
               </div>
             )}
           </div>
@@ -420,7 +478,7 @@ export function SideControlPanel({
               }
               className="w-full text-left p-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container-high border border-outline-variant/50 text-xs text-on-surface transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>Crucible Arbiter → Synthesize</span>
+              <span>Steelman → Synthesize</span>
               <span className="text-[10px] font-mono text-primary-container">Verdict</span>
             </button>
           </div>

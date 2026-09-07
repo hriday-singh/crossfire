@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Application, extend } from '@pixi/react';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import ConferenceRoom from './ConferenceRoom';
@@ -6,6 +6,7 @@ import CharacterSprite from './CharacterSprite';
 import DevilBotSprite from './DevilBotSprite';
 import { ROOM_DIMENSIONS } from '../../constants/roomLayout';
 import { JUDGE_CONFIG } from '../../constants/agentConfigs';
+import { useCursorLighting } from '../../hooks/useCursorLighting';
 
 // Register Pixi elements for declarative JSX usage in @pixi/react v8
 extend({
@@ -31,6 +32,7 @@ const hasWebGL = typeof window !== 'undefined' && (() => {
  */
 export function StageContainer({
   agents = [],
+  characterPositions = {},
   currentActionPacket = null,
   activeSpeakerId = null,
   hoveredAgentId = null,
@@ -40,10 +42,30 @@ export function StageContainer({
   children = null,
 }) {
   const containerRef = useRef(null);
+  const { isEnabled: isCursorLightingEnabled } = useCursorLighting();
+  const [stagePointer, setStagePointer] = useState({ x: 50, y: 50, active: false });
+
+  const handlePointerMove = (e) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const width = rect.width > 0 ? rect.width : 1000;
+    const height = rect.height > 0 ? rect.height : 587;
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / height) * 100));
+    setStagePointer({ x, y, active: true });
+  };
+
+  const handlePointerLeave = () => {
+    setStagePointer((prev) => ({ ...prev, active: false }));
+  };
 
   return (
     <div
       ref={containerRef}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      onMouseMove={handlePointerMove}
+      onMouseLeave={handlePointerLeave}
       className="relative w-full aspect-[1000/587] max-w-[1200px] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-surface-container-lowest flex items-center justify-center select-none"
       style={{
         backgroundImage: "url('/flpan.webp')",
@@ -52,6 +74,17 @@ export function StageContainer({
         backgroundRepeat: 'no-repeat',
       }}
     >
+      {/* 2.5D Bullpen Ambient Inspection Spotlight */}
+      <div
+        data-testid="stage-cursor-lighting"
+        className={`absolute inset-0 pointer-events-none transition-opacity duration-300 z-10 ${
+          stagePointer.active && isCursorLightingEnabled ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{
+          background: `radial-gradient(circle 260px at ${stagePointer.x}% ${stagePointer.y}%, rgba(96, 165, 250, 0.15) 0%, rgba(96, 165, 250, 0.03) 45%, transparent 70%)`,
+          mixBlendMode: 'screen',
+        }}
+      />
       {hasWebGL ? (
         <Application
           width={ROOM_DIMENSIONS.width}
@@ -75,6 +108,7 @@ export function StageContainer({
             <DevilBotSprite
               key="judge"
               agent={JUDGE_CONFIG}
+              characterPositions={characterPositions}
               currentActionPacket={currentActionPacket?.speaker_id === 'judge' ? currentActionPacket : null}
               isSpeaking={activeSpeakerId === 'judge'}
               isHovered={hoveredAgentId === 'judge'}
@@ -88,6 +122,7 @@ export function StageContainer({
               <DevilBotSprite
                 key={agent.id}
                 agent={agent}
+                characterPositions={characterPositions}
                 currentActionPacket={currentActionPacket}
                 isSpeaking={activeSpeakerId === agent.id}
                 isHovered={hoveredAgentId === agent.id}

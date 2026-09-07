@@ -107,6 +107,7 @@ async def run_builder(item: TestPlanItem, case: Case, provider: LLMProvider) -> 
                 text="Evaluating execution feasibility and operational blockers...",
                 claim_id=item.target_claim,
                 action="feasibility",
+                evaluator="builder",
             )
         except Exception:
             pass

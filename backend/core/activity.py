@@ -20,6 +20,7 @@ async def emit_activity(
     claim_id: str | None = None,
     action: str | None = None,
     extra: dict[str, Any] | None = None,
+    evaluator: str | None = None,
 ) -> None:
     """Publishes a short, human-readable activity event to the SSE stream.
     Never raises; runs in microsecond in-memory queues without adding pipeline latency.
@@ -32,6 +33,7 @@ async def emit_activity(
             "text": text,
             "claim_id": claim_id,
             "action": action,
+            "evaluator": evaluator,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         if extra:

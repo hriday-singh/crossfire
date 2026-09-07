@@ -301,6 +301,7 @@ async def run_evaluators(
 
     for item in plan:
         evaluator_name = FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)
+        target_clm = next((c for c in case.claims if c.id == item.target_claim), None)
         await events.publish(
             case.id,
             "test_started",
@@ -309,6 +310,7 @@ async def run_evaluators(
                 "target_claim_id": item.target_claim,
                 "failure_mode": item.failure_mode,
                 "evaluator": evaluator_name,
+                "claim_statement": target_clm.statement if target_clm else "",
             },
         )
 
@@ -446,6 +448,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     f"Reconciling evidence for: {clm.statement[:55]}...",
                     claim_id=clm.id,
                     action="reconciling",
+                    evaluator="judge",
                 )
                 try:
                     async with steelman_limit:
@@ -531,6 +534,7 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
                     "Synthesis",
                     "Formulating strategic adaptations and next validation steps...",
                     action="consequences",
+                    evaluator="judge",
                 )
                 return await synthesize_consequences(case, provider, reasonings=reasonings)
             except Exception as exc:

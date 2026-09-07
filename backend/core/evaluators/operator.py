@@ -105,6 +105,7 @@ async def run_operator(item: TestPlanItem, case: Case, provider: LLMProvider) ->
                 text="Stress-testing organizational friction, adoption inertia, and regulatory liability...",
                 claim_id=item.target_claim,
                 action="operator",
+                evaluator="operator",
             )
         except Exception:
             pass

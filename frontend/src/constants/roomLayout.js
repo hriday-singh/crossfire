@@ -217,10 +217,10 @@ export const WAYPOINTS = {
     id: 'judge_chair',
     name: 'Crucible Judge Bench Chair',
     x: 500,
-    y: 222,
+    y: 195,
     facing: 'south',
     isChair: true,
-    depth: 222,
+    depth: 195,
   },
   judge_desk: {
     id: 'judge_desk',
@@ -343,6 +343,15 @@ export const WAYPOINTS = {
     isChair: false,
     depth: 285,
   },
+  judge_approach_south: {
+    id: 'judge_approach_south',
+    name: 'South Judge Approach (Overflow)',
+    x: 500,
+    y: 410,
+    facing: 'north',
+    isChair: false,
+    depth: 410,
+  },
   whiteboard_approach: {
     id: 'whiteboard_approach',
     name: 'Cubicle 1 Approach',
@@ -353,6 +362,54 @@ export const WAYPOINTS = {
     depth: 195,
   },
 };
+
+export const JUDGE_APPROACH_SPOTS = [
+  'judge_approach',
+  'judge_approach_west',
+  'judge_approach_east',
+  'judge_approach_south',
+];
+
+export const JUDGE_APPROACH_ALIASES = [
+  'podium_approach',
+  'presentation_podium',
+  'judge_approach',
+  'judge_desk',
+];
+
+/**
+ * Resolves the best collision-free spot around the judge table.
+ * If another AI agent is already occupying the primary center spot,
+ * routes the incoming agent to west, east, or south overflow spots.
+ */
+export function resolveApproachSpot(agentId, characterPositions, requestedTargetId) {
+  if (!requestedTargetId || !JUDGE_APPROACH_ALIASES.includes(requestedTargetId)) {
+    return requestedTargetId;
+  }
+
+  if (!characterPositions) {
+    return 'judge_approach';
+  }
+
+  const OCCUPANCY_RADIUS = 42;
+
+  const isSpotOccupied = (spotId) => {
+    const spotWp = WAYPOINTS[spotId];
+    if (!spotWp) return false;
+    return Object.entries(characterPositions).some(([id, pos]) => {
+      if (id === agentId || id === 'judge' || !pos) return false;
+      return Math.hypot(pos.x - spotWp.x, pos.y - spotWp.y) < OCCUPANCY_RADIUS;
+    });
+  };
+
+  for (const spotId of JUDGE_APPROACH_SPOTS) {
+    if (!isSpotOccupied(spotId)) {
+      return spotId;
+    }
+  }
+
+  return 'judge_approach';
+}
 
 export const CHAIR_IDS = [
   'cubicle_1_desk',

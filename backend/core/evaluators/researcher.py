@@ -197,6 +197,7 @@ async def run_researcher(
                 text=f'Querying {provider_label}: "{build_query(claim.statement)}"',
                 claim_id=claim.id,
                 action="search",
+                evaluator="receipts",
             )
         except Exception:
             pass
@@ -215,6 +216,7 @@ async def run_researcher(
                     text=f'Competitor Triangulation: Searching alternatives "{comp_query}"',
                     claim_id=claim.id,
                     action="search",
+                    evaluator="receipts",
                 )
             except Exception:
                 pass
@@ -249,6 +251,7 @@ async def run_researcher(
                     text=f'Authority Pass: searching primary sources "{auth_query}"',
                     claim_id=claim.id,
                     action="search",
+                    evaluator="receipts",
                 )
             except Exception:
                 pass
@@ -284,6 +287,7 @@ async def run_researcher(
                             text=f'Iterative Search: Reformulating query to "{refined_q}"',
                             claim_id=claim.id,
                             action="search",
+                            evaluator="receipts",
                         )
                     except Exception:
                         pass
@@ -313,6 +317,7 @@ async def run_researcher(
                 text=f"Found {len(evidence_items)} candidate sources via {provider_display} (top: {top_host})",
                 claim_id=claim.id,
                 action="results",
+                evaluator="receipts",
             )
         except Exception:
             pass
@@ -332,6 +337,7 @@ async def run_researcher(
                     text=f"Deep-fetching {domain} to inspect policy text...",
                     claim_id=claim.id,
                     action="fetch",
+                    evaluator="receipts",
                 )
             except Exception:
                 pass
@@ -377,6 +383,7 @@ async def run_researcher(
                 text=f"Analyzing {len(curated_items)} source{'s' if len(curated_items) != 1 else ''} against claim...",
                 claim_id=claim.id,
                 action="evaluating",
+                evaluator="receipts",
             )
         except Exception:
             pass

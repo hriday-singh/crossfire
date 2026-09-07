@@ -75,6 +75,7 @@ async def run_reasoning_evaluator(
                 text=text,
                 claim_id=item.target_claim,
                 action=name,
+                evaluator=name,
             )
         except Exception:
             pass

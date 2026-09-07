@@ -8,7 +8,7 @@ extend({
   AnimatedSprite,
 });
 import gsap from 'gsap';
-import { WAYPOINTS } from '../../constants/roomLayout';
+import { WAYPOINTS, resolveApproachSpot } from '../../constants/roomLayout';
 import { getSpriteConfig } from '../../constants/spriteConfigs';
 
 /**
@@ -24,15 +24,25 @@ import { getSpriteConfig } from '../../constants/spriteConfigs';
  * Calculates a collision-free waypoint path around the central table.
  * Table bounds roughly: X [390, 610], Y [220, 335]
  */
-function getPathPoints(startX, startY, targetWp) {
+export function getPathPoints(startX, startY, targetWp) {
   const targetX = targetWp.x;
   const targetY = targetWp.y;
 
-  const isPodiumTarget = targetWp.id === 'podium_approach' || targetWp.id === 'judge_approach' || targetWp.id === 'presentation_podium';
-  const isStartingFromPodium = startY >= 310 && startY <= 380 && startX >= 430 && startX <= 570;
+  const isCenterPodiumTarget =
+    targetWp.id === 'podium_approach' ||
+    targetWp.id === 'judge_approach' ||
+    targetWp.id === 'judge_approach_south' ||
+    targetWp.id === 'presentation_podium';
+  const isStartingFromCenterPodium = startY >= 310 && startY <= 410 && startX >= 440 && startX <= 560;
 
-  // Case 1: Top-Left cubicle <-> Podium (routes west around table)
-  if (isPodiumTarget && startX < 420 && startY < 235) {
+  const isWestApproachTarget = targetWp.id === 'judge_approach_west';
+  const isStartingFromWestApproach = startY >= 250 && startY <= 320 && startX >= 400 && startX <= 460;
+
+  const isEastApproachTarget = targetWp.id === 'judge_approach_east';
+  const isStartingFromEastApproach = startY >= 250 && startY <= 320 && startX >= 540 && startX <= 600;
+
+  // --- 1. Center Podium Target / Start ---
+  if (isCenterPodiumTarget && startX < 420 && startY < 235) {
     return [
       { x: 365, y: 230 },
       { x: 365, y: 355 },
@@ -40,7 +50,7 @@ function getPathPoints(startX, startY, targetWp) {
       { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
     ];
   }
-  if (isStartingFromPodium && targetX < 420 && targetY < 235) {
+  if (isStartingFromCenterPodium && targetX < 420 && targetY < 235) {
     return [
       { x: 500, y: 355 },
       { x: 365, y: 355 },
@@ -49,8 +59,7 @@ function getPathPoints(startX, startY, targetWp) {
     ];
   }
 
-  // Case 2: Top-Right cubicle <-> Podium (routes east around table)
-  if (isPodiumTarget && startX > 580 && startY < 235) {
+  if (isCenterPodiumTarget && startX > 580 && startY < 235) {
     return [
       { x: 635, y: 230 },
       { x: 635, y: 355 },
@@ -58,7 +67,7 @@ function getPathPoints(startX, startY, targetWp) {
       { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
     ];
   }
-  if (isStartingFromPodium && targetX > 580 && targetY < 235) {
+  if (isStartingFromCenterPodium && targetX > 580 && targetY < 235) {
     return [
       { x: 500, y: 355 },
       { x: 635, y: 355 },
@@ -67,15 +76,14 @@ function getPathPoints(startX, startY, targetWp) {
     ];
   }
 
-  // Case 3: Bottom-Left cubicle <-> Podium
-  if (isPodiumTarget && startX < 420 && startY > 300) {
+  if (isCenterPodiumTarget && startX < 420 && startY > 300) {
     return [
       { x: 365, y: 360 },
       { x: 500, y: 360 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
     ];
   }
-  if (isStartingFromPodium && targetX < 420 && targetY > 300) {
+  if (isStartingFromCenterPodium && targetX < 420 && targetY > 300) {
     return [
       { x: 500, y: 360 },
       { x: 365, y: 360 },
@@ -83,20 +91,93 @@ function getPathPoints(startX, startY, targetWp) {
     ];
   }
 
-  // Case 4: Bottom-Right cubicle <-> Podium
-  if (isPodiumTarget && startX > 580 && startY > 300) {
+  if (isCenterPodiumTarget && startX > 580 && startY > 300) {
     return [
       { x: 635, y: 360 },
       { x: 500, y: 360 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'north' },
     ];
   }
-  if (isStartingFromPodium && targetX > 580 && targetY > 300) {
+  if (isStartingFromCenterPodium && targetX > 580 && targetY > 300) {
     return [
       { x: 500, y: 360 },
       { x: 635, y: 360 },
       { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
     ];
+  }
+
+  // --- 2. West Approach Target / Start (x: 430, y: 285, facing: east) ---
+  if (isWestApproachTarget) {
+    if (startX <= 450) {
+      return [
+        { x: 365, y: startY < 250 ? 230 : 340 },
+        { x: 365, y: 285 },
+        { x: targetX, y: targetY, facing: 'east' },
+      ];
+    } else {
+      return [
+        { x: 635, y: 360 },
+        { x: 500, y: 360 },
+        { x: 365, y: 360 },
+        { x: 365, y: 285 },
+        { x: targetX, y: targetY, facing: 'east' },
+      ];
+    }
+  }
+
+  if (isStartingFromWestApproach) {
+    if (targetX <= 450) {
+      return [
+        { x: 365, y: 285 },
+        { x: 365, y: targetY < 250 ? 230 : 340 },
+        { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+      ];
+    } else {
+      return [
+        { x: 365, y: 285 },
+        { x: 365, y: 360 },
+        { x: 500, y: 360 },
+        { x: 635, y: 360 },
+        { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+      ];
+    }
+  }
+
+  // --- 3. East Approach Target / Start (x: 570, y: 285, facing: west) ---
+  if (isEastApproachTarget) {
+    if (startX >= 550) {
+      return [
+        { x: 635, y: startY < 250 ? 230 : 340 },
+        { x: 635, y: 285 },
+        { x: targetX, y: targetY, facing: 'west' },
+      ];
+    } else {
+      return [
+        { x: 365, y: 360 },
+        { x: 500, y: 360 },
+        { x: 635, y: 360 },
+        { x: 635, y: 285 },
+        { x: targetX, y: targetY, facing: 'west' },
+      ];
+    }
+  }
+
+  if (isStartingFromEastApproach) {
+    if (targetX >= 550) {
+      return [
+        { x: 635, y: 285 },
+        { x: 635, y: targetY < 250 ? 230 : 340 },
+        { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+      ];
+    } else {
+      return [
+        { x: 635, y: 285 },
+        { x: 635, y: 360 },
+        { x: 500, y: 360 },
+        { x: 365, y: 360 },
+        { x: targetX, y: targetY, facing: targetWp.facing || 'south' },
+      ];
+    }
   }
 
   // Default: Direct path
@@ -105,6 +186,7 @@ function getPathPoints(startX, startY, targetWp) {
 
 export function DevilBotSprite({
   agent,
+  characterPositions = {},
   currentActionPacket = null,
   isSpeaking = false,
   isHovered = false,
@@ -188,8 +270,10 @@ export function DevilBotSprite({
     const { action, target } = currentActionPacket;
 
     // Actions that move the bot
-    if (action === 'walk_to' && target && WAYPOINTS[target]) {
-      const targetWp = WAYPOINTS[target];
+    if (action === 'walk_to' && target) {
+      const resolvedTargetId = resolveApproachSpot(agent.id, characterPositions, target);
+      const targetWp = WAYPOINTS[resolvedTargetId] || WAYPOINTS[target];
+      if (!targetWp) return;
       const startX = posRef.current.x;
       const startY = posRef.current.y;
       const targetX = targetWp.x;
@@ -277,7 +361,7 @@ export function DevilBotSprite({
         setPos((prev) => ({ ...prev, state: 'idle', facing: finalFacing }));
       }
     }
-  }, [currentActionPacket, agent.id, initialWp, onPositionUpdate]);
+  }, [currentActionPacket, agent.id, initialWp, onPositionUpdate, characterPositions]);
 
   // Cleanup tweens
   useEffect(() => {

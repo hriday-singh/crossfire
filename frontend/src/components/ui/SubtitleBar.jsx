@@ -68,11 +68,10 @@ export function SubtitleBar({
             </div>
             <div className="text-[11px] text-slate-400 font-mono flex items-center gap-2">
               <span>{agent.organization || 'Strategic Planning Quorum'}</span>
-              {currentEvent.action && (
-                <span className="flex items-center gap-1 text-sky-400">
-                  <Compass className="w-3 h-3" />
-                  {currentEvent.action}
-                  {currentEvent.target ? ` → ${currentEvent.target.replace('_', ' ')}` : ''}
+              {(currentEvent.thought || currentEvent.cognitive_tag) && (
+                <span className="flex items-center gap-1 text-sky-400 truncate max-w-[280px]">
+                  <Activity className="w-3 h-3 text-sky-400 animate-pulse" />
+                  {currentEvent.cognitive_tag || ''}
                 </span>
               )}
             </div>
@@ -88,9 +87,9 @@ export function SubtitleBar({
               <span className="text-sky-400 font-mono ml-1.5 font-bold">"</span>
             </p>
           ) : (
-            <span className="text-xs font-mono text-slate-500 italic flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 animate-spin" />
-              Executing {currentEvent.action || 'routine'}...
+            <span className="text-xs font-mono text-slate-400 flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 animate-spin text-sky-400" />
+              {currentEvent.thought || currentEvent.stage || 'Formulating adversarial evaluation...'}
             </span>
           )}
         </div>

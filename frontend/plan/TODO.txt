@@ -1,7 +1,10 @@
-Completed:
-[x] put the new live view to frontend page 3 (live view)
-    first put the UI only(dont know about the backend logic because you will have to have the backend and ai agent know what happening, if too complicated leave it)
+    DO NOT EDIT THE FILE
 
-Pending:
-[] if an ai is already at the judge table then go to a diff spot pull the backend too
+    Pending:
+
+    AI 1 :
+        [] when the discussion done the judge will walk to the right side door and "go to the next page" which will be an animation (u can use stitch and any other animation skill u have)
+
+
+    AI 2 (backend logic):
 

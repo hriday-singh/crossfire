@@ -461,7 +461,7 @@ export function useSocketSimulation({ onEventReceived, initialSocketUrl = 'http:
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [currentScenarioKey, setCurrentScenarioKey] = useState('safety_review');
   const [eventIndex, setEventIndex] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1); // 0.5x, 1x, 1.5x, 2x
+  const [playbackSpeed, setPlaybackSpeed] = useState(2); // 0.5x, 1x, 1.5x, 2x (defaults to 2x)
   const [eventHistory, setEventHistory] = useState([]);
   const [lastEvent, setLastEvent] = useState(null);
 

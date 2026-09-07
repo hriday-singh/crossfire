@@ -1,5 +1,5 @@
 import React from 'react';
-import { AGENT_MAP, JUDGE_CONFIG } from '../../constants/agentConfigs';
+import { AGENT_CONFIGS, AGENT_MAP, JUDGE_CONFIG } from '../../constants/agentConfigs';
 import {
   CUBICLE_LAYOUTS,
   JUDGE_TABLE_CONFIG,
@@ -10,7 +10,29 @@ import {
   AlertTriangle,
   XCircle,
   HelpCircle,
+  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
+
+/**
+ * Default cognitive tag per evaluator
+ */
+function getAgentCognitiveTag(agentId) {
+  switch (agentId) {
+    case 'devils_advocate':
+      return '[Assumption Pre-Mortem]';
+    case 'receipts':
+      return '[Citation Audit]';
+    case 'builder':
+      return '[Feasibility Test]';
+    case 'operator':
+      return '[Friction Test]';
+    case 'judge':
+      return '[Steelman]';
+    default:
+      return '[Audit Task]';
+  }
+}
 
 /**
  * Concise default status per evaluator workstation
@@ -28,25 +50,52 @@ function getAgentDefaultStatus(agentId) {
     case 'judge':
       return 'Monitoring Stations';
     default:
-      return 'Workstation Telemetry Active';
+      return 'Workstation Standby';
   }
+}
+
+/**
+ * Formats concise thoughts for display when hovered
+ */
+function formatConciseThought(finding, agentId) {
+  if (!finding) return getAgentDefaultStatus(agentId);
+
+  if (finding.thought && typeof finding.thought === 'string' && finding.thought !== 'null') {
+    return finding.thought
+      .replace(/^Testing implicit premises in\s*/i, 'Auditing: ')
+      .replace(/^Auditing Day-1 architecture & blockers for\s*/i, 'Feasibility: ')
+      .replace(/^Auditing procurement & adoption friction for\s*/i, 'Friction: ')
+      .replace(/^Searching market citations for\s*/i, 'Citations: ')
+      .replace(/^Delivering finding:\s*/i, '')
+      .replace(/^Reviewing\s+/i, 'Reviewing: ');
+  }
+
+  if (finding.stage && typeof finding.stage === 'string') {
+    return finding.stage;
+  }
+
+  if (finding.dialogue && typeof finding.dialogue === 'string') {
+    const clean = finding.dialogue.replace(/^(Reporting|Submitting|Verifying)\s+[^:]+:\s*/i, '');
+    return clean.length > 55 ? clean.substring(0, 52) + '...' : clean;
+  }
+
+  return getAgentDefaultStatus(agentId);
 }
 
 /**
  * DialogueOverlay Component
  *
- * Requirements:
- * 1. The Crucible Arbiter (Judge) bubble is ALWAYS VISIBLE.
- * 2. Evaluator bubbles appear ONLY on hover over that specific AI or their cubicle.
- * 3. Speech bubbles are uncluttered: ONLY the Agent Name + Status (plus compact verdict chip if applicable).
+ * Implements hover-only concise thinking labels:
+ * 1. AI thinking labels ONLY display when the user hovers over an AI or their cubicle.
+ * 2. Formats thinking content in a concise, readable manner.
+ * 3. Supports expanded details (empirical citations & reasoning) inside hover card.
  *
- * @param {{
- *   activeDialogue?: any;
- *   characterPositions?: Record<string, any>;
- *   hoveredAgentId?: string | null;
- *   evaluatorFindings?: Record<string, any>;
- *   onHoverAgent?: (agentId: string | null) => void;
- * }} props
+ * @param {Object} props
+ * @param {any} [props.activeDialogue]
+ * @param {Record<string, {x: number, y: number}>} [props.characterPositions]
+ * @param {string | null} [props.hoveredAgentId]
+ * @param {Record<string, any>} [props.evaluatorFindings]
+ * @param {(agentId: string | null) => void} [props.onHoverAgent]
  */
 export function DialogueOverlay({
   activeDialogue = null,
@@ -62,34 +111,34 @@ export function DialogueOverlay({
   const renderVerdictChip = (verdict) => {
     if (!verdict) return null;
     const v = String(verdict).toLowerCase();
-    if (v === 'survived') {
+    if (v === 'survived' || v === 'proceed') {
       return (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-verdict-survived/20 text-verdict-survived border border-verdict-survived/40">
-          <CheckCircle2 className="w-2.5 h-2.5" />
+          <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
           SURVIVED
         </span>
       );
     }
-    if (v === 'weakened') {
+    if (v === 'weakened' || v === 'proceed_with_changes') {
       return (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-verdict-weakened/20 text-verdict-weakened border border-verdict-weakened/40">
-          <AlertTriangle className="w-2.5 h-2.5" />
+          <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
           WEAKENED
         </span>
       );
     }
-    if (v === 'broken') {
+    if (v === 'broken' || v === 'drop') {
       return (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-verdict-broken/20 text-verdict-broken border border-verdict-broken/40">
-          <XCircle className="w-2.5 h-2.5" />
+          <XCircle className="w-2.5 h-2.5 shrink-0" />
           BROKEN
         </span>
       );
     }
-    if (v === 'unresolved') {
+    if (v === 'unresolved' || v === 'hold') {
       return (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-verdict-unresolved/20 text-verdict-unresolved border border-verdict-unresolved/40">
-          <HelpCircle className="w-2.5 h-2.5" />
+          <HelpCircle className="w-2.5 h-2.5 shrink-0" />
           UNRESOLVED
         </span>
       );
@@ -97,13 +146,19 @@ export function DialogueOverlay({
     return null;
   };
 
-  // Helper to render an uncluttered status pill (Agent Name + Status only)
-  const renderStatusPill = ({
+  // Helper to render an uncluttered status pill with cognitive thinking tag and optional details
+  const renderAgentPill = ({
     agent,
     pos,
     statusText,
+    cognitiveTag = null,
+    thought = null,
     verdict = null,
+    confidence = null,
     isHovered = false,
+    isThinking = false,
+    evidence = [],
+    reasoning = null,
     testId = undefined,
   }) => {
     if (!agent || !pos) return null;
@@ -115,7 +170,7 @@ export function DialogueOverlay({
       <div
         key={agent.id}
         data-testid={testId}
-        className="absolute transition-all duration-200 ease-out flex flex-col items-center pointer-events-none"
+        className="absolute transition-all duration-200 ease-out flex flex-col items-center pointer-events-none z-30"
         style={{
           left: `${leftPercent}%`,
           top: `${topPercent}%`,
@@ -127,13 +182,15 @@ export function DialogueOverlay({
           style={{
             borderColor: isHovered ? color : `${color}66`,
             boxShadow: isHovered
-              ? `0 6px 20px -2px ${color}44, 0 2px 8px -1px rgba(0, 0, 0, 0.7)`
+              ? `0 6px 20px -2px ${color}55, 0 2px 8px -1px rgba(0, 0, 0, 0.7)`
+              : isThinking
+              ? `0 4px 14px -2px ${color}44, 0 2px 8px -1px rgba(0, 0, 0, 0.5)`
               : '0 4px 12px -2px rgba(0, 0, 0, 0.5)',
           }}
         >
-          {/* Status LED Indicator */}
+          {/* Status LED Indicator with Thinking Pulse */}
           <span
-            className="w-2 h-2 rounded-full shrink-0 animate-pulse"
+            className={`w-2 h-2 rounded-full shrink-0 ${isThinking ? 'animate-ping' : 'animate-pulse'}`}
             style={{ backgroundColor: color }}
           />
 
@@ -142,16 +199,40 @@ export function DialogueOverlay({
             {agent.name}
           </span>
 
+          {/* Optional Cognitive Tag */}
+          {cognitiveTag && (
+            <span
+              className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded"
+              style={{ backgroundColor: `${color}22`, color: color }}
+            >
+              {cognitiveTag}
+            </span>
+          )}
+
           {/* Minimal Divider */}
           <span className="text-[10px] text-outline/60 font-mono select-none">/</span>
 
-          {/* Status Label */}
-          <span className="text-[11px] font-mono tracking-tight font-medium text-on-surface-variant">
+          {/* Concise Thought Label */}
+          <span className="text-[11px] font-mono tracking-tight font-medium text-on-surface-variant max-w-[280px] truncate">
             {statusText}
           </span>
 
+          {/* Animated typing dots if thinking */}
+          {isThinking && (
+            <span className="inline-flex gap-0.5 text-primary-container font-mono text-[10px] font-bold animate-pulse">
+              ...
+            </span>
+          )}
+
           {/* Optional Verdict Chip */}
           {verdict && renderVerdictChip(verdict)}
+
+          {/* Optional Confidence Percentage */}
+          {confidence !== null && confidence !== undefined && (
+            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant/50 text-outline">
+              {confidence}%
+            </span>
+          )}
 
           {/* Triangular Tail pointing to agent */}
           <div
@@ -161,92 +242,98 @@ export function DialogueOverlay({
             }}
           />
         </div>
+
+        {/* Hover Detail Card: Displays full reasoning and evidence citations when hovered */}
+        {isHovered && (reasoning || (evidence && evidence.length > 0)) && (
+          <div
+            className="mt-2 p-3 rounded-lg bg-surface-container-high/95 backdrop-blur-md border border-outline-variant/80 shadow-2xl max-w-sm text-left animate-in fade-in slide-in-from-top-1 duration-150 pointer-events-auto"
+            style={{ borderColor: `${color}88` }}
+          >
+            {reasoning && (
+              <p className="text-xs font-sans text-on-surface leading-relaxed mb-2">
+                {reasoning}
+              </p>
+            )}
+            {evidence && evidence.length > 0 && (
+              <div className="border-t border-outline-variant/40 pt-1.5">
+                <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-outline block mb-1">
+                  Empirical Sources:
+                </span>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {evidence.map((ev, i) => (
+                    <a
+                      key={i}
+                      href={ev.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] text-primary hover:underline flex items-center gap-1 truncate"
+                    >
+                      <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{ev.title || ev.source_url}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
 
-  // 1. Resolve Judge Bubble State (ALWAYS VISIBLE)
+  // 1. Resolve Judge Bubble State (Hover-only)
+  const isJudgeHovered = hoveredAgentId === 'judge';
   const judgePos = characterPositions['judge'] || {
     x: JUDGE_TABLE_CONFIG.x,
     y: JUDGE_TABLE_CONFIG.y - 18,
   };
-  const isJudgeHovered = hoveredAgentId === 'judge';
-  const isJudgeActive =
-    activeDialogue &&
-    (activeDialogue.speaker_id === 'judge' ||
-      activeDialogue.speaker_id === 'arbiter' ||
-      activeDialogue.speaker_id === 'moderator');
 
-  let judgeStatusText = 'Monitoring Stations';
-  let judgeVerdict = null;
+  let judgeFinding = evaluatorFindings['judge'] || (
+    activeDialogue?.speaker_id === 'judge' ||
+    activeDialogue?.speaker_id === 'arbiter' ||
+    activeDialogue?.speaker_id === 'moderator'
+      ? activeDialogue
+      : null
+  );
 
-  if (isJudgeActive) {
-    if (activeDialogue.verdict) {
-      judgeStatusText = 'Verdict Ruling';
-      judgeVerdict = activeDialogue.verdict;
-    } else if (activeDialogue.stage) {
-      judgeStatusText = activeDialogue.stage;
-    } else {
-      judgeStatusText = 'Magistrate In Session';
+  let judgeStatusText = formatConciseThought(judgeFinding, 'judge');
+  let judgeVerdict = judgeFinding?.verdict || null;
+
+  // 2. Resolve AI Evaluator Bubbles (Hover-only)
+  const evaluatorBubbles = AGENT_CONFIGS.map((agent) => {
+    const isHovered = hoveredAgentId === agent.id;
+    if (!isHovered) {
+      return null;
     }
-  } else if (isJudgeHovered) {
-    judgeStatusText = 'Crucible Magistrate Bench';
-  }
 
-  // 2. Resolve AI Evaluator Bubble:
-  // Visible when hovered, or when actively reporting findings to the Judge
-  const activeReportingSpeakerId =
-    activeDialogue &&
-    activeDialogue.speaker_id !== 'judge' &&
-    activeDialogue.speaker_id !== 'arbiter' &&
-    activeDialogue.speaker_id !== 'moderator'
-      ? activeDialogue.speaker_id
-      : null;
+    const finding = evaluatorFindings[agent.id] || (
+      activeDialogue?.speaker_id === agent.id ? activeDialogue : null
+    );
 
-  const targetEvaluatorId =
-    hoveredAgentId && hoveredAgentId !== 'judge'
-      ? hoveredAgentId
-      : activeReportingSpeakerId;
+    const pos = characterPositions[agent.id] || { x: 500, y: 300 };
+    const statusText = formatConciseThought(finding, agent.id);
+    const cognitiveTag = finding?.cognitive_tag || getAgentCognitiveTag(agent.id);
+    const verdict = finding?.verdict || null;
+    const confidence = finding?.confidence || null;
+    const reasoning = finding?.reasoning || null;
+    const evidence = finding?.evidence || [];
+    const isThinking = finding?.action === 'type' || Boolean(finding?.thought && finding.thought !== 'null');
 
-  let hoveredEvaluatorBubble = null;
-  if (targetEvaluatorId) {
-    const agent = AGENT_MAP[targetEvaluatorId];
-    if (agent) {
-      const pos = characterPositions[targetEvaluatorId] || { x: 500, y: 300 };
-      const finding = evaluatorFindings[targetEvaluatorId] || (
-        activeDialogue?.speaker_id === targetEvaluatorId ? activeDialogue : null
-      );
-
-      let statusText = getAgentDefaultStatus(targetEvaluatorId);
-      let verdict = null;
-
-      if (finding) {
-        if (finding.stage) {
-          statusText = finding.stage;
-        } else if (finding.action === 'walk_to') {
-          statusText = 'Approaching Magistrate';
-        } else if (finding.action === 'stand') {
-          statusText = 'Reporting to Judge';
-        } else if (finding.action === 'type') {
-          statusText = 'Active Audit Logging';
-        } else if (finding.action === 'inspect') {
-          statusText = 'Reporting to Judge';
-        }
-        if (finding.verdict) {
-          verdict = finding.verdict;
-        }
-      }
-
-      hoveredEvaluatorBubble = renderStatusPill({
-        agent,
-        pos,
-        statusText,
-        verdict,
-        isHovered: hoveredAgentId === targetEvaluatorId,
-        testId: `bubble-${targetEvaluatorId}`,
-      });
-    }
-  }
+    return renderAgentPill({
+      agent,
+      pos,
+      statusText,
+      cognitiveTag,
+      thought: finding?.thought,
+      verdict,
+      confidence,
+      isHovered,
+      isThinking,
+      evidence,
+      reasoning,
+      testId: `bubble-${agent.id}`,
+    });
+  });
 
   return (
     <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
@@ -288,22 +375,24 @@ export function DialogueOverlay({
             width: `${(JUDGE_TABLE_CONFIG.width / roomW) * 100}%`,
             height: `${(JUDGE_TABLE_CONFIG.height / roomH) * 100}%`,
           }}
-          title="Crucible Arbiter Bench"
+          title="Steelman Magistrate Bench"
         />
       </div>
 
-      {/* REQUIREMENT 1: Crucible Arbiter (Judge) bubble is ALWAYS VISIBLE */}
-      {renderStatusPill({
-        agent: JUDGE_CONFIG,
-        pos: judgePos,
-        statusText: judgeStatusText,
-        verdict: judgeVerdict,
-        isHovered: isJudgeHovered,
-        testId: 'bubble-judge',
-      })}
+      {/* Hover-Only Judge Bubble */}
+      {isJudgeHovered &&
+        renderAgentPill({
+          agent: JUDGE_CONFIG,
+          pos: judgePos,
+          statusText: judgeStatusText,
+          cognitiveTag: '[Steelman]',
+          verdict: judgeVerdict,
+          isHovered: isJudgeHovered,
+          testId: 'bubble-judge',
+        })}
 
-      {/* REQUIREMENT 2 & 3: AI Evaluator bubble appears ONLY ON HOVER, streamlined to Name + Status */}
-      {hoveredEvaluatorBubble}
+      {/* Hover-Only Evaluator Bubbles */}
+      {evaluatorBubbles}
     </div>
   );
 }

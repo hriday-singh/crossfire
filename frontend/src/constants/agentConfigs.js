@@ -97,8 +97,8 @@ export const AGENT_CONFIGS = [
 
 export const JUDGE_CONFIG = {
   id: 'judge',
-  name: 'Crucible Arbiter',
-  role: 'Final Decision Magistrate',
+  name: 'Steelman',
+  role: 'Steelman Magistrate',
   shortRole: 'Synthesizes verdict',
   organization: 'Crossfire Crucible Court',
   color: '#e4e1e6',
@@ -111,7 +111,7 @@ export const JUDGE_CONFIG = {
   initialFacing: 'south',
   audioPitch: 0.9,
   audioFrequency: 160,
-  avatarBadge: 'CRX',
+  avatarBadge: 'STM',
   icon: 'balance',
 };
 
@@ -119,6 +119,7 @@ export const JUDGE_CONFIG = {
 const baseAgentMap = {
   judge: JUDGE_CONFIG,
   arbiter: JUDGE_CONFIG,
+  steelman: JUDGE_CONFIG,
 };
 
 // Comprehensive AGENT_MAP supporting both evaluator IDs and legacy agent_1..4 IDs

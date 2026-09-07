@@ -73,10 +73,10 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(operator.color).toBe("#60a5fa");
     });
 
-    it("exports JUDGE_CONFIG for Crucible Arbiter presiding at central bench", () => {
+    it("exports JUDGE_CONFIG for Steelman presiding at central bench", () => {
       expect(JUDGE_CONFIG).toBeDefined();
       expect(JUDGE_CONFIG.id).toBe("judge");
-      expect(JUDGE_CONFIG.name).toBe("Crucible Arbiter");
+      expect(JUDGE_CONFIG.name).toBe("Steelman");
       expect(JUDGE_CONFIG.initialWaypoint).toBe("judge_chair");
       expect(JUDGE_CONFIG.color).toBe("#e4e1e6");
     });
@@ -88,6 +88,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(AGENT_MAP["agent_4"]).toBe(AGENT_MAP["operator"]);
       expect(AGENT_MAP["judge"]).toBe(JUDGE_CONFIG);
       expect(AGENT_MAP["arbiter"]).toBe(JUDGE_CONFIG);
+      expect(AGENT_MAP["steelman"]).toBe(JUDGE_CONFIG);
     });
   });
 
@@ -232,7 +233,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(screen.getByText("BROKEN")).toBeInTheDocument();
     });
 
-    it("renders the Judge bubble when the Judge is delivering a ruling without requiring hover", () => {
+    it("renders the Judge bubble when the user hovers over the Judge", () => {
       render(
         <DialogueOverlay
           activeDialogue={{
@@ -245,12 +246,11 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
           characterPositions={{
             judge: { x: 500, y: 330 },
           }}
-          hoveredAgentId={null}
+          hoveredAgentId="judge"
         />
       );
 
-      expect(screen.getByText("Crucible Arbiter")).toBeInTheDocument();
-      expect(screen.getByText("Verdict Ruling")).toBeInTheDocument();
+      expect(screen.getByText("Steelman")).toBeInTheDocument();
       expect(screen.getByText("WEAKENED")).toBeInTheDocument();
     });
 

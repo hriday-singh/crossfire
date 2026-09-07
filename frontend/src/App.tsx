@@ -12,6 +12,7 @@ import { HistoryModal } from "@/components/features/HistoryModal";
 import { FaqDrawer } from "@/components/features/FaqDrawer";
 import { SettingsModal } from "@/components/features/SettingsModal";
 import { DebugViewsToolbar } from "@/components/features/DebugViewsToolbar";
+import { CursorLighting } from "@/components/ui/CursorLighting";
 const DiscussionApp = React.lazy(() => import("./components/DiscussionApp"));
 
 export const AppContent: React.FC = () => {
@@ -27,6 +28,9 @@ export const AppContent: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-indigo-500/20 selection:text-indigo-300">
+      {/* Ambient Cursor Lighting Torch & Reticle */}
+      <CursorLighting />
+
       {/* Top Header */}
       <Header />
 
