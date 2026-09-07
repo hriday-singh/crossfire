@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { CaseProvider, useCase } from "@/context/CaseContext";
 import { AppContent } from "@/App";
 import { Case } from "@/types/crossfire";
