@@ -3,11 +3,9 @@ import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { GEMINI_WEB_MODELS, formatModelName, formatProviderName } from "@/lib/models";
 import { SerpApiIcon } from "@/components/ui/serpapi";
-import { useCursorLighting } from "@/hooks/useCursorLighting";
 
 export const SettingsModal: React.FC = () => {
   const { state, dispatch, setActiveModal, selectModel, setDebugMode, enterPreview } = useCase();
-  const { isEnabled: isCursorLighting, setEnabled: setCursorLighting } = useCursorLighting();
   const isOpen = state.activeModal === "settings";
   const [clearedNotice, setClearedNotice] = useState<string | null>(null);
   const [selectedNotice, setSelectedNotice] = useState<string | null>(null);
@@ -247,42 +245,6 @@ export const SettingsModal: React.FC = () => {
                   className="font-code-sm text-code-sm px-space-3 py-1.5 rounded border border-error/40 text-error hover:bg-error/10 transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   Clear History
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Interface & Aesthetics Section */}
-          <div className="space-y-space-3">
-            <h3 className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold">
-              Interface &amp; Aesthetics
-            </h3>
-
-            <div className="bg-surface-container border border-outline-variant/60 rounded-lg p-space-4 space-y-space-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-body-sm text-body-sm text-on-surface font-medium">
-                    Cursor Lighting &amp; Reticle
-                  </p>
-                  <p className="font-code-sm text-code-sm text-outline">
-                    Dynamic inspection torch, tactical reticle, and crucible ignition effects following pointer
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isCursorLighting}
-                  onClick={() => setCursorLighting(!isCursorLighting)}
-                  data-testid="cursor-lighting-toggle"
-                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer focus:outline-none shrink-0 ${
-                    isCursorLighting ? "bg-primary-container" : "bg-surface-container-highest"
-                  }`}
-                >
-                  <span
-                    className={`block w-4 h-4 rounded-full bg-on-primary-container transition-transform absolute top-1 left-1 ${
-                      isCursorLighting ? "translate-x-5" : ""
-                    }`}
-                  />
                 </button>
               </div>
             </div>
