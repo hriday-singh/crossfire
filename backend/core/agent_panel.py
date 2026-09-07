@@ -49,7 +49,7 @@ SINGLE_PASS_PRIORITY: tuple[str, ...] = ("receipts", "devils_advocate", "builder
 class AgentPick(BaseModel):
     agent: str = Field(description="One of: devils_advocate, receipts, builder, operator")
     rationale: str = Field(
-        description="Ultra-short rationale (under 45 characters, 5-8 words) explaining why this test is needed."
+        description="One clear, concise sentence (under 100 characters) explaining why this test is needed."
     )
 
 
@@ -113,8 +113,8 @@ EXTRACTION_SYSTEM_PROMPT = (
     "user asserted outright AND the unstated assumptions the proposal silently depends "
     "on. Write each claim so it stands on its own without the original wording.\n\n"
     "Then pick which adversarial tests this specific decision needs. For each chosen agent, "
-    "provide an ultra-short rationale of 5 to 8 words (under 45 characters) clearly explaining "
-    "why. Must be exactly 1 short sentence that fits on 1-2 lines. No fluff or filler:\n"
+    "provide exactly ONE concise sentence (under 100 characters) clearly explaining why this "
+    "test is needed for this decision. Keep it crisp, direct, and under three lines. No filler:\n"
     "- devils_advocate: unstated premises, counter-incentives, motivated reasoning.\n"
     "- receipts: claims checkable against outside sources, prices, rules, records, precedent.\n"
     "- builder: whether execution is actually achievable with the time, money, skill or access available.\n"

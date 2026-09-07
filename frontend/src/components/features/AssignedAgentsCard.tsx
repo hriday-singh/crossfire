@@ -8,7 +8,7 @@ interface AssignedAgentsCardProps {
   onToggleAgent: (agentId: string) => void;
 }
 
-export function formatConciseRationale(text?: string, maxChars: number = 60): string {
+export function formatConciseRationale(text?: string, maxChars: number = 120): string {
   if (!text) return "";
   const cleaned = text.trim().replace(/\s+/g, " ");
   const stripped = cleaned.replace(
@@ -128,13 +128,13 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
                 {isAuto && isSelected && rationale ? (
                   <p
                     title={rationale}
-                    className="font-body-xs text-body-xs text-primary-container bg-primary-container/10 border border-primary-container/20 rounded px-2 py-1 leading-snug line-clamp-2"
+                    className="font-body-xs text-body-xs text-primary-container bg-primary-container/10 border border-primary-container/20 rounded px-2.5 py-1.5 leading-snug line-clamp-3"
                   >
                     <span className="font-semibold">Why selected: </span>
                     {rationale}
                   </p>
                 ) : (
-                  <p className="font-body-xs text-body-xs text-on-surface-variant leading-normal line-clamp-2">
+                  <p className="font-body-xs text-body-xs text-on-surface-variant leading-normal line-clamp-3">
                     {agent.description}
                   </p>
                 )}
