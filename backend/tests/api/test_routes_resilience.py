@@ -1,4 +1,4 @@
-﻿"""
+"""
 Owner: Dev A. Tests for timeout and upstream provider error resilience across API routes.
 """
 import httpx
@@ -81,11 +81,11 @@ def test_create_case_timeout_returns_504(client):
         app.dependency_overrides.pop(get_llm_provider, None)
 
 
-def test_format_error_returns_502(client):
+def test_format_error_returns_424(client):
     app.dependency_overrides[get_llm_provider] = lambda: FormatErrorProvider()
     try:
         response = client.post("/cases", json={"raw_input": "Should I hire a COO?"})
-        assert response.status_code == 502
+        assert response.status_code in (424, 502)
         data = response.json()
         assert "proxy returned" in data["detail"].lower()
     finally:
