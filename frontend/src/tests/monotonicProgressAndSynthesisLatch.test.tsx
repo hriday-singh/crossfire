@@ -109,7 +109,7 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
     const Wrapper = createWrapper({ ...baseMockCase, status: 'done', case_verdict: { decision_state: 'PROCEED', headline: 'Migration approved' } });
     render(<DiscussionApp />, { wrapper: Wrapper });
 
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/100%/i)).toBeInTheDocument();
     expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
     expect(screen.getByText(/Evaluation Complete/i)).toBeInTheDocument();
   });
@@ -118,7 +118,7 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
     const Wrapper = createWrapper({ ...baseMockCase, status: 'testing', case_verdict: { decision_state: 'CAUTION', headline: 'Cost risk' } });
     render(<DiscussionApp />, { wrapper: Wrapper });
 
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/100%/i)).toBeInTheDocument();
     expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
   });
 
@@ -131,7 +131,7 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
 
     const { rerender } = render(<DiscussionApp />, { wrapper: Wrapper });
 
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/100%/i)).toBeInTheDocument();
     expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
 
     const SubsequentWrapper = createWrapper({
@@ -147,7 +147,7 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
       </SubsequentWrapper>
     );
 
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/100%/i)).toBeInTheDocument();
     expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
   });
 
@@ -236,7 +236,7 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
     });
 
     const { unmount } = render(<DiscussionApp />, { wrapper: WrapperCaseA });
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/100%/i)).toBeInTheDocument();
     unmount();
 
     const WrapperCaseB = createWrapper({

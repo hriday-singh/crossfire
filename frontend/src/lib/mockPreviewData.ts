@@ -298,6 +298,12 @@ export const MOCK_PREVIEW_TESTS: Record<string, ActiveTestRow> = {
  */
 export const MOCK_PREVIEW_LOGS: SSEEventLogItem[] = [
   {
+    id: "log-5.5",
+    timestamp: "2026-09-06T18:14:13Z",
+    event: "case_verdict",
+    data: { case_verdict: MOCK_PREVIEW_CASE.case_verdict },
+  },
+  {
     id: "log-5",
     timestamp: "2026-09-06T18:14:14Z",
     event: "run_complete",

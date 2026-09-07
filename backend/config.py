@@ -15,7 +15,7 @@ load_dotenv()
 class Settings(BaseSettings):
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     serpapi_api_key: str = Field(default="", alias="SERPAPI_API_KEY")
-    search_provider: str = Field(default="duckduckgo", alias="SEARCH_PROVIDER")
+    search_provider: str = Field(default="serpapi", alias="SEARCH_PROVIDER")
     # Search is powered by DuckDuckGo Lite via Scrapling with optional fallback to SerpApi
     tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
@@ -43,8 +43,8 @@ class Settings(BaseSettings):
 
     # Fan-out control: a full panel over 5 claims is ~20 concurrent LLM calls.
     evaluator_concurrency: int = Field(default=8, alias="EVALUATOR_CONCURRENCY")
-    evaluator_timeout_seconds: float = Field(default=60.0, alias="EVALUATOR_TIMEOUT_SECONDS")
-    llm_timeout_seconds: float = Field(default=90.0, alias="LLM_TIMEOUT_SECONDS")
+    evaluator_timeout_seconds: float = Field(default=300.0, alias="EVALUATOR_TIMEOUT_SECONDS")
+    llm_timeout_seconds: float = Field(default=120.0, alias="LLM_TIMEOUT_SECONDS")
     steelman_concurrency: int = Field(default=3, alias="STEELMAN_CONCURRENCY")
 
     model_config = ConfigDict(populate_by_name=True)

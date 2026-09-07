@@ -16,7 +16,11 @@ export const Header: React.FC = () => {
     } else if (path === "live-runner-verdicts") {
       if (!state.currentCase) return;
       selectClaim(null);
-      navigateScreen("runner");
+      if (state.currentCase.status === "done") {
+        navigateScreen("dashboard");
+      } else {
+        navigateScreen("runner");
+      }
     }
   };
 
@@ -32,6 +36,8 @@ export const Header: React.FC = () => {
     ? "01 Ingestion"
     : isClaimMapActive
     ? "02 Claim Map"
+    : state.currentCase?.status === "done"
+    ? "03 Result"
     : "03 Live Runner";
 
   return (
@@ -126,7 +132,7 @@ export const Header: React.FC = () => {
                 : "text-on-surface-variant hover:text-on-surface cursor-pointer"
             }`}
           >
-            03 Live Runner
+            {state.currentCase?.status === "done" ? "03 Result" : "03 Live Runner"}
           </button>
         </nav>
 

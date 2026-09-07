@@ -288,7 +288,7 @@ export function handleSSEEvent(
       const finishTime = Date.now();
       updatedCase.status = "done";
       updatedCase.completed_at = finishTime;
-      newActiveScreen = "dashboard";
+      newActiveScreen = state.activeScreen === "runner" ? "runner" : "dashboard";
       newIsStreaming = false;
 
       // Also record to history if not already present

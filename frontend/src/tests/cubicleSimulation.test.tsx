@@ -288,12 +288,13 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     it("renders Active Workstation Feed and displays active evaluator finding telemetry", () => {
       render(
         <SideControlPanel
-          lastEvent={{
+          eventHistory={[{
+            id: 'ev1',
             speaker_id: "builder",
             dialogue: "Benchmarking GPU latency: under 4ms verified.",
             verdict: "survived",
             cognitive_tag: "[Latency Benchmark]",
-          }}
+          }]}
           hoveredAgentId={null}
         />
       );
@@ -307,7 +308,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     it("displays standby message when no event has been received", () => {
       render(
         <SideControlPanel
-          lastEvent={null}
+          eventHistory={[]}
           hoveredAgentId={null}
         />
       );
@@ -319,7 +320,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     it("highlights hovered agent in active workstation feed", () => {
       render(
         <SideControlPanel
-          lastEvent={null}
+          eventHistory={[]}
           hoveredAgentId="devils_advocate"
         />
       );

@@ -48,18 +48,18 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   const getTagBadgeStyle = (tag: string) => {
     const t = tag.toLowerCase();
     if (t.includes("evidence")) {
-      return "text-primary-container bg-primary-container/10 border-primary-container/25";
+      return "text-verdict-survived bg-verdict-survived/10 border-verdict-survived/25";
     }
     if (t.includes("feasibility")) {
-      return "text-tertiary bg-tertiary/10 border-tertiary/25";
+      return "text-verdict-weakened bg-verdict-weakened/10 border-verdict-weakened/25";
     }
     if (t.includes("assumption")) {
-      return "text-secondary bg-secondary/10 border-secondary/25";
+      return "text-verdict-unresolved bg-verdict-unresolved/10 border-verdict-unresolved/25";
     }
     if (t.includes("friction") || t.includes("operator") || t.includes("edge")) {
-      return "text-on-surface-variant bg-surface-container-highest border-outline-variant";
+      return "text-primary bg-primary/10 border-primary/25";
     }
-    if (t.includes("steelman") || t.includes("steelman") || t.includes("reconcil")) {
+    if (t.includes("steelman") || t.includes("reconcil")) {
       return "text-primary-container bg-surface-container-highest border-primary-container/40";
     }
     return "text-outline bg-surface-container-high border-outline-variant/60";
@@ -83,48 +83,39 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
     >
       {/* Header Bar */}
       <div 
-        className="flex items-center justify-between px-space-4 py-space-3 bg-surface-container border-b border-outline-variant/60 select-none cursor-pointer"
+        className="flex items-center justify-between px-space-4 py-space-3 bg-surface border-b border-outline-variant/60 select-none cursor-pointer"
         onClick={() => setIsExpanded((prev) => !prev)}
       >
         <div className="flex items-center gap-space-2.5">
           {isStreaming ? (
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-container opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-container" />
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
             </span>
           ) : (
-            <span className="material-symbols-outlined text-[16px] text-verdict-survived">
-              check_circle
+            <span className="relative flex h-2 w-2">
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-verdict-survived" />
             </span>
           )}
 
-          <h3 className="font-headline-sm text-sm font-semibold text-on-surface tracking-tight">
+          <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">
             Live Investigation Feed
           </h3>
 
-          <span className="font-code-sm text-[11px] px-2 py-0.5 rounded-full bg-surface-container-high text-outline border border-outline-variant/60">
-            {activities.length} operation{activities.length === 1 ? "" : "s"}
+          <span className="font-mono text-xs text-outline">
+            [{activities.length} op{activities.length === 1 ? "" : "s"}]
           </span>
         </div>
 
         <div className="flex items-center gap-space-2">
           {isStreaming && (
-            <span className="font-code-sm text-xs text-primary-container animate-pulse hidden sm:inline">
-              Active Scrutiny in Progress...
+            <span className="font-mono text-[10px] text-primary animate-pulse hidden sm:inline uppercase">
+              Scrutiny in Progress...
             </span>
           )}
-          <button
-            type="button"
-            className="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container-high transition-colors flex items-center justify-center pointer-events-none"
-            aria-label={isExpanded ? "Collapse activity feed" : "Expand activity feed"}
-          >
-            <span 
-              className="material-symbols-outlined text-[20px] transition-transform duration-200"
-              style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
-            >
-              expand_more
-            </span>
-          </button>
+          <span className="text-xs font-mono text-outline uppercase">
+            {isExpanded ? "Hide" : "Show"}
+          </span>
         </div>
       </div>
 
@@ -135,15 +126,12 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
             ref={containerRef}
             onScroll={handleScroll}
             data-testid="activity-feed-container"
-            className="p-space-3 max-h-56 overflow-y-auto space-y-1.5 font-mono text-xs select-text scrollbar-thin scrollbar-thumb-outline scrollbar-track-surface-container"
+            className="p-space-3 max-h-56 overflow-y-auto space-y-1 font-mono text-xs select-text scrollbar-thin scrollbar-thumb-outline scrollbar-track-surface-container"
           >
             {activities.length === 0 ? (
               <div className="py-6 flex flex-col items-center justify-center text-center text-outline gap-1">
-                <span className="material-symbols-outlined text-[20px] animate-spin">
-                  progress_activity
-                </span>
-                <p className="font-body-sm text-xs text-on-surface-variant">
-                  Initializing adversarial test runners and web search pipelines...
+                <p className="font-mono text-[10px] text-on-surface-variant uppercase">
+                  Initializing...
                 </p>
               </div>
             ) : (
@@ -152,20 +140,20 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
                   key={item.id}
                   className="flex items-start gap-2.5 py-1 px-2 rounded hover:bg-surface-container transition-colors group"
                 >
-                  <span className="text-outline text-[11px] shrink-0 pt-0.5 select-none">
+                  <span className="text-outline text-xs shrink-0 pt-0.5 select-none">
                     {formatActivityTime(item.timestamp)}
                   </span>
 
                   <span
                     className={cn(
-                      "font-semibold text-[10px] tracking-wider uppercase px-1.5 py-0.5 rounded border shrink-0 select-none",
+                      "font-semibold text-xs tracking-wider uppercase px-2 py-0.5 rounded border shrink-0 select-none",
                       getTagBadgeStyle(item.tag)
                     )}
                   >
                     {item.tag}
                   </span>
 
-                  <span className="text-on-surface-variant leading-relaxed text-xs break-words font-sans group-hover:text-on-surface">
+                  <span className="text-on-surface-variant leading-relaxed text-sm break-words font-sans group-hover:text-on-surface">
                     <SerpApiText text={item.text} />
                   </span>
                 </div>
@@ -180,10 +168,9 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
                 type="button"
                 onClick={scrollToBottom}
                 aria-label="Resume auto-scroll"
-                className="px-2.5 py-1 text-[11px] font-code-sm rounded-full bg-primary-container text-white shadow-md hover:bg-blue-600 transition-all flex items-center gap-1 cursor-pointer"
+                className="px-2.5 py-1 text-[10px] font-mono uppercase bg-primary text-on-primary hover:bg-primary/90 transition-colors flex items-center cursor-pointer"
               >
-                <span>Resume auto-scroll</span>
-                <span className="material-symbols-outlined text-[13px]">arrow_downward</span>
+                Resume Auto-Scroll
               </button>
             </div>
           )}
