@@ -343,19 +343,35 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         activeModal: "none",
         startedAt: action.payload.started_at || null,
         completedAt: action.payload.completed_at || null,
+        activities: [],
+        activeTests: {},
+        activeTestActivities: {},
+        eventLog: [],
       };
 
-    case "UPDATE_CASE":
+    case "UPDATE_CASE": {
+      const incomingCase = action.payload;
+      const existingHistoryCase = state.caseHistory.find((c) => c.id === incomingCase.id);
+      const existingCurrentCase = state.currentCase?.id === incomingCase.id ? state.currentCase : null;
+
+      const mergedCase = {
+        ...incomingCase,
+        activities: incomingCase.activities || existingCurrentCase?.activities || existingHistoryCase?.activities || [],
+        started_at: incomingCase.started_at || existingCurrentCase?.started_at || existingHistoryCase?.started_at || undefined,
+        completed_at: incomingCase.completed_at || existingCurrentCase?.completed_at || existingHistoryCase?.completed_at || undefined,
+      };
+
       return {
         ...state,
-        currentCase: action.payload,
+        currentCase: mergedCase,
         // Keep the archived copy in sync: the post-run snapshot refresh is what
         // fills in anything the stream missed, and history is read back from
         // localStorage later.
         caseHistory: state.caseHistory.map((c) =>
-          c.id === action.payload.id ? action.payload : c
+          c.id === mergedCase.id ? mergedCase : c
         ),
       };
+    }
 
     case "SSE_EVENT": {
       const { event, data } = action.payload;

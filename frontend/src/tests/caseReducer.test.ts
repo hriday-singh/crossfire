@@ -413,7 +413,7 @@ describe("caseReducer", () => {
     };
 
     const state = caseReducer(
-      { ...INITIAL_STATE, currentCase: existingCase, activeScreen: "results", isStreaming: true },
+      { ...INITIAL_STATE, currentCase: existingCase, activeScreen: "dashboard", isStreaming: true },
       { type: "LOAD_PROMPT_INTO_ENTRY", payload: { rawInput: "Improved prompt with steelman salvage" } }
     );
 

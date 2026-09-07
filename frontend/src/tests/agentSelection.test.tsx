@@ -346,6 +346,8 @@ describe("ConfirmScreen Agent Integration", () => {
       refreshCurrentCase: vi.fn(),
       setDebugMode: vi.fn(),
       enterPreview: vi.fn(),
+      cancelExtraction: vi.fn(),
+      loadPromptIntoEntry: vi.fn(),
       setPreviewView: vi.fn(),
       exitPreview: vi.fn(),
       toggleAgentSelection: vi.fn(),

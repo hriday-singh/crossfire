@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PromptFixerWorkbench } from "@/components/features/PromptFixerWorkbench";
-import { Case, Claim, Consequence } from "@/types/crossfire";
+import { Case, Claim, DecisionConsequence } from "@/types/crossfire";
 
 describe("PromptFixerWorkbench", () => {
   const originalPrompt = "We will launch without trial. Architecture uses Solana.";
@@ -30,12 +30,13 @@ describe("PromptFixerWorkbench", () => {
     },
   ];
 
-  const mockConsequences: Consequence[] = [
+  const mockConsequences: DecisionConsequence[] = [
     {
       claim_id: "c1",
       impact: "fatal",
       recommended_change: "Add trial",
       next_validation: "User tests",
+      verdict_reasoning: "Test reasoning",
       salvaged_claim: "Offer 14-day reverse trial with onboarding concierge",
     },
   ];
@@ -59,7 +60,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
-        onResetPrompt={vi.fn()}
+
         improvedPrompt="We will launch with trial. Architecture uses Solana."
         onChangeImprovedPrompt={vi.fn()}
         onPutIntoStartingScreen={vi.fn()}
@@ -84,7 +85,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={handleToggle}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
-        onResetPrompt={vi.fn()}
+
         improvedPrompt={originalPrompt}
         onChangeImprovedPrompt={vi.fn()}
         onPutIntoStartingScreen={vi.fn()}
@@ -107,14 +108,14 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={handleSelectAll}
         onClearAll={handleClearAll}
-        onResetPrompt={vi.fn()}
+
         improvedPrompt={originalPrompt}
         onChangeImprovedPrompt={vi.fn()}
         onPutIntoStartingScreen={vi.fn()}
       />
     );
 
-    const selectAllBtn = screen.getByRole("button", { name: /Select All Revisions/i });
+    const selectAllBtn = screen.getByRole("button", { name: /^Select All$/i });
     fireEvent.click(selectAllBtn);
     expect(handleSelectAll).toHaveBeenCalledTimes(1);
 
@@ -126,7 +127,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={handleSelectAll}
         onClearAll={handleClearAll}
-        onResetPrompt={vi.fn()}
+
         improvedPrompt={originalPrompt}
         onChangeImprovedPrompt={vi.fn()}
         onPutIntoStartingScreen={vi.fn()}
@@ -147,7 +148,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
-        onResetPrompt={vi.fn()}
+
         improvedPrompt="Improved prompt content"
         onChangeImprovedPrompt={vi.fn()}
         onPutIntoStartingScreen={handlePut}
@@ -170,7 +171,7 @@ describe("PromptFixerWorkbench", () => {
         onToggleClaim={vi.fn()}
         onSelectAll={vi.fn()}
         onClearAll={vi.fn()}
-        onResetPrompt={vi.fn()}
+
         improvedPrompt="Draft text"
         onChangeImprovedPrompt={handleChange}
         onPutIntoStartingScreen={vi.fn()}

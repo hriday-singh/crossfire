@@ -1,5 +1,5 @@
 import React from "react";
-import { Case, Claim } from "@/types/crossfire";
+import { Case } from "@/types/crossfire";
 import { cleanUiText } from "@/lib/formatters";
 import { SerpApiText } from "@/components/ui/serpapi";
 import { getClaimSalvagedText, getSalvageableClaims } from "@/lib/promptFixer";
@@ -12,6 +12,7 @@ interface PromptFixerWorkbenchProps {
   onSelectAll: () => void;
   onClearAll: () => void;
   onResetPrompt: () => void;
+
   improvedPrompt: string;
   onChangeImprovedPrompt: (newPrompt: string) => void;
   onPutIntoStartingScreen: () => void;
@@ -216,6 +217,7 @@ export const PromptFixerWorkbench: React.FC<PromptFixerWorkbenchProps> = ({
         </button>
       </div>
       </div>
+      )}
     </section>
   );
 };

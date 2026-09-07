@@ -15,6 +15,9 @@ import * as api from "@/lib/api";
 import { INITIAL_STATE } from "@/context/caseReducer";
 
 describe("Screen Components", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   describe("EntryScreen", () => {
     it("renders proposal textarea, sample presets, and submit button", () => {
       render(
@@ -577,6 +580,9 @@ describe("Screen Components", () => {
         setAgentMode: vi.fn(),
         setSelectedAgents: vi.fn(),
         selectModel: vi.fn(),
+        cancelExtraction: vi.fn(),
+        confirmAndRun: vi.fn(),
+        loadPromptIntoEntry: vi.fn(),
       });
 
       render(<EntryScreen />);
@@ -650,6 +656,8 @@ describe("Screen Components", () => {
           setAgentMode: vi.fn(),
           setSelectedAgents: vi.fn(),
           selectModel: vi.fn(),
+        cancelExtraction: vi.fn(),
+        loadPromptIntoEntry: vi.fn(),
         });
 
       render(<ConfirmScreen />);
@@ -735,6 +743,9 @@ describe("Screen Components", () => {
         setAgentMode: vi.fn(),
         setSelectedAgents: vi.fn(),
         selectModel: vi.fn(),
+        cancelExtraction: vi.fn(),
+        confirmAndRun: vi.fn(),
+        loadPromptIntoEntry: vi.fn(),
       });
 
       render(<DashboardScreen />);
@@ -800,6 +811,9 @@ describe("Screen Components", () => {
         setAgentMode: vi.fn(),
         setSelectedAgents: vi.fn(),
         selectModel: vi.fn(),
+        cancelExtraction: vi.fn(),
+        confirmAndRun: vi.fn(),
+        loadPromptIntoEntry: vi.fn(),
       });
 
       render(<DashboardScreen />);
@@ -876,6 +890,7 @@ describe("Screen Components", () => {
             recommended_change: "Add trial",
             next_validation: "User tests",
             salvaged_claim: "Charge $29 with 14-day trial",
+            verdict_reasoning: "Test reasoning",
           },
         ],
       };
@@ -883,7 +898,7 @@ describe("Screen Components", () => {
       vi.spyOn(CaseContextModule, "useCase").mockReturnValue({
         state: {
           ...INITIAL_STATE,
-          activeScreen: "results",
+          activeScreen: "dashboard",
           currentCase: caseWithSalvage,
         },
         dispatch: vi.fn(),
@@ -903,6 +918,8 @@ describe("Screen Components", () => {
         setAgentMode: vi.fn(),
         setSelectedAgents: vi.fn(),
         selectModel: vi.fn(),
+        cancelExtraction: vi.fn(),
+        confirmAndRun: vi.fn(),
       });
 
       render(<DashboardScreen />);

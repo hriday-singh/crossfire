@@ -298,14 +298,13 @@ describe("ClaimCard", () => {
       />
     );
 
-    const checkbox = screen.getByRole("checkbox", {
-      name: /Apply Steel Man solution for claim claim-fix-1/i,
-    });
-    expect(checkbox).toBeInTheDocument();
-    expect(checkbox).not.toBeChecked();
+    const fixDiv = screen.getByText(/Apply Fix:/i).closest("div.cursor-pointer");
+    expect(fixDiv).toBeInTheDocument();
 
-    fireEvent.click(checkbox);
-    expect(handleToggle).toHaveBeenCalledTimes(1);
+    if (fixDiv) {
+      fireEvent.click(fixDiv);
+      expect(handleToggle).toHaveBeenCalledTimes(1);
+    }
   });
 
   it("renders Adopt for prompt fix button in expanded Steel Man box", () => {

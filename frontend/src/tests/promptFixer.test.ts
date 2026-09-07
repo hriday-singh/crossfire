@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Case, Claim, Consequence } from "@/types/crossfire";
+import { Case, Claim, DecisionConsequence } from "@/types/crossfire";
 import {
   getSalvageableClaims,
   getClaimSalvagedText,
@@ -42,12 +42,13 @@ describe("promptFixer utility", () => {
     },
   ];
 
-  const mockConsequences: Consequence[] = [
+  const mockConsequences: DecisionConsequence[] = [
     {
       claim_id: "c2",
       impact: "high",
       recommended_change: "Adopt Base L2",
       next_validation: "Run benchmark",
+      verdict_reasoning: "Test reasoning",
       salvaged_claim: "Deploy on Base L2 to retain EVM tooling while achieving sub-cent fees",
     },
   ];
