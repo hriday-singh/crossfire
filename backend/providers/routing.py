@@ -154,6 +154,11 @@ class RoutingProvider:
                 target._dead_until = 0.0
                 return result
             except (httpx.HTTPStatusError, LLMTimeoutError, LLMConnectionError) as exc:
+                if isinstance(exc, httpx.HTTPStatusError):
+                    status = exc.response.status_code
+                    if status not in _FATAL_STATUS and status not in _RETRYABLE_STATUS and status != 429:
+                        raise exc
+                
                 target._consecutive_failures += 1
                 if target._consecutive_failures >= 3:
                     target._dead_until = time.time() + 60.0
@@ -186,7 +191,7 @@ class RoutingProvider:
                     await target.pool.report_error(slot, _retry_after(exc))
                 else:
                     # 400-class request problem: another key will fail the same way.
-                    raise
+                    raise exc
             except (LLMTimeoutError, LLMConnectionError, httpx.TimeoutException, httpx.ConnectError) as exc:
                 last = exc
                 await target.pool.report_error(slot)

@@ -2,7 +2,7 @@ import React from "react";
 import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Case } from "@/types/crossfire";
-import { getCase } from "@/lib/api";
+import { getCase, deleteCase, clearCases } from "@/lib/api";
 
 export const HistoryModal: React.FC = () => {
   const { state, dispatch, setActiveModal, navigateScreen } = useCase();
@@ -23,20 +23,25 @@ export const HistoryModal: React.FC = () => {
     }
   };
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     if (confirm("Clear all locally stored case history?")) {
       try {
-        localStorage.removeItem("crossfire_case_history");
-      } catch {
-        // ignore
+        await clearCases();
+      } catch (err) {
+        console.error("Failed to clear cases:", err);
       }
       dispatch({ type: "CLEAR_HISTORY" });
       setActiveModal("none");
     }
   };
 
-  const handleDeleteItem = (e: React.MouseEvent, caseId: string) => {
+  const handleDeleteItem = async (e: React.MouseEvent, caseId: string) => {
     e.stopPropagation();
+    try {
+      await deleteCase(caseId);
+    } catch (err) {
+      console.error("Failed to delete case:", err);
+    }
     dispatch({ type: "DELETE_HISTORY_ITEM", payload: caseId });
   };
 

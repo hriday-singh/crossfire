@@ -115,6 +115,7 @@ export type AppAction =
   | { type: "RESET_CASE" }
   | { type: "LOAD_CASE"; payload: Case }
   | { type: "UPDATE_CASE"; payload: Case }
+  | { type: "LOAD_HISTORY_FROM_DB"; payload: Case[] }
   | { type: "NAVIGATE_SCREEN"; payload: ScreenView }
   | { type: "LOAD_PROMPT_INTO_ENTRY"; payload: { rawInput: string } }
   | { type: "CLEAR_ERROR" }

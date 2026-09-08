@@ -2,6 +2,11 @@
 docs/05-PARALLEL-WORKFLOW.md."""
 import logging
 from contextlib import asynccontextmanager
+import sys
+import asyncio
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import httpx
 from fastapi import FastAPI, Request

@@ -350,7 +350,7 @@ describe("ConfirmScreen Agent Integration", () => {
       toggleAgentSelection: vi.fn(),
       setAgentMode: vi.fn(),
       setSelectedAgents: vi.fn(),
-      selectModel: vi.fn(),
+      refreshEngineInfo: vi.fn(),
     });
 
     render(<ConfirmScreen />);

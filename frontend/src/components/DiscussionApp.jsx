@@ -20,6 +20,13 @@ import { cn } from '../lib/utils';
 export function DiscussionApp() {
   const caseContext = useOptionalCase?.();
   const currentCase = caseContext?.state?.currentCase;
+  const isPreview = !!caseContext?.state?.previewView;
+
+  // A real (non-preview) case owns its own completion signal: only `run_complete`/`done`
+  // (status) or `case_verdict` may end the run. Scripted/mock packets carrying
+  // isSynthesisDone must never terminate a live run mid-test.
+  const isRealRun = !!currentCase && !isPreview;
+  const caseIsDone = currentCase?.status === 'done' || !!currentCase?.case_verdict;
 
   // Real-time character position tracker for UI overlays
   const [characterPositions, setCharacterPositions] = useState(() => {
@@ -69,13 +76,13 @@ export function DiscussionApp() {
 
     // If Steelman reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation ONLY when synthesis is done AND loading is 100%
     if (agentId === 'steelman' && x >= 840 && !exitTriggeredRef.current) {
-      const isDone = (currentCase?.status === 'done' || !!currentCase?.case_verdict || isSynthesisDoneRef.current) && (progressRef.current >= 100);
+      const isDone = (isRealRun ? caseIsDone : isSynthesisDoneRef.current) && (progressRef.current >= 100);
       if (isDone) {
         exitTriggeredRef.current = true;
         setIsPageTransitionActive(true);
       }
     }
-  }, [currentCase?.status, currentCase?.case_verdict]);
+  }, [isRealRun, caseIsDone]);
 
   // Event received handler from Socket or Mock simulation runner
   const handleEventReceived = useCallback((eventPacket) => {
@@ -83,11 +90,11 @@ export function DiscussionApp() {
 
     // Detect Steelman exit event - strictly when synthesis is done AND loading is 100%
     if (speakerId === 'steelman' && eventPacket.target === 'right_door') {
+      const doneSignal = isRealRun
+        ? caseIsDone
+        : Boolean(eventPacket.isSynthesisDone || eventPacket.stage?.includes('Synthesis'));
       const isDone =
-        Boolean(currentCase?.status === 'done' ||
-        !!currentCase?.case_verdict ||
-        eventPacket.isSynthesisDone ||
-        eventPacket.stage?.includes('Synthesis')) &&
+        doneSignal &&
         Boolean(progressRef.current >= 100 || eventPacket.isLoadingDone || (typeof eventPacket.progress === 'number' && eventPacket.progress >= 100));
       if (isDone) {
         setIsSteelmanExiting(true);
@@ -124,7 +131,7 @@ export function DiscussionApp() {
       setActiveSpeakerId(speakerId);
       setTimeout(() => setActiveSpeakerId(null), 800);
     }
-  }, [playSpeech, currentCase?.status, currentCase?.case_verdict]);
+  }, [playSpeech, isRealRun, caseIsDone]);
 
   // Socket & Mock Simulation Engine
   const {
@@ -148,6 +155,8 @@ export function DiscussionApp() {
   } = useSocketSimulation({
     onEventReceived: handleEventReceived,
     selectedAgentIds: selectedAgentIds,
+    // Scripted scenario playback would inject its own steelman exit packet mid-run.
+    mockEnabled: !isRealRun,
   });
 
   // GSAP Playback Speed scaling across all sprite animations
@@ -197,12 +206,11 @@ export function DiscussionApp() {
 
   // Calculate live progress and stage
   const caseStatus = currentCase?.status;
-  const rawSynthesisDone =
-    caseStatus === 'done' ||
-    !!currentCase?.case_verdict ||
-    Boolean(lastEvent?.isSynthesisDone) ||
-    Boolean(lastEvent?.stage?.includes('Crucible Synthesis')) ||
-    false;
+  const rawSynthesisDone = isRealRun
+    ? caseIsDone
+    : Boolean(lastEvent?.isSynthesisDone) ||
+      Boolean(lastEvent?.stage?.includes('Crucible Synthesis')) ||
+      false;
 
   if (rawSynthesisDone) {
     hasSynthesizedRef.current = true;

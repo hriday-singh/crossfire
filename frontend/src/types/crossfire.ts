@@ -203,6 +203,8 @@ export type SSEEventName =
   | "claim_map_ready"
   | "awaiting_confirmation"
   | "load_bearing_ready"
+  | "claim_started"
+  | "claim_complete"
   | "test_started"
   | "finding_ready"
   | "verdict_ready"

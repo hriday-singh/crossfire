@@ -61,6 +61,24 @@ const TestController = () => {
       >
         Set Current Case
       </button>
+      <button
+        onClick={() =>
+          dispatch({
+            type: "LOAD_HISTORY_FROM_DB",
+            payload: [
+              {
+                ...mockCase,
+                claims: [
+                  { id: "c-1", statement: "Claim 1", load_bearing: true, status: "survived" },
+                  { id: "c-2", statement: "Claim 2", load_bearing: false, status: "weakened" },
+                ],
+              },
+            ],
+          })
+        }
+      >
+        Load History
+      </button>
       <span data-testid="active-modal">{state.activeModal}</span>
       <span data-testid="current-case-id">{state.currentCase?.id || "none"}</span>
     </div>
@@ -94,25 +112,17 @@ describe("Telemetry & History Modals", () => {
   });
 
   it("opens history modal, renders cases, suppresses zero counts and IDs, and uses dustbin buttons", () => {
-    localStorage.setItem(
-      "crossfire_case_history",
-      JSON.stringify([
-        {
-          ...mockCase,
-          claims: [
-            { id: "c-1", statement: "Claim 1", load_bearing: true, status: "survived" },
-            { id: "c-2", statement: "Claim 2", load_bearing: false, status: "weakened" },
-          ],
-        },
-      ])
-    );
-
+    // We dispatch LOAD_HISTORY_FROM_DB to mock the API response
     render(
       <CaseProvider>
         <TestController />
         <HistoryModal />
+        <DashboardScreen />
       </CaseProvider>
     );
+
+    // Populate history via the TestController button we will add
+    fireEvent.click(screen.getByText("Load History"));
 
     fireEvent.click(screen.getByText("Open History"));
     expect(screen.getByText("Case History")).toBeInTheDocument();

@@ -177,6 +177,7 @@ describe("ProvidersModal", () => {
 
   it("labels each model with its place in the fallback order", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
 
     expect(screen.getByTestId("model-row-gemini-3.7-flash")).toHaveTextContent("PRIMARY");
     expect(screen.getByTestId("model-row-gemini-3.6-flash")).toHaveTextContent("FB 1");
@@ -185,6 +186,7 @@ describe("ProvidersModal", () => {
 
   it("enables a disabled model and disables an enabled one", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
 
     fireEvent.click(screen.getByLabelText("Enable gemini-flash-lite"));
     await waitFor(() => expect(calledWith("/providers/gemini/models", "PUT")).toHaveLength(1));
@@ -201,6 +203,8 @@ describe("ProvidersModal", () => {
 
   it("keeps the primary model enabled and unmovable", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
+    await screen.findByLabelText("Enable gemini-3.7-flash");
 
     expect(screen.getByLabelText("Enable gemini-3.7-flash")).toBeDisabled();
     expect(screen.getByLabelText("Move gemini-3.7-flash up")).toBeDisabled();
@@ -220,6 +224,8 @@ describe("ProvidersModal", () => {
 
   it("says which provider runs while the pipeline is pinned", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
+    await screen.findByTestId("locked-notice");
 
     expect(screen.getByTestId("locked-notice")).toHaveTextContent("gemini_proxy");
 
@@ -241,6 +247,8 @@ describe("ProvidersModal", () => {
 
   it("saves base url and rpm only where the endpoint is editable", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
+    await screen.findByLabelText("Base URL");
     expect(screen.getByLabelText("Base URL")).toBeDisabled();
 
     fireEvent.click(screen.getByTestId("provider-item-custom:vllm-box"));
@@ -274,7 +282,7 @@ describe("ProvidersModal", () => {
   it("removes a provider from the fallback chain", async () => {
     await open();
 
-    fireEvent.click(screen.getByLabelText("Remove openai from fallback chain"));
+    fireEvent.click(screen.getByLabelText("Enable openai"));
 
     await waitFor(() => expect(calledWith("/providers/fallback", "PUT")).toHaveLength(1));
     expect(calledWith("/providers/fallback", "PUT")[0].body).toEqual({
@@ -315,15 +323,17 @@ describe("ProvidersModal", () => {
 
   it("reports a failed provider ping and a chain test", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
 
     fireEvent.click(screen.getByTestId("ping-provider-button"));
     const ping = await screen.findByTestId("ping-result");
     expect(ping).toHaveTextContent("FAILED");
     expect(ping).toHaveTextContent("HTTP 401");
 
-    fireEvent.click(screen.getByTestId("test-chain-button"));
+        fireEvent.click(screen.getByTestId("test-chain-button"));
+    fireEvent.click(screen.getByText("Provider Routing"));
     const chain = await screen.findByTestId("chain-results");
-    expect(within(chain).getByText(/OK · gemini/)).toBeInTheDocument();
+    expect(within(chain).getByText(/OK — gemini/)).toBeInTheDocument();
   });
 
   it("surfaces a backend error instead of failing silently", async () => {

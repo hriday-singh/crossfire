@@ -134,6 +134,12 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         caseHistory: state.caseHistory.filter((c) => c.id !== action.payload),
       };
 
+    case "LOAD_HISTORY_FROM_DB":
+      return {
+        ...state,
+        caseHistory: action.payload,
+      };
+
     case "START_EXTRACTING":
       return {
         ...state,

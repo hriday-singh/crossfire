@@ -312,44 +312,83 @@ async def run_evaluators(
     limit = asyncio.Semaphore(getattr(settings, "evaluator_concurrency", 8))
     timeout = getattr(settings, "evaluator_timeout_seconds", 60.0)
 
+    # Group the plan by claim, in case.claims order, so the stream describes the run
+    # as "claim 1 and its agents, claim 2 and its agents, ..." — the frontend paces the
+    # animation off claim_index/total_claims. Execution stays fully concurrent across
+    # groups; only the event metadata is ordered.
+    claim_order = [c.id for c in case.claims]
+    grouped: dict[str, list[TestPlanItem]] = {}
     for item in plan:
-        evaluator_name = FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)
-        target_clm = next((c for c in case.claims if c.id == item.target_claim), None)
+        grouped.setdefault(item.target_claim, []).append(item)
+    ordered_claim_ids = [cid for cid in claim_order if cid in grouped]
+    ordered_claim_ids += [cid for cid in grouped if cid not in claim_order]
+    total_claims = len(ordered_claim_ids)
+
+    def _evaluator_of(item: TestPlanItem) -> str:
+        return FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)
+
+    for index, claim_id in enumerate(ordered_claim_ids):
+        group = grouped[claim_id]
+        target_clm = next((c for c in case.claims if c.id == claim_id), None)
         await events.publish(
             case.id,
-            "test_started",
+            "claim_started",
             {
-                "test_id": item.id,
-                "target_claim_id": item.target_claim,
-                "failure_mode": item.failure_mode,
-                "evaluator": evaluator_name,
+                "claim_id": claim_id,
+                "claim_index": index,
+                "total_claims": total_claims,
                 "claim_statement": target_clm.statement if target_clm else "",
+                "agents": [_evaluator_of(i) for i in group],
+                "test_ids": [i.id for i in group],
             },
         )
-
 
     isolated_case = case.model_copy(
         update={"findings": [], "consequences": [], "case_verdict": None}
     )
 
     async def _run_one(item: TestPlanItem) -> Finding:
+        target_clm = next((c for c in case.claims if c.id == item.target_claim), None)
         async with limit:
+            # Emitted here, not up front: the agent is walking to the desk *now*.
+            await events.publish(
+                case.id,
+                "test_started",
+                {
+                    "test_id": item.id,
+                    "target_claim_id": item.target_claim,
+                    "failure_mode": item.failure_mode,
+                    "evaluator": _evaluator_of(item),
+                    "claim_statement": target_clm.statement if target_clm else "",
+                },
+            )
             try:
-                return await asyncio.wait_for(dispatch(item, isolated_case, provider), timeout=timeout)
+                finding = await asyncio.wait_for(dispatch(item, isolated_case, provider), timeout=timeout)
             except Exception as exc:
                 logger.warning(
                     "Evaluator %s failed for claim %s: %s", item.failure_mode, item.target_claim, exc
                 )
-                return _degraded_finding(item, exc)
-
-    findings = list(await asyncio.gather(*(_run_one(item) for item in plan)))
-    for finding in findings:
+                finding = _degraded_finding(item, exc)
+        # Published as each agent returns, so the bullpen animates one report at a time
+        # instead of every finding landing in a single burst at the end.
         await events.publish(
             case.id,
             "finding_ready",
             {"finding": finding.model_dump(), "target_claim_id": finding.claim_id},
         )
-    return findings
+        return finding
+
+    async def _run_group(claim_id: str) -> list[Finding]:
+        group_findings = list(await asyncio.gather(*(_run_one(i) for i in grouped[claim_id])))
+        await events.publish(
+            case.id,
+            "claim_complete",
+            {"claim_id": claim_id, "finding_count": len(group_findings)},
+        )
+        return group_findings
+
+    grouped_results = await asyncio.gather(*(_run_group(cid) for cid in ordered_claim_ids))
+    return [f for group_findings in grouped_results for f in group_findings]
 
 
 def calculate_claim_confidence(status: ClaimStatus, max_objection: float, weakened_kind: WeakenedKind | None = None) -> float:

@@ -312,6 +312,14 @@ async def clarify_case(
 
 
 
+@router.get("/cases", response_model=list[Case])
+async def list_cases() -> list[Case]:
+    """
+    GET /cases: Returns all cases from the database.
+    """
+    return store.list_all()
+
+
 @router.get("/cases/{case_id}", response_model=Case)
 async def get_case(case_id: str) -> Case:
     """
@@ -321,6 +329,24 @@ async def get_case(case_id: str) -> Case:
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
     return case
+
+
+@router.delete("/cases/{case_id}")
+async def delete_case(case_id: str):
+    """
+    DELETE /cases/{id}: Deletes a specific case from history.
+    """
+    store.delete(case_id)
+    return {"status": "ok"}
+
+
+@router.delete("/cases")
+async def clear_cases():
+    """
+    DELETE /cases: Clears all cases from history.
+    """
+    store.clear()
+    return {"status": "ok"}
 
 
 @router.post(

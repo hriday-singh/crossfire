@@ -44,7 +44,7 @@ function chainRole(id: string, data: ProvidersResponse | null): string | null {
 }
 
 export const ProvidersModal: React.FC = () => {
-  const { state, setActiveModal } = useCase();
+  const { state, setActiveModal, refreshEngineInfo } = useCase();
   const isOpen = state.activeModal === "providers";
 
   const [data, setData] = useState<ProvidersResponse | null>(null);
@@ -97,8 +97,8 @@ export const ProvidersModal: React.FC = () => {
       setData(next);
       setSelectedId((current) => {
         const list = next.providers || [];
-        if (current && list.some((p) => p.id === current)) return current;
-        return next.active || list[0]?.id || null;
+        if (current === "routing" || (current && list.some((p) => p.id === current))) return current;
+          return "routing";
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load providers");
@@ -114,6 +114,7 @@ export const ProvidersModal: React.FC = () => {
     try {
       await action();
       await refresh();
+      await refreshEngineInfo();
       flash(successMessage);
       return true;
     } catch (err) {
@@ -140,7 +141,7 @@ export const ProvidersModal: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    if (!isOpen || !selectedId) {
+    if (!isOpen || !selectedId || selectedId === "routing") {
       setKeys([]);
       return;
     }
@@ -154,7 +155,6 @@ export const ProvidersModal: React.FC = () => {
 
   // while the backend pins one provider, everything else is configuration only
   const locked = data?.locked_provider || null;
-  const inFallback = selected ? (data?.fallback_chain || []).includes(selected.id) : false;
   const isActive = selected ? data?.active === selected.id : false;
 
   const moveInChain = (index: number, delta: number) => {
@@ -266,7 +266,29 @@ export const ProvidersModal: React.FC = () => {
         <div className="flex-1 min-h-0 flex flex-col sm:flex-row">
           {/* Provider rail */}
           <div className="shrink-0 sm:w-[248px] sm:h-full sm:overflow-y-auto border-b sm:border-b-0 sm:border-r border-outline-variant/60 p-space-4 space-y-space-2">
-            <p className={SECTION_LABEL}>Providers</p>
+              <p className={SECTION_LABEL}>Global</p>
+              <button
+                type="button"
+                onClick={() => setSelectedId("routing")}
+                aria-pressed={selectedId === "routing"}
+                className={`w-full text-left rounded-lg p-space-3 border transition-all cursor-pointer ${
+                  selectedId === "routing"
+                    ? "bg-surface-container-high border-primary-container/60 ring-1 ring-primary-container/30"
+                    : "bg-surface-container border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container-high/60"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-space-2 min-w-0">
+                    <Layers size={16} className="text-on-surface" />
+                    <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">
+                      Provider Routing
+                    </span>
+                  </span>
+                </div>
+              </button>
+              <div className="pt-space-2">
+                <p className={SECTION_LABEL}>Providers</p>
+              </div>
             {loading && providers.length === 0 && (
               <p className="font-code-sm text-code-sm text-outline">Loading providers…</p>
             )}
@@ -396,7 +418,127 @@ export const ProvidersModal: React.FC = () => {
               </p>
             )}
 
-            {selected && (
+            {selectedId === "routing" && (
+                <div className="space-y-space-6 max-w-2xl mx-auto">
+                  <div className="space-y-space-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Global Provider Routing</h3>
+                    </div>
+                    <div className={`${CARD} space-y-space-3`}>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">
+                        The primary provider runs first. Enabled providers below it are the fallback order — if one fails, the next is tried.
+                      </p>
+                      <div className="space-y-space-2">
+                        {(() => {
+                          if (!data) return null;
+                          const active = data.active;
+                          const chain = data.fallback_chain || [];
+                          const others = data.providers.filter(p => p.id !== active && !chain.includes(p.id)).map(p => p.id);
+                          const routingRows = [active, ...chain, ...others].filter(Boolean);
+                          
+                          return routingRows.map((id) => {
+                            const isPrimary = id === active;
+                            const order = chain.indexOf(id);
+                            const enabled = isPrimary || order >= 0;
+                            const providerData = data.providers.find(p => p.id === id);
+                            if (!providerData) return null;
+                            
+                            return (
+                              <div
+                                key={id}
+                                className={`flex items-center gap-space-3 rounded border px-space-3 py-2 transition-colors ${
+                                  isPrimary
+                                    ? "bg-primary-container/15 border-primary-container/60"
+                                    : "bg-surface-container-low border-outline-variant/50"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={enabled}
+                                  disabled={busy || isPrimary}
+                                  aria-label={`Enable ${id}`}
+                                  onChange={() => {
+                                    if (enabled) {
+                                      removeFromChain(id);
+                                    } else {
+                                      addToChain(id);
+                                    }
+                                  }}
+                                  className="accent-primary-container cursor-pointer disabled:cursor-not-allowed"
+                                />
+                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                  <ProviderIcon providerId={id} size={16} className={isPrimary ? "text-primary-container" : enabled ? "text-on-surface" : "text-outline"} />
+                                  <span className={`font-code-sm text-code-sm truncate ${isPrimary ? "text-primary-container font-semibold" : enabled ? "text-on-surface" : "text-outline"}`}>
+                                    {providerData.label}
+                                  </span>
+                                </div>
+                                <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline shrink-0">
+                                  {isPrimary ? "PRIMARY" : enabled ? `FB ${order + 1}` : "OFF"}
+                                </span>
+                                <div className="flex flex-col gap-0.5 shrink-0 ml-1">
+                                  <button
+                                    type="button"
+                                    aria-label={`Move ${id} up`}
+                                    disabled={busy || !enabled || isPrimary}
+                                    onClick={() => {
+                                      if (order === 0) {
+                                        void run(async () => {
+                                          await setActiveProvider(id, {});
+                                          const newChain = [...chain];
+                                          newChain[order] = active;
+                                          await setFallbackChain(newChain);
+                                        }, `${providerData.label} is now the active provider`);
+                                      } else {
+                                        moveInChain(order, -1);
+                                      }
+                                    }}
+                                    className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                                  >
+                                    <ArrowUp size={14} aria-hidden />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Move ${id} down`}
+                                    disabled={busy || !enabled || order === chain.length - 1}
+                                    onClick={() => {
+                                      if (isPrimary && chain.length > 0) {
+                                        const newActive = chain[0];
+                                        void run(async () => {
+                                          await setActiveProvider(newActive, {});
+                                          const newChain = [...chain];
+                                          newChain[0] = active;
+                                          await setFallbackChain(newChain);
+                                        }, `${newActive} is now the active provider`);
+                                      } else {
+                                        moveInChain(order, 1);
+                                      }
+                                    }}
+                                    className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                                  >
+                                    <ArrowDown size={14} aria-hidden />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                  {chainResults && (
+                    <div className={`${CARD} space-y-space-2`} data-testid="chain-results">
+                      <p className="font-code-sm text-code-sm font-semibold">Chain Test Results</p>
+                      {chainResults.map((result, i) => (
+                        <p key={i} className="font-code-sm text-code-sm text-outline">
+                          {result.ok ? "OK" : "FAILED"} — {result.provider} ({result.model}) {result.detail}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selected && (
               <>
                 {/* Identity + primary actions */}
                 <div className="space-y-space-3">
@@ -799,93 +941,7 @@ export const ProvidersModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Fallback chain */}
-                <div className="space-y-space-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className={SECTION_LABEL}>Fallback Priority</h4>
-                    {!isActive && !inFallback && (
-                      <button
-                        type="button"
-                        className={BTN}
-                        disabled={busy}
-                        data-testid="add-to-chain-button"
-                        onClick={() => addToChain(selected.id)}
-                      >
-                        Add this provider
-                      </button>
-                    )}
-                  </div>
-
-                  <div className={`${CARD} space-y-space-2`}>
-                    <div className="flex items-center justify-between gap-space-3">
-                      <span className="font-code-sm text-code-sm text-on-surface-variant">
-                        0. {data?.active} (active)
-                      </span>
-                      <span className="font-code-sm text-code-sm text-outline">primary</span>
-                    </div>
-                    {(data?.fallback_chain || []).map((id, index) => (
-                      <div
-                        key={id}
-                        data-testid={`chain-row-${id}`}
-                        className="flex items-center justify-between gap-space-3 border-t border-outline-variant/30 pt-space-2"
-                      >
-                        <span className="font-code-sm text-code-sm text-on-surface truncate">
-                          {index + 1}. {id}
-                        </span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            className={BTN}
-                            aria-label={`Move ${id} up`}
-                            disabled={busy || index === 0}
-                            onClick={() => moveInChain(index, -1)}
-                          >
-                            <ArrowUp size={14} aria-hidden />
-                          </button>
-                          <button
-                            type="button"
-                            className={BTN}
-                            aria-label={`Move ${id} down`}
-                            disabled={busy || index === (data?.fallback_chain || []).length - 1}
-                            onClick={() => moveInChain(index, 1)}
-                          >
-                            <ArrowDown size={14} aria-hidden />
-                          </button>
-                          <button
-                            type="button"
-                            className={BTN_DANGER}
-                            aria-label={`Remove ${id} from fallback chain`}
-                            disabled={busy}
-                            onClick={() => removeFromChain(id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {(data?.fallback_chain || []).length === 0 && (
-                      <p className="font-code-sm text-code-sm text-outline border-t border-outline-variant/30 pt-space-2">
-                        No fallbacks — a rate-limited run stops instead of switching provider.
-                      </p>
-                    )}
-                  </div>
-
-                  {chainResults && (
-                    <div className={`${CARD} space-y-space-2`} data-testid="chain-results">
-                      {chainResults.map((result, index) => (
-                        <p
-                          key={`${result.provider}-${index}`}
-                          className={`font-code-sm text-code-sm ${
-                            result.ok ? "text-verdict-survived" : "text-error"
-                          }`}
-                        >
-                          {result.ok ? "OK" : "FAILED"} · {result.provider} · {result.model} —{" "}
-                          {result.detail}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                
               </>
             )}
           </div>

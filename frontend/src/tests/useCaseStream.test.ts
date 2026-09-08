@@ -38,7 +38,7 @@ describe("useCaseStream hook", () => {
       toggleAgentSelection: vi.fn(),
       setAgentMode: vi.fn(),
       setSelectedAgents: vi.fn(),
-      selectModel: vi.fn(),
+      refreshEngineInfo: vi.fn(),
       cancelExtraction: vi.fn(),
       loadPromptIntoEntry: vi.fn(),
     }));

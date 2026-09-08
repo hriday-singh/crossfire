@@ -36,6 +36,7 @@ def test_catalog_lists_every_supported_provider(client):
         "openai",
         "anthropic",
         "ollama",
+        "deepseek",
         "custom",
     }
     assert body["active"] == "gemini_proxy"
@@ -115,17 +116,18 @@ def test_selecting_a_model_is_what_the_pipeline_then_uses(client):
     assert providers.get_provider().targets[0].model == "gemini-3.6-flash"
 
 
-def test_the_running_provider_is_pinned_whatever_is_selected(client):
+def test_unpinned_routing_follows_selection(client):
     client.post("/providers/anthropic/keys", json={"api_key": "sk-ant-abcdefgh12345678"})
     client.put("/providers/active", json={"provider": "anthropic", "model": "claude-opus-5"})
     client.put("/providers/fallback", json={"chain": ["openai", "anthropic"]})
 
-    # The selection is stored for the UI, but every target is the locked
-    # provider: cross-provider routing is off while LOCKED_PROVIDER is pinned.
+    # Since LOCKED_PROVIDER is None, cross-provider routing is active.
     body = client.get("/providers").json()
     assert body["active"] == "anthropic"
-    assert body["locked_provider"] == "gemini_proxy"
-    assert {t.provider for t in providers.get_provider().targets} == {"gemini_proxy"}
+    assert body["locked_provider"] is None
+    # Anthropic is active, openai and anthropic are fallbacks.
+    # The chain deduplicates, so it will be anthropic, openai
+    assert {t.provider for t in providers.get_provider().targets} == {"anthropic", "openai"}
 
 
 def test_enabled_models_are_the_fallback_order(client):

@@ -4,18 +4,19 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { formatModelName, formatProviderName } from "@/lib/models";
 import { SerpApiIcon } from "@/components/ui/serpapi";
 import { Layers } from "lucide-react";
+import { clearCases } from "@/lib/api";
 
 export const SettingsModal: React.FC = () => {
   const { state, dispatch, setActiveModal, setDebugMode, enterPreview } = useCase();
   const isOpen = state.activeModal === "settings";
   const [clearedNotice, setClearedNotice] = useState<string | null>(null);
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     if (confirm("Clear all locally stored decision cases?")) {
       try {
-        localStorage.removeItem("crossfire_case_history");
-      } catch {
-        // ignore
+        await clearCases();
+      } catch (err) {
+        console.error("Failed to clear cases:", err);
       }
       dispatch({ type: "CLEAR_HISTORY" });
       setClearedNotice("History cleared successfully.");

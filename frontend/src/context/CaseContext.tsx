@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from "react";
 import { AppAction, AppState, INITIAL_STATE, PreviewView, caseReducer } from "./caseReducer";
 import { DECISION_PRESETS } from "@/lib/presets";
-import { clarifyCase, confirmCase, createCase, getCase, getHealth } from "@/lib/api";
-import { Case } from "@/types/crossfire";
+import { clarifyCase, confirmCase, createCase, getCase, getHealth, listCases } from "@/lib/api";
 
 interface CaseContextValue {
   state: AppState;
@@ -27,81 +26,72 @@ interface CaseContextValue {
   loadPromptIntoEntry: (improvedPrompt: string) => void;
   setActiveModal: (modal: AppState["activeModal"]) => void;
   refreshCurrentCase: () => Promise<void>;
-  selectModel?: (modelId: string) => void;
+
   setDebugMode: (enabled: boolean) => void;
   enterPreview: (view?: PreviewView) => void;
   setPreviewView: (view: PreviewView) => void;
   exitPreview: () => void;
+  refreshEngineInfo: () => Promise<void>;
 }
 
 export const CaseContext = createContext<CaseContextValue | null>(null);
 
-const STORAGE_KEY_HISTORY = "crossfire_case_history";
 const STORAGE_KEY_DEBUG = "crossfire_debug";
-const STORAGE_KEY_MODEL = "crossfire_selected_model";
+
 
 export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(caseReducer, INITIAL_STATE, (initial) => {
     try {
-      const savedHistory = localStorage.getItem(STORAGE_KEY_HISTORY);
-      const parsedHistory: Case[] = savedHistory ? JSON.parse(savedHistory) : [];
       const savedDebug = localStorage.getItem(STORAGE_KEY_DEBUG);
       let isDebug = savedDebug === "true";
       if (!isDebug && typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
         isDebug = urlParams.get("debug") === "true" || urlParams.get("debug") === "1";
       }
-      const savedModel = localStorage.getItem(STORAGE_KEY_MODEL);
       return {
         ...initial,
-        caseHistory: parsedHistory,
         isDebugMode: isDebug,
-        engineInfo: savedModel
-          ? { status: "ok", provider: "openai_compat", model: savedModel }
-          : initial.engineInfo,
       };
     } catch {
       return initial;
     }
   });
 
-  // Query backend engine health on mount and periodically so backend going live is detected automatically
-  useEffect(() => {
-    let isMounted = true;
-    const checkHealth = async () => {
-      try {
-        const health = await getHealth();
-        if (isMounted) {
-          const savedModel = localStorage.getItem(STORAGE_KEY_MODEL);
-          dispatch({
-            type: "SET_ENGINE_INFO",
-            payload: {
-              ...health,
-              model: savedModel || health.model,
-            },
-          });
-        }
-      } catch (err) {
-        console.warn("Backend health check failed:", err);
-      }
-    };
-    checkHealth();
-    const interval = setInterval(checkHealth, 5000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+  const refreshEngineInfo = useCallback(async () => {
+    try {
+      const health = await getHealth();
+      dispatch({
+        type: "SET_ENGINE_INFO",
+        payload: health,
+      });
+    } catch (err) {
+      console.warn("Backend health check failed:", err);
+    }
   }, []);
 
-  // Sync history to localStorage (only when not in preview mode)
+  // Query backend engine health on mount
   useEffect(() => {
-    if (state.previewView !== null) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(state.caseHistory));
-    } catch {
-      // Ignore storage errors
-    }
-  }, [state.caseHistory, state.previewView]);
+    refreshEngineInfo();
+  }, [refreshEngineInfo]);
+
+  // Fetch case history from the backend DB instead of relying on limited localStorage
+  useEffect(() => {
+    let isMounted = true;
+    const fetchHistory = async () => {
+      try {
+        const cases = await listCases();
+        if (isMounted) {
+          dispatch({ type: "LOAD_HISTORY_FROM_DB", payload: cases });
+        }
+      } catch (err) {
+        console.warn("Failed to load case history from backend:", err);
+      }
+    };
+    fetchHistory();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const setDebugMode = (enabled: boolean) => {
     try {
@@ -352,21 +342,7 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: "SET_ACTIVE_MODAL", payload: modal });
   };
 
-  const selectModel = (modelId: string) => {
-    try {
-      localStorage.setItem(STORAGE_KEY_MODEL, modelId);
-    } catch {
-      // ignore
-    }
-    dispatch({
-      type: "SET_ENGINE_INFO",
-      payload: {
-        status: state.engineInfo?.status || "ok",
-        provider: state.engineInfo?.provider || "openai_compat",
-        model: modelId,
-      },
-    });
-  };
+
 
   return (
     <CaseContext.Provider
@@ -388,11 +364,12 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadPromptIntoEntry,
         setActiveModal,
         refreshCurrentCase,
-        selectModel,
+
         setDebugMode,
         enterPreview,
         setPreviewView,
         exitPreview,
+        refreshEngineInfo,
       }}
     >
       {children}
