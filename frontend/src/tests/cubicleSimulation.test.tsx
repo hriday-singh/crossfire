@@ -10,6 +10,7 @@ import {
 import { useAudioPlayback } from "../hooks/useAudioPlayback";
 import { DialogueOverlay } from "../components/ui/DialogueOverlay";
 import { SideControlPanel } from "../components/ui/SideControlPanel";
+import { StageContainer } from "../components/canvas/StageContainer";
 
 describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
   beforeEach(() => {
@@ -257,6 +258,53 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
 
       expect(screen.getByText("Steelman")).toBeInTheDocument();
       expect(screen.getByText("WEAKENED")).toBeInTheDocument();
+    });
+
+    it("enforces a strict maximum width on agent status pills and provides title attribute for thoughts", () => {
+      render(
+        <DialogueOverlay
+          activeDialogue={null}
+          evaluatorFindings={{
+            researcher: {
+              speaker_id: "researcher",
+              thought: 'Auditing: "Auto-generated blog content meets enterprise compliance standards with high accuracy and low cost"',
+              action: "type",
+              stage: "Citation Audit",
+            },
+          }}
+          characterPositions={{
+            researcher: { x: 670, y: 140 },
+          }}
+          hoveredAgentId={null}
+        />
+      );
+
+      const pill = screen.getByTestId("bubble-researcher");
+      expect(pill).toBeInTheDocument();
+      // The pill container must enforce max-w-[280px]
+      const innerPill = pill.querySelector(".max-w-\\[280px\\]");
+      expect(innerPill).toBeInTheDocument();
+
+      // The status text should have title attribute for tooltip reading
+      const statusSpan = screen.getByTitle(/Auto-generated blog content/i);
+      expect(statusSpan).toBeInTheDocument();
+      expect(statusSpan).toHaveClass("truncate");
+    });
+
+    it("renders StageContainer with bullpen-stage background and calls onStageReady", () => {
+      const onStageReadyMock = vi.fn();
+      const { container } = render(
+        <StageContainer onStageReady={onStageReadyMock}>
+          <div data-testid="child-overlay">Overlay</div>
+        </StageContainer>
+      );
+
+      // Verify the container has bg-bullpen-stage class
+      const stageDiv = container.firstChild as HTMLElement;
+      expect(stageDiv.className).toContain("bg-bullpen-stage");
+
+      // In non-WebGL test environment, onStageReady fires immediately
+      expect(onStageReadyMock).toHaveBeenCalled();
     });
 
     it("provides interactive cubicle hover zones that trigger onHoverAgent", () => {

@@ -464,4 +464,61 @@ describe("caseReducer", () => {
     expect(state.isStreaming).toBe(false);
     expect(state.isExtracting).toBe(false);
   });
+
+  it("handles CLARIFY_SUCCESS with autoStarted: true by switching activeScreen to runner and starting streaming", () => {
+    const clarifiedCase: Case = {
+      id: "case-clarified-1",
+      raw_input: "Idea that needed clarification",
+      context: null,
+      status: "testing",
+      claims: [
+        { id: "claim-1", statement: "Extracted claim after clarify", load_bearing: true, status: null },
+      ],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+
+    const state = caseReducer(
+      { ...INITIAL_STATE, activeScreen: "entry", isExtracting: true },
+      {
+        type: "CLARIFY_SUCCESS",
+        payload: { case: clarifiedCase, autoStarted: true },
+      }
+    );
+
+    expect(state.isExtracting).toBe(false);
+    expect(state.isStreaming).toBe(true);
+    expect(state.activeScreen).toBe("runner");
+    expect(state.currentCase?.status).toBe("testing");
+    expect(state.startedAt).toBeDefined();
+    expect(state.completedAt).toBeNull();
+  });
+
+  it("handles CLARIFY_SUCCESS with autoStarted: false by keeping activeScreen on confirm", () => {
+    const clarifiedCase: Case = {
+      id: "case-clarified-2",
+      raw_input: "Idea that needs confirmation",
+      context: null,
+      status: "awaiting_confirmation",
+      claims: [
+        { id: "claim-2", statement: "Manually extracted claim", load_bearing: null, status: null },
+      ],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+
+    const state = caseReducer(
+      { ...INITIAL_STATE, activeScreen: "entry", isExtracting: true },
+      {
+        type: "CLARIFY_SUCCESS",
+        payload: { case: clarifiedCase, autoStarted: false },
+      }
+    );
+
+    expect(state.isExtracting).toBe(false);
+    expect(state.isStreaming).toBe(false);
+    expect(state.activeScreen).toBe("confirm");
+  });
 });

@@ -267,12 +267,26 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
     }
 
     case "CLARIFY_SUCCESS": {
+      const now = Date.now();
       return {
         ...state,
         isExtracting: false,
-        currentCase: action.payload.case,
+        currentCase: action.payload.case
+          ? {
+              ...action.payload.case,
+              status: action.payload.autoStarted ? "testing" : action.payload.case.status,
+              started_at: action.payload.autoStarted
+                ? action.payload.case.started_at || now
+                : action.payload.case.started_at,
+              completed_at: null,
+            }
+          : null,
         isStreaming: action.payload.autoStarted,
-        activeScreen: action.payload.autoStarted ? "dashboard" : "confirm",
+        activeScreen: action.payload.autoStarted ? "runner" : "confirm",
+        startedAt: action.payload.autoStarted
+          ? action.payload.case?.started_at || now
+          : state.startedAt,
+        completedAt: null,
       };
     }
 

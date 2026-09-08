@@ -83,6 +83,7 @@ export default {
           broken: "var(--verdict-broken)",
           unresolved: "var(--verdict-unresolved)",
         },
+        "bullpen-stage": "var(--bullpen-stage)",
       },
       borderRadius: {
         DEFAULT: "0.125rem",

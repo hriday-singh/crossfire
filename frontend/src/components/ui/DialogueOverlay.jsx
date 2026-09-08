@@ -157,7 +157,7 @@ export function DialogueOverlay({
         }}
       >
         <div
-          className="relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-highest/95 backdrop-blur-md shadow-xl border text-on-surface select-none whitespace-nowrap animate-in fade-in zoom-in-95 duration-150"
+          className="relative flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-highest/95 backdrop-blur-md shadow-xl border text-on-surface select-none whitespace-nowrap animate-in fade-in zoom-in-95 duration-150 max-w-[280px] w-auto min-w-0"
           style={{
             borderColor: isHovered ? color : `${color}66`,
             boxShadow: isHovered
@@ -174,28 +174,31 @@ export function DialogueOverlay({
           />
 
           {/* Agent Name */}
-          <span className="text-xs font-semibold text-on-surface tracking-wide">
+          <span className="text-xs font-semibold text-on-surface tracking-wide shrink-0">
             {agent.name}
           </span>
 
           {/* Concise Thought Label */}
-          <span className="text-[11px] font-mono tracking-tight font-medium text-on-surface-variant max-w-[280px] truncate">
+          <span
+            className="text-[11px] font-mono tracking-tight font-medium text-on-surface-variant truncate flex-1 min-w-0"
+            title={statusText}
+          >
             {statusText}
           </span>
 
           {/* Animated typing dots if thinking */}
           {isThinking && (
-            <span className="inline-flex gap-0.5 text-primary-container font-mono text-[10px] font-bold animate-pulse">
+            <span className="inline-flex gap-0.5 text-primary-container font-mono text-[10px] font-bold animate-pulse shrink-0">
               ...
             </span>
           )}
 
           {/* Optional Verdict Chip */}
-          {verdict && renderVerdictChip(verdict)}
+          {verdict && <span className="shrink-0">{renderVerdictChip(verdict)}</span>}
 
           {/* Optional Confidence Percentage */}
           {confidence !== null && confidence !== undefined && (
-            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant/50 text-outline">
+            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant/50 text-outline shrink-0">
               {confidence}%
             </span>
           )}

@@ -26,6 +26,9 @@
     --verdict-weakened: #fbbf24;
     --verdict-broken: #f87171;
     --verdict-unresolved: #a78bfa;
+
+    /* Sci-fi bullpen room background canvas token */
+    --bullpen-stage: #060a10;
   }
 
   html,

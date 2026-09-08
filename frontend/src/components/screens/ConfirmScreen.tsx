@@ -442,7 +442,7 @@ export const ConfirmScreen: React.FC = () => {
               <span>Back</span>
             </button>
 
-            {currentCase.status !== "needs_input" && (
+            {(currentCase.status !== "needs_input" || currentCase.claims.length > 0) && (
               <div className="flex flex-col items-end gap-1">
                 <Button
                   type="button"

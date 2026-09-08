@@ -45,6 +45,7 @@ export function DiscussionApp() {
   const [evaluatorFindings, setEvaluatorFindings] = useState({});
   const [isSteelmanExiting, setIsSteelmanExiting] = useState(false);
   const [isPageTransitionActive, setIsPageTransitionActive] = useState(false);
+  const [isStageReady, setIsStageReady] = useState(false);
   const exitTriggeredRef = useRef(false);
   const progressRef = useRef(0);
   const isSynthesisDoneRef = useRef(false);
@@ -164,10 +165,15 @@ export function DiscussionApp() {
     selectedAgentIds: selectedAgentIds,
   });
 
-  // Auto-trigger replay when navigating to the runner screen for a completed case
+  const handleStageReady = useCallback(() => {
+    setIsStageReady(true);
+  }, []);
+
+  // Auto-trigger replay when navigating to the runner screen for a completed case once the stage is ready
   const hasAutoReplayedRef = useRef(false);
   useEffect(() => {
     if (
+      isStageReady &&
       !hasAutoReplayedRef.current &&
       !isLiveBackendActive &&
       caseIsDone &&
@@ -176,7 +182,7 @@ export function DiscussionApp() {
       hasAutoReplayedRef.current = true;
       replayCaseInBullpen();
     }
-  }, [isLiveBackendActive, caseIsDone, currentCase, replayCaseInBullpen]);
+  }, [isStageReady, isLiveBackendActive, caseIsDone, currentCase, replayCaseInBullpen]);
 
   // Reset the latch when the case changes so a fresh run can replay again
   useEffect(() => {
@@ -352,6 +358,7 @@ export function DiscussionApp() {
             isSteelmanExiting={isSteelmanExiting}
             onHoverAgent={setHoveredAgentId}
             onPositionUpdate={handlePositionUpdate}
+            onStageReady={handleStageReady}
           >
             {/* In-world Workstation Telemetry HUD with Hover-Only Visibility and Persistent Steelman Pill */}
             <DialogueOverlay

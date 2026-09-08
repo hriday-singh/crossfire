@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Application, extend } from '@pixi/react';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import ConferenceRoom from './ConferenceRoom';
@@ -6,6 +6,7 @@ import CharacterSprite from './CharacterSprite';
 import DevilBotSprite from './DevilBotSprite';
 import { ROOM_DIMENSIONS } from '../../constants/roomLayout';
 import { STEELMAN_CONFIG } from '../../constants/agentConfigs';
+import { cn } from '../../lib/utils';
 
 // Register Pixi elements for declarative JSX usage in @pixi/react v8
 extend({
@@ -28,6 +29,23 @@ const hasWebGL = typeof window !== 'undefined' && (() => {
  * StageContainer Component
  * Manages Pixi canvas initialization, fixed 1000x650 viewport aspect ratio,
  * sortable depth container, and renders the 4 cubicle workstations + Steelman Arbiter.
+ *
+ * @param {Object} props
+ * @param {Array} [props.agents]
+ * @param {Array|null} [props.selectedAgentIds]
+ * @param {boolean} [props.isSynthesisDone]
+ * @param {boolean} [props.isLoadingDone]
+ * @param {number} [props.loadingProgress]
+ * @param {Record<string, any>} [props.characterPositions]
+ * @param {any} [props.currentActionPacket]
+ * @param {string|null} [props.activeSpeakerId]
+ * @param {string|null} [props.hoveredAgentId]
+ * @param {boolean} [props.isSteelmanExiting]
+ * @param {Function} [props.onHoverAgent]
+ * @param {Function} [props.onPositionUpdate]
+ * @param {Function} [props.onStageReady]
+ * @param {Function} [props.playSfx]
+ * @param {React.ReactNode} [props.children]
  */
 export function StageContainer({
   agents = [],
@@ -42,26 +60,43 @@ export function StageContainer({
   isSteelmanExiting = false,
   onHoverAgent = () => { },
   onPositionUpdate = () => { },
+  onStageReady = () => { },
   playSfx = () => { },
   children = null,
 }) {
   const containerRef = useRef(null);
+  const [isStageReady, setIsStageReady] = useState(() => !hasWebGL);
+
+  useEffect(() => {
+    if (!hasWebGL) {
+      onStageReady?.();
+    }
+  }, [onStageReady]);
+
+  const handleAppInit = useCallback((app) => {
+    setIsStageReady(true);
+    onStageReady?.();
+  }, [onStageReady]);
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-[1000/587] max-w-[min(1200px,calc((100vh-15rem)*1.70358))] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-surface-container-lowest flex items-center justify-center select-none"
+      className="relative w-full aspect-[1000/587] max-w-[min(1200px,calc((100vh-15rem)*1.70358))] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-bullpen-stage flex items-center justify-center select-none"
     >
       {hasWebGL ? (
         <Application
           width={ROOM_DIMENSIONS.width}
           height={ROOM_DIMENSIONS.height}
-          backgroundColor={0x0e0e11}
-          backgroundAlpha={0}
+          backgroundColor={0x060a10}
+          backgroundAlpha={1}
           resolution={Math.min(window.devicePixelRatio || 1, 2)}
           autoDensity={true}
           antialias={true}
-          className="w-full h-full object-fill pointer-events-auto"
+          onInit={handleAppInit}
+          className={cn(
+            "!w-full !h-full object-fill pointer-events-auto transition-opacity duration-300",
+            isStageReady ? "opacity-100" : "opacity-0"
+          )}
         >
           {/* Main Stage Sortable Container: sortableChildren ensures 2.5D dynamic depth layering */}
           <pixiContainer sortableChildren={true}>
@@ -120,7 +155,14 @@ export function StageContainer({
       )}
 
       {/* Render in-world HUD and overlays aligned to canvas coordinate space */}
-      {children}
+      <div
+        className={cn(
+          "absolute inset-0 pointer-events-none transition-opacity duration-300",
+          isStageReady ? "opacity-100" : "opacity-0"
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
