@@ -5,6 +5,8 @@ findings into evidence-backed claim verdicts and minimal viable re-architectures
 from __future__ import annotations
 
 import logging
+import re
+
 from pydantic import BaseModel, Field
 
 from core.models import Claim, ClaimStatus, Finding, WeakenedKind
@@ -258,9 +260,45 @@ async def reconcile(
     )
 
 
+def resolve_decision_state(claims: list[Claim]) -> str:
+    """Derives the case decision from claim outcomes, in code.
+
+    `drop` is the strongest thing this tool can say and it was being reached for
+    while survivable mechanisms were still standing. It now requires that nothing
+    load-bearing came through: one weakened-but-salvageable load-bearing claim
+    means the honest answer is "change it", not "abandon it".
+    """
+    load_bearing = [c for c in claims if c.load_bearing]
+    scope = load_bearing or claims
+    if not scope:
+        return "hold"
+
+    if any(c.status is ClaimStatus.UNRESOLVED for c in scope):
+        return "hold"
+    if all(c.status is ClaimStatus.SURVIVED for c in scope):
+        return "proceed"
+    if any(
+        c.status is ClaimStatus.WEAKENED and (c.salvaged_claim or "").strip() for c in scope
+    ):
+        return "proceed_with_changes"
+    if any(c.status is ClaimStatus.BROKEN for c in scope):
+        return "drop"
+    return "proceed_with_changes"
+
+
 def has_sourced_contradiction(findings: list[Finding]) -> bool:
-    """A claim only breaks on a contradiction traceable to an actual source."""
-    return any(f.evidence and (f.contradiction or "").strip() for f in findings)
+    """A claim only breaks on a contradiction traceable to a source we could read.
+
+    Presence of an EvidenceItem is not proof of one. A fabricated citation is a
+    well-formed object; only `snippet_matched` means we fetched the page and found
+    the quoted words on it. `unreachable` sources still inform the memo — they just
+    cannot carry a kill.
+    """
+    return any(
+        (f.contradiction or "").strip()
+        and any(e.verification == "snippet_matched" for e in f.evidence)
+        for f in findings
+    )
 
 
 # Below this objection strength every finding on a claim sits in the
@@ -392,6 +430,51 @@ def apply_steelman_gate(
         missing_input=missing_input,
         salvage_scope=salvage_scope,
     )
+
+
+def _objection_tokens(finding: Finding) -> set[str]:
+    text = (finding.contradiction or "") + " " + (finding.reasoning or "")
+    return {t for t in re.findall(r"\w+", text.lower()) if len(t) > 3}
+
+
+def dedupe_across_claims(findings: list[Finding], threshold: float = 0.75) -> list[Finding]:
+    """Collapses the same objection restated against several claims.
+
+    Deliberately scoped across claims only. Two evaluators independently landing on
+    the same objection for ONE claim is corroboration and stays; the same objection
+    pasted under every claim is padding and goes.
+    """
+    if not findings:
+        return []
+
+    ordered = sorted(
+        findings,
+        key=lambda f: f.confidence if f.confidence is not None else -1.0,
+        reverse=True,
+    )
+    kept: list[Finding] = []
+    for finding in ordered:
+        tokens = _objection_tokens(finding)
+        if not tokens:
+            kept.append(finding)
+            continue
+        duplicate = False
+        for existing in kept:
+            if existing.claim_id == finding.claim_id:
+                continue
+            other = _objection_tokens(existing)
+            if not other:
+                continue
+            overlap = len(tokens & other) / min(len(tokens), len(other))
+            if overlap >= threshold:
+                duplicate = True
+                break
+        if not duplicate:
+            kept.append(finding)
+    # Identity, not equality: two Findings with the same field values are equal
+    # under pydantic, and dropping both would be a silent data loss.
+    kept_ids = {id(f) for f in kept}
+    return [f for f in findings if id(f) in kept_ids]
 
 
 def rank_findings(findings: list[Finding]) -> list[Finding]:

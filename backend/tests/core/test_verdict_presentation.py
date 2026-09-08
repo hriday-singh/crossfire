@@ -364,3 +364,130 @@ async def test_synthesis_fallback_summary_all_survived():
     assert "After evaluation, all 1 core assumption held up with verified outside evidence" in verdict.summary
     assert "No critical errors were identified" in verdict.summary
     assert "Sound proposal" not in verdict.summary
+
+
+# --- An unsourced specific must not be the line the reader takes away ---
+
+
+def test_deciding_factor_skips_a_finding_with_unsourced_specifics():
+    from core.grounding import mark_unsourced
+
+    c1 = Claim(id="c1", statement="14h shifts", status=ClaimStatus.BROKEN, load_bearing=True)
+    invented = mark_unsourced(
+        _finding("c1", "devils_advocate", 0.95, contradiction="Akamai edge protection blocks it")
+    )
+    grounded = _finding(
+        "c1",
+        "researcher",
+        0.3,
+        contradiction="11 hours is the cap",
+        evidence=[_evidence(title="11 hours")],
+    )
+    case = Case(id="c", raw_input="x", claims=[c1], findings=[invented, grounded])
+
+    factor = build_deciding_factor(case)
+    assert factor.evaluator == "researcher"
+    assert "[unverified]" not in factor.the_fact
+
+
+def test_deciding_factor_still_ships_when_nothing_is_grounded():
+    """A thin factor beats a silent omission."""
+    from core.grounding import mark_unsourced
+
+    c1 = Claim(id="c1", statement="14h shifts", status=ClaimStatus.BROKEN, load_bearing=True)
+    invented = mark_unsourced(
+        _finding("c1", "devils_advocate", 0.95, contradiction="Akamai edge protection blocks it")
+    )
+    case = Case(id="c", raw_input="x", claims=[c1], findings=[invented])
+
+    factor = build_deciding_factor(case)
+    assert factor is not None
+    assert factor.evaluator == "devils_advocate"
+
+
+# --- `drop` requires that nothing load-bearing came through ---
+
+from core.reconcile import resolve_decision_state  # noqa: E402
+
+
+def _rds_claim(cid, status, load_bearing, salvage=None):
+    return Claim(
+        id=cid,
+        statement="s",
+        status=status,
+        load_bearing=load_bearing,
+        salvaged_claim=salvage,
+    )
+
+
+def test_drop_requires_every_load_bearing_claim_broken():
+    claims = [
+        _rds_claim("c1", ClaimStatus.BROKEN, True),
+        _rds_claim("c2", ClaimStatus.WEAKENED, True, salvage="Hand the CAPTCHA to the human."),
+    ]
+    assert resolve_decision_state(claims) == "proceed_with_changes"
+
+
+def test_all_load_bearing_broken_still_drops():
+    claims = [
+        _rds_claim("c1", ClaimStatus.BROKEN, True),
+        _rds_claim("c2", ClaimStatus.BROKEN, True),
+        _rds_claim("c3", ClaimStatus.WEAKENED, False),
+    ]
+    assert resolve_decision_state(claims) == "drop"
+
+
+def test_weakened_without_salvage_does_not_force_pivot():
+    claims = [
+        _rds_claim("c1", ClaimStatus.BROKEN, True),
+        _rds_claim("c2", ClaimStatus.WEAKENED, True),
+    ]
+    assert resolve_decision_state(claims) in ("drop", "hold")
+
+
+def test_all_survived_proceeds():
+    claims = [
+        _rds_claim("c1", ClaimStatus.SURVIVED, True),
+        _rds_claim("c2", ClaimStatus.SURVIVED, True),
+    ]
+    assert resolve_decision_state(claims) == "proceed"
+
+
+def test_unresolved_load_bearing_holds():
+    claims = [
+        _rds_claim("c1", ClaimStatus.UNRESOLVED, True),
+        _rds_claim("c2", ClaimStatus.SURVIVED, True),
+    ]
+    assert resolve_decision_state(claims) == "hold"
+
+
+def test_no_claims_holds():
+    assert resolve_decision_state([]) == "hold"
+
+
+def test_derived_state_pivots_instead_of_dropping_when_a_salvage_stands():
+    """The regression this fixes: 'drop it completely' over two salvageable claims."""
+    from core.synthesis import _derive_decision_state
+
+    case = Case(
+        id="c",
+        raw_input="x",
+        claims=[
+            Claim(
+                id="c1",
+                statement="Solves the CAPTCHA automatically",
+                status=ClaimStatus.BROKEN,
+                load_bearing=True,
+                salvaged_claim="Hand the CAPTCHA to the human.",
+                salvage_scope="redesign",
+            ),
+            Claim(
+                id="c2",
+                statement="Fires at the exact second",
+                status=ClaimStatus.WEAKENED,
+                load_bearing=True,
+                salvaged_claim="Prepare the booking, let the human submit.",
+            ),
+        ],
+    )
+    assert _derive_decision_state(case)[0] == "proceed_with_changes"

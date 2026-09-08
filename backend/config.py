@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     search_concurrency: int = Field(default=4, alias="SEARCH_CONCURRENCY")
     search_cache_ttl_seconds: float = Field(default=300.0, alias="SEARCH_CACHE_TTL_SECONDS")
 
+    # Citation integrity. A well-formed EvidenceItem is not a real one: the page it
+    # cites has to actually contain the words the snippet quotes. HTTP only, no LLM.
+    verify_citations: bool = Field(default=True, alias="VERIFY_CITATIONS")
+    verify_snippet_threshold: float = Field(default=0.7, alias="VERIFY_SNIPPET_THRESHOLD")
+    verify_fetch_timeout_seconds: float = Field(default=5.0, alias="VERIFY_FETCH_TIMEOUT_SECONDS")
+    verify_concurrency: int = Field(default=8, alias="VERIFY_CONCURRENCY")
+
     model_config = ConfigDict(populate_by_name=True)
 
     @field_validator("cors_allowed_origins", mode="after")

@@ -850,3 +850,190 @@ async def test_run_evaluators_isolates_case(monkeypatch, sample_case, sample_fin
 
 
 
+
+
+# --- Citation verification is wired into the pipeline (2026-09-08) ---
+
+
+@pytest.mark.asyncio
+async def test_pipeline_verifies_evidence_before_the_findings_land(sample_case, monkeypatch):
+    """Fabricated citations must not reach the panel, the memo, or the SSE stream."""
+    import store
+    from core.loop import run_pipeline
+    from core.models import EvidenceItem, Finding
+
+    seen: dict[str, list] = {}
+
+    async def fake_dispatch(item, case, provider):
+        return Finding(
+            claim_id=item.target_claim,
+            test_id=item.id,
+            evaluator="researcher",
+            result="Refuted",
+            evidence=[
+                EvidenceItem(
+                    source_url="https://news.csraid.com/en/hub/invented",
+                    snippet="30 million user IDs were blocked",
+                    retrieved_at="2026-09-08",
+                ),
+                EvidenceItem(
+                    source_url="https://www.ecfr.gov/rule",
+                    snippet="The federal cap is 11 hours.",
+                    retrieved_at="2026-09-08",
+                ),
+            ],
+            reasoning="r",
+            confidence=0.8,
+            contradiction="The cap is 11 hours.",
+        )
+
+    async def fake_verify(items):
+        seen.setdefault("input", []).extend(items)
+        kept = [i for i in items if "csraid" not in i.source_url]
+        for item in kept:
+            item.verified = True
+            item.verification = "snippet_matched"
+        return kept
+
+    monkeypatch.setattr("core.loop.dispatch", fake_dispatch)
+    monkeypatch.setattr("core.loop.verify_evidence", fake_verify)
+
+    store.set(sample_case)
+    await run_pipeline(sample_case.id, provider=SchemaProvider())
+
+    assert seen.get("input"), "verify_evidence was never called"
+    case = store.get(sample_case.id)
+    urls = [e.source_url for f in case.findings for e in f.evidence]
+    assert urls, "the surviving evidence was dropped entirely"
+    assert not any("csraid" in u for u in urls)
+    assert all(
+        e.verification == "snippet_matched" for f in case.findings for e in f.evidence
+    )
+
+
+# --- Extraction carries resolved terms and mechanism labels (2026-09-08) ---
+
+
+class _ExtractionProvider:
+    def __init__(self, payload):
+        self._payload = payload
+
+    async def generate(self, system_prompt, messages, response_schema=None):
+        return self._payload
+
+
+@pytest.mark.asyncio
+async def test_extraction_carries_resolved_terms_through_to_claims():
+    from core.agent_panel import ExtractedClaims, ResolvedTermOutput
+    from core.loop import extract_claims
+
+    payload = ExtractedClaims(
+        testable=True,
+        statements=["The bot books tickets when holiday quotas open"],
+        terms=[
+            ResolvedTermOutput(
+                term="holiday quotas",
+                resolved="Tatkal quota",
+                search_phrasing="IRCTC Tatkal quota opening time",
+            )
+        ],
+    )
+    case = await extract_claims("x", _ExtractionProvider(payload))
+    assert case.claims[0].terms[0].resolved == "Tatkal quota"
+
+
+@pytest.mark.asyncio
+async def test_sibling_mechanisms_share_a_mechanism_of_label():
+    from core.agent_panel import ExtractedClaims
+    from core.loop import extract_claims
+
+    payload = ExtractedClaims(
+        testable=True,
+        statements=["Fires at the exact second", "Solves the CAPTCHA", "Guarantees a seat"],
+        mechanisms=["irctc-booking-bot", "irctc-booking-bot", "irctc-booking-bot"],
+    )
+    case = await extract_claims("x", _ExtractionProvider(payload))
+    assert {c.mechanism_of for c in case.claims} == {"irctc-booking-bot"}
+
+
+@pytest.mark.asyncio
+async def test_a_claim_does_not_carry_a_sibling_claims_term():
+    from core.agent_panel import ExtractedClaims, ResolvedTermOutput
+    from core.loop import extract_claims
+
+    payload = ExtractedClaims(
+        testable=True,
+        statements=["The bot books when holiday quotas open", "The bot solves the CAPTCHA"],
+        terms=[
+            ResolvedTermOutput(
+                term="holiday quotas", resolved="Tatkal quota", search_phrasing="Tatkal timing"
+            )
+        ],
+    )
+    case = await extract_claims("x", _ExtractionProvider(payload))
+    assert len(case.claims[0].terms) == 1
+    assert case.claims[1].terms == []
+
+
+# --- Extraction carries resolved terms and mechanism labels (2026-09-08) ---
+
+
+class _ExtractionProvider:
+    def __init__(self, payload):
+        self._payload = payload
+
+    async def generate(self, system_prompt, messages, response_schema=None):
+        return self._payload
+
+
+@pytest.mark.asyncio
+async def test_extraction_carries_resolved_terms_through_to_claims():
+    from core.agent_panel import ExtractedClaims, ResolvedTermOutput
+    from core.loop import extract_claims
+
+    payload = ExtractedClaims(
+        testable=True,
+        statements=["The bot books tickets when holiday quotas open"],
+        terms=[
+            ResolvedTermOutput(
+                term="holiday quotas",
+                resolved="Tatkal quota",
+                search_phrasing="IRCTC Tatkal quota opening time",
+            )
+        ],
+    )
+    case = await extract_claims("x", _ExtractionProvider(payload))
+    assert case.claims[0].terms[0].resolved == "Tatkal quota"
+
+
+@pytest.mark.asyncio
+async def test_sibling_mechanisms_share_a_mechanism_of_label():
+    from core.agent_panel import ExtractedClaims
+    from core.loop import extract_claims
+
+    payload = ExtractedClaims(
+        testable=True,
+        statements=["Fires at the exact second", "Solves the CAPTCHA", "Guarantees a seat"],
+        mechanisms=["irctc-booking-bot", "irctc-booking-bot", "irctc-booking-bot"],
+    )
+    case = await extract_claims("x", _ExtractionProvider(payload))
+    assert {c.mechanism_of for c in case.claims} == {"irctc-booking-bot"}
+
+
+@pytest.mark.asyncio
+async def test_a_claim_does_not_carry_a_sibling_claims_term():
+    from core.agent_panel import ExtractedClaims, ResolvedTermOutput
+    from core.loop import extract_claims
+
+    payload = ExtractedClaims(
+        testable=True,
+        statements=["The bot books when holiday quotas open", "The bot solves the CAPTCHA"],
+        terms=[
+            ResolvedTermOutput(
+                term="holiday quotas", resolved="Tatkal quota", search_phrasing="Tatkal timing"
+            )
+        ],
+    )
+    case = await extract_claims("x", _ExtractionProvider(payload))
+    assert len(case.claims[0].terms) == 1
+    assert case.claims[1].terms == []

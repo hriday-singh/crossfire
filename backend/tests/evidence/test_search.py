@@ -436,3 +436,68 @@ async def test_search_evidence_defaults_to_ddg_when_key_empty(monkeypatch, sampl
     assert ddg_called is True
     assert len(items) == 3
     assert all(i.provider == "duckduckgo" for i in items)
+
+
+# --- Source-shape rule (2026-09-08): an unknown-root subdomain is not a publisher ---
+
+from evidence.search import SOURCE_CLASS_RANK, classify_source, rank_by_source_class  # noqa: E402
+
+
+def test_unknown_root_subdomain_is_unranked():
+    assert classify_source("https://news.csraid.com/en/hub/irctc-blocks-30-million") == "unranked"
+
+
+def test_bare_unknown_host_is_still_web():
+    assert classify_source("https://csraid.com/") == "web"
+
+
+def test_www_prefix_is_not_treated_as_a_subdomain():
+    assert classify_source("https://www.millenniumpost.in/nation/bots-article") == "web"
+
+
+def test_recognized_primary_subdomain_still_wins():
+    assert classify_source("https://docs.stripe.com/api") == "primary"
+
+
+def test_gov_subdomain_still_primary():
+    assert classify_source("https://www.newsonair.gov.in/aadhaar-tatkal") == "primary"
+
+
+def test_unranked_sorts_last():
+    items = [
+        EvidenceItem(source_url="https://news.csraid.com/x", snippet="s", retrieved_at="t"),
+        EvidenceItem(source_url="https://indianexpress.com/article/x", snippet="s", retrieved_at="t"),
+    ]
+    ranked = rank_by_source_class(items)
+    assert ranked[0].source_url.startswith("https://indianexpress.com")
+    assert ranked[-1].source_class == "unranked"
+    assert SOURCE_CLASS_RANK["unranked"] > SOURCE_CLASS_RANK["blog"]
+
+
+# --- Resolved domain terms lead the query (2026-09-08) ---
+
+from core.models import ResolvedTerm  # noqa: E402
+from evidence.search import build_query  # noqa: E402
+
+
+def test_build_query_prefers_resolved_search_phrasing():
+    terms = [
+        ResolvedTerm(
+            term="holiday quotas",
+            resolved="Tatkal quota; 10:00 IST AC, 11:00 IST non-AC, T-1 day",
+            search_phrasing="IRCTC Tatkal quota opening time rules",
+        )
+    ]
+    query = build_query("The bot books tickets when holiday quotas open", terms=terms)
+    assert "Tatkal" in query
+
+
+def test_build_query_without_terms_is_unchanged():
+    statement = "The bot books tickets when holiday quotas open"
+    assert build_query(statement) == build_query(statement, terms=None)
+
+
+def test_build_query_ignores_terms_that_do_not_appear_in_the_statement():
+    terms = [ResolvedTerm(term="waitlist clearing", resolved="RAC", search_phrasing="RAC confirmation odds")]
+    query = build_query("The bot solves the CAPTCHA automatically", terms=terms)
+    assert "RAC" not in query

@@ -35,6 +35,8 @@ def _finding(evaluator: str, *, evidence=False, contradiction=None, confidence=0
                     snippet="Reported revenue was $1.2M, contradicting the $10M ARR claim.",
                     retrieved_at="2026-09-06T00:00:00Z",
                     stance="contradicts",
+                    verified=True,
+                    verification="snippet_matched",
                 )
             ]
             if evidence

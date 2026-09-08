@@ -38,9 +38,9 @@ describe("LiveActivityFeed", () => {
     render(<LiveActivityFeed activities={[]} isStreaming={true} />);
 
     expect(screen.getByText("Live Investigation Feed")).toBeInTheDocument();
-    expect(screen.getByText(/0 operations/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[0 ops\]/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Initializing adversarial test runners and web search pipelines.../i)
+      screen.getByText(/Initializing\.\.\./i)
     ).toBeInTheDocument();
   });
 
@@ -48,8 +48,8 @@ describe("LiveActivityFeed", () => {
     render(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
 
     expect(screen.getByText("Live Investigation Feed")).toBeInTheDocument();
-    expect(screen.getByText(/3 operations/i)).toBeInTheDocument();
-    expect(screen.getByText("Active Scrutiny in Progress...")).toBeInTheDocument();
+    expect(screen.getByText(/\[3 ops\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/Scrutiny in Progress\.\.\./i)).toBeInTheDocument();
 
     expect(screen.getByText(/evidence test/i)).toBeInTheDocument();
     expect(
@@ -67,15 +67,15 @@ describe("LiveActivityFeed", () => {
     ).toBeInTheDocument();
   });
 
-  it("toggles collapse and expand when toggle button clicked", () => {
+  it("toggles collapse and expand when toggle header clicked", () => {
     render(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
 
     expect(
       screen.getByText(/uscis bot submission terms/)
     ).toBeInTheDocument();
 
-    const collapseButton = screen.getByRole("button", { name: /collapse activity feed/i });
-    fireEvent.click(collapseButton);
+    const hideToggle = screen.getByText(/hide/i);
+    fireEvent.click(hideToggle);
 
     // Collapsed: items not in document
     expect(
@@ -83,8 +83,8 @@ describe("LiveActivityFeed", () => {
     ).not.toBeInTheDocument();
 
     // Expand again
-    const expandButton = screen.getByRole("button", { name: /expand activity feed/i });
-    fireEvent.click(expandButton);
+    const showToggle = screen.getByText(/show/i);
+    fireEvent.click(showToggle);
 
     expect(
       screen.getByText(/uscis bot submission terms/)

@@ -158,7 +158,7 @@ describe("Debug Views Preview & View Catalog", () => {
     // 5. Decision Memo view
     fireEvent.click(screen.getByTestId("preview-btn-dashboard"));
     expect(screen.getByText("Don't proceed as written.")).toBeInTheDocument();
-    expect(screen.getByText(/Result|Testing your decision/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Result|Testing your decision/i).length).toBeGreaterThan(0);
 
     // 6. Evidence Drawer view
     fireEvent.click(screen.getByTestId("preview-btn-evidence"));

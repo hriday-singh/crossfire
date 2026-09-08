@@ -21,7 +21,14 @@ SPECIFICITY_RULE = (
     "say plainly that you have none.\n"
     "- Forbidden: 'consider', 'it is important to note', 'stakeholders', "
     "'leverage', 'robust', 'holistic', and any advice that would read the same "
-    "for an unrelated decision."
+    "for an unrelated decision.\n"
+    "\n"
+    "GROUNDING RULE — every named specific must be checkable.\n"
+    "If you name a vendor, a product, a statute, a named system, or a quantity, it "
+    "must either appear in the evidence you were given, or you must write it followed "
+    "by [unverified]. 'Akamai blocks this' with no source in hand is not an argument, "
+    "it is a decoration. Reasoning without specifics is fine and is what you are for; "
+    "inventing a specific to make reasoning sound like research is not."
 )
 
 # Every evaluator's `confidence` field means ONE thing: how hard this finding

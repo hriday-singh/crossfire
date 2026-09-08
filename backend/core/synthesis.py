@@ -5,11 +5,13 @@ Extracted from core.loop to maintain modularity and single responsibility.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 from pydantic import BaseModel, Field
 
 from core.models import (
+    BuildSpec,
     Case,
     CaseVerdict,
     Claim,
@@ -20,7 +22,8 @@ from core.models import (
     NextAction,
     WeakenedKind,
 )
-from core.reconcile import rank_findings
+from core.grounding import has_unsourced_specifics
+from core.reconcile import rank_findings, resolve_decision_state
 from core.textutil import clamp_sentences
 from providers.base import LLMProvider
 
@@ -204,6 +207,21 @@ class NextActionOutput(BaseModel):
     )
 
 
+class BuildSpecOutput(BaseModel):
+    what_it_does: str = Field(
+        description="The salvaged product, concretely enough that someone could start."
+    )
+    what_it_omits: str = Field(
+        description="Name the removed mechanism and say why it was removed."
+    )
+    demo_path: str = Field(
+        description="How to show this working WITHOUT the removed mechanism."
+    )
+    cheapest_experiment: str = Field(
+        description="The smallest real-world test that settles whether the surviving mechanism is worth anything."
+    )
+
+
 class CaseVerdictOutput(BaseModel):
     decision_state: str = Field(
         description="One of: proceed, proceed_with_changes, hold, drop"
@@ -224,6 +242,21 @@ class CaseVerdictOutput(BaseModel):
     next_actions: list[NextActionOutput] = Field(
         default_factory=list,
         description="2 to 3 merged actions covering everything that failed. No near-duplicates.",
+    )
+    surviving_core: str = Field(
+        default="",
+        description=(
+            "One sentence naming the part of the idea still standing after the panel "
+            "finished. The specific mechanism that survived, not a summary of the "
+            "proposal. Empty ONLY when the decision is drop and nothing survived."
+        ),
+    )
+    build_spec: BuildSpecOutput | None = Field(
+        default=None,
+        description=(
+            "The version worth building, assembled only from the surviving mechanisms "
+            "and isolated fatal flaws supplied. Null when nothing survived."
+        ),
     )
 
 
@@ -319,7 +352,12 @@ def build_deciding_factor(case: Case) -> DecidingFactor | None:
     claim_findings = [f for f in case.findings if f.claim_id == target.id]
     if not claim_findings:
         return None
-    top = rank_findings(claim_findings)[0]
+    ranked = rank_findings(claim_findings)
+    # A finding that invented its specifics must not be the line the reader takes
+    # away. When nothing grounded exists, the weak factor still ships: a verdict
+    # with a thin deciding factor is more honest than one with none.
+    grounded = [f for f in ranked if not has_unsourced_specifics(f)]
+    top = (grounded or ranked)[0]
 
     evidence = top.evidence[0] if top.evidence else None
     consequence = next((c for c in case.consequences if c.claim_id == target.id), None)
@@ -376,6 +414,11 @@ def _derive_decision_state(case: Case) -> tuple[str, str]:
     if broken:
         # Mixed scopes take the harsher outcome.
         if all(_salvage_survives_the_decision(c) for c in broken):
+            return "proceed_with_changes", "broken"
+        # `drop` still requires that nothing load-bearing came through. A run that
+        # broke one mechanism while another was merely weakened-with-a-salvage was
+        # reading out "abandon it" over a survivable idea (2026-09-08 memo review).
+        if resolve_decision_state(case.claims) != "drop":
             return "proceed_with_changes", "broken"
         return "drop", "broken"
 
@@ -438,6 +481,55 @@ def clamp_decision_state(
     return _PERMISSIVENESS_TO_STATE[min(proposed, floor + headroom)]
 
 
+def build_spec_material(case: Case) -> dict:
+    """The only material the build-spec prompt is allowed to work from.
+
+    Handing the model an open "what would you build instead" is how a memo ends up
+    naming a CDN vendor nobody sourced. It assembles from what the panel actually
+    established: what survived, what died, and why.
+    """
+    surviving = [
+        {"claim_id": c.id, "statement": c.statement, "mechanism_of": c.mechanism_of}
+        for c in case.claims
+        if c.status is ClaimStatus.SURVIVED
+        or (c.status is ClaimStatus.WEAKENED and (c.salvaged_claim or "").strip())
+    ]
+    omitted = [
+        {"claim_id": c.id, "statement": c.statement, "why": c.fatal_flaw or ""}
+        for c in case.claims
+        if c.status is ClaimStatus.BROKEN
+    ]
+    fatal_flaws = [c.fatal_flaw for c in case.claims if (c.fatal_flaw or "").strip()]
+    salvages = [c.salvaged_claim for c in case.claims if (c.salvaged_claim or "").strip()]
+    return {
+        "surviving": surviving,
+        "omitted": omitted,
+        "fatal_flaws": fatal_flaws,
+        "salvages": salvages,
+    }
+
+
+def _fallback_surviving_core(case: Case) -> str:
+    """Never ship an empty lead on a decision that is still alive.
+
+    The claims that are still standing are already ranked by confidence; the most
+    confident one names the mechanism that survived better than a generated
+    consolation sentence would."""
+    standing = [
+        c
+        for c in case.claims
+        if c.status is ClaimStatus.SURVIVED
+        or (c.status is ClaimStatus.WEAKENED and (c.salvaged_claim or "").strip())
+    ]
+    if not standing:
+        return ""
+    standing.sort(key=lambda c: c.confidence if c.confidence is not None else -1.0, reverse=True)
+    best = standing[0]
+    if best.status is ClaimStatus.WEAKENED and (best.salvaged_claim or "").strip():
+        return best.salvaged_claim.strip()
+    return best.statement.strip()
+
+
 CASE_VERDICT_SYSTEM_PROMPT = (
     "You close out an adversarial review of one decision. Every claim it rests on has "
     "already been judged individually. Produce the case-level answer, not a restatement "
@@ -475,7 +567,22 @@ CASE_VERDICT_SYSTEM_PROMPT = (
     "failed for the same underlying reason, that is ONE action. Each must be concrete "
     "enough to start this week. No near-duplicates. Set 'claim_ids' to the ids of the "
     "claims that action answers, copied verbatim from the claim list; leave it empty if "
-    "the action answers none of them specifically."
+    "the action answers none of them specifically.\n"
+    "- 'surviving_core': one sentence naming the part of the idea that is still "
+    "standing after the panel finished. Not a consolation prize and not a summary of "
+    "the whole proposal — the specific mechanism that survived. Leave it empty ONLY "
+    "when the decision is drop and genuinely nothing survived.\n"
+    "- 'build_spec' — assemble, do not invent.\n"
+    "  You are given what survived, what died, and why. Produce the version worth "
+    "building from exactly that material:\n"
+    "  - what_it_does: the salvaged product, concretely enough that someone could start.\n"
+    "  - what_it_omits: name the removed mechanism and say why it was removed.\n"
+    "  - demo_path: how to show this working WITHOUT the removed mechanism.\n"
+    "  - cheapest_experiment: the smallest real-world test that would settle whether "
+    "the surviving mechanism is worth anything.\n"
+    "  Do not introduce a vendor, a statute, a number, or a competitor that is not in "
+    "the material you were given. If nothing survived, return null rather than "
+    "inventing a consolation product."
 )
 
 
@@ -526,6 +633,8 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
         for cons in case.consequences
     )
 
+    material = build_spec_material(case)
+
     try:
         result = await provider.generate(
             system_prompt=CASE_VERDICT_SYSTEM_PROMPT,
@@ -536,6 +645,8 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
                         f"Decision: {case.raw_input}\n\n"
                         f"Claim verdicts:\n{claim_lines}\n\n"
                         f"Per-claim changes already proposed:\n{consequence_lines or 'none'}\n\n"
+                        f"Build-spec material (the ONLY material the build spec may use):\n"
+                        f"{json.dumps(material, ensure_ascii=False)}\n\n"
                         f"State derived from the claim verdicts (do not go below it): {derived_state}"
                     ),
                 }
@@ -566,12 +677,29 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
             ]
             verdict.next_actions.append(NextAction(action=action, claim_ids=anchors))
         verdict.next_actions = verdict.next_actions[:3]
+        verdict.surviving_core = clamp_sentences(
+            (getattr(result, "surviving_core", "") or "").strip(), 1
+        )
+        raw_spec = getattr(result, "build_spec", None)
+        # A build spec with nothing behind it is the consolation product the prompt
+        # is told not to invent; the material, not the model, decides it exists.
+        if raw_spec is not None and material["surviving"]:
+            verdict.build_spec = BuildSpec(
+                what_it_does=clamp_sentences(raw_spec.what_it_does, 2),
+                what_it_omits=clamp_sentences(raw_spec.what_it_omits, 2),
+                demo_path=clamp_sentences(raw_spec.demo_path, 2),
+                cheapest_experiment=clamp_sentences(raw_spec.cheapest_experiment, 2),
+            )
     except Exception as exc:
         logger.warning("Case verdict synthesis failed (%s); using derived state.", exc)
 
     if not verdict.headline:
         verdict.headline = FALLBACK_HEADLINES.get(verdict.decision_state, "")
     verdict.deciding_factor = build_deciding_factor(case)
+    # An empty lead on a decision that is still alive reads as "nothing survived",
+    # which is the opposite of what the claim verdicts say.
+    if not verdict.surviving_core and verdict.decision_state != "drop":
+        verdict.surviving_core = _fallback_surviving_core(case)
     if not verdict.summary:
         total = len(case.claims)
         key_flaws = []

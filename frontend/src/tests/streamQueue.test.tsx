@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { render, renderHook, act } from '@testing-library/react';
 import { CaseProvider, useCase } from '../context/CaseContext';
 import { useBackendLiveBridge, eventClaimId } from '../hooks/useBackendLiveBridge';
 import { Case } from '../types/crossfire';
@@ -176,5 +176,96 @@ describe('bullpen stage queue', () => {
     });
 
     expect(packetsFor(onDispatchPacket, (p) => p.speaker_id === 'operator' && p.action === 'type')).toHaveLength(1);
+  });
+  it('exits promptly when the backend sends both run_complete and done', () => {
+    const onDispatchPacket = vi.fn();
+    renderHook(() => useBackendLiveBridge({ onDispatchPacket, playbackSpeed: 1 }), { wrapper });
+
+    act(() => {
+      sendEvent('run_complete', { case_id: 'case-queue-1' });
+      sendEvent('done', { case_id: 'case-queue-1' });
+      // Well under the 6s stall watchdog: two terminal frames must not deadlock each other.
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(
+      packetsFor(onDispatchPacket, (p) => p.speaker_id === 'steelman' && p.target === 'right_door').length
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it('disarms the stall watchdog once frames start moving again', () => {
+    const onDispatchPacket = vi.fn();
+    renderHook(() => useBackendLiveBridge({ onDispatchPacket, playbackSpeed: 1 }), { wrapper });
+
+    act(() => {
+      // Arms the watchdog: a c2 frame with no claim on stage yet.
+      sendEvent('test_started', {
+        test_id: 't2',
+        target_claim_id: 'c2',
+        evaluator: 'Operator',
+        claim_statement: 'Ships in one sprint',
+      });
+      vi.advanceTimersByTime(100);
+      // c2 opens for real, so the queue drains normally and the watchdog must stand down.
+      sendEvent('claim_started', { claim_id: 'c2', claim_index: 0, total_claims: 2, agents: ['operator'] });
+      vi.advanceTimersByTime(2000);
+    });
+
+    act(() => {
+      // A c1 frame arriving while c2 still holds the stage must stay gated,
+      // which a leftover watchdog would have wrongly released.
+      sendEvent('test_started', {
+        test_id: 't1',
+        target_claim_id: 'c1',
+        evaluator: 'Builder',
+        claim_statement: 'Handles 100% of tier 1',
+      });
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(packetsFor(onDispatchPacket, (p) => p.speaker_id === 'builder')).toHaveLength(0);
+  });
+  it('keeps playing after a StrictMode remount clears timers mid-beat', () => {
+    // The runner view mounts with a backlog already in the event log, so the first beat is
+    // in flight when StrictMode tears the effects down. Clearing that timer must release the
+    // busy latch, or every later frame queues forever and the run animates nothing.
+    const onDispatchPacket = vi.fn();
+    const Bridge: React.FC = () => {
+      useBackendLiveBridge({ onDispatchPacket, playbackSpeed: 1 });
+      return null;
+    };
+    const Tree: React.FC<{ bridgeMounted: boolean }> = ({ bridgeMounted }) => (
+      <React.StrictMode>
+        <CaseProvider>
+          <StreamHarness />
+          {bridgeMounted ? <Bridge /> : null}
+        </CaseProvider>
+      </React.StrictMode>
+    );
+
+    const { rerender } = render(<Tree bridgeMounted={false} />);
+    act(() => {
+      sendEvent('claim_started', {
+        claim_id: 'c1',
+        claim_index: 0,
+        total_claims: 2,
+        claim_statement: 'Handles 100% of tier 1',
+        agents: ['builder'],
+      });
+    });
+
+    rerender(<Tree bridgeMounted />);
+
+    act(() => {
+      sendEvent('test_started', {
+        test_id: 't1',
+        target_claim_id: 'c1',
+        evaluator: 'Builder',
+        claim_statement: 'Handles 100% of tier 1',
+      });
+      vi.advanceTimersByTime(4000);
+    });
+
+    expect(packetsFor(onDispatchPacket, (p) => p.speaker_id === 'builder' && p.action === 'type')).toHaveLength(1);
   });
 });

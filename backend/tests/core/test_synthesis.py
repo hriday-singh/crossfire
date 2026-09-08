@@ -295,3 +295,146 @@ def test_derive_decision_state_contested():
         ]
     )
     assert _derive_decision_state(case) == ("proceed_with_changes", "weakened")
+
+
+# --- Build spec and surviving core (2026-09-08) ---
+
+from core.synthesis import BuildSpecOutput, build_spec_material  # noqa: E402
+
+
+def test_material_carries_surviving_mechanisms_and_fatal_flaws():
+    case = Case(
+        id="case1",
+        raw_input="A bot that races the quota opening, solves the CAPTCHA, and guarantees a seat",
+        claims=[
+            Claim(
+                id="c1",
+                statement="Fires at the exact second the quota opens",
+                status=ClaimStatus.SURVIVED,
+                load_bearing=True,
+                mechanism_of="booking-bot",
+            ),
+            Claim(
+                id="c2",
+                statement="Solves the CAPTCHA automatically",
+                status=ClaimStatus.BROKEN,
+                load_bearing=True,
+                mechanism_of="booking-bot",
+                fatal_flaw="Defeats an anti-bot control the operator explicitly prohibits.",
+            ),
+        ],
+    )
+    material = build_spec_material(case)
+    assert "Fires at the exact second" in str(material["surviving"])
+    assert "Defeats an anti-bot control" in str(material["fatal_flaws"])
+    assert "Solves the CAPTCHA" in str(material["omitted"])
+
+
+def test_material_is_empty_when_nothing_survived():
+    case = Case(
+        id="case2",
+        raw_input="x",
+        claims=[Claim(id="c1", statement="s", status=ClaimStatus.BROKEN, load_bearing=True)],
+    )
+    assert build_spec_material(case)["surviving"] == []
+
+
+def test_material_excludes_unresolved_claims_from_surviving():
+    case = Case(
+        id="case3",
+        raw_input="x",
+        claims=[Claim(id="c1", statement="unknown", status=ClaimStatus.UNRESOLVED, load_bearing=True)],
+    )
+    assert build_spec_material(case)["surviving"] == []
+
+
+class _SpecProvider:
+    """Returns a build spec and an empty surviving core, to exercise both guards."""
+
+    def __init__(self, build_spec=None, surviving_core=""):
+        self._build_spec = build_spec
+        self._surviving_core = surviving_core
+
+    async def generate(self, system_prompt, messages, response_schema=None):
+        if getattr(response_schema, "__name__", "") == "CaseVerdictOutput":
+            return CaseVerdictOutput(
+                decision_state="proceed_with_changes",
+                summary="s",
+                next_actions=[],
+                surviving_core=self._surviving_core,
+                build_spec=self._build_spec,
+            )
+        return StrategicConsequenceOutput(
+            impact="medium", recommended_change="x", next_validation="y"
+        )
+
+
+_SPEC = BuildSpecOutput(
+    what_it_does="Prepares the booking up to the CAPTCHA.",
+    what_it_omits="Automated CAPTCHA solving, because it defeats an anti-bot control.",
+    demo_path="Run against a mock booking environment with a countdown.",
+    cheapest_experiment="Time a prepared human against the agent on a non-peak window.",
+)
+
+
+@pytest.mark.asyncio
+async def test_surviving_core_falls_back_when_the_model_returns_it_empty():
+    case = Case(
+        id="c",
+        raw_input="x",
+        claims=[
+            Claim(
+                id="c1",
+                statement="Fires at the exact second the quota opens",
+                status=ClaimStatus.SURVIVED,
+                load_bearing=True,
+                confidence=0.95,
+            ),
+            Claim(
+                id="c2",
+                statement="Solves the CAPTCHA automatically",
+                status=ClaimStatus.WEAKENED,
+                load_bearing=True,
+                confidence=0.5,
+                salvaged_claim="Hand the CAPTCHA to the human.",
+            ),
+        ],
+    )
+    verdict = await synthesize_case_verdict(case, _SpecProvider(build_spec=_SPEC))
+    assert verdict.decision_state != "drop"
+    assert verdict.surviving_core == "Fires at the exact second the quota opens"
+
+
+@pytest.mark.asyncio
+async def test_build_spec_lands_when_something_survived():
+    case = Case(
+        id="c",
+        raw_input="x",
+        claims=[
+            Claim(id="c1", statement="Fires at the exact second", status=ClaimStatus.SURVIVED, load_bearing=True),
+            Claim(
+                id="c2",
+                statement="Solves the CAPTCHA automatically",
+                status=ClaimStatus.BROKEN,
+                load_bearing=False,
+                fatal_flaw="Defeats an anti-bot control.",
+            ),
+        ],
+    )
+    verdict = await synthesize_case_verdict(case, _SpecProvider(build_spec=_SPEC))
+    assert verdict.build_spec is not None
+    assert verdict.build_spec.what_it_omits.startswith("Automated CAPTCHA")
+
+
+@pytest.mark.asyncio
+async def test_build_spec_is_none_when_nothing_survived():
+    """The tool must be able to say 'nothing here' instead of manufacturing a pivot."""
+    case = Case(
+        id="c",
+        raw_input="x",
+        claims=[Claim(id="c1", statement="s", status=ClaimStatus.BROKEN, load_bearing=True)],
+    )
+    verdict = await synthesize_case_verdict(case, _SpecProvider(build_spec=_SPEC))
+    assert verdict.build_spec is None
+    # Nothing stood, so the fallback has nothing to name either.
+    assert verdict.surviving_core == ""

@@ -53,6 +53,12 @@ class AgentPick(BaseModel):
     )
 
 
+class ResolvedTermOutput(BaseModel):
+    term: str = Field(description="The domain phrase exactly as the user wrote it.")
+    resolved: str = Field(description="What it concretely denotes.")
+    search_phrasing: str = Field(description="How you would phrase it for a search engine.")
+
+
 class ExtractedClaims(BaseModel):
     """Narrow extraction schema — not the frozen Case shape. Asking the model
     to fill Case's full fields directly risks hallucinated/unrequested fields;
@@ -67,6 +73,18 @@ class ExtractedClaims(BaseModel):
         description="When testable is False: one sentence asking for the specific decision, naming what is missing.",
     )
     statements: list[str] = Field(default_factory=list)
+    mechanisms: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Parallel to 'statements', one entry per claim: a short shared label naming "
+            "the parent idea when several claims are mechanisms of the same thing. "
+            "Empty string for a claim that stands alone."
+        ),
+    )
+    terms: list[ResolvedTermOutput] = Field(
+        default_factory=list,
+        description="Domain jargon from the input, resolved. Omit any term you cannot resolve confidently.",
+    )
     agents: list[AgentPick] = Field(default_factory=list)
 
 
@@ -108,10 +126,34 @@ EXTRACTION_SYSTEM_PROMPT = (
     "aspiration, or a request for general life advice is NOT testable: set testable=false "
     "and put one sentence in 'redirect' asking for the specific decision, naming exactly "
     "what is missing. Do not invent claims in that case.\n\n"
+    "An incoherent premise is also NOT testable. If the input rests on a category "
+    "error, a mismatch between the thing and who it is for, or a contradiction "
+    "('give wheelchairs to cyclists'), do not repair it into the sensible proposal "
+    "you assume was meant, and do not solemnly extract claims from it. Set "
+    "testable=false and say in 'redirect' exactly which part does not hold together. "
+    "Reading the input charitably is your job; rewriting it into a different "
+    "proposal is not — a memo that tests a decision the user never made is worse "
+    "than one that asks.\n\n"
     "If it is testable, return 2 to 5 crisp, falsifiable claims. Each must be a single "
     "assertion that could independently turn out true or false. Include both what the "
     "user asserted outright AND the unstated assumptions the proposal silently depends "
     "on. Write each claim so it stands on its own without the original wording.\n\n"
+    "RESOLVE THE DOMAIN TERMS.\n"
+    "For each piece of domain jargon in the input, emit a term with: the phrase as the "
+    "user wrote it, what it concretely denotes, and how you would phrase it for a "
+    "search engine. 'Holiday quotas' is not searchable; 'IRCTC Tatkal quota opening "
+    "time' is. If you cannot resolve a term confidently, omit it — an unresolved term "
+    "is harmless, a wrongly resolved one sends every search to the wrong place. Keep the "
+    "term text identical to the wording used in the claim it belongs to, so it can be "
+    "matched back.\n\n"
+    "SPLIT BUNDLED MECHANISMS.\n"
+    "An idea often bundles several mechanisms that fail independently. 'Logs in at the "
+    "exact second, solves the CAPTCHA, and guarantees a confirmed ticket' is three: the "
+    "timing race, the CAPTCHA bypass, and the confirmation guarantee. Each can be true "
+    "or false without the others. Emit one claim per mechanism and give the siblings a "
+    "shared label in 'mechanisms' (same index as the claim in 'statements') naming the "
+    "parent idea. Do not split a single mechanism into restatements of itself — the "
+    "test is whether one could fail while another holds.\n\n"
     "Then pick which adversarial tests this specific decision needs. For each chosen agent, "
     "provide exactly ONE concise sentence (under 100 characters) clearly explaining why this "
     "test is needed for this decision. Keep it crisp, direct, and under three lines. No filler:\n"

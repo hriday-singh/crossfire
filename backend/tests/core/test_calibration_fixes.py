@@ -43,7 +43,14 @@ def _finding(claim_id: str, evaluator: str, confidence: float, *, evidence=(), c
 
 
 def _evidence(url="https://www.ecfr.gov/rule"):
-    return EvidenceItem(source_url=url, snippet="The federal cap is 11 hours.", retrieved_at="2026-09-07T00:00:00Z")
+    return EvidenceItem(
+        source_url=url,
+        snippet="The federal cap is 11 hours.",
+        retrieved_at="2026-09-07T00:00:00Z",
+        # A break requires a citation we could actually read back off the page.
+        verified=True,
+        verification="snippet_matched",
+    )
 
 
 # --- the upward gate: `survived` has to be reachable ----------------------

@@ -29,6 +29,7 @@ from core.models import (
     DecisionConsequence,
     Finding,
     NextAction,
+    ResolvedTerm,
     TestPlanItem,
     WeakenedKind,
 )
@@ -45,6 +46,8 @@ except ImportError:  # not landed yet — the pipeline runs without findings unt
     dispatch = None
 
 from core.cross_examination import run_cross_examination_probes
+from core.grounding import mark_unsourced
+from evidence.verify import verification_counts, verify_evidence
 
 
 # Re-exported: agent_panel and baseline were split out of this module, and
@@ -92,7 +95,32 @@ async def extract_claims(
     )
 
     statements = list(getattr(result, "statements", []) or [])[:5]
-    claims_list = [Claim(id=str(uuid4()), statement=s) for s in statements]
+    mechanisms = list(getattr(result, "mechanisms", []) or [])
+    resolved_terms = [
+        ResolvedTerm(
+            term=t.term.strip(),
+            resolved=t.resolved.strip(),
+            search_phrasing=t.search_phrasing.strip(),
+        )
+        for t in (getattr(result, "terms", []) or [])
+        if (t.term or "").strip() and (t.search_phrasing or "").strip()
+    ][:6]
+
+    def _terms_for(statement: str) -> list[ResolvedTerm]:
+        # A term the claim does not use cannot steer that claim's search, and
+        # showing it on the card would just be noise from a sibling claim.
+        lowered = (statement or "").lower()
+        return [t for t in resolved_terms if t.term.lower() in lowered]
+
+    claims_list = [
+        Claim(
+            id=str(uuid4()),
+            statement=s,
+            terms=_terms_for(s),
+            mechanism_of=(mechanisms[i].strip() or None) if i < len(mechanisms) else None,
+        )
+        for i, s in enumerate(statements)
+    ]
     final_mode = (agent_mode or "auto").lower().strip()
 
     if final_mode == "custom" and selected_agents:
@@ -258,6 +286,7 @@ from core.reconcile import (  # noqa: F401
     apply_steelman_gate,
     rank_findings,
     classify_weakened,
+    dedupe_across_claims,
 )
 
 from core.synthesis import (  # noqa: F401
@@ -387,6 +416,32 @@ async def run_evaluators(
                     "Evaluator %s failed for claim %s: %s", item.failure_mode, item.target_claim, exc
                 )
                 finding = _degraded_finding(item, exc)
+
+        # Fabricated citations must not reach the panel, the memo, or this SSE
+        # frame. Done outside the evaluator semaphore: this is HTTP, not an LLM
+        # call, and it must not hold an evaluator slot.
+        if finding.evidence:
+            before = len(finding.evidence)
+            finding.evidence = await verify_evidence(finding.evidence)
+            counts = verification_counts(finding.evidence)
+            counts["dropped"] = before - len(finding.evidence)
+            if counts["dropped"] or counts["matched"] or counts["unreachable"]:
+                await emit_activity(
+                    case.id,
+                    "Verification",
+                    f"Checked {before} citation(s): {counts['matched']} verified, "
+                    f"{counts['unreachable']} unreachable, {counts['dropped']} dropped.",
+                    claim_id=finding.claim_id,
+                    action="verification",
+                    evaluator=finding.evaluator,
+                    extra={"verification": counts},
+                )
+
+        # A specific nobody sourced is marked here, not argued about downstream:
+        # every consumer (the judge prompt, the deciding factor, the memo) reads
+        # the same annotated text.
+        mark_unsourced(finding)
+
         # Published as each agent returns, so the bullpen animates one report at a time
         # instead of every finding landing in a single burst at the end.
         await events.publish(
@@ -486,6 +541,10 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             with _stage(case.id, "cross_examination"):
                 probe_findings = await run_cross_examination_probes(case, case.findings, provider)
             if probe_findings:
+                for pf in probe_findings:
+                    if pf.evidence:
+                        pf.evidence = await verify_evidence(pf.evidence)
+                    mark_unsourced(pf)
                 case.findings.extend(probe_findings)
                 for pf in probe_findings:
                     await events.publish(
@@ -580,6 +639,12 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             await asyncio.gather(*(_reconcile_single(clm) for clm in case.claims))
         if case.claims and len(steelman_errors) == len(case.claims):
             raise steelman_errors[0]
+
+        # Every claim has been ruled on by now, so collapsing the objection that was
+        # restated under all of them costs no verdict and removes the padding that
+        # made the memo read as repetition (the same objection appeared verbatim
+        # under all three claims in the 2026-09-08 review).
+        case.findings = dedupe_across_claims(case.findings)
 
         # The drawer reads case.findings in order; lead with what moved the verdict.
         case.findings = [

@@ -183,3 +183,53 @@ def test_decision_consequence_steelman_salvage_fields():
     assert dc.fatal_flaw == "Unsubstantiated price elasticity"
     assert dc.salvaged_claim == "Users will pay $99/mo for starter tier"
     assert dc.tradeoff_acknowledged == "Lower initial ARPU requires higher customer volume"
+
+
+# --- Output-quality additions (2026-09-08): verification, terms, mechanisms, build spec ---
+
+from core.models import BuildSpec, CaseVerdict, ResolvedTerm  # noqa: E402
+
+
+def test_evidence_item_defaults_to_unchecked():
+    item = EvidenceItem(source_url="https://example.com", snippet="x", retrieved_at="2026-09-08")
+    assert item.verified is False
+    assert item.verification == "unchecked"
+
+
+def test_claim_accepts_terms_and_mechanism():
+    claim = Claim(
+        id="c1",
+        statement="bot books tickets",
+        terms=[ResolvedTerm(term="holiday quotas", resolved="Tatkal quota", search_phrasing="IRCTC Tatkal quota timing")],
+        mechanism_of="irctc-booking-bot",
+    )
+    assert claim.terms[0].search_phrasing == "IRCTC Tatkal quota timing"
+    assert claim.mechanism_of == "irctc-booking-bot"
+
+
+def test_claim_defaults_have_no_terms_or_mechanism():
+    claim = Claim(id="c1", statement="x")
+    assert claim.terms == []
+    assert claim.mechanism_of is None
+
+
+def test_case_verdict_carries_surviving_core_and_build_spec():
+    verdict = CaseVerdict(
+        decision_state="proceed_with_changes",
+        summary="s",
+        surviving_core="The prepare-and-race mechanism survives.",
+        build_spec=BuildSpec(
+            what_it_does="Prepares the booking up to the CAPTCHA.",
+            what_it_omits="Automated CAPTCHA solving, because it defeats an anti-bot control.",
+            demo_path="Run against a mock booking environment with a countdown.",
+            cheapest_experiment="Time a prepared human against the agent on a non-peak window.",
+        ),
+    )
+    assert verdict.surviving_core.startswith("The prepare-and-race")
+    assert verdict.build_spec.what_it_omits.startswith("Automated CAPTCHA")
+
+
+def test_case_verdict_defaults_are_empty():
+    verdict = CaseVerdict(decision_state="drop", summary="s")
+    assert verdict.surviving_core == ""
+    assert verdict.build_spec is None

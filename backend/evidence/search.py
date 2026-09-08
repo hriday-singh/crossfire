@@ -27,7 +27,7 @@ from tenacity import (
 from pydantic import BaseModel, Field
 
 from config import get_settings
-from core.models import Claim, EvidenceItem
+from core.models import Claim, EvidenceItem, ResolvedTerm
 
 logger = logging.getLogger(__name__)
 
@@ -119,11 +119,15 @@ SOURCE_CLASS_RANK: dict[str, int] = {
     "web": 2,            # ordinary sites, press, unknown
     "community": 3,      # forums, Q&A, user-generated
     "blog": 4,           # personal/marketing publishing platforms
+    "unranked": 5,       # a subdomain of a root domain we have no signal about
 }
 
 _COMMUNITY_HOSTS = ("reddit.", "quora.", "stackoverflow.", "stackexchange.", "answers.", "forum.", "forums.")
 _BLOG_HOSTS = ("medium.com", "substack.com", "blogspot.", "wordpress.", "wixsite.", "tumblr.", "blog.")
 _PRIMARY_SUBDOMAINS = ("docs.", "developer.", "developers.", "support.", "help.", "policy.", "policies.", "legal.")
+# Labels that are structural rather than editorial: they do not turn an unknown
+# root domain into a publisher.
+_NEUTRAL_SUBDOMAINS = ("www", "m", "amp", "en", "web")
 
 
 def classify_source(url: str) -> str:
@@ -142,6 +146,10 @@ def classify_source(url: str) -> str:
         return "community"
     if any(h in host for h in _BLOG_HOSTS):
         return "blog"
+    # An arbitrary label in front of an unknown root domain carries no authority
+    # of its own. `news.csraid.com` is not a newsroom because it says "news".
+    if len(labels) > 2 and labels[0] not in _NEUTRAL_SUBDOMAINS:
+        return "unranked"
     return "web"
 
 
@@ -170,15 +178,11 @@ _QUERY_STOPWORDS = {
 _MAX_QUERY_TERMS = 8
 
 
-def build_query(statement: str) -> str:
-    """Turns a full-sentence claim into a short keyword query.
-
-    Search engines answer keywords, not predictions — posting the sentence
-    verbatim is why so many claims came back inconclusive. Numbers, currency
-    and capitalised names are kept whole; everything else is filtered against a
-    domain-neutral stopword set. Falls back to the raw statement if filtering
-    leaves nothing.
-    """
+def _keywords(statement: str, budget: int) -> list[str]:
+    """The keyword filter itself: numbers and capitalised names kept whole,
+    everything else filtered against the domain-neutral stopword set."""
+    if budget <= 0:
+        return []
     tokens = re.findall(r"[\w$%.,/-]*\w[\w$%.,/-]*", statement or "")
     kept: list[str] = []
     for raw in tokens:
@@ -193,9 +197,33 @@ def build_query(statement: str) -> str:
                 continue
         if lowered not in {k.lower() for k in kept}:
             kept.append(token)
-        if len(kept) >= _MAX_QUERY_TERMS:
+        if len(kept) >= budget:
             break
-    return " ".join(kept) or (statement or "").strip()
+    return kept
+
+
+def build_query(statement: str, terms: list["ResolvedTerm"] | None = None) -> str:
+    """Turns a full-sentence claim into a short keyword query.
+
+    Search engines answer keywords, not predictions — posting the sentence
+    verbatim is why so many claims came back inconclusive.
+
+    When extraction resolved a domain term that appears in this statement, the
+    resolved phrasing leads. A search engine given the user's words returns
+    coverage about the user's words; given the operator's words it returns the
+    operator's rules. Falls back to the raw statement if filtering leaves nothing.
+    """
+    lowered = (statement or "").lower()
+    lead: list[str] = []
+    for term in terms or []:
+        if term.term and term.term.lower() in lowered and term.search_phrasing:
+            lead.append(term.search_phrasing)
+
+    if lead:
+        used = len(" ".join(lead).split())
+        remainder = _keywords(statement, budget=max(0, _MAX_QUERY_TERMS - used))
+        return " ".join([*lead, *remainder]).strip() or (statement or "").strip()
+    return " ".join(_keywords(statement, budget=_MAX_QUERY_TERMS)) or (statement or "").strip()
 
 
 def source_class_to_tier(source_class: str, url: str = "") -> int:
@@ -463,12 +491,17 @@ def parse_serpapi_response(data: dict[str, Any], max_results: int = 4) -> list[E
 
 
 async def _execute_serpapi_search(query: str, api_key: str, max_results: int = 4) -> list[EvidenceItem]:
-    """Executes a Google search via SerpApi using Scrapling's AsyncFetcher.
+    """Executes a Google search via SerpApi using a direct httpx call.
 
-    Detects HTTP 429 (out of searches / rate limit) and HTTP 401 (unauthorized) and raises
-    specific exceptions so caller can fall back gracefully.
+    SerpApi is a plain JSON API — it does not need Scrapling's browser/curl stack,
+    which adds an internal 3-attempt retry loop (3 × timeout seconds before the
+    caller even sees a failure). A bare httpx call applies search_timeout_seconds
+    once and fails fast, letting the caller fall back to DuckDuckGo immediately.
+
+    Detects HTTP 429 (rate limit) and HTTP 401 (unauthorized) and raises
+    specific exceptions so the caller can fall back gracefully.
     """
-    from scrapling import AsyncFetcher
+    import httpx
 
     params = {
         "engine": "google",
@@ -477,19 +510,25 @@ async def _execute_serpapi_search(query: str, api_key: str, max_results: int = 4
         "num": str(max_results),
     }
     url = f"https://serpapi.com/search.json?{urllib.parse.urlencode(params)}"
-
-    res = await AsyncFetcher.get(url, timeout=get_settings().search_timeout_seconds)
-    status = getattr(res, "status", getattr(res, "status_code", 200))
-
-    if status == 429:
-        raise SerpApiQuotaExceededError("SerpApi account has run out of searches or is rate limited (HTTP 429)")
-    if status == 401:
-        raise SerpApiError("SerpApi unauthorized: invalid or inactive API key (HTTP 401)")
-    if status >= 400:
-        raise SerpApiError(f"SerpApi request failed with HTTP {status}")
+    timeout = get_settings().search_timeout_seconds
 
     try:
-        data = res.json() if hasattr(res, "json") else json.loads(res.text or res.body.decode("utf-8"))
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            res = await client.get(url)
+    except httpx.TimeoutException as exc:
+        raise SerpApiError(f"SerpApi request timed out after {timeout}s") from exc
+    except httpx.RequestError as exc:
+        raise SerpApiError(f"SerpApi request failed: {exc}") from exc
+
+    if res.status_code == 429:
+        raise SerpApiQuotaExceededError("SerpApi account has run out of searches or is rate limited (HTTP 429)")
+    if res.status_code == 401:
+        raise SerpApiError("SerpApi unauthorized: invalid or inactive API key (HTTP 401)")
+    if res.status_code >= 400:
+        raise SerpApiError(f"SerpApi request failed with HTTP {res.status_code}")
+
+    try:
+        data = res.json()
     except Exception as exc:
         raise SerpApiError(f"Failed to parse SerpApi response as JSON: {exc}") from exc
 
@@ -662,7 +701,7 @@ async def search_evidence(claim: Claim, query_override: str | None = None) -> li
     if is_demo and claim.id in DEMO_FIXTURES:
         return DEMO_FIXTURES[claim.id]
 
-    query = (query_override or build_query(claim.statement) or "").strip()
+    query = (query_override or build_query(claim.statement, claim.terms) or "").strip()
     if not query:
         return []
 

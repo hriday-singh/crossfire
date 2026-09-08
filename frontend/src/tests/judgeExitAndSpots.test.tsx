@@ -67,51 +67,63 @@ describe('AI 1: Dedicated Steelman Table Spots & Shortest Path Navigation', () =
   });
 
   it('computes shortest collision-free path for Builder to NW clearance spot and back', () => {
-    const toSpot = getPathPoints(284, 195, WAYPOINTS.steelman_spot_builder);
-    expect(toSpot.length).toBeGreaterThanOrEqual(2);
-    expect(toSpot[toSpot.length - 1].x).toBe(395);
-    expect(toSpot[toSpot.length - 1].y).toBe(245);
+    const desk = WAYPOINTS.cubicle_1_desk;
+    const spot = WAYPOINTS.steelman_spot_builder;
 
-    const toDesk = getPathPoints(395, 245, WAYPOINTS.cubicle_1_desk);
+    const toSpot = getPathPoints(desk.x, desk.y, spot);
+    expect(toSpot.length).toBeGreaterThanOrEqual(2);
+    expect(toSpot[toSpot.length - 1].x).toBe(spot.x);
+    expect(toSpot[toSpot.length - 1].y).toBe(spot.y);
+
+    const toDesk = getPathPoints(spot.x, spot.y, desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
-    expect(toDesk[toDesk.length - 1].x).toBe(284);
-    expect(toDesk[toDesk.length - 1].y).toBe(195);
+    expect(toDesk[toDesk.length - 1].x).toBe(desk.x);
+    expect(toDesk[toDesk.length - 1].y).toBe(desk.y);
   });
 
   it('computes shortest collision-free path for Devil\'s Advocate to SW clearance spot and back', () => {
-    const toSpot = getPathPoints(246, 355, WAYPOINTS.steelman_spot_devils_advocate);
-    expect(toSpot.length).toBeGreaterThanOrEqual(2);
-    expect(toSpot[toSpot.length - 1].x).toBe(415);
-    expect(toSpot[toSpot.length - 1].y).toBe(335);
+    const desk = WAYPOINTS.cubicle_2_desk;
+    const spot = WAYPOINTS.steelman_spot_devils_advocate;
 
-    const toDesk = getPathPoints(415, 335, WAYPOINTS.cubicle_2_desk);
+    const toSpot = getPathPoints(desk.x, desk.y, spot);
+    expect(toSpot.length).toBeGreaterThanOrEqual(2);
+    expect(toSpot[toSpot.length - 1].x).toBe(spot.x);
+    expect(toSpot[toSpot.length - 1].y).toBe(spot.y);
+
+    const toDesk = getPathPoints(spot.x, spot.y, desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
-    expect(toDesk[toDesk.length - 1].x).toBe(246);
-    expect(toDesk[toDesk.length - 1].y).toBe(355);
+    expect(toDesk[toDesk.length - 1].x).toBe(desk.x);
+    expect(toDesk[toDesk.length - 1].y).toBe(desk.y);
   });
 
   it('computes shortest collision-free path for Researcher to NE clearance spot and back', () => {
-    const toSpot = getPathPoints(715, 195, WAYPOINTS.steelman_spot_researcher);
-    expect(toSpot.length).toBeGreaterThanOrEqual(2);
-    expect(toSpot[toSpot.length - 1].x).toBe(605);
-    expect(toSpot[toSpot.length - 1].y).toBe(245);
+    const desk = WAYPOINTS.cubicle_3_desk;
+    const spot = WAYPOINTS.steelman_spot_researcher;
 
-    const toDesk = getPathPoints(605, 245, WAYPOINTS.cubicle_3_desk);
+    const toSpot = getPathPoints(desk.x, desk.y, spot);
+    expect(toSpot.length).toBeGreaterThanOrEqual(2);
+    expect(toSpot[toSpot.length - 1].x).toBe(spot.x);
+    expect(toSpot[toSpot.length - 1].y).toBe(spot.y);
+
+    const toDesk = getPathPoints(spot.x, spot.y, desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
-    expect(toDesk[toDesk.length - 1].x).toBe(715);
-    expect(toDesk[toDesk.length - 1].y).toBe(195);
+    expect(toDesk[toDesk.length - 1].x).toBe(desk.x);
+    expect(toDesk[toDesk.length - 1].y).toBe(desk.y);
   });
 
   it('computes shortest collision-free path for Operator to SE clearance spot and back', () => {
-    const toSpot = getPathPoints(754, 355, WAYPOINTS.steelman_spot_operator);
-    expect(toSpot.length).toBeGreaterThanOrEqual(2);
-    expect(toSpot[toSpot.length - 1].x).toBe(585);
-    expect(toSpot[toSpot.length - 1].y).toBe(335);
+    const desk = WAYPOINTS.cubicle_4_desk;
+    const spot = WAYPOINTS.steelman_spot_operator;
 
-    const toDesk = getPathPoints(585, 335, WAYPOINTS.cubicle_4_desk);
+    const toSpot = getPathPoints(desk.x, desk.y, spot);
+    expect(toSpot.length).toBeGreaterThanOrEqual(2);
+    expect(toSpot[toSpot.length - 1].x).toBe(spot.x);
+    expect(toSpot[toSpot.length - 1].y).toBe(spot.y);
+
+    const toDesk = getPathPoints(spot.x, spot.y, desk);
     expect(toDesk.length).toBeGreaterThanOrEqual(2);
-    expect(toDesk[toDesk.length - 1].x).toBe(754);
-    expect(toDesk[toDesk.length - 1].y).toBe(355);
+    expect(toDesk[toDesk.length - 1].x).toBe(desk.x);
+    expect(toDesk[toDesk.length - 1].y).toBe(desk.y);
   });
 
   it('computes shortest path for Steelman to walk to right chamber door', () => {

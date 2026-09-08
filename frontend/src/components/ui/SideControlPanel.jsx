@@ -10,11 +10,13 @@ import { cn } from '../../lib/utils';
  * @param {{
  *   eventHistory?: any[];
  *   hoveredAgentId?: string | null;
+ *   isReplaying?: boolean;
  * }} props
  */
 export function SideControlPanel({
   eventHistory = [],
   hoveredAgentId = null,
+  isReplaying = false,
 }) {
   const displayEvents = eventHistory.slice(0, 10);
 
@@ -25,11 +27,22 @@ export function SideControlPanel({
           <span className="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">
             Active Workstation Feed
           </span>
-          {hoveredAgentId && AGENT_MAP[hoveredAgentId] && (
-            <span className="text-[10px] font-mono px-2 py-0.5 text-outline">
-              [HOVER] {AGENT_MAP[hoveredAgentId].name}
-            </span>
-          )}
+          <div className="flex items-center gap-space-2">
+            {isReplaying && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border bg-primary/10 text-primary border-primary/30 animate-pulse">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
+                </span>
+                Replaying
+              </span>
+            )}
+            {hoveredAgentId && AGENT_MAP[hoveredAgentId] && (
+              <span className="text-[10px] font-mono px-2 py-0.5 text-outline">
+                [HOVER] {AGENT_MAP[hoveredAgentId].name}
+              </span>
+            )}
+          </div>
         </div>
 
         {displayEvents.length > 0 ? (

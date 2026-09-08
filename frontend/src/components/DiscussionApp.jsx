@@ -4,10 +4,10 @@ import StageContainer from './canvas/StageContainer';
 import DialogueOverlay from './ui/DialogueOverlay';
 import SideControlPanel from './ui/SideControlPanel';
 import CruciblePageTransition from './ui/CruciblePageTransition';
-import { AGENT_CONFIGS, AGENT_MAP, STEELMAN_CONFIG } from '../constants/agentConfigs';
+import { AGENT_CONFIGS } from '../constants/agentConfigs';
 import { WAYPOINTS } from '../constants/roomLayout';
 import useSocketSimulation from '../hooks/useSocketSimulation';
-import useAudioPlayback from '../hooks/useAudioPlayback';
+
 import useBackendLiveBridge from '../hooks/useBackendLiveBridge';
 import { useOptionalCase } from '../context/CaseContext';
 import { cn } from '../lib/utils';
@@ -51,19 +51,6 @@ export function DiscussionApp() {
   const hasSynthesizedRef = useRef(false);
   const maxProgressRef = useRef(0);
   const prevCaseIdRef = useRef(currentCase?.id);
-
-  // Audio Playback Hook with Voice Readout (TTS) state
-  const {
-    isMuted,
-    setIsMuted,
-    speechSynthesisEnabled,
-    setSpeechSynthesisEnabled,
-    volume,
-    setVolume,
-    playSpeech,
-    stopSpeech,
-    playSfx,
-  } = useAudioPlayback();
 
   const selectedAgentIds = currentCase?.selected_agents || null;
 
@@ -113,25 +100,17 @@ export function DiscussionApp() {
       setActiveSpeakerId(speakerId);
       setActiveDialogue(eventPacket);
 
-      // Play synthesized audio strictly if Steelman (enforced in playSpeech)
-      playSpeech({
-        speakerId: speakerId,
-        dialogue: eventPacket.dialogue,
-        audioUrl: eventPacket.audio_url || null,
-        onEnd: () => {
-          setActiveSpeakerId(null);
-          // Keep finding card visible briefly, then clear
-          setTimeout(() => {
-            setActiveDialogue((curr) => (curr?.id === eventPacket.id ? null : curr));
-          }, 1000);
-        },
-      });
+      // Clear active speaker and dialogue after a brief display window
+      setTimeout(() => {
+        setActiveSpeakerId(null);
+        setActiveDialogue((curr) => (curr?.id === eventPacket.id ? null : curr));
+      }, 2000);
     } else {
       // If action has no dialogue (e.g. typing or standing), highlight active evaluator briefly
       setActiveSpeakerId(speakerId);
       setTimeout(() => setActiveSpeakerId(null), 800);
     }
-  }, [playSpeech, isRealRun, caseIsDone]);
+  }, [isRealRun, caseIsDone]);
 
   // Socket & Mock Simulation Engine
   const {
@@ -184,6 +163,25 @@ export function DiscussionApp() {
     playbackSpeed: playbackSpeed || 1.5,
     selectedAgentIds: selectedAgentIds,
   });
+
+  // Auto-trigger replay when navigating to the runner screen for a completed case
+  const hasAutoReplayedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !hasAutoReplayedRef.current &&
+      !isLiveBackendActive &&
+      caseIsDone &&
+      currentCase?.findings?.length > 0
+    ) {
+      hasAutoReplayedRef.current = true;
+      replayCaseInBullpen();
+    }
+  }, [isLiveBackendActive, caseIsDone, currentCase, replayCaseInBullpen]);
+
+  // Reset the latch when the case changes so a fresh run can replay again
+  useEffect(() => {
+    hasAutoReplayedRef.current = false;
+  }, [currentCase?.id]);
 
   // Handle transition completion to navigate to the Decision Memo / Dashboard screen
   const handleTransitionComplete = useCallback(() => {
@@ -275,13 +273,38 @@ export function DiscussionApp() {
         <section className="relative flex-1 w-full min-w-0">
           {/* Proposal Header */}
           <div className="mb-space-4 rounded-xl bg-surface border border-outline-variant px-space-5 py-space-4 relative">
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-xs font-bold text-outline uppercase tracking-wider">
-                Testing Proposal
-              </span>
-              <span className="font-headline-lg text-headline-lg text-on-surface font-semibold truncate">
-                {currentCase?.raw_input || 'Testing decision proposal'}
-              </span>
+            <div className="flex items-start justify-between gap-space-3 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-outline uppercase tracking-wider">
+                    {isReplaying ? 'Replaying' : 'Testing Proposal'}
+                  </span>
+                  {isReplaying && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border bg-primary/10 text-primary border-primary/30 animate-pulse">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
+                      </span>
+                      Replay
+                    </span>
+                  )}
+                </div>
+                <span className="font-headline-lg text-headline-lg text-on-surface font-semibold truncate">
+                  {currentCase?.raw_input || 'Testing decision proposal'}
+                </span>
+              </div>
+
+              {/* Back to Memo button — visible while replaying or when finished */}
+              {(isReplaying || isFinished) && caseContext?.navigateScreen && (
+                <button
+                  type="button"
+                  onClick={() => caseContext.navigateScreen('dashboard')}
+                  className="shrink-0 px-space-4 py-space-2 rounded border border-outline-variant bg-surface-container text-on-surface text-xs font-semibold hover:bg-surface-container-high transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[15px]">arrow_back</span>
+                  Back to Memo
+                </button>
+              )}
             </div>
 
             {/* Finished Banner */}
@@ -329,7 +352,6 @@ export function DiscussionApp() {
             isSteelmanExiting={isSteelmanExiting}
             onHoverAgent={setHoveredAgentId}
             onPositionUpdate={handlePositionUpdate}
-            playSfx={playSfx}
           >
             {/* In-world Workstation Telemetry HUD with Hover-Only Visibility and Persistent Steelman Pill */}
             <DialogueOverlay
@@ -354,6 +376,7 @@ export function DiscussionApp() {
         <SideControlPanel
           eventHistory={eventHistory}
           hoveredAgentId={hoveredAgentId}
+          isReplaying={isReplaying}
         />
       </div>
     </div>

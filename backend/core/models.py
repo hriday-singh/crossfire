@@ -24,6 +24,18 @@ class WeakenedKind(str, Enum):
     CONTESTED = "contested"
 
 
+class ResolvedTerm(BaseModel):
+    """A domain term from the user's input, resolved to what it concretely denotes.
+
+    Imported jargon is why searches came back generic: "holiday quotas" retrieves
+    press coverage, "Tatkal quota opening time" retrieves the operator's own rules.
+    """
+
+    term: str              # as the user wrote it
+    resolved: str          # what it concretely means
+    search_phrasing: str   # how to phrase it for a search engine
+
+
 class Claim(BaseModel):
     id: str
     statement: str
@@ -41,6 +53,8 @@ class Claim(BaseModel):
     salvage_scope: str | None = None       # "parameter" (same decision, different setting) or
                                            # "redesign" (a different decision replaces it).
                                            # Decides drop vs proceed_with_changes on a broken claim.
+    terms: list[ResolvedTerm] = []         # domain jargon resolved at extraction time
+    mechanism_of: str | None = None        # parent idea label shared by sibling claims
 
 
 
@@ -59,6 +73,9 @@ class EvidenceItem(BaseModel):
     stance: str = "context"                 # supports | contradicts | context — how it bears on the claim
     source_class: str = "unranked"          # primary | institutional | press | community | blog | unranked
     provider: str = "duckduckgo"            # serpapi | duckduckgo | fixture
+    verified: bool = False                  # the page was fetched and the snippet found on it
+    verification: str = "unchecked"         # snippet_matched | snippet_absent
+                                            # | unreachable | unchecked
 
 
 class Finding(BaseModel):
@@ -107,6 +124,18 @@ class DecidingFactor(BaseModel):
                                             # i.e. the panel attacked but nobody could cite it
 
 
+class BuildSpec(BaseModel):
+    """The salvaged version, specified concretely enough to start building.
+
+    Assembled from surviving mechanisms and isolated fatal flaws — not invented.
+    """
+
+    what_it_does: str
+    what_it_omits: str         # the removed mechanism, named, and why
+    demo_path: str             # how to show it working without the fatal part
+    cheapest_experiment: str
+
+
 class CaseVerdict(BaseModel):
     """One case-level judgement replacing N near-identical per-claim ones."""
 
@@ -123,6 +152,8 @@ class CaseVerdict(BaseModel):
     weakened: list[str] = []                # weakened claim ids
     unproven: list[str] = []                # weakened + unresolved
     next_actions: list[NextAction] = []     # 2-3 merged, deduped, claim-anchored
+    surviving_core: str = ""                # the part of the idea that lives; empty only on drop
+    build_spec: BuildSpec | None = None     # the version worth building, assembled from survivors
 
 
 class DecisionConsequence(BaseModel):

@@ -22,6 +22,19 @@ export type CaseStatus =
   | "done"
   | "error";
 
+export interface ResolvedTerm {
+  term: string;
+  resolved: string;
+  search_phrasing: string;
+}
+
+export interface BuildSpec {
+  what_it_does: string;
+  what_it_omits: string;
+  demo_path: string;
+  cheapest_experiment: string;
+}
+
 export interface Claim {
   id: string;
   statement: string;
@@ -34,6 +47,10 @@ export interface Claim {
   fatal_flaw?: string | null;
   salvaged_claim?: string | null;
   tradeoff_acknowledged?: string | null;
+  missing_input?: string | null;
+  salvage_scope?: string | null;
+  terms?: ResolvedTerm[];
+  mechanism_of?: string | null;
 }
 
 export interface TestPlanItem {
@@ -50,6 +67,8 @@ export interface EvidenceItem {
   retrieved_at: string;
   provider?: string; // "serpapi" | "duckduckgo" | "fixture"
   source_class?: string;
+  verified?: boolean;
+  verification?: "snippet_matched" | "snippet_absent" | "unreachable" | "unchecked";
 }
 
 export interface Finding {
@@ -99,6 +118,8 @@ export interface CaseVerdict {
   weakened?: string[];
   unproven: string[];
   next_actions: NextAction[];
+  surviving_core?: string;
+  build_spec?: BuildSpec | null;
 }
 
 export interface Case {

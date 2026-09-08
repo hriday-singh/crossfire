@@ -113,6 +113,11 @@ export function useBackendLiveBridge({
   const clearAllTimers = useCallback(() => {
     activeTimersRef.current.forEach((t) => clearTimeout(t));
     activeTimersRef.current.clear();
+    // The beat timer owns the busy latch and the stall watchdog. Killing timers without
+    // releasing both wedges the pump shut forever - StrictMode's mount/cleanup/mount and
+    // any Suspense remount clear timers while a frame is mid-beat.
+    busyRef.current = false;
+    stallTimerRef.current = null;
   }, []);
 
   // Reset processed IDs on new case

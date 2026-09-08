@@ -33,6 +33,8 @@ def _finding(evaluator: str, *, evidence=False, contradiction=None, confidence=0
                     title="The rule",
                     snippet="The rule says otherwise.",
                     retrieved_at="2026-09-06T00:00:00Z",
+                    verified=True,
+                    verification="snippet_matched",
                 )
             ]
             if evidence

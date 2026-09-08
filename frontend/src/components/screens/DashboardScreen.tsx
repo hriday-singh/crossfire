@@ -26,7 +26,7 @@ const SORT_OPTIONS: DropdownOption<ClaimSortOption>[] = [
 ];
 
 export const DashboardScreen: React.FC = () => {
-  const { state, selectClaim, loadPromptIntoEntry } = useCase();
+  const { state, selectClaim, loadPromptIntoEntry, navigateScreen } = useCase();
   const [filterStatus, setFilterStatus] = useState<"all" | "needs_attention" | "passed">("all");
   const [sortBy, setSortBy] = useState<ClaimSortOption>("criticality");
   const [copiedMemo, setCopiedMemo] = useState(false);
@@ -106,6 +106,10 @@ export const DashboardScreen: React.FC = () => {
     if (!improvedPrompt.trim()) return;
     loadPromptIntoEntry(improvedPrompt.trim());
   }, [improvedPrompt, loadPromptIntoEntry]);
+
+  const handleReplayInBullpen = useCallback(() => {
+    navigateScreen("runner");
+  }, [navigateScreen]);
 
   // Scroll to top on mount or when testing begins so live intelligence and verdict block are visible
   useEffect(() => {
@@ -309,7 +313,19 @@ export const DashboardScreen: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              {/* Replay button — only when run is done and findings exist */}
+              {!isTesting && currentCase?.status === "done" && (currentCase?.findings?.length ?? 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={handleReplayInBullpen}
+                  data-testid="replay-in-bullpen-btn"
+                  className="px-6 py-3 rounded-lg border border-outline-variant bg-surface-container hover:bg-surface-container-high text-on-surface font-body-sm text-sm font-medium transition-all flex items-center justify-center gap-2.5 cursor-pointer shadow-sm active:scale-[0.98] whitespace-nowrap"
+                >
+                  <span className="material-symbols-outlined text-[18px]">replay</span>
+                  Replay
+                </button>
+              )}
                <Dialog>
                  <DialogTrigger asChild>
                    <button
