@@ -9,6 +9,8 @@ interface LiveActivityFeedProps {
   className?: string;
 }
 
+const FEED_BATCH_MS = 350;
+
 export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   activities,
   isStreaming,
@@ -17,6 +19,23 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Batch rapid incoming activity bursts so the feed doesn't flicker/re-scroll on every single item.
+  // Each new item resets the flush timer; React's effect cleanup cancels the pending one.
+  const [visibleCount, setVisibleCount] = useState(activities.length);
+
+  useEffect(() => {
+    if (activities.length <= visibleCount) {
+      setVisibleCount(activities.length);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setVisibleCount(activities.length);
+    }, FEED_BATCH_MS);
+    return () => window.clearTimeout(timer);
+  }, [activities.length, visibleCount]);
+
+  const visibleActivities = activities.slice(0, visibleCount);
 
   useEffect(() => {
     if (isStreaming) {
@@ -29,7 +48,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
     if (isExpanded && autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [activities.length, isExpanded, autoScroll, isStreaming]);
+  }, [visibleCount, isExpanded, autoScroll, isStreaming]);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -128,14 +147,14 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
             data-testid="activity-feed-container"
             className="p-space-3 max-h-56 overflow-y-auto space-y-1 font-mono text-xs select-text scrollbar-thin scrollbar-thumb-outline scrollbar-track-surface-container"
           >
-            {activities.length === 0 ? (
+            {visibleActivities.length === 0 ? (
               <div className="py-6 flex flex-col items-center justify-center text-center text-outline gap-1">
                 <p className="font-mono text-[10px] text-on-surface-variant uppercase">
                   Initializing...
                 </p>
               </div>
             ) : (
-              activities.map((item) => (
+              visibleActivities.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-start gap-2.5 py-1 px-2 rounded hover:bg-surface-container transition-colors group"

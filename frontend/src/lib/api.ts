@@ -131,9 +131,21 @@ export async function getCase(
 }
 
 export async function listCases(
+  statusOrBaseUrl: string = "done",
   baseUrl: string = DEFAULT_API_BASE
 ): Promise<Case[]> {
-  const url = `${baseUrl}/cases`;
+  let status = "done";
+  let targetBase = baseUrl;
+
+  if (statusOrBaseUrl.startsWith("http") || statusOrBaseUrl === "") {
+    targetBase = statusOrBaseUrl;
+    status = "done";
+  } else {
+    status = statusOrBaseUrl;
+  }
+
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const url = `${targetBase}/cases${query}`;
   const res = await fetch(url, {
     method: "GET",
     headers: {

@@ -117,11 +117,28 @@ describe("VerdictBlock", () => {
     expect(screen.getByText(/1 refuted/)).toBeInTheDocument();
     expect(screen.getByText(/1 unproven/)).toBeInTheDocument();
     expect(screen.getByText(/1 held/)).toBeInTheDocument();
-    expect(
-      screen.getByText("Benchmarks put tier-1 containment at 45-65%, not 100%.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Benchmarks put tier-1 containment at 45-65%, not 100%.")).toBeInTheDocument();
     expect(screen.getByText(/Zendesk CX Trends 2024/)).toBeInTheDocument();
+    expect(screen.getByText("Researcher")).toBeInTheDocument();
+    expect(document.querySelector('img[src="/emoji/researcher.png"]')).toBeInTheDocument();
     expect(screen.queryByText("Ticket volume stays flat")).not.toBeInTheDocument();
+  });
+
+  it("renders the devil's advocate bot logo and name in the deciding factor", () => {
+    const daVerdict = {
+      ...verdict,
+      deciding_factor: {
+        ...verdict.deciding_factor!,
+        evaluator: "devils_advocate",
+      },
+    };
+    render(
+      <VerdictBlock currentCase={baseCase(daVerdict)} onSelectClaim={vi.fn()} isTesting={false} />
+    );
+
+    expect(screen.getByText("Devil's Advocate")).toBeInTheDocument();
+    const img = document.querySelector('img[src="/emoji/devils_advocate.png"]');
+    expect(img).toBeInTheDocument();
   });
 
   it("keeps the deciding claim out of the remaining failed claims list so it is not shown twice", () => {

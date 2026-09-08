@@ -11,6 +11,22 @@ import { AppAction, AppState, SavedRealState } from "./caseTypes";
 import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 import { applyPreviewViewToState } from "./previewHelper";
 
+function restoreSavedRealState(state: AppState): Partial<AppState> {
+  const s = state.savedRealState;
+  if (!s) return { previewView: null, savedRealState: null };
+  return {
+    currentCase: s.currentCase,
+    activeScreen: s.activeScreen,
+    activeModal: s.activeModal,
+    selectedClaimId: s.selectedClaimId,
+    isStreaming: s.isStreaming,
+    isExtracting: s.isExtracting,
+    isConfirming: s.isConfirming,
+    previewView: null,
+    savedRealState: null,
+  };
+}
+
 export function caseReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "SET_DEBUG_MODE":
@@ -20,17 +36,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
         ...(action.payload
           ? {}
           : state.previewView
-          ? {
-              currentCase: state.savedRealState ? state.savedRealState.currentCase : state.currentCase,
-              activeScreen: state.savedRealState ? state.savedRealState.activeScreen : state.activeScreen,
-              activeModal: state.savedRealState ? state.savedRealState.activeModal : "none",
-              selectedClaimId: state.savedRealState ? state.savedRealState.selectedClaimId : null,
-              isStreaming: state.savedRealState ? state.savedRealState.isStreaming : false,
-              isExtracting: state.savedRealState ? state.savedRealState.isExtracting : false,
-              isConfirming: state.savedRealState ? state.savedRealState.isConfirming : false,
-              previewView: null,
-              savedRealState: null,
-            }
+          ? restoreSavedRealState(state)
           : {}),
       };
 
@@ -59,42 +65,16 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       if (!action.payload) {
         return {
           ...state,
-          ...(state.savedRealState
-            ? {
-                currentCase: state.savedRealState.currentCase,
-                activeScreen: state.savedRealState.activeScreen,
-                activeModal: state.savedRealState.activeModal,
-                selectedClaimId: state.savedRealState.selectedClaimId,
-                isStreaming: state.savedRealState.isStreaming,
-                isExtracting: state.savedRealState.isExtracting,
-                isConfirming: state.savedRealState.isConfirming,
-              }
-            : {}),
-          previewView: null,
-          savedRealState: null,
+          ...restoreSavedRealState(state),
         };
       }
       return applyPreviewViewToState(state, action.payload);
     }
 
     case "EXIT_PREVIEW_MODE": {
-      if (!state.savedRealState) {
-        return {
-          ...state,
-          previewView: null,
-        };
-      }
       return {
         ...state,
-        currentCase: state.savedRealState.currentCase,
-        activeScreen: state.savedRealState.activeScreen,
-        activeModal: state.savedRealState.activeModal,
-        selectedClaimId: state.savedRealState.selectedClaimId,
-        isStreaming: state.savedRealState.isStreaming,
-        isExtracting: state.savedRealState.isExtracting,
-        isConfirming: state.savedRealState.isConfirming,
-        previewView: null,
-        savedRealState: null,
+        ...restoreSavedRealState(state),
       };
     }
 
@@ -137,7 +117,7 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
     case "LOAD_HISTORY_FROM_DB":
       return {
         ...state,
-        caseHistory: action.payload,
+        caseHistory: (action.payload || []).filter((c) => c.status === "done"),
       };
 
     case "START_EXTRACTING":

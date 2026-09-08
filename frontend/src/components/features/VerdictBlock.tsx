@@ -2,6 +2,7 @@ import React from "react";
 import { Case, Claim } from "@/types/crossfire";
 import { cleanUiText, clampSentences } from "@/lib/formatters";
 import { SerpApiText } from "@/components/ui/serpapi";
+import { getAgentById } from "@/lib/agents";
 
 /**
  * The call, the one fact that forced it, and what to do before committing.
@@ -280,6 +281,14 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
         >
           <SerpApiText text={headline} />
         </h2>
+        {verdict.surviving_core && (
+          <p
+            data-testid="surviving-core"
+            className="font-body-md text-[15px] leading-[1.6] text-primary-container font-medium"
+          >
+            <SerpApiText text={cleanUiText(verdict.surviving_core)} />
+          </p>
+        )}
         <p className="font-body-md text-[16px] leading-[1.7] text-on-surface">
           <SerpApiText text={displaySummary} />
         </p>
@@ -291,49 +300,94 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
       </div>
 
       {/* What decided it - one finding, resolved server-side */}
-      {deciding && (
+      {deciding && (() => {
+        const agent = getAgentById(deciding.evaluator);
+        const evaluatorName = agent?.name || EVALUATOR_NAMES[deciding.evaluator] || deciding.evaluator;
+        const evaluatorLogo = agent?.emoji;
+
+        return (
+          <>
+            <hr className="border-t border-outline-variant" />
+            <div className="space-y-space-3">
+              <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
+                What decided it
+              </h3>
+              <button
+                type="button"
+                onClick={() => onSelectClaim(deciding.claim_id)}
+                className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
+              >
+                <div className="flex items-start justify-between gap-space-3">
+                  <span className="font-body-md text-[15px] leading-[1.6] text-on-surface">
+                    <SerpApiText text={cleanUiText(deciding.the_fact)} />
+                  </span>
+                  {decidingClaim?.status && (
+                    <span
+                      className={`font-body-sm text-[14px] font-semibold shrink-0 pt-0.5 ${
+                        getStatusColor(decidingClaim)
+                      }`}
+                    >
+                      {getStatusWord(decidingClaim)}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 font-code-sm text-[13px] text-outline flex-wrap">
+                  {evaluatorLogo && (
+                    <img
+                      src={evaluatorLogo}
+                      alt=""
+                      className="w-[18px] h-[18px] object-contain inline-block shrink-0 rounded-xs"
+                    />
+                  )}
+                  <span className="font-medium text-on-surface-variant">
+                    {evaluatorName}
+                  </span>
+                  {deciding.source_title ? (
+                    <>
+                      {" · "}
+                      <SerpApiText text={cleanUiText(deciding.source_title)} />
+                    </>
+                  ) : null}
+                </div>
+                {/* Where the panel attacked but nobody could cite it. Showing the
+                    refusal is the point: it is the opposite of a model that agrees. */}
+                {deciding.gate_fired && (
+                  <p className="mt-1 font-code-sm text-code-sm text-secondary">
+                    Not refuted - the panel attacked this but no source backed it.
+                  </p>
+                )}
+              </button>
+            </div>
+          </>
+        );
+      })()}
+
+      {/* The salvaged version, assembled from what survived */}
+      {verdict.build_spec && (
         <>
           <hr className="border-t border-outline-variant" />
-          <div className="space-y-space-3">
+          <div
+            data-testid="build-spec"
+            className="space-y-space-3 rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3"
+          >
             <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
-              What decided it
+              The version I'd build
             </h3>
-            <button
-              type="button"
-              onClick={() => onSelectClaim(deciding.claim_id)}
-              className="w-full text-left rounded-lg border border-outline-variant bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
-            >
-              <div className="flex items-start justify-between gap-space-3">
-                <span className="font-body-md text-[15px] leading-[1.6] text-on-surface">
-                  <SerpApiText text={cleanUiText(deciding.the_fact)} />
-                </span>
-                {decidingClaim?.status && (
-                  <span
-                    className={`font-body-sm text-[14px] font-semibold shrink-0 pt-0.5 ${
-                      getStatusColor(decidingClaim)
-                    }`}
-                  >
-                    {getStatusWord(decidingClaim)}
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 font-code-sm text-code-sm text-outline">
-                {EVALUATOR_NAMES[deciding.evaluator] || deciding.evaluator}
-                {deciding.source_title ? (
-                  <>
-                    {" · "}
-                    <SerpApiText text={cleanUiText(deciding.source_title)} />
-                  </>
-                ) : null}
-              </p>
-              {/* Where the panel attacked but nobody could cite it. Showing the
-                  refusal is the point: it is the opposite of a model that agrees. */}
-              {deciding.gate_fired && (
-                <p className="mt-1 font-code-sm text-code-sm text-secondary">
-                  Not refuted - the panel attacked this but no source backed it.
-                </p>
-              )}
-            </button>
+            <p className="font-body-md text-[15px] leading-[1.6] text-on-surface">
+              <SerpApiText text={cleanUiText(verdict.build_spec.what_it_does)} />
+            </p>
+            <p className="font-body-sm text-[14px] leading-[1.6] text-outline">
+              <span className="font-semibold text-on-surface-variant">What it omits: </span>
+              <SerpApiText text={cleanUiText(verdict.build_spec.what_it_omits)} />
+            </p>
+            <p className="font-body-sm text-[14px] leading-[1.6] text-outline">
+              <span className="font-semibold text-on-surface-variant">Demo path: </span>
+              <SerpApiText text={cleanUiText(verdict.build_spec.demo_path)} />
+            </p>
+            <p className="font-body-sm text-[14px] leading-[1.6] text-outline">
+              <span className="font-semibold text-on-surface-variant">Cheapest experiment: </span>
+              <SerpApiText text={cleanUiText(verdict.build_spec.cheapest_experiment)} />
+            </p>
           </div>
         </>
       )}

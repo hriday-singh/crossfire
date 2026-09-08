@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { LiveActivityFeed } from "@/components/features/LiveActivityFeed";
 import { ActivityItem } from "@/types/crossfire";
@@ -91,21 +91,66 @@ describe("LiveActivityFeed", () => {
     ).toBeInTheDocument();
   });
 
-  it("auto-scrolls feed container to bottom as new activities arrive while streaming", () => {
-    const { rerender } = render(
-      <LiveActivityFeed activities={sampleActivities.slice(0, 1)} isStreaming={true} />
-    );
+  it("auto-scrolls feed container to bottom as new activities arrive while streaming, after the batch flush", () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(
+        <LiveActivityFeed activities={sampleActivities.slice(0, 1)} isStreaming={true} />
+      );
 
-    const container = screen.getByTestId("activity-feed-container");
-    expect(container).toBeInTheDocument();
+      const container = screen.getByTestId("activity-feed-container");
+      expect(container).toBeInTheDocument();
 
-    // Mock scrollHeight
-    Object.defineProperty(container, "scrollHeight", { value: 600, configurable: true });
-    Object.defineProperty(container, "clientHeight", { value: 200, configurable: true });
+      // Mock scrollHeight
+      Object.defineProperty(container, "scrollHeight", { value: 600, configurable: true });
+      Object.defineProperty(container, "clientHeight", { value: 200, configurable: true });
 
-    rerender(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
+      rerender(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
 
-    expect(container.scrollTop).toBe(container.scrollHeight);
+      // New items are batched, not rendered/scrolled to instantly
+      expect(screen.queryByText("Reconciling evidence for: AI assistant can submit forms...")).not.toBeInTheDocument();
+
+      vi.advanceTimersByTime(400);
+
+      expect(screen.getByText("Reconciling evidence for: AI assistant can submit forms...")).toBeInTheDocument();
+      expect(container.scrollTop).toBe(container.scrollHeight);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("batches a rapid burst of new activities into a single flush instead of rendering each one immediately", () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(
+        <LiveActivityFeed activities={sampleActivities.slice(0, 1)} isStreaming={true} />
+      );
+
+      expect(screen.getByText(/\[1 op\]/i)).toBeInTheDocument();
+
+      rerender(<LiveActivityFeed activities={sampleActivities.slice(0, 2)} isStreaming={true} />);
+      // Still mid-batch: second item not yet visible
+      expect(
+        screen.queryByText("Evaluating sandbox execution constraints against API quotas...")
+      ).not.toBeInTheDocument();
+
+      rerender(<LiveActivityFeed activities={sampleActivities} isStreaming={true} />);
+      // Third item arrives before the first flush timer fires; still batched
+      expect(
+        screen.queryByText("Reconciling evidence for: AI assistant can submit forms...")
+      ).not.toBeInTheDocument();
+
+      vi.advanceTimersByTime(400);
+
+      expect(
+        screen.getByText("Evaluating sandbox execution constraints against API quotas...")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Reconciling evidence for: AI assistant can submit forms...")
+      ).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("pauses auto-scroll when user scrolls up and shows resume button", () => {

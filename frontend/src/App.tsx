@@ -14,6 +14,7 @@ import { SettingsModal } from "@/components/features/SettingsModal";
 import { ProvidersModal } from "@/components/features/ProvidersModal";
 import { DebugViewsToolbar } from "@/components/features/DebugViewsToolbar";
 import SpaceStarfield from "@/components/canvas/SpaceStarfield";
+import { CubeSpinner } from "@/components/features/CubeSpinner";
 const DiscussionApp = React.lazy(() => import("./components/DiscussionApp"));
 
 export const AppContent: React.FC = () => {
@@ -50,8 +51,8 @@ export const AppContent: React.FC = () => {
         {state.activeScreen === "runner" && (
           <React.Suspense
             fallback={
-              <div data-testid="live-view-loading" className="flex h-[calc(100vh-3.5rem)] items-center justify-center text-slate-400 font-mono text-sm">
-                Loading 2.5D Live View...
+              <div data-testid="live-view-loading" className="h-[calc(100vh-3.5rem)]">
+                <CubeSpinner headline="Loading agents" subtext="Booting workstation feeds" />
               </div>
             }
           >

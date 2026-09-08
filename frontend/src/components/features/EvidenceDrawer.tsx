@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Case } from "@/types/crossfire";
 import { cleanUiText, formatTestName, truncateUrl, clampSentences } from "@/lib/formatters";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { formatDecisionMemoMarkdown, copyToClipboard } from "@/lib/exportMemo";
 import { PoweredBySerpApiBadge, SerpApiText } from "@/components/ui/serpapi";
 
 interface EvidenceDrawerProps {
@@ -12,6 +11,35 @@ interface EvidenceDrawerProps {
   defaultOpenTests?: Record<string, boolean>;
   isSelectedForPromptFix?: boolean;
   onTogglePromptFix?: (claimId: string) => void;
+}
+
+// Old cases serialized before verification existed carry no `verification` field
+// at all - that reads as "unchecked", not as a failed check.
+const VERIFICATION_LABEL: Record<string, string> = {
+  snippet_matched: "verified",
+  unreachable: "unreachable",
+  snippet_absent: "snippet absent",
+  unchecked: "unchecked",
+};
+
+const VERIFICATION_COLOR: Record<string, string> = {
+  snippet_matched: "bg-primary-container/10 text-primary-container border-primary-container/25",
+  unreachable: "bg-secondary/10 text-secondary border-secondary/25",
+  snippet_absent: "bg-error/10 text-error border-error/25",
+  unchecked: "bg-outline/10 text-outline border-outline/25",
+};
+
+function VerificationBadge({ verification }: { verification?: string }) {
+  const key = verification || "unchecked";
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] border ${
+        VERIFICATION_COLOR[key] || VERIFICATION_COLOR.unchecked
+      }`}
+    >
+      {VERIFICATION_LABEL[key] || key}
+    </span>
+  );
 }
 
 interface TestSuiteMeta {
@@ -66,9 +94,6 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   isSelectedForPromptFix = false,
   onTogglePromptFix,
 }) => {
-
-  const [isQueued, setIsQueued] = useState(false);
-  const [copiedJson, setCopiedJson] = useState(false);
 
   const [openTests, setOpenTests] = useState<Record<string, boolean>>(
     defaultOpenTests || {
@@ -169,27 +194,6 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   };
 
   const statusBadge = getStatusBadge();
-
-  const handleCopyJson = async () => {
-    const claimData = {
-      claim,
-      findings,
-      consequence,
-    };
-    await copyToClipboard(JSON.stringify(claimData, null, 2));
-    setCopiedJson(true);
-    setTimeout(() => setCopiedJson(false), 2000);
-  };
-
-  const handleExportBrief = async () => {
-    if (currentCase) {
-      const brief = formatDecisionMemoMarkdown(currentCase);
-      await copyToClipboard(brief);
-      alert("Decision brief copied to clipboard!");
-    }
-  };
-
-
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -564,6 +568,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                                           via Demo Fixture
                                         </span>
                                       )}
+                                      <VerificationBadge verification={ev.verification} />
                                     </div>
 
                                     {ev.snippet && (
@@ -605,76 +610,6 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
             </div>
           </div>
 
-          {/* How to check */}
-          <div>
-            <div className="font-code-sm text-code-sm uppercase tracking-wider text-primary font-medium mb-space-2 flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[15px]">rocket_launch</span>
-              <span>How to check</span>
-            </div>
-            <div className="border border-primary-container/40 bg-on-primary-container/20 rounded p-space-4">
-              <p className="font-body-sm text-body-sm text-on-surface leading-relaxed mb-space-4">
-                {cleanUiText(
-                  consequence?.next_validation ||
-                    (claim.status === "survived"
-                      ? "Proceed with execution; re-test if foundational dependencies or pricing change."
-                      : "Formulate small-batch experiment to validate core assumption directly with users.")
-                )}
-              </p>
-              <div className="pt-space-3 border-t border-outline-variant/40 flex items-center justify-between">
-                <span className="font-code-sm text-code-sm text-outline">
-                  {claim.load_bearing ? "Priority: Critical" : "Priority: Standard"}
-                </span>
-                <button
-                  type="button"
-                  id="queue-experiment-btn"
-                  onClick={() => setIsQueued(!isQueued)}
-                  className={`font-code-sm text-code-sm font-semibold px-space-4 py-space-2 rounded transition-all shadow flex items-center gap-1.5 cursor-pointer ${
-                    isQueued
-                      ? "bg-tertiary-container text-on-tertiary"
-                      : "bg-primary hover:bg-primary-fixed-dim text-surface-container-lowest"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[15px]">task_alt</span>
-                  <span id="queue-label">
-                    {isQueued ? `Experiment queued (${formattedClaimId})` : "Mark experiment as queued"}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Actions Bar */}
-        <div className="pt-space-4 pb-space-6 px-space-8 border-t border-outline-variant flex items-center justify-between font-code-sm text-code-sm text-outline shrink-0 bg-surface-container-low">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-primary inline-block" />
-            <span>Audit Ref:</span>
-            <span className="text-on-surface-variant font-mono">
-              #{formattedClaimId}-{claim.status ? claim.status.toUpperCase() : "EVALUATED"}
-            </span>
-          </span>
-
-          <div className="flex items-center gap-space-3">
-            <button
-              type="button"
-              onClick={handleCopyJson}
-              className="hover:text-on-surface transition-colors flex items-center gap-1 cursor-pointer"
-              title="Copy Raw JSON"
-            >
-              <span className="material-symbols-outlined text-[15px]">code</span>
-              <span>{copiedJson ? "Copied!" : "JSON"}</span>
-            </button>
-            <span>·</span>
-            <button
-              type="button"
-              onClick={handleExportBrief}
-              className="hover:text-on-surface transition-colors flex items-center gap-1 cursor-pointer"
-              title="Export Summary Brief"
-            >
-              <span className="material-symbols-outlined text-[15px]">file_download</span>
-              <span>Export Brief</span>
-            </button>
-          </div>
         </div>
       </SheetContent>
     </Sheet>

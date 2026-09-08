@@ -17,11 +17,18 @@ vi.mock('@pixi/react', () => ({
   extend: vi.fn()
 }));
 
-vi.mock('gsap', () => ({
-  default: {
-    to: vi.fn(() => ({ kill: vi.fn() }))
-  }
-}));
+vi.mock('gsap', () => {
+  const timelineMock = {
+    to: vi.fn().mockReturnThis(),
+    kill: vi.fn(),
+  };
+  return {
+    default: {
+      to: vi.fn(() => ({ kill: vi.fn() })),
+      timeline: vi.fn(() => timelineMock),
+    },
+  };
+});
 
 describe('DevilBotSprite', () => {
   const mockAgent = { id: 'agent_1', initialWaypoint: 'cubicle_1_desk' };

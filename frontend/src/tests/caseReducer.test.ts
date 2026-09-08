@@ -308,6 +308,47 @@ describe("caseReducer", () => {
     expect(state.caseHistory).toHaveLength(0);
   });
 
+  it("should handle LOAD_HISTORY_FROM_DB and filter out non-done cases", () => {
+    const doneCase: Case = {
+      id: "case-done",
+      raw_input: "Completed test",
+      context: null,
+      status: "done",
+      claims: [],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+    const pendingCase: Case = {
+      id: "case-pending",
+      raw_input: "Pending test",
+      context: null,
+      status: "awaiting_confirmation",
+      claims: [],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+    const errorCase: Case = {
+      id: "case-error",
+      raw_input: "Error test",
+      context: null,
+      status: "error",
+      claims: [],
+      test_plan: [],
+      findings: [],
+      consequences: [],
+    };
+
+    const state = caseReducer(INITIAL_STATE, {
+      type: "LOAD_HISTORY_FROM_DB",
+      payload: [doneCase, pendingCase, errorCase],
+    });
+
+    expect(state.caseHistory).toHaveLength(1);
+    expect(state.caseHistory[0].id).toBe("case-done");
+  });
+
   it("should handle SET_ENGINE_INFO", () => {
     const state = caseReducer(INITIAL_STATE, {
       type: "SET_ENGINE_INFO",

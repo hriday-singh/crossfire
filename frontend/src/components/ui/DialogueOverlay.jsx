@@ -65,10 +65,10 @@ function formatConciseThought(finding, agentId) {
 /**
  * DialogueOverlay Component
  *
- * Implements hover-only concise thinking labels:
- * 1. AI thinking labels ONLY display when the user hovers over an AI or their cubicle.
+ * Implements always-visible concise thinking labels:
+ * 1. Each agent's one-line status pill is always shown above their cubicle.
  * 2. Formats thinking content in a concise, readable manner.
- * 3. Supports expanded details (empirical citations & reasoning) inside hover card.
+ * 3. Hovering an agent expands a detail card (empirical citations & reasoning).
  *
  * @param {Object} props
  * @param {any} [props.activeDialogue]
@@ -247,7 +247,7 @@ export function DialogueOverlay({
     );
   };
 
-  // 1. Resolve Steelman Bubble State (Hover-only)
+  // 1. Resolve Steelman Bubble State (always visible; hover only expands detail card)
   const isSteelmanHovered = hoveredAgentId === 'steelman';
   const steelmanPos = characterPositions['steelman'] || {
     x: STEELMAN_TABLE_CONFIG.x,
@@ -265,12 +265,9 @@ export function DialogueOverlay({
   let steelmanStatusText = formatConciseThought(steelmanFinding, 'steelman');
   let steelmanVerdict = steelmanFinding?.verdict || null;
 
-  // 2. Resolve AI Evaluator Bubbles (Hover-only)
+  // 2. Resolve AI Evaluator Bubbles (always visible, one-line status; hover only expands detail card)
   const evaluatorBubbles = AGENT_CONFIGS.map((agent) => {
     const isHovered = hoveredAgentId === agent.id;
-    if (!isHovered) {
-      return null;
-    }
 
     const finding = evaluatorFindings[agent.id] || (
       activeDialogue?.speaker_id === agent.id ? activeDialogue : null
@@ -343,18 +340,17 @@ export function DialogueOverlay({
         />
       </div>
 
-      {/* Hover-Only Steelman Bubble */}
-      {isSteelmanHovered &&
-        renderAgentPill({
-          agent: STEELMAN_CONFIG,
-          pos: steelmanPos,
-          statusText: steelmanStatusText,
-          verdict: steelmanVerdict,
-          isHovered: isSteelmanHovered,
-          testId: 'bubble-steelman',
-        })}
+      {/* Always-Visible Steelman Bubble; hover expands detail card */}
+      {renderAgentPill({
+        agent: STEELMAN_CONFIG,
+        pos: steelmanPos,
+        statusText: steelmanStatusText,
+        verdict: steelmanVerdict,
+        isHovered: isSteelmanHovered,
+        testId: 'bubble-steelman',
+      })}
 
-      {/* Hover-Only Evaluator Bubbles */}
+      {/* Always-Visible Evaluator Bubbles; hover expands detail card */}
       {evaluatorBubbles}
     </div>
   );

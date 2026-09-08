@@ -850,3 +850,72 @@ def test_confirm_provisional_claim_rejected(client):
     response = client.post("/cases/prov-1/confirm", json={"claims": [{"id": "c1", "statement": "A", "provisional": True}]})
     assert response.status_code == 400
     assert "Confirm or remove the inferred claims" in response.text
+
+
+def test_list_cases_defaults_to_done_status(client):
+    import store
+    from core.models import Case
+
+    done_case = Case(id="case-done-1", raw_input="Done idea", status="done")
+    pending_case = Case(id="case-pending-1", raw_input="Pending idea", status="awaiting_confirmation")
+    store.set(done_case)
+    store.set(pending_case)
+
+    response = client.get("/cases")
+    assert response.status_code == 200
+    cases = response.json()
+    assert len(cases) == 1
+    assert cases[0]["id"] == "case-done-1"
+    assert cases[0]["status"] == "done"
+
+
+def test_list_cases_with_status_all(client):
+    import store
+    from core.models import Case
+
+    done_case = Case(id="case-done-2", raw_input="Done idea 2", status="done")
+    pending_case = Case(id="case-pending-2", raw_input="Pending idea 2", status="awaiting_confirmation")
+    store.set(done_case)
+    store.set(pending_case)
+
+    response = client.get("/cases?status=all")
+    assert response.status_code == 200
+    cases = response.json()
+    case_ids = {c["id"] for c in cases}
+    assert "case-done-2" in case_ids
+    assert "case-pending-2" in case_ids
+
+
+def test_list_cases_with_explicit_status(client):
+    import store
+    from core.models import Case
+
+    done_case = Case(id="case-done-3", raw_input="Done idea 3", status="done")
+    pending_case = Case(id="case-pending-3", raw_input="Pending idea 3", status="awaiting_confirmation")
+    store.set(done_case)
+    store.set(pending_case)
+
+    response = client.get("/cases?status=awaiting_confirmation")
+    assert response.status_code == 200
+    cases = response.json()
+    assert len(cases) == 1
+    assert cases[0]["id"] == "case-pending-3"
+
+
+def test_clear_cases_with_status(client):
+    import store
+    from core.models import Case
+
+    done_case = Case(id="case-done-4", raw_input="Done idea 4", status="done")
+    pending_case = Case(id="case-pending-4", raw_input="Pending idea 4", status="awaiting_confirmation")
+    store.set(done_case)
+    store.set(pending_case)
+
+    # Clear only done cases
+    response = client.delete("/cases?status=done")
+    assert response.status_code == 200
+
+    all_cases = client.get("/cases?status=all").json()
+    all_ids = {c["id"] for c in all_cases}
+    assert "case-done-4" not in all_ids
+    assert "case-pending-4" in all_ids

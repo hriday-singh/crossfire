@@ -179,8 +179,8 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
     });
   });
 
-  describe("DialogueOverlay & Hover-Only AI Bubble Enforcement", () => {
-    it("does NOT render an AI evaluator bubble when not hovered and not actively reporting", () => {
+  describe("DialogueOverlay & Always-Visible AI Bubbles", () => {
+    it("renders an AI evaluator bubble even when not hovered, with its detail card collapsed", () => {
       render(
         <DialogueOverlay
           activeDialogue={null}
@@ -191,6 +191,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
               action: "stand",
               stage: "Assumption Test",
               verdict: "broken",
+              reasoning: "Full reasoning text only shown on hover.",
             },
           }}
           characterPositions={{
@@ -200,14 +201,17 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
         />
       );
 
-      // Evaluators do NOT talk to each other; unhovered bubbles must not appear
-      expect(screen.queryByText("Devil's Advocate")).not.toBeInTheDocument();
+      // Bubble itself is always visible with a concise one-line status
+      expect(screen.getByText("Devil's Advocate")).toBeInTheDocument();
+      expect(screen.getByText("Assumption Test")).toBeInTheDocument();
+
+      // Expanded detail card (full reasoning) only appears on hover
       expect(
-        screen.queryByText("Premise 1: Decision memo assumes 100% human compliance without fallback safeguards.")
+        screen.queryByText("Full reasoning text only shown on hover.")
       ).not.toBeInTheDocument();
     });
 
-    it("renders the AI evaluator bubble ONLY when the user hovers over that AI", () => {
+    it("expands the detail card with reasoning ONLY when the user hovers over that AI", () => {
       render(
         <DialogueOverlay
           activeDialogue={null}
@@ -219,6 +223,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
               action: "stand",
               stage: "Assumption Test",
               verdict: "broken",
+              reasoning: "Full reasoning text only shown on hover.",
             },
           }}
           characterPositions={{
@@ -230,6 +235,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
       expect(screen.getByText("Devil's Advocate")).toBeInTheDocument();
       expect(screen.getByText("Assumption Test")).toBeInTheDocument();
       expect(screen.getByText("BROKEN")).toBeInTheDocument();
+      expect(screen.getByText("Full reasoning text only shown on hover.")).toBeInTheDocument();
     });
 
     it("renders the Steelman bubble when the user hovers over the Steelman", () => {

@@ -4,6 +4,7 @@ import {
   createCase,
   confirmCase,
   getCase,
+  listCases,
   getStreamUrl,
   ingestImage,
   ingestMarkdown,
@@ -154,6 +155,53 @@ describe("api client", () => {
       });
 
       await expect(getCase("secret-case")).rejects.toThrow("Failed to fetch case (403)");
+    });
+  });
+
+  describe("listCases", () => {
+    it("sends GET request to /cases?status=done by default and returns cases", async () => {
+      const mockCases: Partial<Case>[] = [
+        { id: "case-1", status: "done" },
+        { id: "case-2", status: "done" },
+      ];
+
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockCases,
+      });
+
+      const res = await listCases();
+      expect(fetch).toHaveBeenCalledWith(
+        "/cases?status=done",
+        expect.objectContaining({
+          method: "GET",
+          headers: { Accept: "application/json" },
+        })
+      );
+      expect(res).toEqual(mockCases);
+    });
+
+    it("sends GET request with custom status when specified", async () => {
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      });
+
+      await listCases("all");
+      expect(fetch).toHaveBeenCalledWith(
+        "/cases?status=all",
+        expect.anything()
+      );
+    });
+
+    it("throws CrossfireApiError on fetch failure", async () => {
+      (fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ detail: "Database error" }),
+      });
+
+      await expect(listCases()).rejects.toThrow("Database error");
     });
   });
 

@@ -196,4 +196,21 @@ describe("Telemetry & History Modals", () => {
     fireEvent.click(screen.getByText("Set Current Case"));
     expect(screen.queryByText(/Agent Token Breakdown/i)).not.toBeInTheDocument();
   });
+
+  it("does not display incomplete or unconfirmed cases in HistoryModal", () => {
+    render(
+      <CaseProvider>
+        <TestController />
+        <HistoryModal />
+      </CaseProvider>
+    );
+
+    // Load a mix of done and pending cases
+    fireEvent.click(screen.getByText("Load History"));
+    fireEvent.click(screen.getByText("Open History"));
+
+    expect(screen.getByText("1 saved")).toBeInTheDocument();
+    expect(screen.getByText("Launch AI Coding IDE")).toBeInTheDocument();
+    expect(screen.queryByText("Pending Case Not Done")).not.toBeInTheDocument();
+  });
 });

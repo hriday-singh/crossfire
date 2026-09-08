@@ -313,11 +313,14 @@ async def clarify_case(
 
 
 @router.get("/cases", response_model=list[Case])
-async def list_cases() -> list[Case]:
+async def list_cases(status: str | None = "done") -> list[Case]:
     """
-    GET /cases: Returns all cases from the database.
+    GET /cases: Returns cases from the database.
+    Defaults to returning completed ('done') cases for case history.
+    Pass ?status=all to retrieve all cases regardless of state.
     """
-    return store.list_all()
+    filter_status = None if status == "all" else status
+    return store.list_all(status=filter_status)
 
 
 @router.get("/cases/{case_id}", response_model=Case)
@@ -341,11 +344,11 @@ async def delete_case(case_id: str):
 
 
 @router.delete("/cases")
-async def clear_cases():
+async def clear_cases(status: str | None = None):
     """
-    DELETE /cases: Clears all cases from history.
+    DELETE /cases: Clears cases from history.
     """
-    store.clear()
+    store.clear(status=status)
     return {"status": "ok"}
 
 

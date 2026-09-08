@@ -7,6 +7,7 @@ import { getCase, deleteCase, clearCases } from "@/lib/api";
 export const HistoryModal: React.FC = () => {
   const { state, dispatch, setActiveModal, navigateScreen } = useCase();
   const isOpen = state.activeModal === "history";
+  const completedHistory = (state.caseHistory || []).filter((c) => c.status === "done");
 
   const handleSelectCase = (caseItem: Case) => {
     dispatch({ type: "LOAD_CASE", payload: caseItem });
@@ -62,12 +63,12 @@ export const HistoryModal: React.FC = () => {
               Case History
             </h2>
             <span className="font-code-sm text-code-sm text-outline px-space-1.5 py-0.5 rounded border border-outline-variant">
-              {state.caseHistory.length} saved
+              {completedHistory.length} saved
             </span>
           </div>
 
           <div className="flex items-center gap-1">
-            {state.caseHistory.length > 0 && (
+            {completedHistory.length > 0 && (
               <button
                 type="button"
                 onClick={handleClearHistory}
@@ -91,7 +92,7 @@ export const HistoryModal: React.FC = () => {
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-space-6 space-y-space-4 scrollbar-visible">
-          {state.caseHistory.length === 0 ? (
+          {completedHistory.length === 0 ? (
             <div className="bg-surface-container border border-outline-variant/60 rounded-xl p-space-6 text-center text-outline">
               <span className="material-symbols-outlined text-[28px] mb-2 text-outline">
                 history_toggle_off
@@ -105,7 +106,7 @@ export const HistoryModal: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-space-3">
-              {state.caseHistory.map((item) => {
+              {completedHistory.map((item) => {
                 const brokenCount = item.claims.filter((c) => c.status === "broken").length;
                 const survivedCount = item.claims.filter((c) => c.status === "survived").length;
                 const weakenedCount = item.claims.filter((c) => c.status === "weakened").length;

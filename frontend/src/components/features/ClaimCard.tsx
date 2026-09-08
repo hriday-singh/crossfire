@@ -213,6 +213,28 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
         <SerpApiText text={cleanUiText(claim.statement)} />
       </h2>
 
+      {/* Which bundled mechanism this claim tests, when the idea was split into several */}
+      {claim.mechanism_of && (
+        <span
+          data-testid="mechanism-label"
+          className="inline-flex w-fit items-center rounded-full border border-outline-variant bg-surface-container px-space-3 py-0.5 font-code-sm text-code-sm text-outline"
+        >
+          {claim.mechanism_of}
+        </span>
+      )}
+
+      {/* Domain jargon resolved at extraction time, so the reader sees what it meant */}
+      {claim.terms && claim.terms.length > 0 && (
+        <dl data-testid="resolved-terms" className="space-y-1">
+          {claim.terms.map((t) => (
+            <div key={t.term} className="flex flex-wrap gap-1 font-code-sm text-code-sm text-outline">
+              <dt className="font-semibold text-on-surface-variant">{t.term}:</dt>
+              <dd>{t.resolved}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
       {/* Steel Man Prompt Fix Checkbox & Toggle */}
       {!isTestingMode && (claim.salvaged_claim || consequence?.salvaged_claim) && (
         <button

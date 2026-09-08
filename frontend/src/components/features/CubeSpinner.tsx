@@ -347,7 +347,17 @@ function initStars(w: number, h: number): Star[] {
 const FLIGHT_DURATION_MS = 6800; // Smooth orbital period
 const SHUTTLE_SIZE_SCALE = 1.45; // Well-proportioned orbiter scale
 
-export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
+interface CubeSpinnerProps {
+  onCancel?: () => void;
+  headline?: string;
+  subtext?: string;
+}
+
+export const CubeSpinner: React.FC<CubeSpinnerProps> = ({
+  onCancel,
+  headline = 'Extracting core assumptions',
+  subtext = 'Deconstructing decision framework',
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // 3D Space Shuttle Flight Canvas Renderer
@@ -669,10 +679,10 @@ export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) =
       </style>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 text-center px-4">
         <h2 className="text-foreground font-headline-lg text-headline-lg">
-          Extracting core assumptions<span className="animated-dots"></span>
+          {headline}<span className="animated-dots"></span>
         </h2>
         <p className="text-muted-foreground mt-3 font-code-lg text-code-lg animate-pulse">
-          Deconstructing decision framework
+          {subtext}
         </p>
         {onCancel && (
           <div className="mt-8 pointer-events-auto animate-in fade-in duration-1000 delay-500">
@@ -687,7 +697,7 @@ export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) =
           </div>
         )}
       </div>
-      <span className="sr-only">Extracting core assumptions...</span>
+      <span className="sr-only">{headline}...</span>
       {/* Fullscreen 3D Blueprint Space Shuttle Flight Arena */}
       <canvas
         ref={canvasRef}

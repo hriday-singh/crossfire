@@ -180,6 +180,17 @@ describe("EvidenceDrawer", () => {
     ).toBeInTheDocument();
   });
 
+  it("does not render 'How to check', 'Audit Ref', or export brief/JSON actions", () => {
+    render(
+      <EvidenceDrawer claimId="claim-test-1" currentCase={mockCase} onClose={() => {}} />
+    );
+
+    expect(screen.queryByText(/How to check/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Mark experiment as queued/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Audit Ref:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Export Brief/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^JSON$/i)).not.toBeInTheDocument();
+  });
 });
 
 

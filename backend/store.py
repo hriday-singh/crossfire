@@ -50,18 +50,36 @@ def _init_db() -> None:
     _get_connection().close()
 
 
-def _clear_db() -> None:
+def _clear_db(status: str | None = None) -> None:
     with closing(_get_connection()) as conn, conn:
-        conn.execute("DELETE FROM cases")
+        if status is not None:
+            try:
+                conn.execute("DELETE FROM cases WHERE json_extract(data, '$.status') = ?", (status,))
+            except Exception:
+                cur = conn.execute("SELECT id, data FROM cases")
+                for r in cur.fetchall():
+                    try:
+                        case = Case.model_validate_json(r["data"])
+                        if case.status == status:
+                            conn.execute("DELETE FROM cases WHERE id = ?", (r["id"],))
+                    except Exception:
+                        pass
+        else:
+            conn.execute("DELETE FROM cases")
 
 
 class CaseDict(dict):
-    def clear(self) -> None:
-        super().clear()
-        _clear_db()
+    def clear(self, status: str | None = None) -> None:
+        if status is not None:
+            to_remove = [k for k, v in self.items() if getattr(v, "status", None) == status]
+            for k in to_remove:
+                self.pop(k, None)
+        else:
+            super().clear()
+        _clear_db(status=status)
 
 
-_cases: dict[str, Case] = CaseDict()
+_cases: CaseDict = CaseDict()
 
 
 def get(case_id: str) -> Case | None:
@@ -84,15 +102,28 @@ def get(case_id: str) -> Case | None:
     return None
 
 
-def list_all() -> list[Case]:
+def list_all(status: str | None = None) -> list[Case]:
     with closing(_get_connection()) as conn, conn:
-        cur = conn.execute("SELECT id, data FROM cases ORDER BY updated_at DESC")
-        rows = cur.fetchall()
+        if status is not None:
+            try:
+                cur = conn.execute(
+                    "SELECT id, data FROM cases WHERE json_extract(data, '$.status') = ? ORDER BY updated_at DESC",
+                    (status,),
+                )
+                rows = cur.fetchall()
+            except Exception:
+                cur = conn.execute("SELECT id, data FROM cases ORDER BY updated_at DESC")
+                rows = cur.fetchall()
+        else:
+            cur = conn.execute("SELECT id, data FROM cases ORDER BY updated_at DESC")
+            rows = cur.fetchall()
         
         cases = []
         for row in rows:
             try:
                 case = Case.model_validate_json(row["data"])
+                if status is not None and case.status != status:
+                    continue
                 _cases[case.id] = case
                 cases.append(case)
             except Exception as exc:
@@ -124,8 +155,8 @@ def delete(case_id: str) -> None:
         conn.execute("DELETE FROM cases WHERE id = ?", (case_id,))
 
 
-def clear() -> None:
-    _cases.clear()
+def clear(status: str | None = None) -> None:
+    _cases.clear(status=status)
 
 
 def recover_interrupted_cases() -> int:
