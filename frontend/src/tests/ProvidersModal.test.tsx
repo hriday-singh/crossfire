@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { CaseProvider, useCase } from "@/context/CaseContext";
 import { ProvidersModal } from "@/components/features/ProvidersModal";
@@ -115,6 +115,10 @@ describe("ProvidersModal", () => {
     mockBackend();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("lists every provider with its chain role and selects the active one", async () => {
     await open();
 
@@ -122,12 +126,13 @@ describe("ProvidersModal", () => {
     expect(screen.getByTestId("provider-item-gemini_proxy")).toBeInTheDocument();
     expect(screen.getByTestId("provider-item-openai")).toHaveTextContent("FB 1");
     expect(screen.getByTestId("provider-item-custom:vllm-box")).toHaveTextContent("FB 2");
-    expect(screen.getByRole("heading", { name: "Google Gemini" })).toBeInTheDocument();
-    expect(screen.getByTestId("provider-item-gemini")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { name: "Global Provider Routing" })).toBeInTheDocument();
+    expect(screen.getByTestId("provider-item-gemini")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("shows only masked key hints and adds a new key for the selected provider", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
     await screen.findByTestId("key-row-4");
     expect(screen.getByText("AIza...9f2c")).toBeInTheDocument();
 
@@ -144,6 +149,7 @@ describe("ProvidersModal", () => {
 
   it("toggles and deletes a stored key", async () => {
     await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
     await screen.findByTestId("key-row-4");
 
     fireEvent.click(screen.getByLabelText("Toggle key AIza...9f2c"));
@@ -166,7 +172,7 @@ describe("ProvidersModal", () => {
 
   it("promotes another model to primary", async () => {
     await open();
-
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
     fireEvent.click(screen.getByTestId("model-chip-gemini-3.6-flash"));
 
     await waitFor(() => expect(calledWith("/providers/gemini/config", "PUT")).toHaveLength(1));

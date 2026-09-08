@@ -5,12 +5,15 @@ Wrapped in tenacity retry for transient network failures.
 """
 from __future__ import annotations
 
+import asyncio
 import html
 import inspect
 import json
 import logging
 import re
+import time
 import urllib.parse
+from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Any
 
@@ -475,7 +478,7 @@ async def _execute_serpapi_search(query: str, api_key: str, max_results: int = 4
     }
     url = f"https://serpapi.com/search.json?{urllib.parse.urlencode(params)}"
 
-    res = await AsyncFetcher.get(url, timeout=15)
+    res = await AsyncFetcher.get(url, timeout=get_settings().search_timeout_seconds)
     status = getattr(res, "status", getattr(res, "status_code", 200))
 
     if status == 429:
@@ -494,19 +497,24 @@ async def _execute_serpapi_search(query: str, api_key: str, max_results: int = 4
 
 
 @retry(
-    stop=stop_after_attempt(3),
+    stop=stop_after_attempt(2),
     wait=wait_exponential(multiplier=0.1, min=0.1, max=1.0),
     retry=retry_if_not_exception_type(AssertionError),
     reraise=True,
 )
 async def _execute_search(query: str) -> str:
-    """Executes a search against DuckDuckGo Lite using Scrapling's AsyncFetcher."""
+    """Executes a search against DuckDuckGo Lite using Scrapling's AsyncFetcher.
+
+    Two attempts, not three: a third try on an endpoint that just refused twice
+    is another request into the same block, and the caller already has an
+    authority pass and a reformulation pass behind this one.
+    """
     from scrapling import AsyncFetcher
 
     res = await AsyncFetcher.post(
         "https://lite.duckduckgo.com/lite/",
         data={"q": query},
-        timeout=15,
+        timeout=get_settings().search_timeout_seconds,
     )
     if hasattr(res, "html_content") and res.html_content:
         return res.html_content
@@ -517,18 +525,9 @@ async def _execute_search(query: str) -> str:
     return str(res)
 
 
-async def search_evidence(claim: Claim, query_override: str | None = None) -> list[EvidenceItem]:
-    """Searches external evidence for a given claim.
-
-    Primary engine is DuckDuckGo Lite via Scrapling (fast, zero-cost, high Tier-1 authority signal).
-    Falls back to SerpApi only when SEARCH_PROVIDER is explicitly set to 'serpapi' or when
-    DuckDuckGo yields 0 results and SERPAPI_API_KEY is configured.
-    """
-    is_demo = getattr(settings, "DEMO_MODE", False) or getattr(settings, "demo_mode", False)
-    if is_demo and claim.id in DEMO_FIXTURES:
-        return DEMO_FIXTURES[claim.id]
-
-    query = query_override or build_query(claim.statement)
+async def _search_engines(claim_id: str, query: str) -> list[EvidenceItem]:
+    """One trip to the search engines for one query. Never called directly —
+    `search_evidence` coalesces and caches around it."""
     api_key = (getattr(settings, "SERPAPI_API_KEY", "") or getattr(settings, "serpapi_api_key", "") or "").strip()
     provider_mode = (
         getattr(settings, "SEARCH_PROVIDER", "duckduckgo")
@@ -547,12 +546,12 @@ async def search_evidence(claim: Claim, query_override: str | None = None) -> li
             logger.info(f"SerpApi returned 0 results for '{query}'. Falling back to DuckDuckGo Lite.")
         except SerpApiQuotaExceededError as exc:
             logger.warning(
-                f"SerpApi credits exhausted or quota reached for claim {claim.id}: {exc}. "
+                f"SerpApi credits exhausted or quota reached for claim {claim_id}: {exc}. "
                 "Smoothly falling back to DuckDuckGo Lite via Scrapling."
             )
         except Exception as exc:
             logger.warning(
-                f"SerpApi search failed for claim {claim.id}: {exc}. "
+                f"SerpApi search failed for claim {claim_id}: {exc}. "
                 "Falling back to DuckDuckGo Lite via Scrapling."
             )
 
@@ -568,7 +567,7 @@ async def search_evidence(claim: Claim, query_override: str | None = None) -> li
     except AssertionError:
         raise
     except Exception as exc:
-        logger.warning(f"DuckDuckGo search failed for claim {claim.id}: {exc}")
+        logger.warning(f"DuckDuckGo search failed for claim {claim_id}: {exc}")
 
     # Fallback to SerpApi if DDG returned 0 results and SerpApi wasn't already attempted
     if provider_mode != "serpapi" and api_key and provider_mode != "duckduckgo_only":
@@ -579,9 +578,108 @@ async def search_evidence(claim: Claim, query_override: str | None = None) -> li
             if serp_items:
                 return rank_by_source_class(serp_items)
         except Exception as exc:
-            logger.warning(f"SerpApi fallback failed for claim {claim.id}: {exc}")
+            logger.warning(f"SerpApi fallback failed for claim {claim_id}: {exc}")
 
     return []
 
 
 
+
+
+# ---------------------------------------------------------------- retrieval budget
+#
+# One run asks the same engines the same things repeatedly: the Researcher runs a
+# base sweep, an authority pass and (on zero results) a reformulation pass per
+# claim, and cross-examination probes fire again for the load-bearing ones. Those
+# queries overlap heavily, and firing all of them at once is what got DuckDuckGo
+# Lite to answer with an empty page — which the caller reads as "no evidence" and
+# answers with *another* query. The cascade was self-feeding.
+#
+# Two mechanisms, both here rather than at each call site:
+#   * coalescing + TTL cache — an identical query in flight is joined, not re-sent;
+#   * a concurrency gate — at most `search_concurrency` requests leave the process
+#     at once, so a 20-evaluator fan-out arrives as a queue, not a burst.
+#
+# Quality is unaffected: the same query returns the same results either way.
+
+_search_cache: "OrderedDict[str, tuple[float, list[EvidenceItem]]]" = OrderedDict()
+_search_inflight: dict[str, asyncio.Future] = {}
+_SEARCH_CACHE_MAX = 256
+
+_search_gate: asyncio.Semaphore | None = None
+_search_gate_loop: Any = None
+
+
+def clear_search_cache() -> None:
+    """Drops cached and in-flight queries. Tests call this between cases."""
+    _search_cache.clear()
+    _search_inflight.clear()
+
+
+def _gate() -> asyncio.Semaphore:
+    """Loop-bound semaphore, rebuilt when the event loop changes (test runs)."""
+    global _search_gate, _search_gate_loop
+    loop = asyncio.get_running_loop()
+    if _search_gate is None or _search_gate_loop is not loop:
+        _search_gate = asyncio.Semaphore(max(1, int(get_settings().search_concurrency)))
+        _search_gate_loop = loop
+    return _search_gate
+
+
+def _detach(items: list[EvidenceItem]) -> list[EvidenceItem]:
+    """Callers mutate what they get back — stance, source_class, and the snippet
+    on deep fetch. Handing two evaluators the same objects would let one rewrite
+    the other's evidence."""
+    return [item.model_copy(deep=True) for item in items]
+
+
+def _remember(query: str, task: asyncio.Future) -> None:
+    _search_inflight.pop(query, None)
+    if task.cancelled() or task.exception() is not None:
+        return
+    _search_cache[query] = (time.monotonic(), task.result())
+    _search_cache.move_to_end(query)
+    while len(_search_cache) > _SEARCH_CACHE_MAX:
+        _search_cache.popitem(last=False)
+
+
+async def _gated_search(claim_id: str, query: str) -> list[EvidenceItem]:
+    async with _gate():
+        return await _search_engines(claim_id, query)
+
+
+async def search_evidence(claim: Claim, query_override: str | None = None) -> list[EvidenceItem]:
+    """Searches external evidence for a given claim.
+
+    Primary engine is DuckDuckGo Lite via Scrapling (fast, zero-cost, high Tier-1 authority signal).
+    Falls back to SerpApi only when SEARCH_PROVIDER is explicitly set to 'serpapi' or when
+    DuckDuckGo yields 0 results and SERPAPI_API_KEY is configured.
+
+    Identical queries are coalesced and cached for `search_cache_ttl_seconds`, and
+    outbound requests are capped at `search_concurrency`.
+    """
+    is_demo = getattr(settings, "DEMO_MODE", False) or getattr(settings, "demo_mode", False)
+    if is_demo and claim.id in DEMO_FIXTURES:
+        return DEMO_FIXTURES[claim.id]
+
+    query = (query_override or build_query(claim.statement) or "").strip()
+    if not query:
+        return []
+
+    ttl = float(get_settings().search_cache_ttl_seconds)
+    cached = _search_cache.get(query)
+    if cached is not None and (time.monotonic() - cached[0]) < ttl:
+        _search_cache.move_to_end(query)
+        return _detach(cached[1])
+    if cached is not None:
+        _search_cache.pop(query, None)
+
+    pending = _search_inflight.get(query)
+    if pending is None:
+        pending = asyncio.ensure_future(_gated_search(claim.id, query))
+        _search_inflight[query] = pending
+        pending.add_done_callback(lambda t, q=query: _remember(q, t))
+
+    # shield: an evaluator hitting its own timeout must not cancel a search other
+    # evaluators are waiting on.
+    return _detach(await asyncio.shield(pending))

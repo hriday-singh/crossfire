@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
+from contextlib import contextmanager
 from math import ceil
 from uuid import uuid4
 
@@ -276,6 +278,22 @@ from core.synthesis import (  # noqa: F401
 
 
 
+@contextmanager
+def _stage(case_id: str, name: str):
+    """Logs how long one pipeline stage took.
+
+    The run went from ~1.5 min to 3+ without anyone being able to say which stage
+    grew, because nothing here was timed. core/telemetry.py exists but is not
+    wired to the pipeline; one log line per stage is what makes the next
+    regression a measurement instead of an argument.
+    """
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        logger.info("stage %s case=%s took %.2fs", name, case_id, time.perf_counter() - start)
+
+
 def _degraded_finding(item: TestPlanItem, exc: BaseException) -> Finding:
     """A failed evaluator becomes a visible degraded finding with None confidence, never silence.
 
@@ -436,7 +454,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         case.status = "testing"
         await emit_activity(case.id, "Pipeline", "Classifying load-bearing assumptions...", action="load_bearing")
 
-        flags = await rank_load_bearing(case, provider)
+        with _stage(case.id, "load_bearing"):
+            flags = await rank_load_bearing(case, provider)
         for claim, load_bearing in zip(case.claims, flags):
             claim.load_bearing = load_bearing
             await events.publish(
@@ -457,13 +476,15 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             f"Identified {lb_count} core assumption(s). Launching adversarial tests in parallel...",
             action="test_plan",
         )
-        case.findings = await run_evaluators(case, case.test_plan, provider)
+        with _stage(case.id, "evaluators"):
+            case.findings = await run_evaluators(case, case.test_plan, provider)
         if case.test_plan and case.findings and all(f.result == "System Error / Timeout" for f in case.findings):
             raise RuntimeError("All evaluators failed to return findings; provider is unavailable.")
 
         # Phase 1.5: Targeted Cross-Examination Probes
         try:
-            probe_findings = await run_cross_examination_probes(case, case.findings, provider)
+            with _stage(case.id, "cross_examination"):
+                probe_findings = await run_cross_examination_probes(case, case.findings, provider)
             if probe_findings:
                 case.findings.extend(probe_findings)
                 for pf in probe_findings:
@@ -555,7 +576,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             )
             return clm, clm.status, reasoning
 
-        await asyncio.gather(*(_reconcile_single(clm) for clm in case.claims))
+        with _stage(case.id, "steelman"):
+            await asyncio.gather(*(_reconcile_single(clm) for clm in case.claims))
         if case.claims and len(steelman_errors) == len(case.claims):
             raise steelman_errors[0]
 
@@ -596,10 +618,11 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         async def _synthesize_case_verdict_task() -> CaseVerdict:
             return await synthesize_case_verdict(case, provider)
 
-        synthesized_consequences, synthesized_verdict = await asyncio.gather(
-            _synthesize_consequences_task(),
-            _synthesize_case_verdict_task(),
-        )
+        with _stage(case.id, "synthesis"):
+            synthesized_consequences, synthesized_verdict = await asyncio.gather(
+                _synthesize_consequences_task(),
+                _synthesize_case_verdict_task(),
+            )
         case.consequences = synthesized_consequences
         case.case_verdict = synthesized_verdict
 

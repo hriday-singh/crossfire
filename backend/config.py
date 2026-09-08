@@ -43,9 +43,22 @@ class Settings(BaseSettings):
 
     # Fan-out control: a full panel over 5 claims is ~20 concurrent LLM calls.
     evaluator_concurrency: int = Field(default=8, alias="EVALUATOR_CONCURRENCY")
-    evaluator_timeout_seconds: float = Field(default=300.0, alias="EVALUATOR_TIMEOUT_SECONDS")
-    llm_timeout_seconds: float = Field(default=120.0, alias="LLM_TIMEOUT_SECONDS")
+    # Budgets, not safety nets. openai_compat retries a transient failure once,
+    # so one evaluator can cost 2 x llm_timeout + backoff while holding an
+    # evaluator_concurrency slot. At 120/300 that was ~241s of one wave of eight
+    # blocked on a single hung call, which is what turned 1-1.5 min runs into
+    # 3+ min ones. Keep evaluator_timeout above one retry pair and well below two.
+    evaluator_timeout_seconds: float = Field(default=120.0, alias="EVALUATOR_TIMEOUT_SECONDS")
+    llm_timeout_seconds: float = Field(default=60.0, alias="LLM_TIMEOUT_SECONDS")
     steelman_concurrency: int = Field(default=3, alias="STEELMAN_CONCURRENCY")
+
+    # Retrieval budgets. DuckDuckGo Lite answers in well under a second when it
+    # answers at all; a 15s wait was never a slow reply, it was a block. Bursting
+    # it is what produced the empty results that then triggered the authority and
+    # reformulation passes, which burst it again.
+    search_timeout_seconds: float = Field(default=8.0, alias="SEARCH_TIMEOUT_SECONDS")
+    search_concurrency: int = Field(default=4, alias="SEARCH_CONCURRENCY")
+    search_cache_ttl_seconds: float = Field(default=300.0, alias="SEARCH_CACHE_TTL_SECONDS")
 
     model_config = ConfigDict(populate_by_name=True)
 

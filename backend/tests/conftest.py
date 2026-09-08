@@ -37,6 +37,17 @@ def reset_events_fixture():
     events.reset()
 
 
+@pytest.fixture(autouse=True)
+def reset_search_cache_fixture():
+    """search_evidence coalesces and caches by query; without this a query one
+    test issued would answer the next test's assertion."""
+    from evidence.search import clear_search_cache
+
+    clear_search_cache()
+    yield
+    clear_search_cache()
+
+
 from core.models import (
     Case,
     Claim,

@@ -42,6 +42,12 @@ beforeEach(() => {
           }),
         });
       }
+      if (typeof url === "string" && url.includes("/cases")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ([]),
+        });
+      }
       return Promise.resolve({
         ok: true,
         json: async () => ({}),

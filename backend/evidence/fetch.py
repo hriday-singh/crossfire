@@ -111,7 +111,10 @@ async def fetch_page(url: str, timeout: float = 5.0) -> str:
             "URLs must come from discovery (DuckDuckGo), not direct search engine queries."
         )
 
-    if not is_safe_url(url):
+    # socket.getaddrinfo blocks. On the pipeline's event loop, with a full panel
+    # fanned out, one slow resolver stalled every other evaluator in the process —
+    # so the DNS half of the SSRF check runs off-loop.
+    if not await asyncio.to_thread(is_safe_url, url):
         raise ValueError(f"Fetching private or unsafe URL is disallowed: {url}")
 
     try:
