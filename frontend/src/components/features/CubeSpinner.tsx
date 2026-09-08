@@ -344,8 +344,8 @@ function initStars(w: number, h: number): Star[] {
 }
 
 // Configurable flight parameters
-const FLIGHT_DURATION_MS = 3300; // 1.2x speed increase (3.3s per diagonal pass)
-const SHUTTLE_SIZE_SCALE = 1.9; // ~2x size increase
+const FLIGHT_DURATION_MS = 6800; // Smooth orbital period
+const SHUTTLE_SIZE_SCALE = 1.45; // Well-proportioned orbiter scale
 
 export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -443,54 +443,77 @@ export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) =
       }
       ctx.shadowBlur = 0;
 
-      // Trajectory: From bottom-left corner to top-right corner across the full screen
-      const margin = 180;
-      const startX = -margin;
-      const startY = height + margin;
-      const endX = width + margin;
-      const endY = -margin;
+      // Circular Orbital Trajectory around the center text
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radiusX = Math.max(260, Math.min(width * 0.36, 420));
+      const radiusY = Math.max(180, Math.min(height * 0.28, 260));
+
+      const angle = progress * Math.PI * 2; // Orbit angle around the center
 
       // Current shuttle flight center coordinates
-      const cx = startX + progress * (endX - startX);
-      const cy = startY + progress * (endY - startY);
+      const cx = centerX + Math.cos(angle) * radiusX;
+      const cy = centerY + Math.sin(angle) * radiusY;
 
-      // Fixed flight attitude oriented towards the top-right ascent
-      const yawY = 0.68; // Facing ~39° right toward upper-right quadrant
-      const pitchX = -0.38 + Math.sin(time * 0.0022) * 0.02; // ~-22° climbing pitch with subtle aero-drift
-      const rollZ = -0.24 + Math.sin(time * 0.0018) * 0.015; // ~-14° bank into the trajectory climb
+      // Orbit tangent velocity in screen coords (screen Y is down)
+      const vx = -Math.sin(angle) * radiusX;
+      const vy = Math.cos(angle) * radiusY;
 
-      const cosZ = Math.cos(rollZ);
-      const sinZ = Math.sin(rollZ);
-      const cosY = Math.cos(yawY);
-      const sinY = Math.sin(yawY);
-      const cosX = Math.cos(pitchX);
-      const sinX = Math.sin(pitchX);
+      // 3D Forward direction vector F (nose points in flight direction)
+      let Fx = vx;
+      let Fy = -vy; // 3D Y is up
+      let Fz = -Math.sin(angle) * 35; // Subtle 3D orbital inclination
+      const lenF = Math.hypot(Fx, Fy, Fz) || 1;
+      Fx /= lenF;
+      Fy /= lenF;
+      Fz /= lenF;
+
+      // Inward direction vector pointing toward center of orbit
+      const inX = centerX - cx;
+      const inY = -(centerY - cy);
+      const lenIn = Math.hypot(inX, inY) || 1;
+      const Ix = inX / lenIn;
+      const Iy = inY / lenIn;
+
+      // Up vector U with inward banking (~32° bank towards center)
+      const bankAngle = 0.55;
+      let Ux = Ix * Math.sin(bankAngle);
+      let Uy = Iy * Math.sin(bankAngle);
+      let Uz = Math.cos(bankAngle);
+
+      // Orthogonalize U against F (Gram-Schmidt)
+      const dotUF = Ux * Fx + Uy * Fy + Uz * Fz;
+      Ux -= dotUF * Fx;
+      Uy -= dotUF * Fy;
+      Uz -= dotUF * Fz;
+      const lenU = Math.hypot(Ux, Uy, Uz) || 1;
+      Ux /= lenU;
+      Uy /= lenU;
+      Uz /= lenU;
+
+      // Right vector R = F x U
+      let Rx = Fy * Uz - Fz * Uy;
+      let Ry = Fz * Ux - Fx * Uz;
+      let Rz = Fx * Uy - Fy * Ux;
+      const lenR = Math.hypot(Rx, Ry, Rz) || 1;
+      Rx /= lenR;
+      Ry /= lenR;
+      Rz /= lenR;
 
       const fov = 340;
       const camDist = 200;
 
-      // 3D to 2D projection centered at (cx, cy) with 1.9x size scale
+      // 3D to 2D projection centered at (cx, cy)
       const project = (p: Point3D) => {
-        // 1. Roll (Z)
-        const x0 = p.x * cosZ - p.y * sinZ;
-        const y0 = p.x * sinZ + p.y * cosZ;
-        const z0 = p.z;
+        const transX = Rx * p.x + Ux * p.y + Fx * p.z;
+        const transY = Ry * p.x + Uy * p.y + Fy * p.z;
+        const transZ = Rz * p.x + Uz * p.y + Fz * p.z;
 
-        // 2. Yaw (Y)
-        const x1 = x0 * cosY + z0 * sinY;
-        const y1 = y0;
-        const z1 = -x0 * sinY + z0 * cosY;
-
-        // 3. Pitch (X)
-        const x2 = x1;
-        const y2 = y1 * cosX - z1 * sinX;
-        const z2 = y1 * sinX + z1 * cosX;
-
-        const scale = (fov / (fov + z2 + camDist)) * SHUTTLE_SIZE_SCALE;
+        const scale = (fov / (fov + transZ + camDist)) * SHUTTLE_SIZE_SCALE;
         return {
-          x: cx + x2 * scale,
-          y: cy - y2 * scale,
-          z: z2,
+          x: cx + transX * scale,
+          y: cy - transY * scale,
+          z: transZ,
           origZ: p.z,
           scale,
         };
@@ -515,15 +538,15 @@ export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) =
         ctx.fill();
       });
 
-      // 1. Render SSME Engine Exhaust Thrust Plumes (trailing towards bottom-left)
+      // 1. Render SSME Engine Exhaust Thrust Plumes (trailing behind engines along orbit tangent)
       engineCenters.forEach((engineIdx, i) => {
         const eng = projected[engineIdx];
         if (!eng) return;
 
-        const plumeLength = (42 + 16 * Math.sin(time * 0.025 + i * 1.5)) * (eng.scale / SHUTTLE_SIZE_SCALE);
-        // Direction vector trailing opposite to flight heading (down-left)
-        const plumeEndX = eng.x - plumeLength * 0.8;
-        const plumeEndY = eng.y + plumeLength * 0.6;
+        const plumeLength = (36 + 12 * Math.sin(time * 0.025 + i * 1.5)) * (eng.scale / SHUTTLE_SIZE_SCALE);
+        // Direction vector trailing opposite to flight heading (behind the engine)
+        const plumeEndX = eng.x - Fx * plumeLength;
+        const plumeEndY = eng.y - (-Fy) * plumeLength;
 
         ctx.beginPath();
         ctx.moveTo(eng.x, eng.y);
@@ -537,7 +560,7 @@ export const CubeSpinner: React.FC<{ onCancel?: () => void }> = ({ onCancel }) =
         // Inner white-hot core
         ctx.beginPath();
         ctx.moveTo(eng.x, eng.y);
-        ctx.lineTo(eng.x - plumeLength * 0.45 * 0.8, eng.y + plumeLength * 0.45 * 0.6);
+        ctx.lineTo(eng.x - Fx * plumeLength * 0.45, eng.y - (-Fy) * plumeLength * 0.45);
         ctx.strokeStyle = 'rgba(240, 249, 255, 0.9)';
         ctx.lineWidth = 1.6 * (eng.scale / SHUTTLE_SIZE_SCALE);
         ctx.stroke();

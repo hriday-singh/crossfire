@@ -92,9 +92,16 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
                     />
                     <label
                       htmlFor={`confirm-agent-${agent.id}`}
-                      className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs cursor-pointer select-none whitespace-nowrap"
+                      className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs cursor-pointer select-none whitespace-nowrap flex items-center gap-1.5"
                     >
-                      {agent.name}
+                      {agent.emoji && (
+                        <img
+                          src={agent.emoji}
+                          alt=""
+                          className="w-4 h-4 object-contain inline-block shrink-0 rounded-xs"
+                        />
+                      )}
+                      <span>{agent.name}</span>
                     </label>
                   </div>
 

@@ -147,8 +147,15 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs truncate select-none">
-                          {agent.name}
+                        <span className="font-headline-sm text-headline-sm text-on-surface font-semibold text-xs truncate select-none flex items-center gap-1.5">
+                          {agent.emoji && (
+                            <img
+                              src={agent.emoji}
+                              alt=""
+                              className="w-4 h-4 object-contain inline-block shrink-0 rounded-xs"
+                            />
+                          )}
+                          <span className="truncate">{agent.name}</span>
                         </span>
                         <span className="material-symbols-outlined text-[16px] text-outline ml-1 shrink-0 select-none">
                           {agent.icon}

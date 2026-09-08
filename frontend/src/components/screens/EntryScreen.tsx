@@ -559,17 +559,39 @@ export const EntryScreen: React.FC = () => {
           {/* Patrolling Sentry Robot & Perched Companion Head */}
           <TechDecorations isTyping={rawInput.trim().length > 0} />
 
-          {/* Form Container */}
-          <motion.div variants={heroItemVariants}>
-            <form
-              onSubmit={handleSubmit}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className="relative flex flex-col w-full bg-surface-container-low rounded-xl p-space-4 shadow-xl border border-outline-variant/40"
-            >
-              {isDragging && (
-                <div className="absolute inset-0 bg-surface-container/90 border-2 border-dashed border-primary-container rounded-xl flex flex-col items-center justify-center z-20 pointer-events-none backdrop-blur-xs">
+          {/* Form Container with Moving Perimeter Glow */}
+          <motion.div variants={heroItemVariants} className="relative group">
+            {/* Ambient Moving Glow Shadow outside the card perimeter */}
+            <div className="absolute -inset-2 rounded-2xl overflow-hidden pointer-events-none -z-10 blur-xl opacity-70 group-hover:opacity-95 transition-opacity duration-300">
+              <div
+                className="absolute -inset-[150%] animate-[spin_5s_linear_infinite]"
+                style={{
+                  background:
+                    "conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(56,189,248,0.3) 305deg, rgba(56,189,248,0.85) 335deg, rgba(147,197,253,1) 355deg, transparent 360deg)",
+                }}
+              />
+            </div>
+
+            {/* Crisp Moving Border Wrapper */}
+            <div className="relative rounded-xl p-[1.5px] overflow-hidden">
+              {/* Moving Neon Blue Perimeter Beam */}
+              <div
+                className="absolute -inset-[150%] animate-[spin_5s_linear_infinite] pointer-events-none"
+                style={{
+                  background:
+                    "conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(56,189,248,0.2) 300deg, rgba(56,189,248,0.85) 335deg, #ffffff 355deg, transparent 360deg)",
+                }}
+              />
+
+              <form
+                onSubmit={handleSubmit}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className="relative z-10 flex flex-col w-full bg-surface-container-low rounded-[10px] p-space-4 border border-outline-variant/40 shadow-xl"
+              >
+                {isDragging && (
+                  <div className="absolute inset-0 bg-surface-container/90 border-2 border-dashed border-primary-container rounded-[10px] flex flex-col items-center justify-center z-20 pointer-events-none backdrop-blur-xs">
                   <span className="material-symbols-outlined text-[36px] text-primary-container">
                     upload_file
                   </span>
@@ -773,7 +795,8 @@ export const EntryScreen: React.FC = () => {
                 </Button>
               </div>
             </form>
-          </motion.div>
+          </div>
+        </motion.div>
 
           {/* Presets and FAQ Discovery Bar */}
           <motion.div variants={heroItemVariants}>

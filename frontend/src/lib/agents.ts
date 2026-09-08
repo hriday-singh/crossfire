@@ -14,6 +14,7 @@ export interface AgentDefinition {
   shortRole: string;
   description: string;
   icon: string;
+  emoji: string;
 }
 
 export const ALL_AGENTS: AgentDefinition[] = [
@@ -24,6 +25,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     shortRole: "Premises & contradictions",
     description: "Applies adversarial pressure to unearth unstated premises, user incentives, and logical contradictions.",
     icon: "psychology",
+    emoji: "/emoji/devils_advocate.png",
   },
   {
     id: "researcher",
@@ -32,6 +34,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     shortRole: "Empirical market reality",
     description: "Retrieves verifiable market signals, web sources, unit economics, and public citations via live search.",
     icon: "fact_check",
+    emoji: "/emoji/researcher.png",
   },
   {
     id: "builder",
@@ -40,6 +43,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     shortRole: "Engineering bottlenecks",
     description: "Evaluates implementation bottlenecks, API constraints, latency limits, and architectural feasibility.",
     icon: "construction",
+    emoji: "/emoji/builder.png",
   },
   {
     id: "operator",
@@ -48,6 +52,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     shortRole: "Adoption & bureaucracy",
     description: "Stress-tests organizational friction, human inertia, enterprise procurement red tape, regulatory liability, and process drag.",
     icon: "policy",
+    emoji: "/emoji/operator.png",
   },
 ];
 
