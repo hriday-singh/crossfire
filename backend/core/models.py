@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel
+from typing import Any
+
+from pydantic import BaseModel, model_validator
 
 
 class ClaimStatus(str, Enum):
@@ -79,6 +81,13 @@ class NextAction(BaseModel):
 
     action: str
     claim_ids: list[str] = []               # Claim.id values this action answers
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_string_action(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            return {"action": data, "claim_ids": []}
+        return data
 
 
 class DecidingFactor(BaseModel):

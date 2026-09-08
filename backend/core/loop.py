@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
+from contextlib import contextmanager
 from math import ceil
 from uuid import uuid4
 
@@ -276,6 +278,22 @@ from core.synthesis import (  # noqa: F401
 
 
 
+@contextmanager
+def _stage(case_id: str, name: str):
+    """Logs how long one pipeline stage took.
+
+    The run went from ~1.5 min to 3+ without anyone being able to say which stage
+    grew, because nothing here was timed. core/telemetry.py exists but is not
+    wired to the pipeline; one log line per stage is what makes the next
+    regression a measurement instead of an argument.
+    """
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        logger.info("stage %s case=%s took %.2fs", name, case_id, time.perf_counter() - start)
+
+
 def _degraded_finding(item: TestPlanItem, exc: BaseException) -> Finding:
     """A failed evaluator becomes a visible degraded finding with None confidence, never silence.
 
@@ -312,44 +330,83 @@ async def run_evaluators(
     limit = asyncio.Semaphore(getattr(settings, "evaluator_concurrency", 8))
     timeout = getattr(settings, "evaluator_timeout_seconds", 60.0)
 
+    # Group the plan by claim, in case.claims order, so the stream describes the run
+    # as "claim 1 and its agents, claim 2 and its agents, ..." — the frontend paces the
+    # animation off claim_index/total_claims. Execution stays fully concurrent across
+    # groups; only the event metadata is ordered.
+    claim_order = [c.id for c in case.claims]
+    grouped: dict[str, list[TestPlanItem]] = {}
     for item in plan:
-        evaluator_name = FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)
-        target_clm = next((c for c in case.claims if c.id == item.target_claim), None)
+        grouped.setdefault(item.target_claim, []).append(item)
+    ordered_claim_ids = [cid for cid in claim_order if cid in grouped]
+    ordered_claim_ids += [cid for cid in grouped if cid not in claim_order]
+    total_claims = len(ordered_claim_ids)
+
+    def _evaluator_of(item: TestPlanItem) -> str:
+        return FAILURE_MODE_TO_AGENT.get(item.failure_mode, item.failure_mode)
+
+    for index, claim_id in enumerate(ordered_claim_ids):
+        group = grouped[claim_id]
+        target_clm = next((c for c in case.claims if c.id == claim_id), None)
         await events.publish(
             case.id,
-            "test_started",
+            "claim_started",
             {
-                "test_id": item.id,
-                "target_claim_id": item.target_claim,
-                "failure_mode": item.failure_mode,
-                "evaluator": evaluator_name,
+                "claim_id": claim_id,
+                "claim_index": index,
+                "total_claims": total_claims,
                 "claim_statement": target_clm.statement if target_clm else "",
+                "agents": [_evaluator_of(i) for i in group],
+                "test_ids": [i.id for i in group],
             },
         )
-
 
     isolated_case = case.model_copy(
         update={"findings": [], "consequences": [], "case_verdict": None}
     )
 
     async def _run_one(item: TestPlanItem) -> Finding:
+        target_clm = next((c for c in case.claims if c.id == item.target_claim), None)
         async with limit:
+            # Emitted here, not up front: the agent is walking to the desk *now*.
+            await events.publish(
+                case.id,
+                "test_started",
+                {
+                    "test_id": item.id,
+                    "target_claim_id": item.target_claim,
+                    "failure_mode": item.failure_mode,
+                    "evaluator": _evaluator_of(item),
+                    "claim_statement": target_clm.statement if target_clm else "",
+                },
+            )
             try:
-                return await asyncio.wait_for(dispatch(item, isolated_case, provider), timeout=timeout)
+                finding = await asyncio.wait_for(dispatch(item, isolated_case, provider), timeout=timeout)
             except Exception as exc:
                 logger.warning(
                     "Evaluator %s failed for claim %s: %s", item.failure_mode, item.target_claim, exc
                 )
-                return _degraded_finding(item, exc)
-
-    findings = list(await asyncio.gather(*(_run_one(item) for item in plan)))
-    for finding in findings:
+                finding = _degraded_finding(item, exc)
+        # Published as each agent returns, so the bullpen animates one report at a time
+        # instead of every finding landing in a single burst at the end.
         await events.publish(
             case.id,
             "finding_ready",
             {"finding": finding.model_dump(), "target_claim_id": finding.claim_id},
         )
-    return findings
+        return finding
+
+    async def _run_group(claim_id: str) -> list[Finding]:
+        group_findings = list(await asyncio.gather(*(_run_one(i) for i in grouped[claim_id])))
+        await events.publish(
+            case.id,
+            "claim_complete",
+            {"claim_id": claim_id, "finding_count": len(group_findings)},
+        )
+        return group_findings
+
+    grouped_results = await asyncio.gather(*(_run_group(cid) for cid in ordered_claim_ids))
+    return [f for group_findings in grouped_results for f in group_findings]
 
 
 def calculate_claim_confidence(status: ClaimStatus, max_objection: float, weakened_kind: WeakenedKind | None = None) -> float:
@@ -397,7 +454,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         case.status = "testing"
         await emit_activity(case.id, "Pipeline", "Classifying load-bearing assumptions...", action="load_bearing")
 
-        flags = await rank_load_bearing(case, provider)
+        with _stage(case.id, "load_bearing"):
+            flags = await rank_load_bearing(case, provider)
         for claim, load_bearing in zip(case.claims, flags):
             claim.load_bearing = load_bearing
             await events.publish(
@@ -418,13 +476,15 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             f"Identified {lb_count} core assumption(s). Launching adversarial tests in parallel...",
             action="test_plan",
         )
-        case.findings = await run_evaluators(case, case.test_plan, provider)
+        with _stage(case.id, "evaluators"):
+            case.findings = await run_evaluators(case, case.test_plan, provider)
         if case.test_plan and case.findings and all(f.result == "System Error / Timeout" for f in case.findings):
             raise RuntimeError("All evaluators failed to return findings; provider is unavailable.")
 
         # Phase 1.5: Targeted Cross-Examination Probes
         try:
-            probe_findings = await run_cross_examination_probes(case, case.findings, provider)
+            with _stage(case.id, "cross_examination"):
+                probe_findings = await run_cross_examination_probes(case, case.findings, provider)
             if probe_findings:
                 case.findings.extend(probe_findings)
                 for pf in probe_findings:
@@ -516,7 +576,8 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
             )
             return clm, clm.status, reasoning
 
-        await asyncio.gather(*(_reconcile_single(clm) for clm in case.claims))
+        with _stage(case.id, "steelman"):
+            await asyncio.gather(*(_reconcile_single(clm) for clm in case.claims))
         if case.claims and len(steelman_errors) == len(case.claims):
             raise steelman_errors[0]
 
@@ -557,10 +618,11 @@ async def run_pipeline(case_id: str, provider: LLMProvider | None = None) -> Non
         async def _synthesize_case_verdict_task() -> CaseVerdict:
             return await synthesize_case_verdict(case, provider)
 
-        synthesized_consequences, synthesized_verdict = await asyncio.gather(
-            _synthesize_consequences_task(),
-            _synthesize_case_verdict_task(),
-        )
+        with _stage(case.id, "synthesis"):
+            synthesized_consequences, synthesized_verdict = await asyncio.gather(
+                _synthesize_consequences_task(),
+                _synthesize_case_verdict_task(),
+            )
         case.consequences = synthesized_consequences
         case.case_verdict = synthesized_verdict
 

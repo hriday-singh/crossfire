@@ -16,6 +16,7 @@ import os
 import sqlite3
 import stat
 import threading
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -171,7 +172,7 @@ def list_custom_providers() -> list[str]:
     A custom endpoint exists exactly when it has a provider_config row — there
     is no separate registry table to keep in sync.
     """
-    with _connect() as conn:
+    with closing(_connect()) as conn, conn:
         rows = conn.execute(
             "SELECT provider FROM provider_config WHERE provider LIKE ? ORDER BY rowid",
             (CUSTOM_PREFIX + "%",),
@@ -189,7 +190,7 @@ def delete_provider(provider_id: str) -> bool:
     if not is_custom(provider_id):
         raise ValueError(f"{provider_id!r} is a built-in provider and cannot be deleted")
     with _lock:
-        with _connect() as conn:
+        with closing(_connect()) as conn, conn:
             cur = conn.execute("DELETE FROM provider_config WHERE provider = ?", (provider_id,))
             deleted = cur.rowcount > 0
             conn.execute("DELETE FROM provider_keys WHERE provider = ?", (provider_id,))
@@ -216,7 +217,7 @@ def add_key(provider: str, api_key: str, label: str = "") -> StoredKey:
     hint = mask(api_key)
     resolved_label = label.strip() or f"key {hint}"
     with _lock:
-        with _connect() as conn:
+        with closing(_connect()) as conn, conn:
             cur = conn.execute(
                 "INSERT INTO provider_keys (provider, label, ciphertext, hint) VALUES (?, ?, ?, ?)",
                 (provider, resolved_label, token, hint),
@@ -233,7 +234,7 @@ def list_keys(provider: str | None = None) -> list[StoredKey]:
         sql += " WHERE provider = ?"
         params = (provider,)
     sql += " ORDER BY id"
-    with _connect() as conn:
+    with closing(_connect()) as conn, conn:
         rows = conn.execute(sql, params).fetchall()
     return [
         StoredKey(
@@ -249,7 +250,7 @@ def list_keys(provider: str | None = None) -> list[StoredKey]:
 
 def delete_key(key_id: int) -> bool:
     with _lock:
-        with _connect() as conn:
+        with closing(_connect()) as conn, conn:
             cur = conn.execute("DELETE FROM provider_keys WHERE id = ?", (key_id,))
             deleted = cur.rowcount > 0
     if deleted:
@@ -259,7 +260,7 @@ def delete_key(key_id: int) -> bool:
 
 def set_key_enabled(key_id: int, enabled: bool) -> bool:
     with _lock:
-        with _connect() as conn:
+        with closing(_connect()) as conn, conn:
             cur = conn.execute(
                 "UPDATE provider_keys SET enabled = ? WHERE id = ?",
                 (1 if enabled else 0, key_id),
@@ -276,7 +277,7 @@ def secrets_for(provider: str) -> list[tuple[int, str]]:
     The only plaintext exit from this module. Callers hold it in memory and
     never persist it or echo it back over the API.
     """
-    with _connect() as conn:
+    with closing(_connect()) as conn, conn:
         rows = conn.execute(
             "SELECT id, ciphertext FROM provider_keys WHERE provider = ? AND enabled = 1 ORDER BY id",
             (provider,),
@@ -300,7 +301,7 @@ def secrets_for(provider: str) -> list[tuple[int, str]]:
 
 def get_config(provider: str) -> ProviderConfig:
     spec = get_spec(provider)
-    with _connect() as conn:
+    with closing(_connect()) as conn, conn:
         row = conn.execute(
             "SELECT model, base_url, rpm FROM provider_config WHERE provider = ?", (provider,)
         ).fetchone()
@@ -335,7 +336,7 @@ def set_config(
         rpm=current.rpm if rpm is None else max(0, int(rpm)),
     )
     with _lock:
-        with _connect() as conn:
+        with closing(_connect()) as conn, conn:
             conn.execute(
                 """
                 INSERT INTO provider_config (provider, model, base_url, rpm) VALUES (?, ?, ?, ?)
@@ -350,14 +351,14 @@ def set_config(
 
 
 def _get_setting(key: str) -> str | None:
-    with _connect() as conn:
+    with closing(_connect()) as conn, conn:
         row = conn.execute("SELECT value FROM provider_settings WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else None
 
 
 def _set_setting(key: str, value: str) -> None:
     with _lock:
-        with _connect() as conn:
+        with closing(_connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO provider_settings (key, value) VALUES (?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -376,6 +377,9 @@ def get_active_provider() -> str:
 def set_active_provider(provider: str) -> str:
     get_spec(provider)
     _set_setting(_ACTIVE_PROVIDER, provider)
+    chain = get_fallback_chain()
+    if provider in chain:
+        set_fallback_chain([p for p in chain if p != provider])
     return provider
 
 
@@ -441,7 +445,7 @@ def set_enabled_models(provider: str, models: list[str]) -> list[str]:
 def clear() -> None:
     """Test helper — wipes credentials and settings for the current database."""
     with _lock:
-        with _connect() as conn:
+        with closing(_connect()) as conn, conn:
             conn.execute("DELETE FROM provider_keys")
             conn.execute("DELETE FROM provider_config")
             conn.execute("DELETE FROM provider_settings")

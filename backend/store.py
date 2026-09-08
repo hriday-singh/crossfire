@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from core.models import Case
@@ -50,7 +51,7 @@ def _init_db() -> None:
 
 
 def _clear_db() -> None:
-    with _get_connection() as conn:
+    with closing(_get_connection()) as conn, conn:
         conn.execute("DELETE FROM cases")
 
 
@@ -67,22 +68,44 @@ def get(case_id: str) -> Case | None:
     if case_id in _cases:
         return _cases[case_id]
 
-    with _get_connection() as conn:
+    with closing(_get_connection()) as conn, conn:
         cur = conn.execute("SELECT data FROM cases WHERE id = ?", (case_id,))
         row = cur.fetchone()
         if row:
-            case = Case.model_validate_json(row["data"])
-            _cases[case_id] = case
-            return case
+            try:
+                case = Case.model_validate_json(row["data"])
+                _cases[case_id] = case
+                return case
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("Skipping corrupted case %s: %s", case_id, exc)
+                return None
 
     return None
+
+
+def list_all() -> list[Case]:
+    with closing(_get_connection()) as conn, conn:
+        cur = conn.execute("SELECT id, data FROM cases ORDER BY updated_at DESC")
+        rows = cur.fetchall()
+        
+        cases = []
+        for row in rows:
+            try:
+                case = Case.model_validate_json(row["data"])
+                _cases[case.id] = case
+                cases.append(case)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("Skipping corrupted case %s: %s", row["id"], exc)
+        return cases
 
 
 def set(case: Case) -> None:
     _cases[case.id] = case
     data_json = case.model_dump_json()
 
-    with _get_connection() as conn:
+    with closing(_get_connection()) as conn, conn:
         conn.execute(
             """
             INSERT INTO cases (id, data, updated_at)
@@ -97,7 +120,7 @@ def set(case: Case) -> None:
 
 def delete(case_id: str) -> None:
     _cases.pop(case_id, None)
-    with _get_connection() as conn:
+    with closing(_get_connection()) as conn, conn:
         conn.execute("DELETE FROM cases WHERE id = ?", (case_id,))
 
 
@@ -108,7 +131,7 @@ def clear() -> None:
 def recover_interrupted_cases() -> int:
     """Find any cases still marked as 'testing' and mark them as 'error' on startup."""
     recovered = 0
-    with _get_connection() as conn:
+    with closing(_get_connection()) as conn, conn:
         try:
             cur = conn.execute(
                 "SELECT id, data FROM cases WHERE json_extract(data, '$.status') = 'testing'"
@@ -123,7 +146,10 @@ def recover_interrupted_cases() -> int:
             ]
 
         for row in rows:
-            case = Case.model_validate_json(row["data"])
+            try:
+                case = Case.model_validate_json(row["data"])
+            except Exception:
+                continue
             if case.status == "testing":
                 case.status = "error"
                 _cases[case.id] = case

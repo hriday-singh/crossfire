@@ -293,3 +293,38 @@ async def test_run_cross_examination_probes_skips_non_load_bearing_and_verified_
     assert len(probes) == 1
     assert probes[0].claim_id == "c3"
     assert probes[0].evaluator == "researcher"
+
+
+@pytest.mark.asyncio
+async def test_probe_query_spends_its_term_budget_on_the_blocker(
+    fake_provider_factory, monkeypatch
+):
+    """build_query keeps at most 8 terms in order. Leading with the claim
+    statement spent the whole budget on claim keywords, so the probe re-ran the
+    Researcher's own sweep and could never confirm or deny the blocker."""
+    from evidence.search import build_query
+
+    seen: list[str] = []
+
+    async def mock_search(claim_obj, query_override=None):
+        seen.append(query_override or "")
+        return []
+
+    monkeypatch.setattr("core.cross_examination.search_evidence", mock_search)
+
+    claim = Claim(
+        id="c1",
+        statement="Warehouse pickers can sustain twelve hour shifts across peak season nationwide",
+        load_bearing=True,
+    )
+    await probe_blocker(
+        claim=claim,
+        blocker_text="Mandatory rest breaks cap continuous picking",
+        case=Case(id="case-1", raw_input="Run twelve hour picking shifts"),
+        provider=fake_provider_factory(responses=[]),
+    )
+
+    assert seen, "the probe must issue a search"
+    probe_query = seen[0].lower()
+    assert "rest" in probe_query and "breaks" in probe_query
+    assert probe_query != build_query(claim.statement).lower()

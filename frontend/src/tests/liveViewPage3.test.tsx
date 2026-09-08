@@ -85,7 +85,7 @@ describe("Page 3 Live View Integration", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Result/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Result/i).length).toBeGreaterThan(0);
       expect(screen.queryByTestId("live-view-page3")).not.toBeInTheDocument();
     });
   });

@@ -6,7 +6,7 @@ import { SerpApiText } from "@/components/ui/serpapi";
 /**
  * The call, the one fact that forced it, and what to do before committing.
  *
- * Everything on this page is anchored — every row clicks through to the claim
+ * Everything on this page is anchored - every row clicks through to the claim
  * whose test produced it. Only three things sit above the fold; the remaining
  * failed claims are one disclosure down, because a flat list of every failure
  * gives the reader no way to tell which one actually decided the case.
@@ -290,7 +290,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
         )}
       </div>
 
-      {/* What decided it — one finding, resolved server-side */}
+      {/* What decided it - one finding, resolved server-side */}
       {deciding && (
         <>
           <hr className="border-t border-outline-variant" />
@@ -330,7 +330,7 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
                   refusal is the point: it is the opposite of a model that agrees. */}
               {deciding.gate_fired && (
                 <p className="mt-1 font-code-sm text-code-sm text-secondary">
-                  Not refuted — the panel attacked this but no source backed it.
+                  Not refuted - the panel attacked this but no source backed it.
                 </p>
               )}
             </button>

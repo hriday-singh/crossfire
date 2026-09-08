@@ -263,8 +263,14 @@ async def test_dispatch_integrates_with_core_loop_run_evaluators(fake_provider_f
     assert findings[0].evaluator == "devils_advocate"
     assert findings[0].claim_id == sample_case.claims[0].id
 
-    # Verify events published to events queue
+    # Verify events published to events queue: the run is framed per claim
+    # (claim_started -> test_started -> finding_ready -> claim_complete).
     queue = events.get_queue(sample_case.id)
+    ev0 = queue.get_nowait()
+    assert ev0["event"] == "claim_started"
+    assert ev0["data"]["claim_id"] == sample_case.claims[0].id
+    assert ev0["data"]["agents"] == ["devils_advocate"]
+
     ev1 = queue.get_nowait()
     assert ev1["event"] == "test_started"
     assert ev1["data"]["test_id"] == "plan-item-1"
@@ -273,5 +279,9 @@ async def test_dispatch_integrates_with_core_loop_run_evaluators(fake_provider_f
     assert ev2["event"] == "finding_ready"
     assert ev2["data"]["target_claim_id"] == sample_case.claims[0].id
     assert ev2["data"]["finding"]["evaluator"] == "devils_advocate"
+
+    ev3 = queue.get_nowait()
+    assert ev3["event"] == "claim_complete"
+    assert ev3["data"]["claim_id"] == sample_case.claims[0].id
 
 

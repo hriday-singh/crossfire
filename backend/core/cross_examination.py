@@ -118,7 +118,12 @@ async def probe_blocker(
     # the ordinary web results `build_query` returns — in b1 those were Google Drive
     # setup guides, which is how a HIPAA violation reached the gate unsourced.
     build = build_authority_query if is_statutory_blocker(blocker_text) else build_query
-    probe_query = build(f"{claim.statement} {blocker_text}")
+    # Blocker first. build_query keeps at most 8 terms in order, so leading with
+    # the claim statement spent the whole budget on claim keywords and produced a
+    # query all but identical to the Researcher's own sweep — the probe then read
+    # back the same sources and confirmed nothing. The blocker is what is being
+    # cross-examined, so it gets the terms.
+    probe_query = build(f"{blocker_text} {claim.statement}")
 
     if case_id:
         try:

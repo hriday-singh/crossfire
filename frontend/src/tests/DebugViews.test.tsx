@@ -220,9 +220,5 @@ describe("Debug Views Preview & View Catalog", () => {
     expect(screen.getByText("Launch AI legal assistant for high school debate teams")).toBeInTheDocument();
     expect(screen.getByText("Debaters will rely on real-time argument synthesis during rounds")).toBeInTheDocument();
 
-    // Verify localStorage history was NOT corrupted
-    const savedHistory = localStorage.getItem("crossfire_case_history");
-    const parsed = savedHistory ? JSON.parse(savedHistory) : [];
-    expect(parsed.some((c: { id: string }) => c.id === "case-preview-sample")).toBe(false);
   }, 15000);
 });

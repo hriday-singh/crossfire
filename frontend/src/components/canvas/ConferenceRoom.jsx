@@ -3,7 +3,6 @@ import { Assets, Texture } from 'pixi.js';
 import {
   ROOM_DIMENSIONS,
   STEELMAN_TABLE_CONFIG,
-  CUBICLE_LAYOUTS,
 } from '../../constants/roomLayout';
 
 /**
@@ -11,7 +10,7 @@ import {
  * Renders the high-resolution isometric floor plan from public/flplan.webp
  * and provides interactive station illumination when an evaluator or Steelman is active or hovered.
  */
-export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isSteelmanExiting = false, selectedAgentIds = null }) {
+export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isSteelmanExiting = false }) {
   const [floorTexture, setFloorTexture] = useState(() => {
     try {
       return Texture.from('/bg.png');
@@ -39,27 +38,7 @@ export function ConferenceRoom({ activeSpeakerId, hoveredAgentId, isSteelmanExit
     (g) => {
       g.clear();
 
-      // 1. Cubicle highlights on hover or when actively testing
-      CUBICLE_LAYOUTS.forEach((c) => {
-        const isSelected = selectedAgentIds ? selectedAgentIds.includes(c.agentId) : true;
-        const isHovered = hoveredAgentId === c.agentId;
-        const isActive = activeSpeakerId === c.agentId;
-
-        if (isSelected && (isHovered || isActive)) {
-          const { x, y, width, height } = c.bounds;
-          // Outer subtle aura
-          g.roundRect(x - 4, y - 4, width + 8, height + 8, 12).stroke({
-            width: isHovered ? 2 : 1.5,
-            color: c.colorHex,
-            alpha: isHovered ? 0.75 : 0.45,
-          });
-          // Inner ambient glow
-          g.roundRect(x, y, width, height, 10).fill({
-            color: c.colorHex,
-            alpha: isHovered ? 0.08 : 0.04,
-          });
-        }
-      });
+      // Cubicle stations get no box highlight; the hover pill above the desk is the affordance.
 
       // 2. Steelman Bench highlight on hover or during verdict delivery
       const isSteelmanHovered = hoveredAgentId === 'steelman';

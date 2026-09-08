@@ -18,6 +18,7 @@ GEMINI_PROXY = "gemini_proxy"
 OPENAI = "openai"
 ANTHROPIC = "anthropic"
 OLLAMA = "ollama"
+DEEPSEEK = "deepseek"
 CUSTOM = "custom"
 
 #: Ids of user-added endpoints: "custom:openrouter", "custom:vllm-box".
@@ -109,6 +110,26 @@ CATALOG: dict[str, ProviderSpec] = {
         models=["llama3.1", "qwen2.5", "mistral", "gemma3"],
         notes="Model list is discovered live from /api/tags when the host is reachable.",
     ),
+    DEEPSEEK: ProviderSpec(
+        id=DEEPSEEK,
+        label="DeepSeek",
+        wire="openai_compat",
+        base_url="http://localhost:8082/v1",
+        requires_key=False,
+        editable_base_url=True,
+        default_model="deepseek-v4-flash",
+        models=[
+            "deepseek-v4-flash",
+            "deepseek-v4-pro",
+            "deepseek-v4-flash-think",
+            "deepseek-v4-flash-search",
+            "deepseek-v4-flash-think-search",
+            "deepseek-v4-pro-think",
+            "deepseek-v4-pro-search",
+            "deepseek-v4-pro-think-search",
+        ],
+        notes="Local DeepSeek models.",
+    ),
     CUSTOM: ProviderSpec(
         id=CUSTOM,
         label="Custom OpenAI-compatible endpoint",
@@ -129,7 +150,7 @@ DEFAULT_PROVIDER = GEMINI_PROXY
 #: key pools and cross-provider fallback below still work — flipping this back
 #: to `keyring.get_active_provider()` in providers/__init__.build_chain() is
 #: all that unpinning takes.
-LOCKED_PROVIDER = GEMINI_PROXY
+LOCKED_PROVIDER = None
 
 
 def slugify(name: str) -> str:

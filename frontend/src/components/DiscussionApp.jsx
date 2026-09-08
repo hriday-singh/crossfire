@@ -10,16 +10,7 @@ import useSocketSimulation from '../hooks/useSocketSimulation';
 import useAudioPlayback from '../hooks/useAudioPlayback';
 import useBackendLiveBridge from '../hooks/useBackendLiveBridge';
 import { useOptionalCase } from '../context/CaseContext';
-import { RocketBlueprintHead } from './features/RocketBlueprintHead';
-import {
-  ShieldCheck,
-  Terminal,
-  Activity,
-  Layers,
-  Sparkles,
-  CheckCircle2,
-  ArrowRight,
-} from 'lucide-react';
+import { cn } from '../lib/utils';
 
 /**
  * DiscussionApp (EvaluatorBullpenApp) Component
@@ -29,6 +20,13 @@ import {
 export function DiscussionApp() {
   const caseContext = useOptionalCase?.();
   const currentCase = caseContext?.state?.currentCase;
+  const isPreview = !!caseContext?.state?.previewView;
+
+  // A real (non-preview) case owns its own completion signal: only `run_complete`/`done`
+  // (status) or `case_verdict` may end the run. Scripted/mock packets carrying
+  // isSynthesisDone must never terminate a live run mid-test.
+  const isRealRun = !!currentCase && !isPreview;
+  const caseIsDone = currentCase?.status === 'done' || !!currentCase?.case_verdict;
 
   // Real-time character position tracker for UI overlays
   const [characterPositions, setCharacterPositions] = useState(() => {
@@ -78,13 +76,13 @@ export function DiscussionApp() {
 
     // If Steelman reaches near the right chamber door (x > 840, y near 285), trigger the page transition animation ONLY when synthesis is done AND loading is 100%
     if (agentId === 'steelman' && x >= 840 && !exitTriggeredRef.current) {
-      const isDone = (currentCase?.status === 'done' || !!currentCase?.case_verdict || isSynthesisDoneRef.current) && (progressRef.current >= 100);
+      const isDone = (isRealRun ? caseIsDone : isSynthesisDoneRef.current) && (progressRef.current >= 100);
       if (isDone) {
         exitTriggeredRef.current = true;
         setIsPageTransitionActive(true);
       }
     }
-  }, [currentCase?.status, currentCase?.case_verdict]);
+  }, [isRealRun, caseIsDone]);
 
   // Event received handler from Socket or Mock simulation runner
   const handleEventReceived = useCallback((eventPacket) => {
@@ -92,11 +90,11 @@ export function DiscussionApp() {
 
     // Detect Steelman exit event - strictly when synthesis is done AND loading is 100%
     if (speakerId === 'steelman' && eventPacket.target === 'right_door') {
+      const doneSignal = isRealRun
+        ? caseIsDone
+        : Boolean(eventPacket.isSynthesisDone || eventPacket.stage?.includes('Synthesis'));
       const isDone =
-        Boolean(currentCase?.status === 'done' ||
-        !!currentCase?.case_verdict ||
-        eventPacket.isSynthesisDone ||
-        eventPacket.stage?.includes('Synthesis')) &&
+        doneSignal &&
         Boolean(progressRef.current >= 100 || eventPacket.isLoadingDone || (typeof eventPacket.progress === 'number' && eventPacket.progress >= 100));
       if (isDone) {
         setIsSteelmanExiting(true);
@@ -133,7 +131,7 @@ export function DiscussionApp() {
       setActiveSpeakerId(speakerId);
       setTimeout(() => setActiveSpeakerId(null), 800);
     }
-  }, [playSpeech, currentCase?.status, currentCase?.case_verdict]);
+  }, [playSpeech, isRealRun, caseIsDone]);
 
   // Socket & Mock Simulation Engine
   const {
@@ -157,6 +155,8 @@ export function DiscussionApp() {
   } = useSocketSimulation({
     onEventReceived: handleEventReceived,
     selectedAgentIds: selectedAgentIds,
+    // Scripted scenario playback would inject its own steelman exit packet mid-run.
+    mockEnabled: !isRealRun,
   });
 
   // GSAP Playback Speed scaling across all sprite animations
@@ -206,13 +206,11 @@ export function DiscussionApp() {
 
   // Calculate live progress and stage
   const caseStatus = currentCase?.status;
-  const rawSynthesisDone =
-    caseStatus === 'done' ||
-    !!currentCase?.case_verdict ||
-    Boolean(lastEvent?.isSynthesisDone) ||
-    Boolean(lastEvent?.stage?.includes('Synthesis')) ||
-    Boolean(lastEvent?.stage?.includes('Synthesis Complete')) ||
-    false;
+  const rawSynthesisDone = isRealRun
+    ? caseIsDone
+    : Boolean(lastEvent?.isSynthesisDone) ||
+      Boolean(lastEvent?.stage?.includes('Crucible Synthesis')) ||
+      false;
 
   if (rawSynthesisDone) {
     hasSynthesizedRef.current = true;
@@ -228,37 +226,25 @@ export function DiscussionApp() {
   const totalExpectedFindings = Math.max(1, claimsCount * activeAgentsCount);
   const reconciledCount = currentCase?.claims?.filter((c) => c.status)?.length || 0;
 
-  let currentPhase = 'Initialization';
   let progressPercent = 0;
-  let phaseDetail = 'Awaiting pipeline dispatch...';
 
   if (isFinished || isSynthesisDone) {
-    currentPhase = 'Evaluation Complete';
     progressPercent = 100;
-    phaseDetail = 'Decision memo assembled & final verdict synthesized.';
     maxProgressRef.current = 100;
   } else if (isTesting) {
     if (reconciledCount > 0) {
-      currentPhase = 'Phase 3: Steelman Reconciliation';
       progressPercent = Math.min(95, 75 + Math.round((reconciledCount / Math.max(1, claimsCount)) * 20));
-      phaseDetail = `Reconciling evidence for claim ${reconciledCount} of ${claimsCount}...`;
     } else if (findingsCount > 0) {
-      currentPhase = 'Phase 2: Adversarial Stress-Testing';
       const findingProgress = Math.min(1, findingsCount / totalExpectedFindings);
       progressPercent = Math.min(75, 25 + Math.round(findingProgress * 50));
-      phaseDetail = `Gathering empirical evidence (${findingsCount} findings evaluated)...`;
     } else {
-      currentPhase = 'Phase 1: Load-Bearing Scrutiny';
       const eventActivityBonus = Math.min(10, (caseContext?.state?.eventLog?.length || 1) * 2);
       progressPercent = Math.min(24, 14 + eventActivityBonus);
-      phaseDetail = 'Steelman evaluating critical core premises...';
     }
     maxProgressRef.current = Math.max(maxProgressRef.current, progressPercent);
     progressPercent = maxProgressRef.current;
   } else if (isReplaying) {
-    currentPhase = 'Replaying Findings in Bullpen';
     progressPercent = 100;
-    phaseDetail = 'Reviewing telemetry and delivered verdicts.';
     maxProgressRef.current = 100;
   } else if (isAutoPlaying || eventHistory?.length > 0) {
     const currentScenario = scenarios?.[currentScenarioKey];
@@ -266,20 +252,14 @@ export function DiscussionApp() {
     const currentMockIndex = Math.min(totalScenarioEvents, Math.max(1, (eventHistory?.length || 1)));
     if (currentMockIndex >= totalScenarioEvents || lastEvent?.isSynthesisDone) {
       progressPercent = 100;
-      currentPhase = 'Evaluation Complete';
-      phaseDetail = 'Decision memo assembled & final verdict synthesized.';
       maxProgressRef.current = 100;
     } else {
       progressPercent = Math.min(95, Math.max(12, Math.round((currentMockIndex / totalScenarioEvents) * 100)));
-      currentPhase = lastEvent?.stage || 'Simulation Live Stream';
-      phaseDetail = lastEvent?.thought || lastEvent?.dialogue || 'Autonomous evaluators auditing proposal in bullpen...';
       maxProgressRef.current = Math.max(maxProgressRef.current, progressPercent);
       progressPercent = maxProgressRef.current;
     }
   } else {
-    currentPhase = 'Pipeline Standby';
     progressPercent = Math.max(8, maxProgressRef.current);
-    phaseDetail = 'Ready to launch adversarial evaluation...';
   }
 
   const clampedProgress = Math.max(0, Math.min(100, progressPercent));
@@ -293,96 +273,32 @@ export function DiscussionApp() {
       <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 flex flex-col lg:flex-row items-start gap-6">
         {/* Simulation Canvas Stage with In-World Finding / Telemetry Card */}
         <section className="relative flex-1 w-full min-w-0">
-          {/* Live Progress & Finish Status Header (Translucent glassmorphic panel revealing background starfield) */}
-          <div className="mb-3 rounded-xl bg-black/35 backdrop-blur-md border border-white/10 shadow-2xl p-3.5 relative overflow-visible transition-all duration-300">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="text-outline uppercase tracking-wider font-semibold text-[10px] shrink-0 font-mono">
-                  Decision Under Test:
-                </span>
-                <span className="text-on-surface font-medium text-xs truncate">
-                  {currentCase?.raw_input || 'Testing decision proposal'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    isFinished
-                      ? 'bg-verdict-survived ring-4 ring-verdict-survived/20'
-                      : isTesting
-                      ? 'bg-primary-container animate-ping'
-                      : isReplaying
-                      ? 'bg-secondary animate-pulse'
-                      : 'bg-outline'
-                  }`}
-                />
-                <span className="font-mono text-xs font-semibold text-primary-container">
-                  {isFinished ? 'FINISHED' : isTesting ? 'LIVE RUNNING' : isReplaying ? 'REPLAY' : 'STANDBY'}
-                </span>
-              </div>
+          {/* Proposal Header */}
+          <div className="mb-space-4 rounded-xl bg-surface border border-outline-variant px-space-5 py-space-4 relative">
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-xs font-bold text-outline uppercase tracking-wider">
+                Testing Proposal
+              </span>
+              <span className="font-headline-lg text-headline-lg text-on-surface font-semibold truncate">
+                {currentCase?.raw_input || 'Testing decision proposal'}
+              </span>
             </div>
 
-            {/* Progress Bar & Phase Tracker */}
-            <div className="space-y-1.5 pt-1 border-t border-outline-variant/40">
-              <div className="flex items-center justify-between text-[11px] font-mono">
-                <span className="font-semibold text-on-surface flex items-center gap-1.5">
-                  {isFinished ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-verdict-survived inline" />
-                  ) : (
-                    <Activity className="w-3.5 h-3.5 text-primary-container animate-spin inline" />
-                  )}
-                  <span>{currentPhase}</span>
-                </span>
-                <span className="text-outline">{clampedProgress}% Completed</span>
-              </div>
-
-              {/* Progress Bar Track with CAD Blueprint Space Shuttle Rocket Head */}
-              <div className="relative w-full py-1.5 my-0.5 overflow-visible">
-                {/* Background Track */}
-                <div className="w-full h-2 bg-slate-900/70 rounded-full overflow-hidden border border-cyan-500/20 shadow-inner">
-                  <div
-                    className={`h-full transition-all duration-500 ease-out rounded-full ${
-                      isFinished
-                        ? 'bg-verdict-survived shadow-[0_0_10px_rgba(52,211,153,0.5)]'
-                        : 'bg-gradient-to-r from-cyan-500 via-sky-400 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
-                    }`}
-                    style={{ width: `${clampedProgress}%` }}
-                  />
-                </div>
-
-                {/* Rocket Ship Blueprint Head */}
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-500 ease-out z-20"
-                  style={{
-                    left: `clamp(16px, ${clampedProgress}%, calc(100% - 16px))`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
-                  <RocketBlueprintHead
-                    isFinished={isFinished}
-                    isTesting={isTesting || isAutoPlaying}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-[10px] font-mono text-outline pt-0.5">
-                <span className="truncate">{phaseDetail}</span>
-                {isFinished ? (
-                  <span className="text-verdict-survived font-semibold">Ready for Review</span>
-                ) : isTesting ? (
-                  <span className="text-primary-container">Live Stream Active</span>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Finished Banner with Final Verdict Callout */}
+            {/* Finished Banner */}
             {isFinished && currentCase?.case_verdict && (
-              <div className="mt-2.5 p-2 rounded-lg bg-verdict-survived/10 border border-verdict-survived/30 flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-verdict-survived/20 text-verdict-survived border border-verdict-survived/40 shrink-0">
+              <div className="mt-space-3 p-space-3 rounded-lg bg-surface-container border border-outline-variant/60 flex flex-col sm:flex-row sm:items-center justify-between gap-space-3 animate-in fade-in slide-in-from-top-1">
+                <div className="flex flex-col items-start gap-1 min-w-0">
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border",
+                    currentCase.case_verdict.decision_state?.toLowerCase() === 'survived' ? "bg-verdict-survived/20 text-verdict-survived border-verdict-survived/40" :
+                    currentCase.case_verdict.decision_state?.toLowerCase() === 'broken' ? "bg-verdict-broken/20 text-verdict-broken border-verdict-broken/40" :
+                    currentCase.case_verdict.decision_state?.toLowerCase() === 'weakened' ? "bg-verdict-weakened/20 text-verdict-weakened border-verdict-weakened/40" :
+                    currentCase.case_verdict.decision_state?.toLowerCase() === 'unresolved' ? "bg-verdict-unresolved/20 text-verdict-unresolved border-verdict-unresolved/40" :
+                    "text-on-surface-variant bg-surface border-outline-variant"
+                  )}>
                     {currentCase.case_verdict.decision_state || 'COMPLETE'}
                   </span>
-                  <span className="text-xs font-sans text-on-surface font-medium truncate">
+                  <span className="text-sm text-on-surface font-medium truncate">
                     {currentCase.case_verdict.headline || 'Live stress test complete.'}
                   </span>
                 </div>
@@ -392,10 +308,9 @@ export function DiscussionApp() {
                     setIsSteelmanExiting(true);
                     setIsPageTransitionActive(true);
                   }}
-                  className="px-2.5 py-1 rounded bg-surface-container-highest hover:bg-surface-container border border-outline-variant/60 text-[11px] font-mono font-semibold text-primary transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+                  className="px-space-4 py-space-2 rounded bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shrink-0"
                 >
-                  <span>Proceed to Decision Memo</span>
-                  <ArrowRight className="w-3 h-3 inline" />
+                  Proceed to Decision Memo
                 </button>
               </div>
             )}
@@ -437,8 +352,7 @@ export function DiscussionApp() {
 
         {/* Side Panel: Exclusively Active Workstation Feed */}
         <SideControlPanel
-          lastEvent={lastEvent}
-          activeSpeakerId={activeSpeakerId}
+          eventHistory={eventHistory}
           hoveredAgentId={hoveredAgentId}
         />
       </div>

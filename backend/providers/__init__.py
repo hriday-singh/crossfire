@@ -123,31 +123,39 @@ def build_target(provider_id: str, max_inflight_per_key: int | None = None) -> T
 
 
 def build_chain() -> list[Target]:
-    """One target per enabled model of the locked provider, primary first.
-
-    Crossfire is pinned to the bundled Gemini proxy (catalog.LOCKED_PROVIDER),
-    so the chain is a *model* fallback rather than a provider fallback: if the
-    primary model errors or rate-limits, the same proxy is retried on the next
-    enabled model. The cross-provider machinery still exists and still works —
-    unpinning means reading keyring.get_active_provider()/get_fallback_chain()
-    here again.
+    """One target per enabled model per provider in the fallback chain.
+    
+    The primary provider's models are tried first (in the order they are enabled),
+    followed by the models of each provider in the fallback chain.
     """
-    provider_id = LOCKED_PROVIDER
-    base = build_target(provider_id)
-    models = keyring.get_enabled_models(provider_id) or [base.model]
-
-    # One Target per model, sharing the provider's key pool: the keys and their
-    # cooldowns are the same whichever model is being asked for.
-    return [
-        Target(
-            provider=provider_id,
-            wire=base.wire,
-            model=model,
-            base_url=base.base_url,
-            pool=base.pool,
-        )
-        for model in models
-    ]
+    providers = []
+    if LOCKED_PROVIDER:
+        providers = [LOCKED_PROVIDER]
+    else:
+        active = keyring.get_active_provider()
+        chain = keyring.get_fallback_chain()
+        providers = [active]
+        for p in chain:
+            if p not in providers:
+                providers.append(p)
+                
+    targets = []
+    for provider_id in providers:
+        base = build_target(provider_id)
+        models = keyring.get_enabled_models(provider_id) or [base.model]
+        
+        for model in models:
+            targets.append(
+                Target(
+                    provider=provider_id,
+                    wire=base.wire,
+                    model=model,
+                    base_url=base.base_url,
+                    pool=base.pool,
+                )
+            )
+            
+    return targets
 
 
 def invalidate_cache() -> None:

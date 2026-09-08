@@ -56,7 +56,7 @@ vi.mock('../hooks/useAudioPlayback', () => ({
   }),
 }));
 
-describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
+describe('Bullpen Header & Synthesis Latching Suite', () => {
   const baseMockCase: any = {
     id: 'case_test_latch_1',
     raw_input: 'Should we migrate to edge computing?',
@@ -97,100 +97,49 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
     vi.clearAllMocks();
   });
 
-  it('Test 1: Initializes progress cleanly in testing state without synthesis', () => {
+  it('Test 1: Shows the proposal under test without a progress bar or phase tracker', () => {
     const Wrapper = createWrapper({ ...baseMockCase, status: 'testing' });
     render(<DiscussionApp />, { wrapper: Wrapper });
 
-    expect(screen.getByText(/Decision Under Test:/i)).toBeInTheDocument();
-    expect(screen.getByText(/LIVE RUNNING/i)).toBeInTheDocument();
+    expect(screen.getByText(/Testing Proposal/i)).toBeInTheDocument();
+    expect(screen.getByText(/Should we migrate to edge computing\?/i)).toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Phase \d/i)).not.toBeInTheDocument();
   });
 
-  it('Test 2: Reaches 100% progress immediately when case status is done', () => {
-    const Wrapper = createWrapper({ ...baseMockCase, status: 'done', case_verdict: { decision_state: 'PROCEED', headline: 'Migration approved' } });
+  it('Test 2: Does not render redundant Live / Complete / Standby status chrome', () => {
+    const Wrapper = createWrapper({ ...baseMockCase, status: 'testing' });
     render(<DiscussionApp />, { wrapper: Wrapper });
 
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
-    expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
-    expect(screen.getByText(/Evaluation Complete/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Live$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Standby$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Complete$/i)).not.toBeInTheDocument();
   });
 
-  it('Test 3: Reaches 100% progress when case_verdict is present', () => {
-    const Wrapper = createWrapper({ ...baseMockCase, status: 'testing', case_verdict: { decision_state: 'CAUTION', headline: 'Cost risk' } });
+  it('Test 3: Surfaces the verdict banner once the case status is done', () => {
+    const Wrapper = createWrapper({
+      ...baseMockCase,
+      status: 'done',
+      case_verdict: { decision_state: 'PROCEED', headline: 'Migration approved' },
+    });
     render(<DiscussionApp />, { wrapper: Wrapper });
 
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
-    expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
+    expect(screen.getByText(/Migration approved/i)).toBeInTheDocument();
+    expect(screen.getByText(/PROCEED/)).toBeInTheDocument();
   });
 
-  it('Test 4: Latches at 100% and DOES NOT DROP BACK to 20% when subsequent non-synthesis events arrive', () => {
+  it('Test 4: Surfaces the verdict banner once a case_verdict arrives mid-run (synthesis latch)', () => {
     const Wrapper = createWrapper({
       ...baseMockCase,
       status: 'testing',
-      case_verdict: { decision_state: 'PROCEED', headline: 'Verdict delivered' },
-    });
-
-    const { rerender } = render(<DiscussionApp />, { wrapper: Wrapper });
-
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
-    expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
-
-    const SubsequentWrapper = createWrapper({
-      ...baseMockCase,
-      status: 'testing',
-      case_verdict: { decision_state: 'PROCEED', headline: 'Verdict delivered' },
-      claims: [{ id: 'c1', text: 'claim 1', status: null }],
-    });
-
-    rerender(
-      <SubsequentWrapper>
-        <DiscussionApp />
-      </SubsequentWrapper>
-    );
-
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
-    expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
-  });
-
-  it('Test 5: Displays green FINISHED indicator when synthesis is delivered', () => {
-    const Wrapper = createWrapper({
-      ...baseMockCase,
-      status: 'testing',
-      case_verdict: { decision_state: 'PROCEED', headline: 'Architecture verified' },
+      case_verdict: { decision_state: 'CAUTION', headline: 'Cost risk' },
     });
     render(<DiscussionApp />, { wrapper: Wrapper });
 
-    expect(screen.getByText(/FINISHED/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ready for Review/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cost risk/i)).toBeInTheDocument();
   });
 
-  it('Test 6: Progress is strictly monotonic and never decreases across intermediate stage updates', () => {
-    const WrapperStage1 = createWrapper({
-      ...baseMockCase,
-      claims: [{ id: 'c1', text: 'c1', status: null }],
-      findings: [{ id: 'f1', claim_id: 'c1', verdict: 'survived' }],
-    });
-
-    const { rerender } = render(<DiscussionApp />, { wrapper: WrapperStage1 });
-
-    expect(screen.getByText(/Phase 2: Adversarial Stress-Testing/i)).toBeInTheDocument();
-
-    const WrapperResetFindings = createWrapper({
-      ...baseMockCase,
-      claims: [{ id: 'c1', text: 'c1', status: null }],
-      findings: [],
-    });
-
-    rerender(
-      <WrapperResetFindings>
-        <DiscussionApp />
-      </WrapperResetFindings>
-    );
-    const progressText = screen.getByText(/% Completed/i).textContent;
-    const progressNum = parseInt(progressText?.replace(/\D/g, '') || '0', 10);
-    expect(progressNum).toBeGreaterThanOrEqual(25);
-  });
-
-  it('Test 7: Renders Proceed to Decision Memo button when finished with case verdict', () => {
+  it('Test 5: Renders Proceed to Decision Memo button when finished with case verdict', () => {
     const Wrapper = createWrapper({
       ...baseMockCase,
       status: 'done',
@@ -201,33 +150,14 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
     expect(screen.getByRole('button', { name: /Proceed to Decision Memo/i })).toBeInTheDocument();
   });
 
-  it('Test 8: Navigation to dashboard button is interactive and present', () => {
-    const mockNavigate = vi.fn();
-    const contextValue: any = {
-      state: {
-        currentCase: {
-          ...baseMockCase,
-          status: 'done',
-          case_verdict: { decision_state: 'PROCEED', headline: 'Ready to proceed' },
-        },
-        activeScreen: 'runner',
-        eventLog: [],
-      },
-      navigateScreen: mockNavigate,
-      dispatch: vi.fn(),
-    };
+  it('Test 6: Hides the verdict banner while the case is still testing with no verdict', () => {
+    const Wrapper = createWrapper({ ...baseMockCase, status: 'testing', case_verdict: null });
+    render(<DiscussionApp />, { wrapper: Wrapper });
 
-    render(
-      <CaseContext.Provider value={contextValue}>
-        <DiscussionApp />
-      </CaseContext.Provider>
-    );
-
-    const proceedBtn = screen.getByRole('button', { name: /Proceed to Decision Memo/i });
-    expect(proceedBtn).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Proceed to Decision Memo/i })).not.toBeInTheDocument();
   });
 
-  it('Test 9: Resets latched progress cleanly only when a completely new case ID is loaded', () => {
+  it('Test 7: Swaps cleanly to a fresh case without leaking the previous verdict', () => {
     const WrapperCaseA = createWrapper({
       id: 'case_A',
       raw_input: 'Case A proposal',
@@ -236,7 +166,7 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
     });
 
     const { unmount } = render(<DiscussionApp />, { wrapper: WrapperCaseA });
-    expect(screen.getByText(/100% Completed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Case A done/i)).toBeInTheDocument();
     unmount();
 
     const WrapperCaseB = createWrapper({
@@ -249,11 +179,10 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
 
     render(<DiscussionApp />, { wrapper: WrapperCaseB });
     expect(screen.getByText(/Case B fresh proposal/i)).toBeInTheDocument();
-    expect(screen.getByText(/LIVE RUNNING/i)).toBeInTheDocument();
-    expect(screen.queryByText(/100% Completed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Case A done/i)).not.toBeInTheDocument();
   });
 
-  it('Test 10: Retains exclusively Active Workstation Feed in the side panel across all stages', () => {
+  it('Test 8: Retains exclusively Active Workstation Feed in the side panel across all stages', () => {
     const Wrapper = createWrapper({
       ...baseMockCase,
       status: 'done',
@@ -263,6 +192,5 @@ describe('Monotonic Progress & Synthesis Latching Suite (10 Tests)', () => {
 
     expect(screen.getByText(/Active Workstation Feed/i)).toBeInTheDocument();
     expect(screen.queryByText(/Bullpen Controls/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Quick Evaluator Actions/i)).not.toBeInTheDocument();
   });
 });

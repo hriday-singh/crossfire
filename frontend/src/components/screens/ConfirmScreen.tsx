@@ -113,12 +113,12 @@ export const ConfirmScreen: React.FC = () => {
                   </div>
                   
                   <h1 className="font-headline-sm text-headline-sm font-semibold text-on-surface mb-3 relative z-10">
-                    {currentCase.gate_message?.replace(/—/g, '')}
+                    {currentCase.gate_message?.replace(/[—–]/g, '')}
                   </h1>
                   
                   {currentCase.clarify_interpretation && (
                     <p className="text-on-surface-variant font-body-sm text-sm mb-5 leading-relaxed relative z-10">
-                      {currentCase.clarify_interpretation?.replace(/—/g, '')}
+                      {currentCase.clarify_interpretation?.replace(/[—–]/g, '')}
                     </p>
                   )}
                   
@@ -126,7 +126,7 @@ export const ConfirmScreen: React.FC = () => {
                     <div className="bg-surface-container-lowest/50 rounded-xl p-4 mb-5 border border-amber-500/10 relative z-10">
                       <ul className="list-disc pl-4 text-sm text-on-surface-variant space-y-2 marker:text-amber-500/50">
                         {currentCase.clarify_missing.map((missing, i) => (
-                          <li key={i} className="pl-1">{missing.replace(/—/g, '').replace(/^[-*•]\s*/, '')}</li>
+                          <li key={i} className="pl-1">{missing.replace(/[—–]/g, '').replace(/^[-*•]\s*/, '')}</li>
                         ))}
                       </ul>
                     </div>

@@ -467,6 +467,7 @@ export function useSocketSimulation({
   onEventReceived,
   initialSocketUrl = 'http://localhost:4000',
   selectedAgentIds = null,
+  mockEnabled = true,
 } = {}) {
   const [socketUrl, setSocketUrl] = useState(initialSocketUrl);
   const [connectionStatus, setConnectionStatus] = useState('mock_mode'); // 'mock_mode' | 'connecting' | 'connected' | 'error'
@@ -605,9 +606,12 @@ export function useSocketSimulation({
     }
   }, [getFilteredEvents, dispatchEvent, selectedAgentIds]);
 
-  // Handle auto-play loop for mock simulation
+  // Handle auto-play loop for mock simulation.
+  // Disabled whenever a real case drives the stage: the scripted scenario ends with a
+  // steelman right_door exit packet, which would otherwise fire mid-run and terminate
+  // the live run before the backend's run_complete/done.
   useEffect(() => {
-    if (connectionStatus !== 'mock_mode' || !isAutoPlaying) {
+    if (!mockEnabled || connectionStatus !== 'mock_mode' || !isAutoPlaying) {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -641,11 +645,11 @@ export function useSocketSimulation({
         timerRef.current = null;
       }
     };
-  }, [connectionStatus, isAutoPlaying, eventIndex, playbackSpeed, stepForward, getFilteredEvents]);
+  }, [mockEnabled, connectionStatus, isAutoPlaying, eventIndex, playbackSpeed, stepForward, getFilteredEvents]);
 
   // Trigger initial event on mount if in mock mode
   useEffect(() => {
-    if (connectionStatus === 'mock_mode' && eventHistory.length === 0) {
+    if (mockEnabled && connectionStatus === 'mock_mode' && eventHistory.length === 0) {
       const events = getFilteredEvents();
       const initialPacket = events[0] || MOCK_SCENARIOS.safety_review.events[0];
       if (initialPacket) {
@@ -653,7 +657,7 @@ export function useSocketSimulation({
         setEventIndex(1);
       }
     }
-  }, [connectionStatus, eventHistory.length, dispatchEvent, getFilteredEvents]);
+  }, [mockEnabled, connectionStatus, eventHistory.length, dispatchEvent, getFilteredEvents]);
 
   // Trigger a custom or manual event directly
   const triggerManualEvent = useCallback((customPacket) => {

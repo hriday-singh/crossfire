@@ -34,6 +34,8 @@ export function useCaseStream() {
       "claim_map_ready",
       "awaiting_confirmation",
       "load_bearing_ready",
+      "claim_started",
+      "claim_complete",
       "test_started",
       "finding_ready",
       "verdict_ready",
@@ -48,6 +50,15 @@ export function useCaseStream() {
     eventTypes.forEach((eventName) => {
       es.addEventListener(eventName, (e: MessageEvent) => {
         try {
+          // EventSource dispatches its own native "error" event (a plain Event with no
+          // `data`) whenever the transport drops. Treating that as the backend's
+          // `error` frame killed live runs mid-test, so transport blips are ignored
+          // here and left to EventSource's built-in reconnect.
+          if (eventName === "error" && typeof e.data !== "string") {
+            console.warn("SSE transport hiccup; awaiting reconnect.");
+            return;
+          }
+
           // 'done' payload is just a raw string "[DONE]" typically, or empty. We handle it safely.
           const isDoneToken = e.data === "[DONE]";
           const parsed = e.data && !isDoneToken ? JSON.parse(e.data) : (isDoneToken ? "[DONE]" : {});

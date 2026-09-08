@@ -1,7 +1,7 @@
 /**
  * Client for the backend provider/key management API (backend/api/provider_routes.py).
  *
- * Raw API keys only ever travel outbound — responses carry masked hints.
+ * Raw API keys only ever travel outbound - responses carry masked hints.
  */
 import { API_BASE, CrossfireApiError } from "@/lib/api";
 
@@ -28,7 +28,7 @@ export interface ProviderInfo {
   key_count: number;
   configured: boolean;
   notes: string;
-  /** User-added endpoint — safe to offer a delete button. */
+  /** User-added endpoint - safe to offer a delete button. */
   removable: boolean;
 }
 
@@ -88,7 +88,7 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
-/** Provider id in a URL path — custom ids contain a colon. */
+/** Provider id in a URL path - custom ids contain a colon. */
 const seg = (providerId: string) => encodeURIComponent(providerId);
 
 export function listProviders(baseUrl?: string): Promise<ProvidersResponse> {

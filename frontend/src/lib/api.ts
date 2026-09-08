@@ -16,8 +16,11 @@ const getApiBase = () => {
   if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+  if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {
     return ""; // use relative (vite proxy) for local development
+  }
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return ""; // fallback for local
   }
   return "https://crossfire-api.stratizone.com"; // default for production deployment
 };
@@ -125,6 +128,50 @@ export async function getCase(
   }
 
   return (await res.json()) as Case;
+}
+
+export async function listCases(
+  baseUrl: string = DEFAULT_API_BASE
+): Promise<Case[]> {
+  const url = `${baseUrl}/cases`;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => null);
+    throw new CrossfireApiError(
+      errorBody?.detail || `Failed to fetch cases (${res.status})`,
+      res.status,
+      errorBody
+    );
+  }
+
+  return (await res.json()) as Case[];
+}
+
+export async function deleteCase(
+  caseId: string,
+  baseUrl: string = DEFAULT_API_BASE
+): Promise<void> {
+  const url = `${baseUrl}/cases/${encodeURIComponent(caseId)}`;
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`Failed to delete case (${res.status})`);
+  }
+}
+
+export async function clearCases(
+  baseUrl: string = DEFAULT_API_BASE
+): Promise<void> {
+  const url = `${baseUrl}/cases`;
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`Failed to clear cases (${res.status})`);
+  }
 }
 
 export function getStreamUrl(caseId: string, baseUrl: string = DEFAULT_API_BASE): string {
