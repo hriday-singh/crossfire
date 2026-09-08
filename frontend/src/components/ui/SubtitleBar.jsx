@@ -18,7 +18,7 @@ export function SubtitleBar({
       <div className="w-full bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-slate-400 text-sm shadow-lg">
         <div className="flex items-center gap-2.5">
           <span className="w-2 h-2 rounded-full bg-slate-600 animate-pulse" />
-          <span className="font-mono text-xs text-slate-400">SESSION STANDBY — Awaiting Quorum Dispatch</span>
+          <span className="font-mono text-xs text-slate-400">SESSION STANDBY - Awaiting Quorum Dispatch</span>
         </div>
         <button
           onClick={onToggleMute}

@@ -15,26 +15,6 @@ import {
 } from 'lucide-react';
 
 /**
- * Default cognitive tag per evaluator
- */
-function getAgentCognitiveTag(agentId) {
-  switch (agentId) {
-    case 'devils_advocate':
-      return '[Assumption Pre-Mortem]';
-    case 'researcher':
-      return '[Citation Audit]';
-    case 'builder':
-      return '[Feasibility Test]';
-    case 'operator':
-      return '[Friction Test]';
-    case 'steelman':
-      return '[Steelman]';
-    default:
-      return '[Audit Task]';
-  }
-}
-
-/**
  * Concise default status per evaluator workstation
  */
 function getAgentDefaultStatus(agentId) {
@@ -146,12 +126,11 @@ export function DialogueOverlay({
     return null;
   };
 
-  // Helper to render an uncluttered status pill with cognitive thinking tag and optional details
+  // Helper to render an uncluttered status pill: agent name plus what it is doing.
   const renderAgentPill = ({
     agent,
     pos,
     statusText,
-    cognitiveTag = null,
     thought = null,
     verdict = null,
     confidence = null,
@@ -198,19 +177,6 @@ export function DialogueOverlay({
           <span className="text-xs font-semibold text-on-surface tracking-wide">
             {agent.name}
           </span>
-
-          {/* Optional Cognitive Tag */}
-          {cognitiveTag && (
-            <span
-              className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded"
-              style={{ backgroundColor: `${color}22`, color: color }}
-            >
-              {cognitiveTag}
-            </span>
-          )}
-
-          {/* Minimal Divider */}
-          <span className="text-[10px] text-outline/60 font-mono select-none">/</span>
 
           {/* Concise Thought Label */}
           <span className="text-[11px] font-mono tracking-tight font-medium text-on-surface-variant max-w-[280px] truncate">
@@ -312,7 +278,6 @@ export function DialogueOverlay({
 
     const pos = characterPositions[agent.id] || { x: 500, y: 300 };
     const statusText = formatConciseThought(finding, agent.id);
-    const cognitiveTag = finding?.cognitive_tag || getAgentCognitiveTag(agent.id);
     const verdict = finding?.verdict || null;
     const confidence = finding?.confidence || null;
     const reasoning = finding?.reasoning || null;
@@ -323,7 +288,6 @@ export function DialogueOverlay({
       agent,
       pos,
       statusText,
-      cognitiveTag,
       thought: finding?.thought,
       verdict,
       confidence,
@@ -351,7 +315,7 @@ export function DialogueOverlay({
               data-testid={`hover-zone-${cubicle.agentId}`}
               onMouseEnter={() => onHoverAgent?.(cubicle.agentId)}
               onMouseLeave={() => onHoverAgent?.(null)}
-              className="absolute pointer-events-auto cursor-pointer rounded-xl transition-all duration-150 hover:bg-white/[0.04]"
+              className="absolute pointer-events-auto cursor-pointer"
               style={{
                 left: `${zoneLeft}%`,
                 top: `${zoneTop}%`,
@@ -368,7 +332,7 @@ export function DialogueOverlay({
           data-testid="hover-zone-steelman"
           onMouseEnter={() => onHoverAgent?.('steelman')}
           onMouseLeave={() => onHoverAgent?.(null)}
-          className="absolute pointer-events-auto cursor-pointer rounded-xl transition-all duration-150 hover:bg-white/[0.04]"
+          className="absolute pointer-events-auto cursor-pointer"
           style={{
             left: `${((STEELMAN_TABLE_CONFIG.x - STEELMAN_TABLE_CONFIG.width / 2) / roomW) * 100}%`,
             top: `${((STEELMAN_TABLE_CONFIG.y - STEELMAN_TABLE_CONFIG.height / 2) / roomH) * 100}%`,
@@ -385,7 +349,6 @@ export function DialogueOverlay({
           agent: STEELMAN_CONFIG,
           pos: steelmanPos,
           statusText: steelmanStatusText,
-          cognitiveTag: '[Steelman]',
           verdict: steelmanVerdict,
           isHovered: isSteelmanHovered,
           testId: 'bubble-steelman',

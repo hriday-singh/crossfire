@@ -377,6 +377,9 @@ def get_active_provider() -> str:
 def set_active_provider(provider: str) -> str:
     get_spec(provider)
     _set_setting(_ACTIVE_PROVIDER, provider)
+    chain = get_fallback_chain()
+    if provider in chain:
+        set_fallback_chain([p for p in chain if p != provider])
     return provider
 
 

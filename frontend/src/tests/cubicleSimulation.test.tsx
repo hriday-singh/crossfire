@@ -325,7 +325,7 @@ describe("2.5D Bullpen Cubicle Simulation Architecture", () => {
         />
       );
 
-      expect(screen.getByText(/\[HOVER\] Cubicle 02 \(SW\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/\[HOVER\]\s*Devil's Advocate/i)).toBeInTheDocument();
     });
   });
 });

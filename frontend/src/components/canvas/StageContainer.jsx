@@ -50,13 +50,7 @@ export function StageContainer({
   return (
     <div
       ref={containerRef}
-      className="relative w-full aspect-[1000/587] max-w-[1200px] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-surface-container-lowest flex items-center justify-center select-none"
-      style={{
-        backgroundImage: "url('/bg.png')",
-        backgroundSize: '100% 100%',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
+      className="relative w-full aspect-[1000/587] max-w-[min(1200px,calc((100vh-15rem)*1.70358))] mx-auto rounded-xl overflow-hidden shadow-2xl border border-outline-variant/70 bg-surface-container-lowest flex items-center justify-center select-none"
     >
       {hasWebGL ? (
         <Application
@@ -67,7 +61,7 @@ export function StageContainer({
           resolution={Math.min(window.devicePixelRatio || 1, 2)}
           autoDensity={true}
           antialias={true}
-          className="w-full h-full object-contain pointer-events-auto"
+          className="w-full h-full object-fill pointer-events-auto"
         >
           {/* Main Stage Sortable Container: sortableChildren ensures 2.5D dynamic depth layering */}
           <pixiContainer sortableChildren={true}>
@@ -76,7 +70,6 @@ export function StageContainer({
               activeSpeakerId={activeSpeakerId}
               hoveredAgentId={hoveredAgentId}
               isSteelmanExiting={isSteelmanExiting}
-              selectedAgentIds={selectedAgentIds}
             />
 
             {/* Crucible Arbiter (Steelman) presiding at the center bench */}

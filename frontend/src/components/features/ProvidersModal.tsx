@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ProviderIcon } from "@/components/ui/providerIcons";
-import { ArrowDown, ArrowUp, Check, ChevronLeft, Layers, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Layers, Plus, X } from "lucide-react";
 import {
   ProviderKey,
   ProviderTestResult,
@@ -158,7 +158,7 @@ export const ProvidersModal: React.FC = () => {
   const isActive = selected ? data?.active === selected.id : false;
 
   const moveInChain = (index: number, delta: number) => {
-    const chain = [...(data?.fallback_chain || [])];
+    const chain = (data?.fallback_chain || []).filter((entry) => entry !== data?.active);
     const target = index + delta;
     if (target < 0 || target >= chain.length) return;
     [chain[index], chain[target]] = [chain[target], chain[index]];
@@ -166,12 +166,13 @@ export const ProvidersModal: React.FC = () => {
   };
 
   const removeFromChain = (id: string) => {
-    const chain = (data?.fallback_chain || []).filter((entry) => entry !== id);
+    const chain = (data?.fallback_chain || []).filter((entry) => entry !== id && entry !== data?.active);
     void run(() => setFallbackChain(chain), `${id} removed from fallback chain`);
   };
 
   const addToChain = (id: string) => {
-    const chain = [...(data?.fallback_chain || []), id];
+    const current = (data?.fallback_chain || []).filter((entry) => entry !== id && entry !== data?.active);
+    const chain = [...current, id];
     void run(() => setFallbackChain(chain), `${id} added as fallback #${chain.length}`);
   };
 
@@ -263,9 +264,9 @@ export const ProvidersModal: React.FC = () => {
         )}
 
         {/* Rail + detail */}
-        <div className="flex-1 min-h-0 flex flex-col sm:flex-row">
+        <div className="flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden">
           {/* Provider rail */}
-          <div className="shrink-0 sm:w-[248px] sm:h-full sm:overflow-y-auto border-b sm:border-b-0 sm:border-r border-outline-variant/60 p-space-4 space-y-space-2">
+          <div className="shrink-0 sm:w-[248px] overflow-y-auto max-h-[42vh] sm:max-h-none sm:h-full border-b sm:border-b-0 sm:border-r border-outline-variant/60 p-space-4 space-y-space-2">
               <p className={SECTION_LABEL}>Global</p>
               <button
                 type="button"
@@ -411,7 +412,7 @@ export const ProvidersModal: React.FC = () => {
           </div>
 
           {/* Detail pane */}
-          <div className="flex-1 min-w-0 sm:h-full sm:overflow-y-auto p-space-6 space-y-space-6 scrollbar-visible">
+          <div className="flex-1 min-w-0 overflow-y-auto sm:h-full p-space-6 space-y-space-6 scrollbar-visible">
             {!selected && !loading && (
               <p className="font-body-sm text-body-sm text-on-surface-variant">
                 No providers available.
@@ -426,15 +427,25 @@ export const ProvidersModal: React.FC = () => {
                     </div>
                     <div className={`${CARD} space-y-space-3`}>
                       <p className="font-body-sm text-body-sm text-on-surface-variant">
-                        The primary provider runs first. Enabled providers below it are the fallback order — if one fails, the next is tried.
+                        The primary provider runs first. Enabled providers below it are the fallback order - if one fails, the next is tried.
                       </p>
                       <div className="space-y-space-2">
                         {(() => {
                           if (!data) return null;
                           const active = data.active;
-                          const chain = data.fallback_chain || [];
-                          const others = data.providers.filter(p => p.id !== active && !chain.includes(p.id)).map(p => p.id);
-                          const routingRows = [active, ...chain, ...others].filter(Boolean);
+                          const rawChain = data.fallback_chain || [];
+                          const chain = Array.from(new Set(rawChain.filter((cid) => cid && cid !== active)));
+                          const others = (data.providers || [])
+                            .filter((p) => p.id !== active && !chain.includes(p.id))
+                            .map((p) => p.id);
+                          const seen = new Set<string>();
+                          const routingRows: string[] = [];
+                          for (const id of [active, ...chain, ...others]) {
+                            if (id && !seen.has(id)) {
+                              seen.add(id);
+                              routingRows.push(id);
+                            }
+                          }
                           
                           return routingRows.map((id) => {
                             const isPrimary = id === active;
@@ -484,8 +495,8 @@ export const ProvidersModal: React.FC = () => {
                                       if (order === 0) {
                                         void run(async () => {
                                           await setActiveProvider(id, {});
-                                          const newChain = [...chain];
-                                          newChain[order] = active;
+                                          const newChain = chain.filter((x) => x !== id);
+                                          newChain.unshift(active);
                                           await setFallbackChain(newChain);
                                         }, `${providerData.label} is now the active provider`);
                                       } else {
@@ -505,8 +516,8 @@ export const ProvidersModal: React.FC = () => {
                                         const newActive = chain[0];
                                         void run(async () => {
                                           await setActiveProvider(newActive, {});
-                                          const newChain = [...chain];
-                                          newChain[0] = active;
+                                          const newChain = chain.filter((x) => x !== newActive);
+                                          newChain.unshift(active);
                                           await setFallbackChain(newChain);
                                         }, `${newActive} is now the active provider`);
                                       } else {
@@ -530,7 +541,7 @@ export const ProvidersModal: React.FC = () => {
                       <p className="font-code-sm text-code-sm font-semibold">Chain Test Results</p>
                       {chainResults.map((result, i) => (
                         <p key={i} className="font-code-sm text-code-sm text-outline">
-                          {result.ok ? "OK" : "FAILED"} — {result.provider} ({result.model}) {result.detail}
+                          {result.ok ? "OK" : "FAILED"} - {result.provider} ({result.model}) {result.detail}
                         </p>
                       ))}
                     </div>
@@ -606,7 +617,7 @@ export const ProvidersModal: React.FC = () => {
                     >
                       {selected.id === locked ? (
                         <>
-                          <span className="text-primary-container font-semibold">PINNED</span> —
+                          <span className="text-primary-container font-semibold">PINNED</span> -
                           every run goes through this provider. Its enabled models below are the
                           whole fallback order.
                         </>
@@ -648,7 +659,7 @@ export const ProvidersModal: React.FC = () => {
                   <div className={`${CARD} space-y-space-3`}>
                     <p className="font-body-sm text-body-sm text-on-surface-variant">
                       The primary model runs first. Enabled models below it are the fallback
-                      order — a rate-limited or failing model retries on the next one.
+                      order - a rate-limited or failing model retries on the next one.
                     </p>
 
                     <div className="space-y-space-2">
@@ -723,7 +734,7 @@ export const ProvidersModal: React.FC = () => {
                       })}
                       {modelRows.length === 0 && (
                         <span className="font-code-sm text-code-sm text-outline">
-                          No catalog models — type one below.
+                          No catalog models - type one below.
                         </span>
                       )}
                     </div>
@@ -825,7 +836,7 @@ export const ProvidersModal: React.FC = () => {
                           pingResult.ok ? "text-verdict-survived" : "text-error"
                         }`}
                       >
-                        {pingResult.ok ? "OK" : "FAILED"} — {pingResult.detail}
+                        {pingResult.ok ? "OK" : "FAILED"} - {pingResult.detail}
                       </p>
                     )}
                   </div>

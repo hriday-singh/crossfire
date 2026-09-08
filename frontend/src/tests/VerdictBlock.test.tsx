@@ -175,7 +175,7 @@ describe("VerdictBlock", () => {
     );
 
     expect(
-      screen.getByText("Not refuted — the panel attacked this but no source backed it.")
+      screen.getByText("Not refuted - the panel attacked this but no source backed it.")
     ).toBeInTheDocument();
   });
 

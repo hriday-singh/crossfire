@@ -90,7 +90,7 @@ export interface DecidingFactor {
 
 export interface CaseVerdict {
   decision_state: "proceed" | "proceed_with_changes" | "hold" | "drop" | string;
-  /** Generated per case. Empty on older runs — fall back to HEADLINES. */
+  /** Generated per case. Empty on older runs - fall back to HEADLINES. */
   headline?: string;
   summary: string;
   deciding_factor?: DecidingFactor | null;

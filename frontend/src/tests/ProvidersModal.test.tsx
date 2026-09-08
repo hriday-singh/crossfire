@@ -339,7 +339,7 @@ describe("ProvidersModal", () => {
         fireEvent.click(screen.getByTestId("test-chain-button"));
     fireEvent.click(screen.getByText("Provider Routing"));
     const chain = await screen.findByTestId("chain-results");
-    expect(within(chain).getByText(/OK — gemini/)).toBeInTheDocument();
+    expect(within(chain).getByText(/OK - gemini/)).toBeInTheDocument();
   });
 
   it("surfaces a backend error instead of failing silently", async () => {

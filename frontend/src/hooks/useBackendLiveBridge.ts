@@ -124,6 +124,7 @@ export function useBackendLiveBridge({
       busyRef.current = false;
       activeClaimRef.current = null;
       finishedClaimsRef.current.clear();
+      stallTimerRef.current = null;
       clearAllTimers();
     }
   }, [currentCase?.id, clearAllTimers]);
@@ -398,8 +399,9 @@ export function useBackendLiveBridge({
   // A frame may take the stage only when its claim is the one being played.
   const isPlayable = useCallback((item: any) => {
     if (TERMINAL_EVENTS.has(item.event)) {
-      // The run ends after everything else has played.
-      return queueRef.current.length === 1;
+      // The run ends after every real frame has played. The backend sends both
+      // run_complete and done, so gate on "nothing left to show", not on queue length.
+      return !queueRef.current.some((pending) => !TERMINAL_EVENTS.has(pending.event));
     }
     if (!GATED_EVENTS.has(item.event)) return true;
     const claimId = eventClaimId(item);
@@ -418,7 +420,7 @@ export function useBackendLiveBridge({
 
     if (index === -1) {
       // A claim never closed (dropped frame, backend error). Open the gate rather
-      // than stranding the run — an un-exited stage is what forces a manual click.
+      // than stranding the run - an un-exited stage is what forces a manual click.
       if (queue.length > 0 && !stallTimerRef.current) {
         stallTimerRef.current = addTimer(() => {
           stallTimerRef.current = null;
@@ -431,6 +433,13 @@ export function useBackendLiveBridge({
         }, 6000);
       }
       return;
+    }
+
+    // A frame moved, so the run is not stalled. Disarm the watchdog.
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+      activeTimersRef.current.delete(stallTimerRef.current);
+      stallTimerRef.current = null;
     }
 
     const [item] = queue.splice(index, 1);

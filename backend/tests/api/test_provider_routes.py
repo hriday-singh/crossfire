@@ -335,3 +335,14 @@ def test_a_single_provider_can_be_tested_with_an_unsaved_key(client, monkeypatch
     body = client.post("/providers/openai/test", json={"api_key": "sk-unsaved-00000001"}).json()
 
     assert body == {"ok": True, "provider": "openai", "model": "gpt-5.6-luna", "detail": "ok"}
+
+
+def test_activating_provider_removes_it_from_fallback_chain(client):
+    client.put("/providers/fallback", json={"chain": ["openai", "anthropic"]})
+    assert client.get("/providers").json()["fallback_chain"] == ["openai", "anthropic"]
+
+    client.put("/providers/active", json={"provider": "openai"})
+    body = client.get("/providers").json()
+    assert body["active"] == "openai"
+    assert body["fallback_chain"] == ["anthropic"]
+
