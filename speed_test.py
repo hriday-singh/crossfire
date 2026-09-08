@@ -31,6 +31,7 @@ def test_speed(url, model, prompt):
     tps = tokens / duration if duration > 0 and tokens > 0 else 0
     print(f"Time: {duration:.2f} seconds", flush=True)
     print(f"Tokens: {tokens} (Speed: {tps:.2f} tokens/sec)", flush=True)
+    print(f"Content: {content[:100]}...", flush=True)
     print("-" * 40, flush=True)
 
 prompt = "Write a 3 paragraph story about a very fast turtle."

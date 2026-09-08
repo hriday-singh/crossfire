@@ -99,7 +99,7 @@ class OpenAICompatibleProvider:
         self._api_key = api_key or settings.llm_api_key or settings.openai_api_key or "none"
         self._base_url = (base_url or settings.llm_base_url or "http://localhost:8081/v1").rstrip("/")
         self._model = model or settings.llm_model or "gemini-3.7-flash"
-        self._timeout = timeout or getattr(settings, "llm_timeout_seconds", 90.0)
+        self._timeout = timeout or getattr(settings, "llm_timeout_seconds", 15.0)
         self._retry_transient = retry_transient
         self._client = client
         self._owns_client = client is None

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useCase } from "@/context/CaseContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ProviderIcon } from "@/components/ui/providerIcons";
-import { ArrowDown, ArrowUp, Check, Layers, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronLeft, Layers, Plus, X } from "lucide-react";
 import {
   ProviderKey,
   ProviderTestResult,

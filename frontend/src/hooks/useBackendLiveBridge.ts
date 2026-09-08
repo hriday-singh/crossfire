@@ -17,6 +17,33 @@ export const COGNITIVE_TAGS: Record<string, string> = {
   steelman: '[Steelman]',
 };
 
+/**
+ * Stage choreography. The backend runs claim groups concurrently, so frames from
+ * different claims interleave on the wire; the bullpen plays exactly one claim at a
+ * time and queues the rest. BEAT_MS is how long each frame owns the stage.
+ */
+const GATED_EVENTS = new Set(['claim_started', 'test_started', 'finding_ready', 'claim_complete']);
+const TERMINAL_EVENTS = new Set(['run_complete', 'done']);
+
+const BEAT_MS: Record<string, number> = {
+  claim_started: 600,
+  test_started: 450,
+  finding_ready: 1900,
+  claim_complete: 400,
+  load_bearing_ready: 300,
+  verdict_ready: 700,
+  case_verdict: 3000,
+  activity: 200,
+  run_complete: 300,
+  done: 300,
+};
+
+// A frame belongs to the claim it names, whichever field the backend used for it.
+export function eventClaimId(item: any): string | null {
+  const data = item?.data || {};
+  return data.claim_id || data.target_claim_id || data.finding?.claim_id || null;
+}
+
 export function getCognitiveTag(agentId: string): string {
   return COGNITIVE_TAGS[agentId] || '[Audit Task]';
 }
@@ -54,6 +81,14 @@ export function useBackendLiveBridge({
   const lastCaseIdRef = useRef<string | null>(null);
   const activeTimersRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
+  // Serial stage queue: pending frames, the claim currently on stage, and the claims
+  // already closed (their late cross-examination findings are free to play).
+  const queueRef = useRef<any[]>([]);
+  const busyRef = useRef(false);
+  const activeClaimRef = useRef<string | null>(null);
+  const finishedClaimsRef = useRef<Set<string>>(new Set());
+  const stallTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const isAgentSelected = useCallback((agentId: string) => {
     if (agentId === 'steelman') return true;
     const list = selectedAgentIds || currentCase?.selected_agents || null;
@@ -85,31 +120,53 @@ export function useBackendLiveBridge({
     if (currentCase?.id !== lastCaseIdRef.current) {
       lastCaseIdRef.current = currentCase?.id || null;
       processedEventIdsRef.current.clear();
+      queueRef.current = [];
+      busyRef.current = false;
+      activeClaimRef.current = null;
+      finishedClaimsRef.current.clear();
       clearAllTimers();
     }
   }, [currentCase?.id, clearAllTimers]);
 
-  // Handle live streaming events from backend SSE stream
-  useEffect(() => {
-    if (isPaused || (!isStreaming && currentCase?.status !== 'testing')) {
-      return;
-    }
-
-    // state.eventLog is prepended (newest at index 0). Reverse to iterate oldest -> newest
-    const chronologialEvents = [...state.eventLog].reverse();
-    const unprocessed = chronologialEvents.filter((item) => !processedEventIdsRef.current.has(item.id));
-    if (unprocessed.length === 0) return;
-
-    unprocessed.forEach((item) => processedEventIdsRef.current.add(item.id));
-
+  // Plays one stream frame. Returns how long that beat holds the stage, in ms.
+  const playEvent = useCallback((item: any) => {
     const speedMultiplier = playbackSpeed > 0 ? 1 / playbackSpeed : 1;
+    const { event, data } = item;
 
-    unprocessed.forEach((item, idx) => {
-      const delay = Math.round(idx * 50 * speedMultiplier);
-      addTimer(() => {
-        const { event, data } = item;
+        if (event === 'claim_started') {
+          // 0. claim_started: this claim takes the stage; only its agents wake.
+          const claimIndex = typeof data.claim_index === 'number' ? data.claim_index : 0;
+          const totalClaims = typeof data.total_claims === 'number' ? data.total_claims : 1;
+          const claimStatement =
+            data.claim_statement ||
+            currentCase?.claims?.find((c: any) => c.id === data.claim_id)?.statement ||
+            'Core Claim';
 
-        if (event === 'test_started') {
+          dispatchPacket({
+            speaker_id: 'steelman',
+            action: 'inspect',
+            target: 'steelman_chair',
+            cognitive_tag: '[Steelman]',
+            target_claim_id: data.claim_id,
+            claim_statement: claimStatement,
+            stage: `Claim ${claimIndex + 1} of ${totalClaims} on the stand`,
+            thought: claimStatement,
+            dialogue: null,
+          });
+        } else if (event === 'claim_complete') {
+          // 8. claim_complete: every agent for this claim is seated again.
+          const findingCount = typeof data.finding_count === 'number' ? data.finding_count : 0;
+          dispatchPacket({
+            speaker_id: 'steelman',
+            action: 'inspect',
+            target: 'steelman_chair',
+            cognitive_tag: '[Steelman]',
+            target_claim_id: data.claim_id,
+            stage: `Claim closed // ${findingCount} finding${findingCount === 1 ? '' : 's'} on record`,
+            thought: null,
+            dialogue: null,
+          });
+        } else if (event === 'test_started') {
           // 1. test_started: Fired when an evaluator begins testing a specific claim
           const agentId = normalizeEvaluatorId(String(data.evaluator || data.failure_mode || ''));
           if (!isAgentSelected(agentId)) return;
@@ -330,14 +387,103 @@ export function useBackendLiveBridge({
             progress: 100,
           });
         }
-      }, delay);
+
+    return Math.round((BEAT_MS[event] ?? 150) * speedMultiplier);
+  }, [currentCase, dispatchPacket, playbackSpeed, addTimer, isAgentSelected]);
+
+  const playEventRef = useRef(playEvent);
+  playEventRef.current = playEvent;
+  const pumpRef = useRef<() => void>(() => {});
+
+  // A frame may take the stage only when its claim is the one being played.
+  const isPlayable = useCallback((item: any) => {
+    if (TERMINAL_EVENTS.has(item.event)) {
+      // The run ends after everything else has played.
+      return queueRef.current.length === 1;
+    }
+    if (!GATED_EVENTS.has(item.event)) return true;
+    const claimId = eventClaimId(item);
+    if (!claimId) return true;
+    // Cross-examination probes land after their claim closed; let them through.
+    if (finishedClaimsRef.current.has(claimId)) return true;
+    if (item.event === 'claim_started') return activeClaimRef.current === null;
+    return claimId === activeClaimRef.current;
+  }, []);
+
+  // Drains the queue one beat at a time.
+  const pump = useCallback(() => {
+    if (busyRef.current || isPaused) return;
+    const queue = queueRef.current;
+    const index = queue.findIndex(isPlayable);
+
+    if (index === -1) {
+      // A claim never closed (dropped frame, backend error). Open the gate rather
+      // than stranding the run — an un-exited stage is what forces a manual click.
+      if (queue.length > 0 && !stallTimerRef.current) {
+        stallTimerRef.current = addTimer(() => {
+          stallTimerRef.current = null;
+          activeClaimRef.current = null;
+          queueRef.current.forEach((pending) => {
+            const claimId = eventClaimId(pending);
+            if (claimId) finishedClaimsRef.current.add(claimId);
+          });
+          pumpRef.current();
+        }, 6000);
+      }
+      return;
+    }
+
+    const [item] = queue.splice(index, 1);
+    if (item.event === 'claim_started') {
+      activeClaimRef.current = eventClaimId(item);
+    }
+
+    busyRef.current = true;
+    const duration = playEventRef.current(item) || 150;
+
+    if (item.event === 'claim_complete') {
+      const claimId = eventClaimId(item);
+      if (claimId) finishedClaimsRef.current.add(claimId);
+      activeClaimRef.current = null;
+    }
+
+    addTimer(() => {
+      busyRef.current = false;
+      pumpRef.current();
+    }, duration);
+  }, [addTimer, isPaused, isPlayable]);
+  pumpRef.current = pump;
+
+  // Enqueue new SSE frames, then keep the stage moving.
+  useEffect(() => {
+    // `done` flips isStreaming false in the same commit that logs the frame, so the
+    // terminal frames must stay processable once the case has finished.
+    if (isPaused) return;
+    if (!isStreaming && currentCase?.status !== 'testing' && currentCase?.status !== 'done') {
+      return;
+    }
+
+    // state.eventLog is prepended (newest at index 0). Reverse to iterate oldest -> newest
+    const chronological = [...state.eventLog].reverse();
+    const unprocessed = chronological.filter((item) => !processedEventIdsRef.current.has(item.id));
+    if (unprocessed.length === 0) return;
+
+    unprocessed.forEach((item) => {
+      processedEventIdsRef.current.add(item.id);
+      queueRef.current.push(item);
     });
-  }, [state.eventLog, isStreaming, currentCase, dispatchPacket, isPaused, playbackSpeed, addTimer]);
+
+    pump();
+  }, [state.eventLog, isStreaming, currentCase, isPaused, pump]);
 
   // Pause handling: clear active in-flight timers when paused
   useEffect(() => {
     if (isPaused) {
       clearAllTimers();
+      busyRef.current = false;
+      stallTimerRef.current = null;
+    } else {
+      pumpRef.current();
     }
   }, [isPaused, clearAllTimers]);
 

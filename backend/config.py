@@ -42,14 +42,14 @@ class Settings(BaseSettings):
     use_llm_curation: bool = Field(default=False, alias="USE_LLM_CURATION")
 
     # Fan-out control: a full panel over 5 claims is ~20 concurrent LLM calls.
-    evaluator_concurrency: int = Field(default=8, alias="EVALUATOR_CONCURRENCY")
     # Budgets, not safety nets. openai_compat retries a transient failure once,
-    # so one evaluator can cost 2 x llm_timeout + backoff while holding an
-    # evaluator_concurrency slot. At 120/300 that was ~241s of one wave of eight
-    # blocked on a single hung call, which is what turned 1-1.5 min runs into
-    # 3+ min ones. Keep evaluator_timeout above one retry pair and well below two.
-    evaluator_timeout_seconds: float = Field(default=120.0, alias="EVALUATOR_TIMEOUT_SECONDS")
-    llm_timeout_seconds: float = Field(default=60.0, alias="LLM_TIMEOUT_SECONDS")
+    # so one evaluator can cost 2 x llm_timeout + 1 s sleep while holding an
+    # evaluator_concurrency slot. With llm_timeout=15 s, one retry pair costs
+    # ~31 s; evaluator_timeout at 35 s covers that with a small margin and keeps
+    # hung connections from blocking the SSE stream for more than ~35 s total.
+    evaluator_concurrency: int = Field(default=8, alias="EVALUATOR_CONCURRENCY")
+    evaluator_timeout_seconds: float = Field(default=35.0, alias="EVALUATOR_TIMEOUT_SECONDS")
+    llm_timeout_seconds: float = Field(default=15.0, alias="LLM_TIMEOUT_SECONDS")
     steelman_concurrency: int = Field(default=3, alias="STEELMAN_CONCURRENCY")
 
     # Retrieval budgets. DuckDuckGo Lite answers in well under a second when it
