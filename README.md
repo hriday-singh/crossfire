@@ -51,75 +51,82 @@ When you submit a proposal or decision dilemma, Crossfire runs it through a fixe
 
 ```mermaid
 flowchart TD
-    subgraph InputPhase["Input and Ingestion"]
-        Input["Proposal / Dilemma<br/>(Text, URL, PDF, or Image)"]
-        Extract["1. Claim Extraction and Agent Selection"]
+    Input(["Proposal / Dilemma<br/>Text, URL, PDF, or Image"])
+
+    subgraph InputPhase["1. Ingestion"]
+        direction TB
+        Extract["Claim Extraction<br/>and Agent Selection"]
         Recovery{"Testable?"}
-        Clarify["Zero-Claim Recovery<br/>(POST /cases/:id/clarify)"]
+        Clarify["Zero-Claim Recovery<br/><small>POST /cases/:id/clarify</small>"]
+    end
+
+    subgraph GatePhase["2-4. Confirmation and Prioritisation"]
+        direction TB
+        Confirm["2. User Confirmation<br/><small>edit claims, select panel</small>"]
+        Ranking["3. Load-Bearing Ranking<br/><small>at most half marked load-bearing</small>"]
+        Route{"4. Adaptive Test<br/>Routing"}
+    end
+
+    subgraph TestPhase["5. Isolated Test Panel <small>(parallel, blind)</small>"]
+        direction LR
+        DA["Devil's Advocate<br/><small>Assumption Test</small>"]
+        RES["Researcher<br/><small>Evidence Test — SerpApi</small>"]
+        BLD["Builder<br/><small>Feasibility Test</small>"]
+        OPR["Operator<br/><small>Operational Friction Test</small>"]
+    end
+
+    Probe["5b. Cross-Examination Probe<br/><small>targeted search on unsourced blockers</small>"]
+
+    subgraph AdjudicationPhase["6. Adjudication and Re-Architecture"]
+        direction TB
+        SteelMan["Judicial Reconciliation<br/><small>Steel Man Evaluator</small>"]
+        Gate{"Evidence<br/>Gate"}
+        Rebuild["Break to Rebuild Protocol<br/><small>fatal flaw + salvaged claim</small>"]
+        VerdictClaim(["Reconciled Claim Verdict<br/><small>Survived / Weakened / Broken / Unresolved</small>"])
+    end
+
+    subgraph SynthesisPhase["7-8. Synthesis and Decision"]
+        direction TB
+        Synthesis["7. Strategic Consequences<br/><small>impact, pivot, smallest next validation</small>"]
+        VerdictCase(["8. Case Verdict<br/><small>Proceed / Proceed with Changes / Hold / Drop</small>"])
+        Output(["Decision Memo<br/>and Evidence Drawer"])
+        Fixer["Prompt Fixer<br/><small>rewrites decision around broken claims</small>"]
     end
 
     Input --> Extract
     Extract --> Recovery
-    Recovery -->|Not testable| Clarify
-    Clarify --> Extract
-    Recovery -->|Testable| Confirm
+    Recovery -->|"not testable"| Clarify --> Extract
+    Recovery -->|"testable"| Confirm
 
-    subgraph GatePhase["Confirmation and Prioritisation"]
-        Confirm["2. User Confirmation<br/>(Edit claims and select panel)"]
-        Ranking["3. Load-Bearing Ranking<br/>(At most half marked load-bearing)"]
-        Route{"4. Adaptive Test Routing"}
-    end
+    Confirm -.->|"SSE stream"| Ranking --> Route
 
-    Confirm -->|Streams via SSE| Ranking
-    Ranking --> Route
+    Route -->|"load-bearing"| DA & RES & BLD & OPR
+    Route -->|"secondary"| RES
 
-    subgraph TestPhase["5. Isolated Test Panel (Parallel and Blind)"]
-        DA["Devil's Advocate<br/>(Assumption Test)"]
-        RES["Researcher<br/>(Evidence Test via SerpApi)"]
-        BLD["Builder<br/>(Feasibility Test)"]
-        OPR["Operator<br/>(Operational Friction Test)"]
-    end
-
-    Route -->|Load-bearing claim| DA
-    Route -->|Load-bearing claim| RES
-    Route -->|Load-bearing claim| BLD
-    Route -->|Load-bearing claim| OPR
-    Route -->|Secondary claim| RES
-
-    subgraph ProbePhase["5b. Targeted Probes"]
-        Probe["Cross-Examination Probe<br/>(Targeted search on unsourced blockers)"]
-    end
-
-    DA --> Probe
-    BLD --> Probe
-    OPR --> Probe
-
-    subgraph AdjudicationPhase["6. Adjudication and Re-Architecture"]
-        SteelMan["Judicial Reconciliation<br/>(Steel Man Evaluator)"]
-        Gate{"Evidence Gate"}
-        Rebuild["Break to Rebuild Protocol<br/>(Fatal flaw and salvaged claim)"]
-        VerdictClaim["Reconciled Claim Verdict<br/>(Survived / Weakened / Broken / Unresolved)"]
-    end
-
+    DA & BLD & OPR --> Probe
     Probe --> SteelMan
     RES --> SteelMan
+
     SteelMan --> Gate
-    Gate -->|Empirical contradiction| Rebuild
-    Gate -->|Supported or caveated| VerdictClaim
-    Rebuild --> VerdictClaim
+    Gate -->|"contradiction"| Rebuild --> VerdictClaim
+    Gate -->|"supported / caveated"| VerdictClaim
 
-    subgraph SynthesisPhase["7 and 8. Synthesis and Decision"]
-        Synthesis["7. Strategic Consequences<br/>(Impact, pivot, smallest next validation)"]
-        VerdictCase["8. Case Verdict<br/>(Proceed / Proceed with Changes / Hold / Drop)"]
-        Output["Decision Memo and Evidence Drawer"]
-        Fixer["Prompt Fixer<br/>(Rewrite decision around broken claims)"]
-    end
+    VerdictClaim --> Synthesis --> VerdictCase --> Output
+    VerdictCase -.->|"optional rerun"| Fixer -.-> Input
 
-    VerdictClaim --> Synthesis
-    Synthesis --> VerdictCase
-    VerdictCase --> Output
-    VerdictCase -.->|Optional iterative rerun| Fixer
-    Fixer -.-> Input
+    classDef phaseInput fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
+    classDef phaseGate fill:#ecfeff,stroke:#0891b2,color:#083344
+    classDef phaseTest fill:#fef3c7,stroke:#d97706,color:#451a03
+    classDef phaseAdjudication fill:#fce7f3,stroke:#db2777,color:#500724
+    classDef phaseSynthesis fill:#dcfce7,stroke:#16a34a,color:#052e16
+    classDef terminal fill:#fff,stroke:#334155,color:#0f172a,stroke-width:2px
+
+    class Extract,Recovery,Clarify phaseInput
+    class Confirm,Ranking,Route phaseGate
+    class DA,RES,BLD,OPR,Probe phaseTest
+    class SteelMan,Gate,Rebuild phaseAdjudication
+    class Synthesis,Fixer phaseSynthesis
+    class Input,VerdictClaim,VerdictCase,Output terminal
 ```
 
 ### 1. Claim extraction, input gate, and agent selection
