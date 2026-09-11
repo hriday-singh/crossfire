@@ -8,58 +8,118 @@ Crossfire is a decision-testing engine. It takes a business, technical, or produ
 
 It is not a chatbot, an idea generator, or an advisory council. You give it a decision; it gives you back claims, tests, empirical evidence, and verdicts.
 
+![Crossfire Decision Testing Engine](images/Landing%20Page.png)
+
+---
+
+## Table of Contents
+
+- [How it works](#how-it-works)
+  - [1. Claim extraction, input gate, and agent selection](#1-claim-extraction-input-gate-and-agent-selection)
+  - [2. Confirmation and streaming](#2-confirmation-and-streaming)
+  - [3. Load-bearing ranking](#3-load-bearing-ranking)
+  - [4. Adaptive test routing](#4-adaptive-test-routing)
+  - [5. Isolated test panel](#5-isolated-test-panel)
+  - [5b. Cross-examination probes](#5b-cross-examination-probes)
+  - [6. Judicial reconciliation & Steel Man Re-Architecture](#6-judicial-reconciliation--steel-man-re-architecture)
+  - [7. Strategic consequences](#7-strategic-consequences)
+  - [8. Case verdict](#8-case-verdict)
+- [Providers, keys, and model fallback](#providers-keys-and-model-fallback)
+- [Persistence and telemetry](#persistence-and-telemetry)
+- [Verdict states](#verdict-states)
+- [Core doubts](#core-doubts)
+  - [Isn't this just a wrapper around an AI model?](#isnt-this-just-a-wrapper-around-an-ai-model)
+  - [How is this better than just using one AI model directly?](#how-is-this-better-than-just-using-one-ai-model-directly)
+  - [What stops the different tests from just agreeing with each other?](#what-stops-the-different-tests-from-just-agreeing-with-each-other)
+- [Getting started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Out-of-the-Box Quick Start (Zero API Keys Needed)](#out-of-the-box-quick-start-zero-api-keys-needed)
+  - [One-Click Launch (All Three Services in Order)](#one-click-launch-all-three-services-in-order)
+  - [Run with Docker](#run-with-docker)
+  - [Manual Step-by-Step Setup](#manual-step-by-step-setup)
+  - [Running tests](#4-running-tests)
+- [Additional questions](#additional-questions)
+- [API surface](#api-surface)
+- [Repository layout](#repository-layout)
+- [Configuration options](#configuration-options)
+
 ---
 
 ## How it works
 
 When you submit a proposal or decision dilemma, Crossfire runs it through a fixed pipeline:
 
-```
-[Proposal / Dilemma]  (text, URL, PDF, or image)
-        │
-        ▼
-1. Claim extraction + input gate + agent selection
-   ├── not testable? → zero-claim recovery: one clarifying question, what is
-   │                    missing, how the input was read, and up to 3 provisional
-   │                    claims traceable to the user's own words (never invented)
-   │                    POST /cases/{id}/clarify merges the answer and re-extracts;
-   │                    a successful re-extraction auto-launches the run
-   └── testable?     → up to 5 falsifiable claims + the panel this decision needs
-        │
-        ▼
-2. User confirmation (edit, add, or prune claims and tests before compute is spent)
-        │  POST /cases/{id}/confirm → 202 Accepted in <50ms, run continues in background
-        │  every stage below streams to the browser over SSE
-        ▼
-3. Load-bearing ranking (at most half the claims; failure collapses the decision)
-        │
-        ▼
-4. Test plan routing
-   ├── load-bearing claim → full active panel
-   └── secondary claim    → single pass (Evidence Test preferred)
-        │
-        ▼
-5. Independent test execution (parallel, blind evaluations)
-   ├── Assumption Test          (logic, hidden premises, incentive mismatches)
-   ├── Evidence Test            (live web search, deep-fetch, empirical benchmarks)
-   ├── Feasibility Test         (technical constraints, infrastructure, scaling limits)
-   └── Operational Friction Test (adoption inertia, red tape, liability, process drag)
-        │
-        ▼
-5b. Cross-examination probes (load-bearing claims only)
-    a reasoning-only blocker gets one targeted search before it is judged
-        │
-        ▼
-6. Judicial reconciliation, per claim, in parallel
-        │  evidence gate: "broken" requires a source-traceable contradiction
-        ▼
-7. Strategic consequence synthesis (impact, pivot, smallest next validation)
-        │
-        ▼
-8. Case verdict (proceed / proceed with changes / hold / drop + next actions)
-        │
-        ▼
-[Decision Memo & Evidence Drawer]
+```mermaid
+flowchart TD
+    subgraph InputPhase["Input and Ingestion"]
+        Input["Proposal / Dilemma<br/>(Text, URL, PDF, or Image)"]
+        Extract["1. Claim Extraction and Agent Selection"]
+        Recovery{"Testable?"}
+        Clarify["Zero-Claim Recovery<br/>(POST /cases/:id/clarify)"]
+    end
+
+    Input --> Extract
+    Extract --> Recovery
+    Recovery -->|Not testable| Clarify
+    Clarify --> Extract
+    Recovery -->|Testable| Confirm
+
+    subgraph GatePhase["Confirmation and Prioritisation"]
+        Confirm["2. User Confirmation<br/>(Edit claims and select panel)"]
+        Ranking["3. Load-Bearing Ranking<br/>(At most half marked load-bearing)"]
+        Route{"4. Adaptive Test Routing"}
+    end
+
+    Confirm -->|Streams via SSE| Ranking
+    Ranking --> Route
+
+    subgraph TestPhase["5. Isolated Test Panel (Parallel and Blind)"]
+        DA["Devil's Advocate<br/>(Assumption Test)"]
+        RES["Researcher<br/>(Evidence Test via SerpApi)"]
+        BLD["Builder<br/>(Feasibility Test)"]
+        OPR["Operator<br/>(Operational Friction Test)"]
+    end
+
+    Route -->|Load-bearing claim| DA
+    Route -->|Load-bearing claim| RES
+    Route -->|Load-bearing claim| BLD
+    Route -->|Load-bearing claim| OPR
+    Route -->|Secondary claim| RES
+
+    subgraph ProbePhase["5b. Targeted Probes"]
+        Probe["Cross-Examination Probe<br/>(Targeted search on unsourced blockers)"]
+    end
+
+    DA --> Probe
+    BLD --> Probe
+    OPR --> Probe
+
+    subgraph AdjudicationPhase["6. Adjudication and Re-Architecture"]
+        SteelMan["Judicial Reconciliation<br/>(Steel Man Evaluator)"]
+        Gate{"Evidence Gate"}
+        Rebuild["Break to Rebuild Protocol<br/>(Fatal flaw and salvaged claim)"]
+        VerdictClaim["Reconciled Claim Verdict<br/>(Survived / Weakened / Broken / Unresolved)"]
+    end
+
+    Probe --> SteelMan
+    RES --> SteelMan
+    SteelMan --> Gate
+    Gate -->|Empirical contradiction| Rebuild
+    Gate -->|Supported or caveated| VerdictClaim
+    Rebuild --> VerdictClaim
+
+    subgraph SynthesisPhase["7 and 8. Synthesis and Decision"]
+        Synthesis["7. Strategic Consequences<br/>(Impact, pivot, smallest next validation)"]
+        VerdictCase["8. Case Verdict<br/>(Proceed / Proceed with Changes / Hold / Drop)"]
+        Output["Decision Memo and Evidence Drawer"]
+        Fixer["Prompt Fixer<br/>(Rewrite decision around broken claims)"]
+    end
+
+    VerdictClaim --> Synthesis
+    Synthesis --> VerdictCase
+    VerdictCase --> Output
+    VerdictCase -.->|Optional iterative rerun| Fixer
+    Fixer -.-> Input
 ```
 
 ### 1. Claim extraction, input gate, and agent selection
@@ -71,10 +131,14 @@ Answering sends `POST /cases/{id}/clarify`, which merges the answer into the ori
 
 The same model that reads the decision also picks which tests it needs, with a one-sentence rationale per pick. There is no keyword table: a fixed keyword map can only encode the scenarios someone thought of in advance, and identical words mean different things in different domains. You can also pin the panel manually.
 
+![Agent Selector Panel](images/Agent%20Selector.png)
+
 ### 2. Confirmation and streaming
 Before running any tests or searches, the system displays the claims and the selected panel so you can edit, remove, or add. This prevents the engine from spending compute investigating misread intent.
 
 Confirming does not block. The request returns immediately and the run continues as a background task, publishing every load-bearing flag, verdict, consequence, and progress message to the browser over Server-Sent Events as it happens.
+
+![Claim Map and Load-Bearing Classification](images/Claim%20Map.png)
 
 ### 3. Load-bearing ranking
 A claim is load-bearing if its failure would materially change the decision. For example, in an automated compliance product, "Regulators accept automated audit trails" is load-bearing; "Users prefer weekly email digests" is not. Crossfire ranks the claims rather than flagging each in isolation, and at most half of them come back load-bearing — that is the constraint that forces prioritisation instead of treating everything as critical.
@@ -90,6 +154,8 @@ Tests run in parallel. To prevent groupthink, each executes in strict isolation:
 * **Builder (Feasibility Test):** Evaluates technical and operational viability, including required APIs, data access, latency budgets, unit economics, threat model, and regulatory boundaries (GDPR, HIPAA, SOC2).
 * **Operator (Operational Friction Test):** Stress-tests the operational frictions that kill decisions after the tech works — adoption inertia, enterprise gatekeeping and procurement, regulatory liability, and process drag.
 
+![Isolated Agent Panel and Live Evaluation Feed](images/Agent%20Panel.png)
+
 ### 5b. Cross-examination probes
 The Assumption and Feasibility tests do not search the web, so their hardest objections arrive as reasoning with no source behind them — and the evidence gate below would silently discount them. Before adjudication, each load-bearing claim's single strongest unsourced blocker gets one targeted search.
 
@@ -100,6 +166,10 @@ Evaluators do not vote, and scores are never averaged. The **Steel Man** acts as
 
 * **The Evidence Gate:** A claim can only be marked **broken** if some finding carries both empirical evidence and a contradiction traceable to a source. Reasoning alone can weaken a claim; it can never break one. An unsupported "broken" verdict is downgraded to "weakened" and the downgrade is recorded in the reasoning.
 * **Break to Rebuild Protocol:** If a claim breaks or weakens, the Steel Man does not just reject the idea—it identifies the **Fatal Flaw**, constructs a **Salvaged Claim** (the minimal viable re-architecture of the assumption that preserves the core strategic upside while mitigating fatal exposure), and documents the **Trade-off Acknowledged**.
+
+![Evidence Drawer and Empirical Grounding](images/Evidence%20Drawer%202.png)
+
+![Steel Man Re-Architecture Protocol](images/Evidence%20Drawer.png)
 
 ### 7. Strategic consequences
 For any claim that does not cleanly survive, Crossfire synthesizes concrete recommendations:
@@ -114,11 +184,17 @@ Afterwards the memo can be exported, and the **Prompt Fixer** rewrites your orig
 
 Every synthesis step has a deterministic fallback. If the model fails at ranking, consequences, or the final verdict, a rule-based version ships instead. The report degrades in polish, never in existence.
 
+![Decision Memo and Recommended Build](images/Verdict.png)
+
+![Actionable Pre-Commit Actions and Quick Fix](images/Verdict%202.png)
+
 ---
 
 ## Providers, keys, and model fallback
 
 Providers, API keys, and the model fallback order are managed from the UI (**Providers** modal) and stored encrypted in SQLite — they are not `.env`-only settings. Full reference: [`docs/PROVIDERS.md`](docs/PROVIDERS.md).
+
+![Model Providers and Global Routing](images/Model%20Providers.png)
 
 * **Supported providers:** local Ollama (`ollama`, default, keyless), Google Gemini, OpenAI, Anthropic, and any number of user-registered OpenAI-compatible endpoints (`POST /providers/custom` → `custom:<slug>`). Only Anthropic needs its own adapter; everything else is the OpenAI-compatible client pointed at a different base URL. No vendor SDKs.
 * **Key pool:** several keys per provider, each individually enable/disable-able, sharded across concurrent calls (`KEY_POOL_MAX_INFLIGHT` in flight per key). This is what makes free-tier rate limits survivable.
@@ -362,7 +438,7 @@ npm run dev
 
 The frontend will be available at `http://localhost:5173`. Vite is configured to proxy API requests (`/cases`, `/ingest`, `/providers`, `/health`, `/ready`) directly to the backend on port 8000.
 
-### 5. Running tests
+### 4. Running tests
 
 #### Backend tests
 Run unit and integration tests with pytest:
