@@ -31,9 +31,9 @@ It is not a chatbot, an idea generator, or an advisory council. You give it a de
   - [Isn't this just a wrapper around an AI model?](#isnt-this-just-a-wrapper-around-an-ai-model)
   - [How is this better than just using one AI model directly?](#how-is-this-better-than-just-using-one-ai-model-directly)
   - [What stops the different tests from just agreeing with each other?](#what-stops-the-different-tests-from-just-agreeing-with-each-other)
-- [Getting started](#getting-started)
+- [Getting started (installation)](#getting-started)
   - [Prerequisites](#prerequisites)
-  - [Out-of-the-Box Quick Start (Zero API Keys Needed)](#out-of-the-box-quick-start-zero-api-keys-needed)
+  - [Quick Start (Zero API Keys Needed)](#quick-start-zero-api-keys-needed)
   - [One-Click Launch (All Three Services in Order)](#one-click-launch-all-three-services-in-order)
   - [Run with Docker](#run-with-docker)
   - [Manual Step-by-Step Setup](#manual-step-by-step-setup)
@@ -259,7 +259,7 @@ Every test runs blind. Each one forms its own finding without seeing what the ot
 
 ---
 
-### Out-of-the-Box Quick Start (Zero API Keys Needed)
+### Quick Start (Zero API Keys Needed)
 
 Crossfire is configured to run **straight out of the box** with zero required paid API keys:
 * **Search & Evidence:** Uses SerpApi when configured, with **automatic fallback to DuckDuckGo Lite** via Scrapling. If `SERPAPI_API_KEY` is not provided (or when its quota is exhausted), Crossfire seamlessly falls back to DuckDuckGo Lite with no API key or subscription needed.
