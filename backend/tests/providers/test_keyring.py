@@ -119,8 +119,8 @@ def test_base_url_is_editable_for_ollama_and_custom():
     assert keyring.get_config("custom").base_url == "https://gateway.internal/v1"
 
 
-def test_active_provider_defaults_to_the_bundled_proxy():
-    assert keyring.get_active_provider() == "gemini_proxy"
+def test_active_provider_defaults_to_ollama():
+    assert keyring.get_active_provider() == "ollama"
 
 
 def test_active_provider_persists_and_rejects_unknown_values():

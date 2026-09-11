@@ -239,7 +239,7 @@ def test_get_provider_with_no_arguments_returns_the_routing_chain():
 
     provider = get_provider()
     assert isinstance(provider, RoutingProvider)
-    assert provider.primary.provider == "gemini_proxy"
+    assert provider.primary.provider == "ollama"
 
 
 @pytest.mark.asyncio
@@ -320,8 +320,8 @@ async def test_openai_compat_provider_context_manager(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_openai_compat_retries_once_when_upstream_returns_non_json(monkeypatch, sample_claim):
-    """gemini-web2api sometimes answers 200 with its own failure text instead of the
-    completion. One retry recovers the claim instead of losing it to `unresolved`."""
+    """Some OpenAI-compatible proxies answer 200 with their own failure text instead
+    of the completion. One retry recovers the claim instead of losing it to `unresolved`."""
     import httpx
     from providers.openai_compat import OpenAICompatibleProvider
 

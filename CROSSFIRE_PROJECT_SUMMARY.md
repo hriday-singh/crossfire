@@ -353,11 +353,11 @@ Afterwards, `backend/core/reformulate.py` (`POST /cases/{id}/improve_prompt`) re
 
 A full panel over 5 claims is roughly 20 concurrent LLM calls, before ranking, probes, reconciliation, and synthesis. On free tiers that is a rate limit, not a workload — so the provider layer is part of the architecture, not configuration trivia. Full reference: `docs/PROVIDERS.md`.
 
-* **Providers (`backend/providers/catalog.py`):** the bundled keyless Gemini proxy (`gemini_proxy`, default), Google Gemini, OpenAI, Anthropic, local Ollama, and any number of user-registered OpenAI-compatible endpoints (`custom:<slug>`). Only Anthropic needs its own adapter — everything else is the OpenAI-compatible client against a different base URL. No vendor SDKs anywhere in `providers/`.
+* **Providers (`backend/providers/catalog.py`):** local Ollama (`ollama`, default, keyless), Google Gemini, OpenAI, Anthropic, and any number of user-registered OpenAI-compatible endpoints (`custom:<slug>`). Only Anthropic needs its own adapter — everything else is the OpenAI-compatible client against a different base URL. No vendor SDKs anywhere in `providers/`.
 * **Encrypted keyring (`keyring.py`):** API keys are Fernet-encrypted in local SQLite and entered through the UI, not a committed config file. The master key is generated at `backend/.crossfire_key` on first use, or pinned with `CROSSFIRE_SECRET_KEY`.
 * **Key pool (`pool.py`):** several keys per provider, each individually enable/disable-able, sharded across concurrent calls with a per-key in-flight cap (`KEY_POOL_MAX_INFLIGHT`).
 * **Model-level fallback chain (`routing.py`):** one target per enabled model, primary first, **all sharing one key pool** — a 429 on model A retries on model B immediately, with no key-rotation round trip. Retryable statuses (408/409/425/429/5xx) rotate and honour `Retry-After`; 401/403 are fatal and stop that target rather than burning attempts.
-* **Currently pinned:** execution is locked to the bundled Gemini proxy (`catalog.LOCKED_PROVIDER`). Every other provider stays visible and configurable in the UI and takes effect the moment the pin is lifted — unpinning is one function in `build_chain()`.
+* **Provider pinning (`catalog.LOCKED_PROVIDER`):** unset by default, so provider selection is free. Setting it locks execution to one provider; every other provider stays visible and configurable in the UI and takes effect the moment the pin is lifted — unpinning is one function in `build_chain()`.
 * **Cost telemetry (`core/telemetry.py`):** prompt and completion tokens are attributed per agent, costed, stored on the case as `CaseTelemetry`, and streamed as a `telemetry_ready` event. Adaptive scrutiny is a cost argument, so the cost is measured rather than asserted.
 
 ---

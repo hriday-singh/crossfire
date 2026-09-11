@@ -1,6 +1,6 @@
 """
-Owner: Dev A. GeminiProvider adapter.
-Delegates to OpenAICompatibleProvider when configured with local proxy (gemini-web2api).
+Owner: Dev A. GeminiProvider adapter — talks OpenAI-compatible wire format,
+pointed at Google's own generativelanguage.googleapis.com endpoint.
 """
 from __future__ import annotations
 

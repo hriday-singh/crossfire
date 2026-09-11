@@ -39,11 +39,11 @@ describe("providersApi", () => {
   });
 
   it("puts the enabled model list, in order, to /providers/:id/models", async () => {
-    vi.stubGlobal("fetch", okJson({ id: "gemini_proxy" }));
+    vi.stubGlobal("fetch", okJson({ id: "ollama" }));
 
-    await setEnabledModels("gemini_proxy", ["gemini-3.7-flash", "gemini-flash-lite"]);
+    await setEnabledModels("ollama", ["gemini-3.7-flash", "gemini-flash-lite"]);
     const [url, init] = lastCall();
-    expect(url).toBe("/providers/gemini_proxy/models");
+    expect(url).toBe("/providers/ollama/models");
     expect(init.method).toBe("PUT");
     expect(bodyOf(init)).toEqual({
       models: ["gemini-3.7-flash", "gemini-flash-lite"],

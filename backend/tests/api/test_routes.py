@@ -335,7 +335,7 @@ def test_get_llm_provider_resolves_from_saved_provider_settings():
 
     provider = get_llm_provider()
     assert isinstance(provider, RoutingProvider)
-    assert provider.primary.provider == "gemini_proxy"
+    assert provider.primary.provider == "ollama"
 
 
 def test_stream_completed_case_terminates_immediately(client, sample_case):

@@ -1,6 +1,6 @@
 """
 Owner: Dev A. OpenAI-compatible provider adapter.
-Supports local proxies (gemini-web2api, Ollama, vLLM) and OpenAI-compatible endpoints.
+Supports local proxies (Ollama, vLLM) and OpenAI-compatible endpoints.
 """
 from __future__ import annotations
 

@@ -7,21 +7,19 @@ REST API — no vendor SDKs anywhere in `backend/providers/`.
 
 | id | Label | Endpoint | Key | Wire |
 |---|---|---|---|---|
-| `gemini_proxy` | Gemini Proxy (default) | `http://localhost:8081/v1` | no | OpenAI-compatible |
+| `ollama` | Ollama (local, default) | `http://localhost:11434/v1` | no | OpenAI-compatible |
 | `gemini` | Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | yes | OpenAI-compatible |
 | `openai` | OpenAI | `https://api.openai.com/v1` | yes | OpenAI-compatible |
 | `anthropic` | Claude | `https://api.anthropic.com/v1` | yes | Messages API |
-| `ollama` | Ollama (local) | `http://localhost:11434/v1` | no | OpenAI-compatible |
 | `custom:<name>` | Any OpenAI-compatible gateway, any number of them | user-supplied | optional | OpenAI-compatible |
 
 Only Claude needs its own adapter (`providers/anthropic.py`): system prompt is a
 top-level field and text arrives as content blocks. Everything else is
 `providers/openai_compat.py` pointed at a different base URL.
 
-`base_url` is user-editable only for `gemini_proxy`, `ollama`, and custom
-endpoints. A vendor's host is pinned, so a stored OpenAI key cannot be
-redirected elsewhere by editing a setting — that is what a custom endpoint is
-for.
+`base_url` is user-editable only for `ollama` and custom endpoints. A vendor's
+host is pinned, so a stored OpenAI key cannot be redirected elsewhere by
+editing a setting — that is what a custom endpoint is for.
 
 ### Custom endpoints
 
@@ -38,24 +36,17 @@ There is no extra table: an endpoint exists exactly when it has a
 Provider and model live in the catalog (`providers/catalog.py`), which is the
 single source for the UI's two dropdowns: provider, then that provider's models.
 
-## Pinned to the Gemini proxy
+## Provider pinning
 
-Crossfire currently runs on the bundled Gemini proxy and nothing else:
-`catalog.LOCKED_PROVIDER` names it, and `providers.build_chain()` builds the
-chain from that provider alone, ignoring the saved active provider and
-cross-provider fallback order.
+`catalog.LOCKED_PROVIDER` can pin execution to a single provider, ignoring the
+saved active provider and cross-provider fallback order — `providers.build_chain()`
+builds the chain from just that provider when it's set. It is `None` by default,
+so provider selection follows `keyring.get_active_provider()` and
+`get_fallback_chain()` normally.
 
-The chain is therefore a *model* fallback: one target per enabled model of the
-proxy, primary first, all sharing one key pool. A model that errors or
+When pinned, the chain is a *model* fallback: one target per enabled model of
+that provider, primary first, all sharing one key pool. A model that errors or
 rate-limits is retried on the next enabled model.
-
-Every other provider still appears in the UI and stays configurable — keys,
-base URLs and models are stored and are used the moment the pin is lifted.
-Unpinning is one function: read `keyring.get_active_provider()` and
-`get_fallback_chain()` in `build_chain()` again.
-
-The proxy and Google's REST API are offered the same model list
-(`catalog.GEMINI_MODELS`), so a model id means the same thing either way.
 
 ## API
 
@@ -115,9 +106,7 @@ Per key, three mechanisms:
 The chain itself is a plain ordered list of provider ids — `PUT
 /providers/fallback` with `{"chain": ["openai", "custom:vllm-box", "ollama"]}`
 means fallback 1, 2, 3 in that order, behind whatever `active` is. Ids in the
-chain that have no key or no base URL are skipped when the chain is built, and
-the keyless bundled proxy is appended if nothing else is usable, so a run never
-starts with an empty chain.
+chain that have no key or no base URL are skipped when the chain is built.
 
 `providers/routing.py` sits on top. One `generate()` call walks the chain: within
 a provider it borrows keys from the pool, so a 429 costs the next key rather than

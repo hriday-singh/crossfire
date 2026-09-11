@@ -105,8 +105,7 @@ export const ProviderIcon: React.FC<{ providerId: string } & BrandIconProps> = (
   if (providerId === "anthropic") return <ClaudeIcon size={size} className={className} />;
   if (providerId === "ollama") return <OllamaIcon size={size} className={className} />;
   if (providerId === "deepseek") return <DeepSeekIcon size={size} className={className} />;
-  if (providerId === "gemini" || providerId === "gemini_proxy")
-    return <GeminiIcon size={size} className={className} />;
+  if (providerId === "gemini") return <GeminiIcon size={size} className={className} />;
   return (
     <Server
       size={typeof size === "number" ? size : 18}

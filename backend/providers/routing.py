@@ -145,8 +145,8 @@ class RoutingProvider:
             if now < target._dead_until:
                 raise _TargetFailed(f"endpoint benched for {target._dead_until - now:.0f}s due to failures")
 
-            # Keyless provider (bundled Gemini proxy, Ollama, open custom
-            # endpoint): nothing to rotate, the adapter's own retry applies.
+            # Keyless provider (Ollama, open custom endpoint): nothing to
+            # rotate, the adapter's own retry applies.
             adapter = target.adapter_for(0, None)
             try:
                 result = await adapter.generate(system_prompt, messages, response_schema)

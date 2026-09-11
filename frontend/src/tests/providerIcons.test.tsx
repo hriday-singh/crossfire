@@ -8,7 +8,6 @@ describe("ProviderIcon", () => {
     ["anthropic", "Claude"],
     ["ollama", "Ollama"],
     ["gemini", "Google Gemini"],
-    ["gemini_proxy", "Google Gemini"],
   ])("renders the %s brand mark", (providerId, label) => {
     render(<ProviderIcon providerId={providerId} />);
     expect(screen.getByLabelText(label)).toBeInTheDocument();
@@ -23,7 +22,7 @@ describe("ProviderIcon", () => {
     const { container } = render(
       <>
         <ProviderIcon providerId="gemini" size={32} />
-        <ProviderIcon providerId="gemini_proxy" size={32} />
+        <ProviderIcon providerId="gemini" size={32} />
       </>
     );
 

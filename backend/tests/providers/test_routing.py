@@ -139,7 +139,7 @@ async def test_every_provider_failing_raises_one_aggregated_error():
 @pytest.mark.asyncio
 async def test_keyless_target_still_works():
     calls: list[int] = []
-    target = Target(provider="gemini_proxy", wire="openai_compat", model="m", base_url="http://x/v1")
+    target = Target(provider="ollama", wire="openai_compat", model="m", base_url="http://x/v1")
     target.adapter_for = lambda key_id, secret: ScriptedAdapter({0: "proxy ok"}, 0, calls)  # type: ignore[method-assign]
 
     assert await RoutingProvider([target]).generate("sys", []) == "proxy ok"

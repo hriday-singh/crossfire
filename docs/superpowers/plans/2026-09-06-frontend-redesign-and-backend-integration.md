@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, TypeScript (strict mode), Tailwind CSS, `@radix-ui/react-dialog`, Lucide React icons, Vitest, `@testing-library/react`.
 
-**Spec:** [docs/superpowers/specs/2026-09-06-frontend-redesign-and-backend-integration-design.md](file:///C:/Users/clash/OneDrive/Desktop/Codes/Web%20apps/crossfire/docs/superpowers/specs/2026-09-06-frontend-redesign-and-backend-integration-design.md)
+**Spec:** [docs/superpowers/specs/2026-09-06-frontend-redesign-and-backend-integration-design.md](../specs/2026-09-06-frontend-redesign-and-backend-integration-design.md)
 
 ---
 

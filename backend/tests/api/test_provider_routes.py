@@ -31,7 +31,6 @@ def test_catalog_lists_every_supported_provider(client):
     body = client.get("/providers").json()
 
     assert {p["id"] for p in body["providers"]} == {
-        "gemini_proxy",
         "gemini",
         "openai",
         "anthropic",
@@ -39,7 +38,7 @@ def test_catalog_lists_every_supported_provider(client):
         "deepseek",
         "custom",
     }
-    assert body["active"] == "gemini_proxy"
+    assert body["active"] == "ollama"
     assert body["fallback_chain"] == []
 
 
@@ -98,21 +97,19 @@ def test_disabling_and_deleting_a_key(client):
     assert client.delete(f"/providers/keys/{created['id']}").status_code == 404
 
 
-def test_gemini_proxy_and_gemini_api_offer_the_same_models(client):
+def test_gemini_catalog_entry_lists_its_models(client):
     body = client.get("/providers").json()
     by_id = {p["id"]: p for p in body["providers"]}
 
-    # Same model id means the same thing whichever way Crossfire reaches Gemini.
     assert by_id["gemini"]["models"] == GEMINI_MODELS
-    assert set(by_id["gemini_proxy"]["models"]) == set(GEMINI_MODELS)
 
 
 def test_selecting_a_model_is_what_the_pipeline_then_uses(client):
     body = client.put(
-        "/providers/active", json={"provider": "gemini_proxy", "model": "gemini-3.6-flash"}
+        "/providers/active", json={"provider": "gemini", "model": "gemini-3.6-flash"}
     ).json()
 
-    assert body["active"] == "gemini_proxy"
+    assert body["active"] == "gemini"
     assert providers.get_provider().targets[0].model == "gemini-3.6-flash"
 
 
@@ -131,10 +128,10 @@ def test_unpinned_routing_follows_selection(client):
 
 
 def test_enabled_models_are_the_fallback_order(client):
-    client.put("/providers/active", json={"provider": "gemini_proxy", "model": "gemini-3.6-flash"})
+    client.put("/providers/active", json={"provider": "gemini", "model": "gemini-3.6-flash"})
 
     body = client.put(
-        "/providers/gemini_proxy/models",
+        "/providers/gemini/models",
         json={"models": ["gemini-flash-lite", "gemini-3.7-flash"]},
     ).json()
 
@@ -148,19 +145,21 @@ def test_enabled_models_are_the_fallback_order(client):
 
 
 def test_disabled_models_leave_the_chain(client):
-    client.put("/providers/gemini_proxy/models", json={"models": []})
+    client.put("/providers/active", json={"provider": "gemini"})
+    client.put("/providers/gemini/models", json={"models": []})
 
     body = client.get("/providers").json()
-    proxy = next(p for p in body["providers"] if p["id"] == "gemini_proxy")
+    gemini = next(p for p in body["providers"] if p["id"] == "gemini")
 
     # Everything disabled still leaves the primary: it is the selected model.
-    assert proxy["enabled_models"] == [proxy["model"]]
-    assert [t.model for t in providers.get_provider().targets] == [proxy["model"]]
+    assert gemini["enabled_models"] == [gemini["model"]]
+    assert [t.model for t in providers.get_provider().targets] == [gemini["model"]]
 
 
 def test_every_configured_key_becomes_a_pool_slot(client):
+    client.put("/providers/active", json={"provider": "gemini"})
     for i in range(4):
-        client.post("/providers/gemini_proxy/keys", json={"api_key": f"AIzaSyPOOLKEY0000{i}"})
+        client.post("/providers/gemini/keys", json={"api_key": f"AIzaSyPOOLKEY0000{i}"})
 
     status = client.get("/providers/pool/status").json()
     assert status["chain"][0]["keys"] == 4
@@ -168,7 +167,7 @@ def test_every_configured_key_becomes_a_pool_slot(client):
 
 
 def test_all_models_share_one_key_pool(client):
-    client.post("/providers/gemini_proxy/keys", json={"api_key": "AIzaSySHAREDPOOL01"})
+    client.post("/providers/gemini/keys", json={"api_key": "AIzaSySHAREDPOOL01"})
 
     targets = providers.get_provider().targets
 
@@ -262,13 +261,13 @@ def test_custom_endpoints_keep_their_own_url_and_model(client):
 
 def test_deleting_a_custom_endpoint_removes_its_keys_and_chain_entry(client):
     _custom(client, "Doomed", "http://doomed/v1", api_key="sk-doomed-0000000001")
-    client.put("/providers/fallback", json={"chain": ["custom:doomed", "gemini_proxy"]})
+    client.put("/providers/fallback", json={"chain": ["custom:doomed", "ollama"]})
 
     assert client.delete("/providers/custom:doomed").status_code == 204
 
     body = client.get("/providers").json()
     assert "custom:doomed" not in {p["id"] for p in body["providers"]}
-    assert body["fallback_chain"] == ["gemini_proxy"]
+    assert body["fallback_chain"] == ["ollama"]
     assert keyring.list_keys("custom:doomed") == []
 
 
@@ -278,7 +277,7 @@ def test_deleting_the_active_custom_endpoint_falls_back_to_the_default(client):
 
     client.delete("/providers/custom:solo")
 
-    assert client.get("/providers").json()["active"] == "gemini_proxy"
+    assert client.get("/providers").json()["active"] == "ollama"
 
 
 def test_builtin_providers_cannot_be_deleted(client):
@@ -303,9 +302,9 @@ class _StubAdapter:
 
 
 def test_testing_the_chain_reports_one_row_per_enabled_model(client, monkeypatch):
-    client.put("/providers/active", json={"provider": "gemini_proxy", "model": "gemini-3.7-flash"})
+    client.put("/providers/active", json={"provider": "gemini", "model": "gemini-3.7-flash"})
     client.put(
-        "/providers/gemini_proxy/models",
+        "/providers/gemini/models",
         json={"models": ["gemini-3.6-flash", "gemini-flash-lite"]},
     )
 

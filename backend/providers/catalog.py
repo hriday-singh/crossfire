@@ -11,10 +11,8 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass, field, replace
-from config import get_settings
 
 GEMINI = "gemini"
-GEMINI_PROXY = "gemini_proxy"
 OPENAI = "openai"
 ANTHROPIC = "anthropic"
 OLLAMA = "ollama"
@@ -25,9 +23,7 @@ CUSTOM = "custom"
 CUSTOM_PREFIX = "custom:"
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 
-#: The model ids the bundled gemini-web2api proxy serves, in the order the UI
-#: lists them. Google's own REST API is offered the same list on purpose: the
-#: model a user picks means the same thing whichever way Crossfire reaches it.
+#: Model ids offered for the Gemini provider, in the order the UI lists them.
 GEMINI_MODELS = [
     "gemini-3.7-flash",
     "gemini-3.6-flash",
@@ -55,17 +51,6 @@ class ProviderSpec:
 
 
 CATALOG: dict[str, ProviderSpec] = {
-    GEMINI_PROXY: ProviderSpec(
-        id=GEMINI_PROXY,
-        label="Gemini Proxy (default)",
-        wire="openai_compat",
-        base_url=get_settings().llm_base_url,
-        requires_key=False,
-        editable_base_url=True,
-        default_model=get_settings().llm_model,
-        models=list(dict.fromkeys([get_settings().llm_model, *GEMINI_MODELS])),
-        notes="Crossfire's bundled gemini-web2api proxy. No API key needed.",
-    ),
     GEMINI: ProviderSpec(
         id=GEMINI,
         label="Google Gemini",
@@ -143,13 +128,11 @@ CATALOG: dict[str, ProviderSpec] = {
     ),
 }
 
-DEFAULT_PROVIDER = GEMINI_PROXY
+DEFAULT_PROVIDER = OLLAMA
 
-#: Crossfire currently runs on the Gemini proxy and nothing else: provider
-#: selection is pinned here rather than read from the keyring. The catalog,
-#: key pools and cross-provider fallback below still work — flipping this back
-#: to `keyring.get_active_provider()` in providers/__init__.build_chain() is
-#: all that unpinning takes.
+#: Set to a provider id to pin the whole app to one provider regardless of the
+#: keyring's saved active provider. None means provider selection is free —
+#: see keyring.get_active_provider() in providers/__init__.build_chain().
 LOCKED_PROVIDER = None
 
 

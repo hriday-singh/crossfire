@@ -1,23 +1,20 @@
 <#
 .SYNOPSIS
-    Unified launcher for Crossfire. Runs all three services in the correct sequence.
+    Unified launcher for Crossfire. Runs both services in the correct sequence.
 .DESCRIPTION
     1. Validates and auto-installs dependencies if needed (calls setup.ps1).
-    2. Starts Gemini-Web2API Proxy on port 8081 and waits for readiness.
-    3. Starts Crossfire Backend API on port 8000 and waits for /health response.
-    4. Starts Crossfire Frontend UI on port 5173 and waits for dev server.
-    5. Opens the browser at http://localhost:5173.
-    6. Keeps a control panel active; pressing 'Q' or Ctrl+C terminates all services cleanly.
+    2. Starts Crossfire Backend API on port 8000 and waits for /health response.
+    3. Starts Crossfire Frontend UI on port 5173 and waits for dev server.
+    4. Opens the browser at http://localhost:5173.
+    5. Keeps a control panel active; pressing 'Q' or Ctrl+C terminates all services cleanly.
 #>
 
 [CmdletBinding()]
 param (
     [switch]$Setup = $false,
     [switch]$NoBrowser = $false,
-    [switch]$SkipProxy = $false,
     [switch]$LeaveOpen = $false,
     [int]$BackendPort = 8000,
-    [int]$ProxyPort = 8081,
     [int]$FrontendPort = 5173
 )
 
@@ -211,68 +208,10 @@ try {
     Write-Host "    [OK] Python virtual environment verified: $BackendVenvPy" -ForegroundColor Green
 
     # -------------------------------------------------------------------------
-    # 1. Start Gemini-Web2API Proxy (:8081)
-    # -------------------------------------------------------------------------
-    if (-not $SkipProxy) {
-        Write-Host ""
-        Write-Host "[1/3] Gemini-Web2API Proxy (:8081)..." -ForegroundColor Yellow
-
-        if (Test-PortOpen -Port $ProxyPort) {
-            Write-Host "    [OK] Port $ProxyPort is already active. Proxy is running." -ForegroundColor Green
-        } else {
-            $ProxyDirs = @(
-                (Join-Path $WorkspaceRoot "tools\gemini-web2api"),
-                (Join-Path $WorkspaceRoot "..\..\Tools\gemini-web2api"),
-                (Join-Path $WorkspaceRoot "..\Tools\gemini-web2api")
-            )
-            $ResolvedProxyDir = $null
-            foreach ($dir in $ProxyDirs) {
-                if (Test-Path $dir) {
-                    $ResolvedProxyDir = (Resolve-Path $dir).Path
-                    break
-                }
-            }
-
-            if (-not $ResolvedProxyDir) {
-                Write-Warning "    [WARN] gemini-web2api directory not found. Skipping local proxy launch."
-                Write-Warning "           If using direct GEMINI_API_KEY in backend/.env, this is fine."
-            } else {
-                $ProxyPython = Join-Path $ResolvedProxyDir ".venv\Scripts\python.exe"
-                if (-not (Test-Path $ProxyPython)) {
-                    $BackendVenvPy = Join-Path $BackendDir ".venv\Scripts\python.exe"
-                    if (Test-Path $BackendVenvPy) {
-                        $ProxyPython = $BackendVenvPy
-                    } else {
-                        $SysPy = Get-Command python.exe -ErrorAction SilentlyContinue
-                        $ProxyPython = if ($SysPy) { $SysPy.Source } else { "python" }
-                    }
-                }
-
-                $proxyCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [1/3] Gemini Proxy (:$ProxyPort)'; Set-Location '$ResolvedProxyDir'; Write-Host 'Starting Gemini Proxy on :$ProxyPort...' -ForegroundColor Cyan; & '$ProxyPython' gemini_web2api.py --port $ProxyPort"
-                
-                $proxyProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $proxyCmd) -PassThru
-                $SpawnedProcesses.Add($proxyProc)
-                Write-Host "    [+] Spawned Gemini Proxy window (PID $($proxyProc.Id))" -ForegroundColor DarkCyan
-
-                $ready = Wait-UntilReady -ServiceName "Gemini Proxy" -CheckBlock {
-                    Test-PortOpen -Port $ProxyPort
-                } -TimeoutSeconds 25
-
-                if (-not $ready) {
-                    Write-Warning "    [WARN] Gemini Proxy did not report ready within 25 seconds. Proceeding anyway..."
-                }
-            }
-        }
-    } else {
-        Write-Host ""
-        Write-Host "[1/3] Gemini Proxy: Skipped (-SkipProxy specified)" -ForegroundColor DarkGray
-    }
-
-    # -------------------------------------------------------------------------
-    # 2. Start Crossfire Backend API (:8000)
+    # 1. Start Crossfire Backend API (:8000)
     # -------------------------------------------------------------------------
     Write-Host ""
-    Write-Host "[2/3] Crossfire Backend API (:$BackendPort)..." -ForegroundColor Yellow
+    Write-Host "[1/2] Crossfire Backend API (:$BackendPort)..." -ForegroundColor Yellow
 
     if (Test-PortOpen -Port $BackendPort) {
         Write-Host "    [OK] Port $BackendPort is already active. Backend API is running." -ForegroundColor Green
@@ -283,7 +222,7 @@ try {
             $BackendPython = if ($SysPy) { $SysPy.Source } else { "python" }
         }
 
-        $backendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [2/3] Backend API (:$BackendPort)'; Set-Location '$BackendDir'; if (Test-Path '.\.venv\Scripts\Activate.ps1') { . '.\.venv\Scripts\Activate.ps1' }; Write-Host 'Starting Crossfire Backend API on :$BackendPort...' -ForegroundColor Cyan; & '$BackendPython' -m uvicorn main:app --reload --host 127.0.0.1 --port $BackendPort"
+        $backendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [1/2] Backend API (:$BackendPort)'; Set-Location '$BackendDir'; if (Test-Path '.\.venv\Scripts\Activate.ps1') { . '.\.venv\Scripts\Activate.ps1' }; Write-Host 'Starting Crossfire Backend API on :$BackendPort...' -ForegroundColor Cyan; & '$BackendPython' -m uvicorn main:app --reload --host 127.0.0.1 --port $BackendPort"
         
         $backendProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $backendCmd) -PassThru
         $SpawnedProcesses.Add($backendProc)
@@ -299,15 +238,15 @@ try {
     }
 
     # -------------------------------------------------------------------------
-    # 3. Start Crossfire Frontend UI (:5173)
+    # 2. Start Crossfire Frontend UI (:5173)
     # -------------------------------------------------------------------------
     Write-Host ""
-    Write-Host "[3/3] Crossfire Frontend UI (:$FrontendPort)..." -ForegroundColor Yellow
+    Write-Host "[2/2] Crossfire Frontend UI (:$FrontendPort)..." -ForegroundColor Yellow
 
     if (Test-PortOpen -Port $FrontendPort) {
         Write-Host "    [OK] Port $FrontendPort is already active. Frontend UI is running." -ForegroundColor Green
     } else {
-        $frontendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [3/3] Frontend UI (:$FrontendPort)'; Set-Location '$FrontendDir'; Write-Host 'Starting Vite Frontend dev server on :$FrontendPort...' -ForegroundColor Cyan; npm run dev -- --port $FrontendPort"
+        $frontendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [2/2] Frontend UI (:$FrontendPort)'; Set-Location '$FrontendDir'; Write-Host 'Starting Vite Frontend dev server on :$FrontendPort...' -ForegroundColor Cyan; npm run dev -- --port $FrontendPort"
         
         $frontendProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $frontendCmd) -PassThru
         $SpawnedProcesses.Add($frontendProc)
@@ -323,7 +262,7 @@ try {
     }
 
     # -------------------------------------------------------------------------
-    # 4. Open Browser
+    # 3. Open Browser
     # -------------------------------------------------------------------------
     $UiUrl = "http://localhost:$FrontendPort"
     if (-not $NoBrowser) {
@@ -334,7 +273,7 @@ try {
     }
 
     # -------------------------------------------------------------------------
-    # 5. Interactive Control Panel
+    # 4. Interactive Control Panel
     # -------------------------------------------------------------------------
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Green
@@ -343,13 +282,10 @@ try {
     Write-Host ""
     Write-Host "  Frontend UI    : $UiUrl" -ForegroundColor Cyan
     Write-Host "  Backend API    : http://localhost:$BackendPort  (Docs: http://localhost:$BackendPort/docs)" -ForegroundColor Cyan
-    if (-not $SkipProxy) {
-        Write-Host "  Gemini Proxy   : http://localhost:$ProxyPort/v1" -ForegroundColor Cyan
-    }
     Write-Host ""
     Write-Host "----------------------------------------------------------------------" -ForegroundColor DarkGray
     Write-Host "  Controls:" -ForegroundColor Yellow
-    Write-Host "    Press [Q]       : Stop all three services cleanly and exit." -ForegroundColor White
+    Write-Host "    Press [Q]       : Stop all spawned services cleanly and exit." -ForegroundColor White
     Write-Host "    Press [O]       : Re-open http://localhost:$FrontendPort in browser." -ForegroundColor White
     Write-Host "    Press [Ctrl+C]  : Terminate all services." -ForegroundColor White
     Write-Host "======================================================================" -ForegroundColor Green

@@ -120,12 +120,14 @@ Every synthesis step has a deterministic fallback. If the model fails at ranking
 
 Providers, API keys, and the model fallback order are managed from the UI (**Providers** modal) and stored encrypted in SQLite — they are not `.env`-only settings. Full reference: [`docs/PROVIDERS.md`](docs/PROVIDERS.md).
 
-* **Supported providers:** the bundled Gemini proxy (`gemini_proxy`, default, keyless), Google Gemini, OpenAI, Anthropic, local Ollama, and any number of user-registered OpenAI-compatible endpoints (`POST /providers/custom` → `custom:<slug>`). Only Anthropic needs its own adapter; everything else is the OpenAI-compatible client pointed at a different base URL. No vendor SDKs.
+* **Supported providers:** local Ollama (`ollama`, default, keyless), Google Gemini, OpenAI, Anthropic, and any number of user-registered OpenAI-compatible endpoints (`POST /providers/custom` → `custom:<slug>`). Only Anthropic needs its own adapter; everything else is the OpenAI-compatible client pointed at a different base URL. No vendor SDKs.
 * **Key pool:** several keys per provider, each individually enable/disable-able, sharded across concurrent calls (`KEY_POOL_MAX_INFLIGHT` in flight per key). This is what makes free-tier rate limits survivable.
 * **Encryption at rest:** keys are Fernet-encrypted in the local SQLite keyring. The master key is generated at `backend/.crossfire_key` on first use, or pinned explicitly with `CROSSFIRE_SECRET_KEY`.
 * **Model-level fallback chain:** each provider exposes a model list; you enable the models you want and order them. The chain is one target per enabled model, primary first, all sharing the same key pool — a model that rate-limits or errors is retried on the next enabled model without a key rotation round-trip. Retryable statuses (408/409/425/429/5xx) rotate; 401/403 are fatal and do not.
-* **Provider pinning:** execution is currently pinned to the bundled Gemini proxy (`catalog.LOCKED_PROVIDER`). Every other provider stays fully visible and configurable, and its stored settings take effect the moment the pin is lifted — unpinning is one function in `providers.build_chain()`.
+* **Provider pinning:** `catalog.LOCKED_PROVIDER` can pin execution to a single provider regardless of what's active in the UI; it's unset by default, so provider selection is free. Set it to lock the app to one provider — unpinning is one function in `providers.build_chain()`.
 * **Live check:** `POST /providers/test` and `POST /providers/{id}/test` ping the configured targets so a bad key or an unreachable endpoint is visible before a run starts.
+
+> **Security note:** the backend has no auth layer — it's designed to bind to `localhost` only, relying on that plus CORS restriction to keep the credential store private. Anything that can reach the backend can read/write provider keys. Do not expose it on a shared network or the public internet without adding an auth layer in front of it first.
 
 ---
 
@@ -178,10 +180,10 @@ Every test runs blind. Each one forms its own finding without seeing what the ot
 
 Crossfire is configured to run **straight out of the box** with zero required paid API keys:
 * **Search & Evidence:** Uses SerpApi when configured, with **automatic fallback to DuckDuckGo Lite** via Scrapling. If `SERPAPI_API_KEY` is not provided (or when its quota is exhausted), Crossfire seamlessly falls back to DuckDuckGo Lite with no API key or subscription needed.
-* **LLM Provider:** Configured by default for the local `gemini-web2api` proxy on port `8081` (`http://localhost:8081/v1`), requiring zero authentication. Direct Gemini (`GEMINI_API_KEY`), Anthropic, and Ollama are also fully supported.
+* **LLM Provider:** Configured by default for local Ollama on port `11434` (`http://localhost:11434/v1`), requiring zero authentication — install [Ollama](https://ollama.com) and pull a model (e.g. `ollama pull llama3.1`). Gemini, OpenAI, and Anthropic are also fully supported with your own API key.
 * **Default Ports:**
   * **Backend API:** `http://localhost:8000`
-  * **Gemini Proxy:** `http://localhost:8081` (`http://localhost:8081/v1`)
+  * **Ollama:** `http://localhost:11434` (`http://localhost:11434/v1`)
   * **Frontend UI:** `http://localhost:5173`
 
 ---
@@ -200,19 +202,17 @@ Or run the full setup explicitly beforehand:
 # Installs Python venv, backend packages, frontend npm dependencies, and initializes .env
 .\setup.ps1
 
-# Launch Gemini Proxy (:8081) -> Backend (:8000) -> Frontend (:5173)
+# Launch Backend (:8000) -> Frontend (:5173)
 .\run_all.ps1
 ```
 
 **What `.\run_all.ps1` handles automatically:**
-1. **Gemini-Web2API Proxy (:8081):** Starts the local proxy and polls until ready.
-2. **Crossfire Backend API (:8000):** Starts FastAPI uvicorn server in its venv and verifies `http://localhost:8000/health`.
-3. **Crossfire Frontend UI (:5173):** Starts Vite dev server and verifies frontend port readiness.
-4. **Browser Launch:** Automatically opens `http://localhost:5173` in your default browser.
-5. **Clean Teardown:** Press **`Q`** or **`Ctrl+C`** in the launcher window to stop all 3 services at once with zero orphaned processes or locked ports.
-6. **Custom Flags:**
+1. **Crossfire Backend API (:8000):** Starts FastAPI uvicorn server in its venv and verifies `http://localhost:8000/health`.
+2. **Crossfire Frontend UI (:5173):** Starts Vite dev server and verifies frontend port readiness.
+3. **Browser Launch:** Automatically opens `http://localhost:5173` in your default browser.
+4. **Clean Teardown:** Press **`Q`** or **`Ctrl+C`** in the launcher window to stop both services at once with zero orphaned processes or locked ports.
+5. **Custom Flags:**
    * `-NoBrowser` : Starts services without opening the browser.
-   * `-SkipProxy` : Starts only backend & frontend (if using direct Gemini or Anthropic API keys).
    * `-Setup`     : Forces a full reinstall of Python & Node dependencies before launching.
    * `-LeaveOpen` : Leaves all service windows running and exits launcher.
 
@@ -232,26 +232,18 @@ To run the frontend and backend using Docker Compose:
    Create a `.env` file in the root directory:
    ```bash
    # Example .env
-   LLM_PROVIDER=openai_compat
-   # host.docker.internal allows the container to talk to the local proxy on the host
-   LLM_BASE_URL=http://host.docker.internal:8081/v1
-   LLM_API_KEY=none # Required, even if using the proxy
+   LLM_PROVIDER=ollama
+   # host.docker.internal allows the container to talk to Ollama on the host
+   LLM_BASE_URL=http://host.docker.internal:11434/v1
    # SERPAPI_API_KEY= # Optional, leave blank to use DuckDuckGo
    ```
 
-3. **(Optional) Start the Gemini Proxy on your host:**
-   If using the local Gemini proxy, run it on your host machine so it binds to port 8081.
-   ```bash
-   # Windows
-   .\run_gemini_proxy.ps1
-   ```
-
-4. **Build and start the containers:**
+3. **Build and start the containers:**
    ```bash
    docker compose up -d --build
    ```
 
-5. **Access the application:**
+4. **Access the application:**
    * **Frontend UI:** `http://localhost:9125`
    * **Backend API:** `http://localhost:9126`
 
@@ -267,17 +259,7 @@ git clone https://github.com/hriday-singh/crossfire.git
 cd crossfire
 ```
 
-### 2. (Optional) Start the Gemini Proxy (:8081)
-
-If you are using the free local Gemini Web2API proxy:
-* **Windows:** Run `.\run_gemini_proxy.bat` or `.\run_gemini_proxy.ps1`
-* **Or start it manually:**
-  ```bash
-  python gemini_web2api.py --port 8081
-  ```
-The proxy listens on `http://localhost:8081/v1`.
-
-### 3. Configure and run the backend (:8000)
+### 2. Configure and run the backend (:8000)
 
 ```bash
 cd backend
@@ -298,25 +280,25 @@ pip install -r requirements.txt
 
 Set up your environment variables:
 ```bash
-# Copy the template (configured out of the box for port 8000 & proxy 8081)
+# Copy the template (configured out of the box for port 8000 & local Ollama)
 cp .env.example .env
 ```
 
 Open `backend/.env` and review your settings:
 
-#### Option A: Local Gemini Proxy (Default out-of-the-box, no API key needed)
+#### Option A: Local Ollama (Default out-of-the-box, no API key needed)
+Install [Ollama](https://ollama.com), pull a model, then:
 ```env
-LLM_PROVIDER=openai_compat
-LLM_BASE_URL=http://localhost:8081/v1
-LLM_MODEL=gemini-3.7-flash
-LLM_API_KEY=none
+LLM_PROVIDER=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=llama3.1
 PORT=8000
 
 # Leave blank to automatically use DuckDuckGo Lite with zero API keys:
 SERPAPI_API_KEY=
 ```
 
-#### Option B: Direct Gemini API
+#### Option B: Google Gemini API
 ```env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
@@ -342,7 +324,7 @@ python main.py
 ```
 Verify the backend is running by visiting `http://localhost:8000/health`.
 
-### 4. Configure and run the frontend (:5173)
+### 3. Configure and run the frontend (:5173)
 
 In a new terminal window:
 ```bash
@@ -485,9 +467,9 @@ The backend can be configured via environment variables in `backend/.env`:
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8000` | Default HTTP port for the FastAPI backend |
-| `LLM_PROVIDER` | `openai_compat` | Provider backend: `gemini`, `anthropic`, or `openai_compat` |
-| `LLM_BASE_URL` | `http://localhost:8081/v1` | Base URL used when `LLM_PROVIDER=openai_compat` (defaults to local Gemini proxy port 8081) |
-| `LLM_MODEL` | `gemini-3.7-flash` | Model identifier passed to the active provider |
+| `LLM_PROVIDER` | `ollama` | Provider backend: `ollama`, `gemini`, `anthropic`, or `openai` |
+| `LLM_BASE_URL` | `http://localhost:11434/v1` | Base URL used when `LLM_PROVIDER=ollama` (or any other OpenAI-compatible endpoint) |
+| `LLM_MODEL` | `llama3.1` | Model identifier passed to the active provider |
 | `SERPAPI_API_KEY` | `""` | Optional SerpApi key for Google Search; when omitted or quota exhausted, automatically falls back to DuckDuckGo Lite with zero keys needed |
 | `LLM_API_KEY` | `""` | Optional universal API key override |
 | `EVALUATOR_CONCURRENCY` | `8` | Maximum concurrent evaluator calls during the test stage |

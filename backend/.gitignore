@@ -4,9 +4,6 @@ __pycache__/
 *$py.class
 .env
 .pytest_cache/
-cookie.txt
-tools/
-gemini-web2api/
 *.db
 *.sqlite
 *.sqlite3

@@ -23,16 +23,16 @@ const provider = (over: Partial<Record<string, unknown>> = {}) => ({
 
 const PROVIDERS = {
   active: "gemini",
-  locked_provider: "gemini_proxy",
+  locked_provider: "ollama",
   fallback_chain: ["openai", "custom:vllm-box"],
   providers: [
     provider(),
     provider({
-      id: "gemini_proxy",
-      label: "Gemini Proxy (default)",
+      id: "ollama",
+      label: "Ollama (local)",
       requires_key: false,
       editable_base_url: true,
-      base_url: "http://localhost:8081/v1",
+      base_url: "http://localhost:11434/v1",
     }),
     provider({
       id: "openai",
@@ -123,7 +123,7 @@ describe("ProvidersModal", () => {
     await open();
 
     expect(screen.getByTestId("provider-item-gemini")).toHaveTextContent("ACTIVE");
-    expect(screen.getByTestId("provider-item-gemini_proxy")).toBeInTheDocument();
+    expect(screen.getByTestId("provider-item-ollama")).toBeInTheDocument();
     expect(screen.getByTestId("provider-item-openai")).toHaveTextContent("FB 1");
     expect(screen.getByTestId("provider-item-custom:vllm-box")).toHaveTextContent("FB 2");
     expect(screen.getByRole("heading", { name: "Global Provider Routing" })).toBeInTheDocument();
@@ -233,9 +233,9 @@ describe("ProvidersModal", () => {
     fireEvent.click(screen.getByTestId("provider-item-gemini"));
     await screen.findByTestId("locked-notice");
 
-    expect(screen.getByTestId("locked-notice")).toHaveTextContent("gemini_proxy");
+    expect(screen.getByTestId("locked-notice")).toHaveTextContent("ollama");
 
-    fireEvent.click(screen.getByTestId("provider-item-gemini_proxy"));
+    fireEvent.click(screen.getByTestId("provider-item-ollama"));
     expect(screen.getByTestId("locked-notice")).toHaveTextContent("PINNED");
   });
 

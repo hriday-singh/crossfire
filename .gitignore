@@ -167,11 +167,8 @@ __pycache__/
 .pytest_cache/
 
 # ------------------------------------------------------------------------------
-# 8. Local Tooling & Web2API Services
+# 8. Local Tooling
 # ------------------------------------------------------------------------------
-tools/gemini-web2api/
-gemini-web2api/
-cookie.txt
 .agents/
 /AGENTS.md
 /CLAUDE.md

@@ -2,7 +2,7 @@
 
 > **Single Source of Truth for Frontend Integration, REST Endpoints, and Live SSE Streaming**
 > **Target Audience:** Frontend Developers, Backend Developers (Dev C), and AI Coding Agents.
-> **Full Frontend Technical Specification:** See [crossfire_frontend_spec.md](file:///C:/Users/clash/OneDrive/Desktop/Codes/Web%20apps/crossfire/frontend/docs/crossfire_frontend_spec.md) for the complete end-to-end component, reducer, design token, and testing architecture.
+> **Full Frontend Technical Specification:** See [crossfire_frontend_spec.md](../frontend/docs/crossfire_frontend_spec.md) for the complete end-to-end component, reducer, design token, and testing architecture.
 
 ---
 

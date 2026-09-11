@@ -6,7 +6,6 @@
     2. Initializes backend/.env from backend/.env.example if missing.
     3. Sets up Python virtual environment (.venv) and installs backend dependencies.
     4. Installs frontend npm dependencies.
-    5. Configures VS Code workspace settings for seamless Python/Node development.
 #>
 
 [CmdletBinding()]
@@ -31,7 +30,7 @@ Write-Host ""
 # -----------------------------------------------------------------------------
 # 1. System Prerequisites Check
 # -----------------------------------------------------------------------------
-Write-Host "[1/5] Checking system prerequisites..." -ForegroundColor Yellow
+Write-Host "[1/4] Checking system prerequisites..." -ForegroundColor Yellow
 
 # Check Python
 $PythonCmd = $null
@@ -73,7 +72,7 @@ Write-Host "    [OK] npm detected: v$NpmVersion" -ForegroundColor Green
 # 2. Environment Variables (.env) Setup
 # -----------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[2/5] Checking configuration (.env)..." -ForegroundColor Yellow
+Write-Host "[2/4] Checking configuration (.env)..." -ForegroundColor Yellow
 
 $BackendEnv = Join-Path $BackendDir ".env"
 $BackendEnvExample = Join-Path $BackendDir ".env.example"
@@ -81,7 +80,7 @@ $BackendEnvExample = Join-Path $BackendDir ".env.example"
 if (-not (Test-Path $BackendEnv)) {
     if (Test-Path $BackendEnvExample) {
         Copy-Item $BackendEnvExample $BackendEnv
-        Write-Host "    [OK] Created backend/.env from template (configured for local Gemini Proxy & DuckDuckGo Lite out of the box)." -ForegroundColor Green
+        Write-Host "    [OK] Created backend/.env from template (configured for local Ollama & DuckDuckGo Lite out of the box)." -ForegroundColor Green
     } else {
         Write-Warning "    [WARN] backend/.env.example not found. Please create backend/.env manually."
     }
@@ -93,7 +92,7 @@ if (-not (Test-Path $BackendEnv)) {
 # 3. Backend Virtualenv and Python Dependencies
 # -----------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[3/5] Setting up Python virtual environment & backend dependencies..." -ForegroundColor Yellow
+Write-Host "[3/4] Setting up Python virtual environment & backend dependencies..." -ForegroundColor Yellow
 
 $BackendSetupScript = Join-Path $BackendDir "setup_venv.ps1"
 if (Test-Path $BackendSetupScript) {
@@ -123,7 +122,7 @@ if (Test-Path $BackendSetupScript) {
 # 4. Frontend npm Dependencies
 # -----------------------------------------------------------------------------
 Write-Host ""
-Write-Host "[4/5] Setting up frontend dependencies..." -ForegroundColor Yellow
+Write-Host "[4/4] Setting up frontend dependencies..." -ForegroundColor Yellow
 
 $FrontendModules = Join-Path $FrontendDir "node_modules"
 Push-Location $FrontendDir
@@ -146,32 +145,6 @@ try {
     }
 } finally {
     Pop-Location
-}
-
-# -----------------------------------------------------------------------------
-# 5. Gemini-Web2API Proxy Verification
-# -----------------------------------------------------------------------------
-Write-Host ""
-Write-Host "[5/5] Checking Gemini-Web2API Proxy environment..." -ForegroundColor Yellow
-
-$ProxyDirs = @(
-    (Join-Path $WorkspaceRoot "tools\gemini-web2api"),
-    (Join-Path $WorkspaceRoot "..\..\Tools\gemini-web2api"),
-    (Join-Path $WorkspaceRoot "..\Tools\gemini-web2api")
-)
-
-$ResolvedProxyDir = $null
-foreach ($dir in $ProxyDirs) {
-    if (Test-Path $dir) {
-        $ResolvedProxyDir = (Resolve-Path $dir).Path
-        break
-    }
-}
-
-if ($ResolvedProxyDir) {
-    Write-Host "    [OK] Found Gemini-Web2API at: $ResolvedProxyDir" -ForegroundColor Green
-} else {
-    Write-Host "    [INFO] gemini-web2api not found in standard directories. If you use direct GEMINI_API_KEY, this can be ignored." -ForegroundColor DarkGray
 }
 
 Write-Host ""
