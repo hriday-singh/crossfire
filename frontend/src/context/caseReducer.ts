@@ -117,7 +117,9 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
     case "LOAD_HISTORY_FROM_DB":
       return {
         ...state,
-        caseHistory: (action.payload || []).filter((c) => c.status === "done"),
+        caseHistory: (Array.isArray(action.payload) ? action.payload : []).filter(
+          (c) => c.status === "done"
+        ),
       };
 
     case "START_EXTRACTING":

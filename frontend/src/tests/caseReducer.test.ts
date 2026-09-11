@@ -349,6 +349,15 @@ describe("caseReducer", () => {
     expect(state.caseHistory[0].id).toBe("case-done");
   });
 
+  it("should not crash on LOAD_HISTORY_FROM_DB with a non-array payload", () => {
+    const state = caseReducer(INITIAL_STATE, {
+      type: "LOAD_HISTORY_FROM_DB",
+      payload: {} as unknown as Case[],
+    });
+
+    expect(state.caseHistory).toEqual([]);
+  });
+
   it("should handle SET_ENGINE_INFO", () => {
     const state = caseReducer(INITIAL_STATE, {
       type: "SET_ENGINE_INFO",

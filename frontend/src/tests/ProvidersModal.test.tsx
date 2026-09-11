@@ -74,6 +74,7 @@ function mockBackend() {
         Promise.resolve({ ok: true, status, json: async () => body });
 
       if (url.endsWith("/keys") && method === "GET") return json(KEYS);
+      if (url.startsWith("/cases") && method === "GET") return json([]);
       if (url === "/providers" || url.startsWith("/providers/active") || url.startsWith("/providers/fallback"))
         return json(PROVIDERS);
       if (url === "/providers/test" && method === "POST")

@@ -192,6 +192,7 @@ Crossfire is configured to run **straight out of the box** with zero required pa
 
 To install dependencies and start the entire stack together in the correct sequence with a single command:
 
+**Windows (PowerShell):**
 ```powershell
 # Run all three services in correct order (auto-detects missing dependencies and runs setup on first launch):
 .\run_all.ps1
@@ -206,15 +207,37 @@ Or run the full setup explicitly beforehand:
 .\run_all.ps1
 ```
 
-**What `.\run_all.ps1` handles automatically:**
+**macOS / Linux (bash):**
+```bash
+# Run all three services in correct order (auto-detects missing dependencies and runs setup on first launch):
+./run_all.sh
+```
+
+Or run the full setup explicitly beforehand:
+```bash
+# Installs Python venv, backend packages, frontend npm dependencies, and initializes .env
+./setup.sh
+
+# Launch Backend (:8000) -> Frontend (:5173)
+./run_all.sh
+```
+
+**What `run_all` handles automatically:**
 1. **Crossfire Backend API (:8000):** Starts FastAPI uvicorn server in its venv and verifies `http://localhost:8000/health`.
 2. **Crossfire Frontend UI (:5173):** Starts Vite dev server and verifies frontend port readiness.
 3. **Browser Launch:** Automatically opens `http://localhost:5173` in your default browser.
 4. **Clean Teardown:** Press **`Q`** or **`Ctrl+C`** in the launcher window to stop both services at once with zero orphaned processes or locked ports.
 5. **Custom Flags:**
-   * `-NoBrowser` : Starts services without opening the browser.
-   * `-Setup`     : Forces a full reinstall of Python & Node dependencies before launching.
-   * `-LeaveOpen` : Leaves all service windows running and exits launcher.
+
+   | PowerShell | bash | Effect |
+   |---|---|---|
+   | `-NoBrowser` | `--no-browser` | Starts services without opening the browser. |
+   | `-Setup` | `--setup` | Forces a full reinstall of Python & Node dependencies before launching. |
+   | `-LeaveOpen` | `--leave-open` | Leaves services running in the background and exits launcher. |
+   | `-BackendPort <n>` | `--backend-port=<n>` | Custom backend port (default 8000). |
+   | `-FrontendPort <n>` | `--frontend-port=<n>` | Custom frontend port (default 5173). |
+
+   On macOS/Linux, `run_all.sh` runs the backend and frontend as background jobs (not separate terminal windows); logs go to `.run_logs/backend.log` and `.run_logs/frontend.log`.
 
 ---
 
