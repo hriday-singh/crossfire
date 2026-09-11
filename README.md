@@ -255,7 +255,7 @@ Every test runs blind. Each one forms its own finding without seeing what the ot
 ### Prerequisites
 * **Python:** 3.11 or newer
 * **Node.js:** 18 or newer (with `npm`)
-* An LLM endpoint (Free local Gemini-Web2API proxy, direct Gemini API key, Anthropic API key, local Ollama instance, or any OpenAI-compatible proxy)
+* An LLM endpoint (local Ollama instance, direct Gemini API key, Anthropic API key, OpenAI API key, or any OpenAI-compatible endpoint)
 
 ---
 

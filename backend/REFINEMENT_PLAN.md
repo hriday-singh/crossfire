@@ -1,6 +1,6 @@
 # Crossfire Backend Refinement Plan
 
-Written after a live end-to-end assessment (2 real runs against the local proxy, 174 tests).
+Written after a live end-to-end assessment (2 real runs against the local endpoint, 174 tests).
 Baseline measured, not assumed:
 
 | Run | Time | Claims | Findings | Verdicts |

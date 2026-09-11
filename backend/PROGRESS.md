@@ -25,19 +25,19 @@ Target: loop runs cleanly on several inputs, claim-confirmation gate is real, ev
 | Task | Status | Notes |
 |---|---|---|
 | Contracts frozen (`core/models.py`, `providers/base.py`) | `[x]` | |
-| `GeminiProvider` wired | `[x]` | wired to delegate to proxy / OpenAICompat |
+| `GeminiProvider` wired | `[x]` | wired to delegate to Google Gemini API / OpenAICompat |
 | `extract_claims()` | `[x]` | narrow `ExtractedClaims` schema, maps onto `Case` |
 | `classify_load_bearing()` v1 | `[x]` | locked framing in `docs/dev-a/research/01-load-bearing.md` |
 | `build_test_plan()` | `[x]` | keyword-bucket routing (evidence/behavior/constraint/alternative) |
 | `reconcile()` | `[x]` | structured-LLM verdict, decision locked in `docs/dev-a/research/02-reconcile.md` |
 | `build_consequences()` | `[x]` | deterministic status/load-bearing routing, no LLM call |
 | `run_pipeline()` full orchestration + SSE queue | `[x]` | `events.py` (queue per case_id) + `run_pipeline`/`run_evaluators`/`handle_confirm` in `core/loop.py` |
-| Second provider | `[x]` | `OpenAICompatibleProvider` implemented for local proxy (http://localhost:8081/v1) |
+| Second provider | `[x]` | `OpenAICompatibleProvider` implemented for local/remote endpoints |
 | `builder.py` (if time) | `[x]` | Feasibility Test; structured `BuilderVerdict`, no search — `evidence=[]` by design |
 | `tests/eval_set/` harness | `[x]` | 6 cases in `tests/eval_set/cases.py`; real pipeline, opt-in via `CROSSFIRE_EVAL_LIVE=1` |
 
 **Last updated:** Dev A
-**Note:** `OpenAICompatibleProvider` wired and tested against local `gemini-web2api` proxy (`http://localhost:8081/v1`, model `gemini-3.7-flash`). `GeminiProvider` delegates to the proxy when configured. Both text and Pydantic structured output verified live and with unit tests.
+**Note:** `OpenAICompatibleProvider` wired and tested. `GeminiProvider` delegates to Google's official Gemini endpoint. Both text and Pydantic structured output verified live and with unit tests.
 
 `run_pipeline()` landed. All required Dev A rows are now done; only the two "if time" rows remain. Details Dev B and Dev C need:
 
