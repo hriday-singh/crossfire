@@ -526,7 +526,7 @@ export const DashboardScreen: React.FC = () => {
       <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
         <div className="max-w-5xl mx-auto w-full flex items-center justify-between font-code-sm text-code-sm text-outline">
           <div className="flex items-center gap-space-3">
-            <span>Crossfire</span>
+            <span>Crossfire · Made with ❤️ by HAL</span>
           </div>
           <div className="text-outline font-mono">
             {isTesting ? (

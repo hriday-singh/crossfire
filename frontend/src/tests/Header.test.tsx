@@ -61,15 +61,24 @@ describe("Header", () => {
     expect(screen.queryByRole("button", { name: /04 Audit Sheet/i })).not.toBeInTheDocument();
   });
 
-  it("renders separate history and settings buttons", () => {
+  it("renders history, faq, and settings buttons in the required order", () => {
     render(
       <CaseProvider>
         <Header />
       </CaseProvider>
     );
 
-    expect(screen.getByRole("button", { name: /view case history/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /view settings/i })).toBeInTheDocument();
+    const historyBtn = screen.getByRole("button", { name: /view case history/i });
+    const faqBtn = screen.getByRole("button", { name: /view frequently asked questions/i });
+    const settingsBtn = screen.getByRole("button", { name: /view settings/i });
+
+    expect(historyBtn).toBeInTheDocument();
+    expect(faqBtn).toBeInTheDocument();
+    expect(settingsBtn).toBeInTheDocument();
+
+    // Verify ordering in DOM: History before FAQ, FAQ before Settings
+    expect(historyBtn.compareDocumentPosition(faqBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(faqBtn.compareDocumentPosition(settingsBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("does not render v1.4-engine, runner status pill, or profile avatar", () => {

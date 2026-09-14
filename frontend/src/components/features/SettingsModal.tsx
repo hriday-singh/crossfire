@@ -250,6 +250,20 @@ export const SettingsModal: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Footer */}
+        <div className="px-space-6 py-space-3 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-outline font-code-sm text-code-sm shrink-0">
+          <span>Crossfire · Made with ❤️ by HAL</span>
+          <a
+            href="https://github.com/hriday-singh/crossfire"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-on-surface transition-colors flex items-center gap-1"
+          >
+            <span>GitHub</span>
+            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+          </a>
+        </div>
       </SheetContent>
     </Sheet>
   );

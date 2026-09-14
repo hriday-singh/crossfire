@@ -507,7 +507,7 @@ export const ConfirmScreen: React.FC = () => {
             <span className="font-semibold text-primary">SerpApi</span>
           </a>
         </div>
-        <div className="font-body-xs text-body-xs text-outline">Crossfire</div>
+        <div className="font-body-xs text-body-xs text-outline">Crossfire · Made with ❤️ by HAL</div>
       </footer>
     </div>
   );

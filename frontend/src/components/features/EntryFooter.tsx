@@ -10,7 +10,7 @@ export const EntryFooter: React.FC<EntryFooterProps> = ({ onOpenModal }) => {
     <footer className="w-full bg-surface-container-lowest border-t border-outline-variant py-space-3 px-space-6 flex items-center justify-between">
       <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-outline font-code-sm text-code-sm flex-wrap gap-2">
         <div className="flex items-center gap-space-3 flex-wrap">
-          <span>Crossfire: Open-source decision testing platform.</span>
+          <span>Crossfire · Made with ❤️ by HAL</span>
           <span className="text-outline-variant hidden sm:inline">·</span>
           <a
             href="https://serpapi.com?utm_source=crossfire&utm_medium=footer"

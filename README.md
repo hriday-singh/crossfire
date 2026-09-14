@@ -1,6 +1,10 @@
 # Crossfire
 
-[![Powered by SerpApi](https://img.shields.io/badge/Search%20Grounding-Powered%20by%20SerpApi-377FEA?style=flat&logoColor=white)](https://serpapi.com)
+> ### 🏆 1st Place Winner: Code2Create 7.0
+> **Crossfire** was awarded **1st place overall** at **Code2Create 7.0**.
+
+[![Code2Create 7.0 Winner](https://img.shields.io/badge/%F0%9F%8F%86%20Code2Create%207.0-1st%20Place%20Winner-FFB800?style=for-the-badge&labelColor=24292e)](#)
+[![Powered by SerpApi](https://img.shields.io/badge/Search%20Grounding-Powered%20by%20SerpApi-377FEA?style=for-the-badge&logoColor=white)](https://serpapi.com)
 
 Crossfire is a decision-testing engine. It takes a business, technical, or product decision you are about to commit resources to, breaks it down into the specific claims the decision depends on, tests the critical ones independently, and outputs a structured test report with a verdict per claim and concrete next steps.
 
@@ -593,3 +597,9 @@ The backend can be configured via environment variables in `backend/.env`:
 | `DEMO_MODE` | `false` | When `true`, returns canned fixtures for offline testing |
 
 > Provider selection, per-provider keys, enabled models, and the fallback order are stored in the encrypted keyring and edited from the **Providers** modal in the UI. The `LLM_*` variables above are the bootstrap defaults used before anything is configured there.
+
+---
+
+<p align="center">
+  Made with ❤️ by HAL
+</p>

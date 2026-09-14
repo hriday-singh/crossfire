@@ -188,15 +188,18 @@ export const FaqDrawer: React.FC = () => {
         {/* Footer */}
         <div className="px-space-6 py-space-3 border-t border-outline-variant bg-surface-container-lowest flex items-center justify-between text-outline font-code-sm text-code-sm shrink-0">
           <span>Crossfire: Independent Decision Testing</span>
-          <a
-            href="https://github.com/hriday-singh/crossfire"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-on-surface transition-colors flex items-center gap-1"
-          >
-            <span>GitHub</span>
-            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-          </a>
+          <div className="flex items-center gap-space-4">
+            <span>Made with ❤️ by HAL</span>
+            <a
+              href="https://github.com/hriday-singh/crossfire"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-on-surface transition-colors flex items-center gap-1"
+            >
+              <span>GitHub</span>
+              <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+            </a>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
