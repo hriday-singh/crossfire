@@ -163,6 +163,17 @@ class OpenAICompatibleProvider:
             else:
                 formatted_messages.insert(0, {"role": "system", "content": instruction})
 
+        native_response_format: dict[str, Any] | None = None
+        if response_schema is not None:
+            native_response_format = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": response_schema.__name__,
+                    "strict": True,
+                    "schema": response_schema.model_json_schema(),
+                },
+            }
+
         attempts = 2 if self._retry_transient else 1
 
         if response_schema is None:
@@ -209,7 +220,9 @@ class OpenAICompatibleProvider:
         last_content = ""
         for attempt in range(attempts):
             try:
-                last_content = await self._complete(formatted_messages)
+                last_content = await self._complete(
+                    formatted_messages, response_format=native_response_format
+                )
             except httpx.TimeoutException as exc:
                 last_error = exc
                 if attempt + 1 < attempts:
@@ -257,7 +270,11 @@ class OpenAICompatibleProvider:
             f"after {attempts} attempts; upstream said: {_snippet(last_content)}"
         ) from last_error
 
-    async def _complete(self, formatted_messages: list[dict[str, Any]]) -> str:
+    async def _complete(
+        self,
+        formatted_messages: list[dict[str, Any]],
+        response_format: dict[str, Any] | None = None,
+    ) -> str:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
@@ -266,6 +283,8 @@ class OpenAICompatibleProvider:
             "model": self._model,
             "messages": formatted_messages,
         }
+        if response_format is not None:
+            payload["response_format"] = response_format
 
         client = await self._get_client()
         resp = await client.post(
@@ -277,4 +296,3 @@ class OpenAICompatibleProvider:
         data = resp.json()
 
         return data["choices"][0]["message"]["content"] or ""
-

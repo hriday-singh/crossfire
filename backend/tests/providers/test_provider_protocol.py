@@ -72,6 +72,8 @@ async def test_openai_compat_provider_structured_output(monkeypatch, sample_clai
     import httpx
     from providers.openai_compat import OpenAICompatibleProvider
 
+    calls = []
+
     class MockResponse:
         def raise_for_status(self):
             pass
@@ -84,6 +86,7 @@ async def test_openai_compat_provider_structured_output(monkeypatch, sample_clai
             }
 
     async def mock_post(*args, **kwargs):
+        calls.append(kwargs)
         return MockResponse()
 
     monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
@@ -95,6 +98,14 @@ async def test_openai_compat_provider_structured_output(monkeypatch, sample_clai
         response_schema=type(sample_claim),
     )
     assert result == sample_claim
+    assert calls[0]["json"]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": type(sample_claim).__name__,
+            "strict": True,
+            "schema": type(sample_claim).model_json_schema(),
+        },
+    }
 
 
 def test_clean_json_markdown_variants():
@@ -460,4 +471,3 @@ async def test_openai_compat_raises_llm_timeout_error_after_retries(monkeypatch)
     assert attempts == 2
     assert isinstance(exc_info.value, httpx.TimeoutException)
     assert "timed out" in str(exc_info.value)
-
