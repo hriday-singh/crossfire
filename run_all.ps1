@@ -246,7 +246,7 @@ try {
     if (Test-PortOpen -Port $FrontendPort) {
         Write-Host "    [OK] Port $FrontendPort is already active. Frontend UI is running." -ForegroundColor Green
     } else {
-        $frontendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [2/2] Frontend UI (:$FrontendPort)'; Set-Location '$FrontendDir'; Write-Host 'Starting Vite Frontend dev server on :$FrontendPort...' -ForegroundColor Cyan; npm run dev -- --port $FrontendPort"
+        $frontendCmd = "`$Host.UI.RawUI.WindowTitle = 'Crossfire - [2/2] Frontend UI (:$FrontendPort)'; Set-Location '$FrontendDir'; Write-Host 'Starting Vite Frontend dev server on :$FrontendPort...' -ForegroundColor Cyan; npm.cmd run dev -- --port $FrontendPort"
         
         $frontendProc = Start-Process $ShellExe -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $frontendCmd) -PassThru
         $SpawnedProcesses.Add($frontendProc)

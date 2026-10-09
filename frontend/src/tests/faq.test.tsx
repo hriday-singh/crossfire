@@ -35,9 +35,7 @@ describe("FAQ Data & Drawer Component", () => {
       "How is this different from just using Claude or ChatGPT with search turned on?"
     );
     expect(questions).toContain("How is this different from a research platform, like Perplexity?");
-    expect(questions).toContain(
-      "How is this different from an AI council, like The AI Council app?"
-    );
+    expect(questions).toContain("How is this different from an AI council?");
 
     // Verify all answers are non-empty strings
     FAQ_ITEMS.forEach((item) => {

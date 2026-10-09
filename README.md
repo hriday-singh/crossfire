@@ -484,8 +484,12 @@ Search-enabled chat still reasons in one continuous thread. Once it finds someth
 ### How is this different from a research platform, like Perplexity?
 A research platform tells you what's out there on a topic. Crossfire tells you whether your specific decision survives. It doesn't just gather information, it decides which claims in your plan actually matter, tests those, and ends with a verdict and a next step, not a report you still have to interpret yourself.
 
-### How is this different from an AI council, like The AI Council app?
-Those tools send your question to several models, let them see and react to each other's answers, then merge everything into one final answer with a single confidence score. That's still one opinion at the end, just an averaged one, and letting the models see each other's answers before merging is exactly what makes them converge and agree instead of catching what the other missed. Crossfire never merges into one answer or one score. It decides which claims your decision actually depends on, tests each one independently with zero visibility into what the others found, and gives you a verdict per claim, survived, weakened, broken, or unresolved, plus what that means for your decision and what to check next. A confidence score tells you how much agreement there was. A verdict tells you what to actually do.
+### How is this different from an AI council?
+AI councils come in two shapes. Some send your question to several models, let them react to each other, and merge everything into one answer with a confidence score. Others, like Council of High Intelligence, give the question to a panel of personas that answer blind, then cross-examine each other, and return a verdict that keeps the dissent instead of averaging it away.
+
+Both debate the question as a whole, and both let members see each other's positions at some point, which is when models start converging. Crossfire doesn't debate the question. It breaks your decision into the claims it depends on, ranks which ones are load-bearing, and tests each one blind. When a test raises an objection without a source, Crossfire settles it with a targeted search, not another round of argument. A claim can only break if a cited source contradicts it, and that rule is enforced in code, not left to the model to police itself. You get a verdict per claim (survived, weakened, broken, or unresolved), what that means for the decision, and what to check next.
+
+A council tells you what sharp perspectives think. Crossfire tells you whether your decision holds up against evidence. For what we're taking from councils, see [`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md).
 
 ---
 
