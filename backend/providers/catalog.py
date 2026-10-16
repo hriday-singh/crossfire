@@ -48,6 +48,21 @@ class ProviderSpec:
     #: free-tier requests/minute per key; 0 = don't pace. See providers/pool.py.
     default_rpm: int = 0
     notes: str = ""
+    #: models accept `thinking` + `reasoning_effort` (DeepSeek V4): the UI shows
+    #: a per-model thinking switch and effort picker.
+    supports_thinking: bool = False
+
+
+#: reasoning_effort values DeepSeek accepts; "high" is its default.
+THINKING_EFFORTS = ("low", "high", "max")
+
+
+@dataclass(frozen=True)
+class ThinkingSetting:
+    """Per-model reasoning switch. DeepSeek thinks by default, at high effort."""
+
+    enabled: bool = True
+    effort: str = "high"
 
 
 CATALOG: dict[str, ProviderSpec] = {
@@ -105,6 +120,7 @@ CATALOG: dict[str, ProviderSpec] = {
         default_model="deepseek-v4-flash",
         models=["deepseek-flash", "deepseek-v4-flash", "deepseek-v4-pro"],
         notes="DeepSeek API. Get a key at platform.deepseek.com.",
+        supports_thinking=True,
     ),
     CUSTOM: ProviderSpec(
         id=CUSTOM,

@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from providers.anthropic import AnthropicProvider
 from providers.base import LLMProvider
+from providers.catalog import ThinkingSetting
 from providers.openai_compat import (
     LLMConnectionError,
     LLMProviderError,
@@ -49,6 +50,8 @@ class Target:
     model: str
     base_url: str
     pool: KeyPool | None = None
+    #: None = provider has no thinking switch (only openai_compat wires use it)
+    thinking: ThinkingSetting | None = None
     #: adapters are cached per key so the httpx connection pool is reused
     _adapters: dict[int, LLMProvider] = field(default_factory=dict, repr=False)
     _consecutive_failures: int = field(default=0, repr=False)
@@ -76,6 +79,7 @@ class Target:
                 base_url=self.base_url,
                 model=self.model,
                 retry_transient=not rotates,
+                thinking=self.thinking,
             )
         self._adapters[key_id] = adapter
         return adapter

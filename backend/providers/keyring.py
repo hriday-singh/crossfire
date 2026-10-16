@@ -23,12 +23,22 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
-from providers.catalog import CATALOG, CUSTOM, CUSTOM_PREFIX, DEFAULT_PROVIDER, get_spec, is_custom
+from providers.catalog import (
+    CATALOG,
+    CUSTOM,
+    CUSTOM_PREFIX,
+    DEFAULT_PROVIDER,
+    THINKING_EFFORTS,
+    ThinkingSetting,
+    get_spec,
+    is_custom,
+)
 
 _ACTIVE_PROVIDER = "active_provider"
 _FALLBACK_CHAIN = "fallback_chain"
 _ENABLED_MODELS = "enabled_models"  # one row per provider: "enabled_models:<id>"
 _MODELS = "models"  # one row per provider: "models:<id>" — the saved model list
+_THINKING = "thinking"  # one row per provider: "thinking:<id>" — {model: {enabled, effort}}
 
 #: Upper bound on a provider's saved model list. OpenRouter-sized gateways list
 #: a few hundred; this only stops a runaway response from bloating the store.
@@ -518,6 +528,49 @@ def remove_model(provider: str, model: str) -> list[str]:
         raise ValueError(f"{model!r} is the primary model — make another model primary first")
     set_enabled_models(provider, [m for m in get_enabled_models(provider) if m != model])
     return set_models(provider, [m for m in get_models(provider) if m != model])
+
+
+def get_thinking(provider: str) -> dict[str, ThinkingSetting]:
+    """Thinking setting per saved model. Empty for providers without thinking.
+
+    A model the user never touched gets the default (on, high effort), which
+    is what DeepSeek does when the request carries no `thinking` field.
+    """
+    if not get_spec(provider).supports_thinking:
+        return {}
+    raw = _get_setting(f"{_THINKING}:{provider}")
+    try:
+        stored = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
+        stored = {}
+    if not isinstance(stored, dict):
+        stored = {}
+    out: dict[str, ThinkingSetting] = {}
+    for model in get_models(provider):
+        entry = stored.get(model)
+        if not isinstance(entry, dict):
+            out[model] = ThinkingSetting()
+            continue
+        effort = entry.get("effort")
+        out[model] = ThinkingSetting(
+            enabled=bool(entry.get("enabled", True)),
+            effort=effort if effort in THINKING_EFFORTS else "high",
+        )
+    return out
+
+
+def set_thinking(provider: str, model: str, enabled: bool, effort: str) -> dict[str, ThinkingSetting]:
+    if not get_spec(provider).supports_thinking:
+        raise ValueError(f"{provider!r} does not support thinking mode")
+    if effort not in THINKING_EFFORTS:
+        raise ValueError(f"effort must be one of {', '.join(THINKING_EFFORTS)}")
+    model = model.strip()
+    if model not in get_models(provider):
+        raise ValueError(f"{model!r} is not a saved model for {provider}")
+    current = {m: {"enabled": s.enabled, "effort": s.effort} for m, s in get_thinking(provider).items()}
+    current[model] = {"enabled": enabled, "effort": effort}
+    _set_setting(f"{_THINKING}:{provider}", json.dumps(current))
+    return get_thinking(provider)
 
 
 def _json_list(raw: str) -> list[str]:

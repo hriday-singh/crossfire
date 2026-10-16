@@ -517,6 +517,19 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
                         <SerpApiText text={cleanUiText(f.reasoning)} />
                       </p>
                     )}
+                    {f.thinking && (
+                      <details data-testid={`thinking-${f.test_id}`} className="group rounded border border-outline-variant/50 bg-surface-container-low">
+                        <summary className="cursor-pointer select-none list-none flex items-center gap-1.5 px-2 py-1 font-label-mono text-label-mono uppercase tracking-wider text-outline hover:text-on-surface transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container rounded">
+                          <span className="material-symbols-outlined text-[15px] shrink-0 transition-transform group-open:rotate-90" aria-hidden>
+                            chevron_right
+                          </span>
+                          Thinking
+                        </summary>
+                        <p className="px-2 pb-2 font-body-sm text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
+                          {f.thinking}
+                        </p>
+                      </details>
+                    )}
                   </div>
                 ))}
               </div>

@@ -38,6 +38,7 @@ from core.textutil import clamp_sentences, one_line
 from core.activity import emit_activity
 from providers import get_provider
 from providers.base import LLMProvider
+from providers.openai_compat import THINKING_TIMEOUT_SECONDS, reasoning_sink
 
 logger = logging.getLogger(__name__)
 
@@ -330,7 +331,23 @@ def _stage(case_id: str, name: str):
         logger.info("stage %s case=%s took %.2fs", name, case_id, time.perf_counter() - start)
 
 
-def _degraded_finding(item: TestPlanItem, exc: BaseException) -> Finding:
+def _thinking_active(provider: LLMProvider) -> bool:
+    """True when any model in the chain has thinking mode on."""
+    return any(
+        t.thinking is not None and t.thinking.enabled
+        for t in getattr(provider, "targets", [])
+        if hasattr(t, "thinking")
+    )
+
+
+def _describe_exc(exc: BaseException, timeout: float) -> str:
+    """asyncio's TimeoutError has an empty str(); say what actually happened."""
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)) and not str(exc):
+        return f"evaluator exceeded its {timeout:.0f}s budget (TimeoutError)"
+    return str(exc) or type(exc).__name__
+
+
+def _degraded_finding(item: TestPlanItem, exc: BaseException, timeout: float = 0.0) -> Finding:
     """A failed evaluator becomes a visible degraded finding with None confidence, never silence.
 
     Not an `error` SSE event: routes.py terminates the stream on `error`, which
@@ -343,7 +360,7 @@ def _degraded_finding(item: TestPlanItem, exc: BaseException) -> Finding:
         evaluator=evaluator_name,
         result="System Error / Timeout",
         evidence=[],
-        reasoning=f"System error or timeout occurred during evaluator execution ({type(exc).__name__}): {exc}",
+        reasoning=f"System error or timeout occurred during evaluator execution ({type(exc).__name__}): {_describe_exc(exc, timeout)}",
         confidence=None,
         contradiction=None,
     )
@@ -365,6 +382,11 @@ async def run_evaluators(
     settings = get_settings()
     limit = asyncio.Semaphore(getattr(settings, "evaluator_concurrency", 8))
     timeout = getattr(settings, "evaluator_timeout_seconds", 60.0)
+    if _thinking_active(provider):
+        # Budget two thinking-length LLM calls (a format retry) instead of two
+        # 15 s ones; otherwise every thinking evaluator dies as "System Error / Timeout".
+        llm_timeout = getattr(settings, "llm_timeout_seconds", 15.0)
+        timeout += 2 * max(0.0, THINKING_TIMEOUT_SECONDS - llm_timeout)
 
     # Group the plan by claim, in case.claims order, so the stream describes the run
     # as "claim 1 and its agents, claim 2 and its agents, ..." — the frontend paces the
@@ -416,13 +438,22 @@ async def run_evaluators(
                     "claim_statement": target_clm.statement if target_clm else "",
                 },
             )
+            thoughts: list[str] = []
+            sink_token = reasoning_sink.set(thoughts)
             try:
                 finding = await asyncio.wait_for(dispatch(item, isolated_case, provider), timeout=timeout)
+                if thoughts:
+                    finding.thinking = "\n\n".join(thoughts)
             except Exception as exc:
                 logger.warning(
-                    "Evaluator %s failed for claim %s: %s", item.failure_mode, item.target_claim, exc
+                    "Evaluator %s failed for claim %s: %s",
+                    item.failure_mode,
+                    item.target_claim,
+                    _describe_exc(exc, timeout),
                 )
-                finding = _degraded_finding(item, exc)
+                finding = _degraded_finding(item, exc, timeout)
+            finally:
+                reasoning_sink.reset(sink_token)
 
         # Fabricated citations must not reach the panel, the memo, or this SSE
         # frame. Done outside the evaluator semaphore: this is HTTP, not an LLM

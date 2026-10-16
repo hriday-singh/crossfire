@@ -18,7 +18,14 @@ from config import get_settings
 from providers import keyring
 from providers.anthropic import AnthropicProvider
 from providers.base import LLMProvider
-from providers.catalog import CATALOG, DEFAULT_PROVIDER, LOCKED_PROVIDER, ProviderSpec, get_spec
+from providers.catalog import (
+    CATALOG,
+    DEFAULT_PROVIDER,
+    LOCKED_PROVIDER,
+    ProviderSpec,
+    ThinkingSetting,
+    get_spec,
+)
 from providers.gemini import GeminiProvider
 from providers.openai_compat import (
     LLMConnectionError,
@@ -143,7 +150,8 @@ def build_chain() -> list[Target]:
     for provider_id in providers:
         base = build_target(provider_id)
         models = keyring.get_enabled_models(provider_id) or [base.model]
-        
+        thinking = keyring.get_thinking(provider_id)
+
         for model in models:
             targets.append(
                 Target(
@@ -152,10 +160,20 @@ def build_chain() -> list[Target]:
                     model=model,
                     base_url=base.base_url,
                     pool=base.pool,
+                    thinking=_thinking_for(provider_id, model, thinking),
                 )
             )
             
     return targets
+
+
+def _thinking_for(
+    provider_id: str, model: str, saved: dict[str, ThinkingSetting]
+) -> ThinkingSetting | None:
+    """Saved per-model setting; default (on, high) for an unsaved model of a thinking provider."""
+    if not get_spec(provider_id).supports_thinking:
+        return None
+    return saved.get(model, ThinkingSetting())
 
 
 def invalidate_cache() -> None:
@@ -191,11 +209,19 @@ def build_adapter(
     config = keyring.get_config(provider_id)
     api_key = api_key or default_key(provider_id)
 
+    model = model or config.model or spec.default_model
+    if spec.wire == "openai_compat":
+        return OpenAICompatibleProvider(
+            api_key=api_key,
+            base_url=base_url or config.base_url or spec.base_url,
+            model=model,
+            thinking=_thinking_for(provider_id, model, keyring.get_thinking(provider_id)),
+        )
     cls = _WIRE_CLASSES[spec.wire]
     return cls(
         api_key=api_key,
         base_url=base_url or config.base_url or spec.base_url,
-        model=model or config.model or spec.default_model,
+        model=model,
     )
 
 

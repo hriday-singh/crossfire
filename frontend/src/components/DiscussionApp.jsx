@@ -4,6 +4,7 @@ import StageContainer from './canvas/StageContainer';
 import DialogueOverlay from './ui/DialogueOverlay';
 import SideControlPanel from './ui/SideControlPanel';
 import CruciblePageTransition from './ui/CruciblePageTransition';
+import RunStartupOverlay, { shouldShowRunStartup } from './features/RunStartupOverlay';
 import { AGENT_CONFIGS } from '../constants/agentConfigs';
 import { WAYPOINTS } from '../constants/roomLayout';
 import useSocketSimulation from '../hooks/useSocketSimulation';
@@ -230,6 +231,16 @@ export function DiscussionApp() {
   const totalExpectedFindings = Math.max(1, claimsCount * activeAgentsCount);
   const reconciledCount = currentCase?.claims?.filter((c) => c.status)?.length || 0;
 
+  // Accepted but no agent has moved yet: the backend is still ranking claims.
+  const showStartup = shouldShowRunStartup({
+    isRealRun,
+    isTesting,
+    isReplaying,
+    findingsCount,
+    activeTestCount: Object.keys(caseContext?.state?.activeTests || {}).length,
+  });
+  const startupMessage = caseContext?.state?.activities?.at(-1)?.text;
+
   let progressPercent = 0;
 
   if (isFinished || isSynthesisDone) {
@@ -345,6 +356,7 @@ export function DiscussionApp() {
             )}
           </div>
 
+          <div className="relative">
           <StageContainer
             agents={AGENT_CONFIGS}
             selectedAgentIds={selectedAgentIds}
@@ -369,6 +381,8 @@ export function DiscussionApp() {
               onHoverAgent={setHoveredAgentId}
             />
           </StageContainer>
+          <RunStartupOverlay visible={showStartup} message={startupMessage} />
+          </div>
 
           {/* Cinematic Crucible Next Page Transition Animation */}
           <CruciblePageTransition

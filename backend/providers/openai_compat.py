@@ -8,14 +8,26 @@ import asyncio
 import json
 import logging
 import re
+from contextvars import ContextVar
 from typing import Any
 
 import httpx
 from pydantic import BaseModel, ValidationError
 
 from config import get_settings
+from providers.catalog import ThinkingSetting
 
 logger = logging.getLogger(__name__)
+
+#: Read timeout for a call with thinking on. A reasoning model at high effort
+#: routinely spends 30-90 s before the first answer token; 15 s cut every
+#: DeepSeek V4 call off mid-thought with an empty body.
+THINKING_TIMEOUT_SECONDS = 120.0
+
+#: Callers that want the model's chain of thought set this to a fresh list;
+#: every completion that returns `reasoning_content` appends it. A list (not a
+#: str) so the append is visible through asyncio.wait_for's copied context.
+reasoning_sink: ContextVar[list[str] | None] = ContextVar("reasoning_sink", default=None)
 
 
 class LLMProviderError(RuntimeError):
@@ -91,6 +103,7 @@ class OpenAICompatibleProvider:
         client: httpx.AsyncClient | None = None,
         timeout: float | None = None,
         retry_transient: bool = True,
+        thinking: ThinkingSetting | None = None,
     ) -> None:
         # retry_transient=False is for providers/routing.py: when a key pool is
         # in play, a 429 should rotate to the next key immediately rather than
@@ -100,6 +113,11 @@ class OpenAICompatibleProvider:
         self._base_url = (base_url or settings.llm_base_url or "http://localhost:8081/v1").rstrip("/")
         self._model = model or settings.llm_model or "gemini-3.7-flash"
         self._timeout = timeout or getattr(settings, "llm_timeout_seconds", 15.0)
+        # None = provider has no thinking switch; send nothing extra.
+        self._thinking = thinking
+        self._thinking_on = thinking is not None and thinking.enabled
+        if self._thinking_on:
+            self._timeout = max(self._timeout, THINKING_TIMEOUT_SECONDS)
         self._retry_transient = retry_transient
         self._client = client
         self._owns_client = client is None
@@ -184,9 +202,10 @@ class OpenAICompatibleProvider:
                 try:
                     return await self._complete(formatted_messages)
                 except httpx.TimeoutException as exc:
-                    if attempt + 1 < attempts:
+                    if attempt + 1 < attempts and not self._thinking_on:
                         logger.warning(
-                            "LLM completion attempt 1 timed out after %.1fs; resetting connection and retrying...",
+                            "LLM completion attempt %d timed out after %.1fs; resetting connection and retrying...",
+                            attempt + 1,
                             self._timeout,
                         )
                         await self._reset_client()
@@ -209,7 +228,8 @@ class OpenAICompatibleProvider:
                 except httpx.HTTPStatusError as exc:
                     if attempt + 1 < attempts and exc.response.status_code in (429, 500, 502, 503, 504):
                         logger.warning(
-                            "LLM completion attempt 1 returned HTTP %d; resetting client and retrying in 2s...",
+                            "LLM completion attempt %d returned HTTP %d; resetting client and retrying in 2s...",
+                            attempt + 1,
                             exc.response.status_code,
                         )
                         await self._reset_client()
@@ -228,9 +248,10 @@ class OpenAICompatibleProvider:
                 )
             except httpx.TimeoutException as exc:
                 last_error = exc
-                if attempt + 1 < attempts:
+                if attempt + 1 < attempts and not self._thinking_on:
                     logger.warning(
-                        "LLM structured completion attempt 1 timed out after %.1fs; retrying...",
+                        "LLM structured completion attempt %d timed out after %.1fs; retrying...",
+                        attempt + 1,
                         self._timeout,
                     )
                     await self._reset_client()
@@ -255,7 +276,8 @@ class OpenAICompatibleProvider:
                 last_error = exc
                 if attempt + 1 < attempts and exc.response.status_code in (429, 500, 502, 503, 504):
                     logger.warning(
-                        "LLM structured completion attempt 1 returned HTTP %d; retrying in 2s...",
+                        "LLM structured completion attempt %d returned HTTP %d; retrying in 2s...",
+                        attempt + 1,
                         exc.response.status_code,
                     )
                     await self._reset_client()
@@ -282,12 +304,16 @@ class OpenAICompatibleProvider:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
         }
-        payload = {
+        payload: dict[str, Any] = {
             "model": self._model,
             "messages": formatted_messages,
         }
         if response_format is not None and self._native_schema:
             payload["response_format"] = response_format
+        if self._thinking is not None:
+            payload["thinking"] = {"type": "enabled" if self._thinking.enabled else "disabled"}
+            if self._thinking.enabled:
+                payload["reasoning_effort"] = self._thinking.effort
 
         client = await self._get_client()
         url = f"{self._base_url}/chat/completions"
@@ -300,4 +326,9 @@ class OpenAICompatibleProvider:
         resp.raise_for_status()
         data = resp.json()
 
-        return data["choices"][0]["message"]["content"] or ""
+        message = data["choices"][0]["message"]
+        reasoning = message.get("reasoning_content")
+        sink = reasoning_sink.get()
+        if sink is not None and isinstance(reasoning, str) and reasoning.strip():
+            sink.append(reasoning.strip())
+        return message["content"] or ""

@@ -32,6 +32,18 @@ export interface ProviderInfo {
   notes: string;
   /** User-added endpoint - safe to offer a delete button. */
   removable: boolean;
+  /** Models take a thinking switch + effort (DeepSeek V4). Absent on older backends. */
+  supports_thinking?: boolean;
+  /** Per saved model; empty when supports_thinking is false. */
+  thinking?: Record<string, ThinkingSetting>;
+}
+
+export const THINKING_EFFORTS = ["low", "high", "max"] as const;
+export type ThinkingEffort = (typeof THINKING_EFFORTS)[number];
+
+export interface ThinkingSetting {
+  enabled: boolean;
+  effort: ThinkingEffort;
 }
 
 export interface ProvidersResponse {
@@ -142,6 +154,20 @@ export function setEnabledModels(
   return request<ProviderInfo>(
     `/providers/${seg(providerId)}/models`,
     { method: "PUT", body: JSON.stringify({ models }) },
+    baseUrl
+  );
+}
+
+/** Turn thinking mode on/off for one model and set its reasoning effort. */
+export function setModelThinking(
+  providerId: string,
+  model: string,
+  setting: ThinkingSetting,
+  baseUrl?: string
+): Promise<ProviderInfo> {
+  return request<ProviderInfo>(
+    `/providers/${seg(providerId)}/thinking`,
+    { method: "PUT", body: JSON.stringify({ model, ...setting }) },
     baseUrl
   );
 }

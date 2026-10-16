@@ -8,6 +8,8 @@ import {
   ProviderKey,
   ProviderTestResult,
   ProvidersResponse,
+  THINKING_EFFORTS,
+  ThinkingSetting,
   addModels,
   addProviderKey,
   createCustomProvider,
@@ -21,6 +23,7 @@ import {
   setEnabledModels,
   setFallbackChain,
   setKeyEnabled,
+  setModelThinking,
   setProviderConfig,
   testChain,
   testProvider,
@@ -316,6 +319,21 @@ export const ProvidersModal: React.FC = () => {
     saveEnabled(
       enabled ? enabledModels.filter((m) => m !== model) : [...enabledModels, model],
       enabled ? `${model} disabled` : `${model} enabled`
+    );
+
+  /** Thinking on/off + effort for one model. Unsaved models default to on/high, like the API. */
+  const thinkingFor = (model: string): ThinkingSetting =>
+    selected?.thinking?.[model] ?? { enabled: true, effort: "high" };
+
+  const saveThinking = (model: string, setting: ThinkingSetting) =>
+    selected &&
+    void run(
+      () => setModelThinking(selected.id, model, setting),
+      setting.enabled ? `${model}: thinking on (${setting.effort})` : `${model}: thinking off`,
+      (d) =>
+        patchProvider(d, selected.id, {
+          thinking: { ...(selected.thinking || {}), [model]: setting },
+        })
     );
 
   /** Reorder the fallback order. Index 0 is the primary and does not move. */
@@ -1088,11 +1106,12 @@ export const ProvidersModal: React.FC = () => {
                         const isPrimary = model === selected.model;
                         const order = enabledModels.indexOf(model);
                         const enabled = order >= 0;
+                        const thinking = selected.supports_thinking ? thinkingFor(model) : null;
                         return (
                           <div
                             key={model}
                             data-testid={`model-row-${model}`}
-                            className={`flex items-center gap-space-3 rounded border px-space-3 py-2 transition-colors ${
+                            className={`flex flex-wrap items-center gap-x-space-3 gap-y-2 rounded border px-space-3 py-2 transition-colors ${
                               isPrimary
                                 ? "bg-primary-container/15 border-primary-container/60"
                                 : "bg-surface-container-low border-outline-variant/50"
@@ -1166,6 +1185,55 @@ export const ProvidersModal: React.FC = () => {
                                 <Trash2 size={14} aria-hidden />
                               </button>
                             </div>
+                            {thinking && (
+                              <div
+                                data-testid={`thinking-row-${model}`}
+                                className="basis-full flex flex-wrap items-center gap-space-2 pl-6"
+                              >
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={thinking.enabled}
+                                  aria-label={`Thinking mode for ${model}`}
+                                  onClick={() => saveThinking(model, { ...thinking, enabled: !thinking.enabled })}
+                                  className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container shrink-0 ${
+                                    thinking.enabled ? "bg-primary-container" : "bg-surface-container-highest"
+                                  }`}
+                                >
+                                  <span
+                                    className={`block w-3 h-3 rounded-full bg-on-primary-container transition-transform absolute top-1 left-1 ${
+                                      thinking.enabled ? "translate-x-4" : ""
+                                    }`}
+                                  />
+                                </button>
+                                <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline">
+                                  Thinking
+                                </span>
+                                <div
+                                  role="radiogroup"
+                                  aria-label={`Thinking effort for ${model}`}
+                                  className="flex items-center rounded border border-outline-variant/50 overflow-hidden"
+                                >
+                                  {THINKING_EFFORTS.map((effort) => (
+                                    <button
+                                      key={effort}
+                                      type="button"
+                                      role="radio"
+                                      aria-checked={thinking.effort === effort}
+                                      disabled={!thinking.enabled}
+                                      onClick={() => saveThinking(model, { enabled: true, effort })}
+                                      className={`px-2 py-0.5 font-label-mono text-label-mono uppercase transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container ${
+                                        thinking.effort === effort
+                                          ? "bg-primary-container text-on-primary-container"
+                                          : "text-outline hover:text-on-surface"
+                                      }`}
+                                    >
+                                      {effort}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}

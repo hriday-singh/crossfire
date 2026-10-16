@@ -80,6 +80,8 @@ export interface Finding {
   reasoning: string;
   confidence: number;
   contradiction: string | null;
+  /** Model's raw chain of thought when thinking mode is on (DeepSeek V4). */
+  thinking?: string | null;
 }
 
 export interface DecisionConsequence {

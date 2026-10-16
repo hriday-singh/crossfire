@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, status
@@ -47,6 +47,15 @@ class KeyOut(BaseModel):
     enabled: bool
 
 
+#: mirrors providers.catalog.THINKING_EFFORTS
+ThinkingEffort = Literal["low", "high", "max"]
+
+
+class ThinkingOut(BaseModel):
+    enabled: bool
+    effort: ThinkingEffort
+
+
 class ProviderOut(BaseModel):
     id: str
     label: str
@@ -63,6 +72,16 @@ class ProviderOut(BaseModel):
     notes: str
     #: user-added endpoint — the UI may offer a delete button
     removable: bool = False
+    #: models take a thinking switch + effort (DeepSeek V4)
+    supports_thinking: bool = False
+    #: per saved model; empty when supports_thinking is False
+    thinking: dict[str, ThinkingOut] = Field(default_factory=dict)
+
+
+class ThinkingRequest(BaseModel):
+    model: ModelId
+    enabled: bool
+    effort: ThinkingEffort = "high"
 
 
 class ProvidersResponse(BaseModel):
@@ -165,6 +184,11 @@ def _provider_out(provider_id: str) -> ProviderOut:
         and (key_count > 0 or not spec.requires_key),
         notes=spec.notes,
         removable=is_custom(spec.id),
+        supports_thinking=spec.supports_thinking,
+        thinking={
+            m: ThinkingOut.model_validate({"enabled": s.enabled, "effort": s.effort})
+            for m, s in keyring.get_thinking(provider_id).items()
+        },
     )
 
 
@@ -324,6 +348,18 @@ def remove_model(
     _require_known(provider_id)
     try:
         keyring.remove_model(provider_id, model)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    providers.invalidate_cache()
+    return _provider_out(provider_id)
+
+
+@router.put("/{provider_id}/thinking", response_model=ProviderOut)
+def set_model_thinking(provider_id: str, payload: ThinkingRequest) -> ProviderOut:
+    """Turn thinking mode on/off for one model and pick its reasoning effort."""
+    _require_known(provider_id)
+    try:
+        keyring.set_thinking(provider_id, payload.model, payload.enabled, payload.effort)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     providers.invalidate_cache()

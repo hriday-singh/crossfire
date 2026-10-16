@@ -21,6 +21,11 @@ const provider = (over: Partial<Record<string, unknown>> = {}) => ({
   ...over,
 });
 
+const DEEPSEEK_THINKING = {
+  "deepseek-flash": { enabled: true, effort: "high" },
+  "deepseek-v4-pro": { enabled: false, effort: "high" },
+};
+
 const PROVIDERS = {
   active: "gemini",
   locked_provider: "ollama",
@@ -55,6 +60,15 @@ const PROVIDERS = {
       removable: true,
       notes: "",
     }),
+    provider({
+      id: "deepseek",
+      label: "DeepSeek",
+      model: "deepseek-flash",
+      models: ["deepseek-flash", "deepseek-v4-pro"],
+      enabled_models: ["deepseek-flash", "deepseek-v4-pro"],
+      supports_thinking: true,
+      thinking: DEEPSEEK_THINKING,
+    }),
   ],
 };
 
@@ -66,6 +80,7 @@ let createdEndpoint: unknown = {};
 
 function mockBackend() {
   calls = [];
+  let thinking: Record<string, unknown> = { ...DEEPSEEK_THINKING };
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((url: string, init: RequestInit = {}) => {
@@ -79,6 +94,13 @@ function mockBackend() {
       if (url.endsWith("/models/discover") && method === "POST")
         return json({ provider: "x", models: ["gemini-3.7-flash", "new-a", "new-b"] });
       if (url === "/providers/custom" && method === "POST") return json(createdEndpoint);
+      if (url.endsWith("/thinking") && method === "PUT") {
+        // Like the backend: answer with the provider, thinking map updated.
+        const { model, ...setting } = JSON.parse(String(init.body));
+        thinking = { ...thinking, [model]: setting };
+        const deepseek = PROVIDERS.providers.find((p) => p.id === "deepseek");
+        return json({ ...deepseek, thinking });
+      }
       if (url.startsWith("/cases") && method === "GET") return json([]);
       if (url === "/providers" || url.startsWith("/providers/active") || url.startsWith("/providers/fallback"))
         return json(PROVIDERS);
@@ -188,6 +210,50 @@ describe("ProvidersModal", () => {
     await waitFor(() => expect(calledWith("/providers/gemini/config", "PUT")).toHaveLength(1));
     expect(calledWith("/providers/gemini/config", "PUT")[0].body).toEqual({
       model: "gemini-3.6-flash",
+    });
+  });
+
+  it("shows a thinking switch and effort picker only for thinking-capable providers", async () => {
+    await open();
+    fireEvent.click(screen.getByTestId("provider-item-gemini"));
+    expect(screen.queryByTestId("thinking-row-gemini-3.7-flash")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("provider-item-deepseek"));
+    const flash = screen.getByLabelText("Thinking mode for deepseek-flash");
+    expect(flash).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Thinking mode for deepseek-v4-pro")).toHaveAttribute("aria-checked", "false");
+
+    const effort = within(screen.getByRole("radiogroup", { name: "Thinking effort for deepseek-flash" }));
+    expect(effort.getByRole("radio", { name: "high" })).toHaveAttribute("aria-checked", "true");
+    // Effort is meaningless with thinking off.
+    const proEffort = within(screen.getByRole("radiogroup", { name: "Thinking effort for deepseek-v4-pro" }));
+    expect(proEffort.getByRole("radio", { name: "max" })).toBeDisabled();
+  });
+
+  it("saves thinking on/off and effort per model", async () => {
+    await open();
+    fireEvent.click(screen.getByTestId("provider-item-deepseek"));
+
+    fireEvent.click(screen.getByLabelText("Thinking mode for deepseek-flash"));
+    await waitFor(() => expect(calledWith("/providers/deepseek/thinking", "PUT")).toHaveLength(1));
+    expect(calledWith("/providers/deepseek/thinking", "PUT")[0].body).toEqual({
+      model: "deepseek-flash",
+      enabled: false,
+      effort: "high",
+    });
+
+    fireEvent.click(screen.getByLabelText("Thinking mode for deepseek-v4-pro"));
+    await waitFor(() => expect(calledWith("/providers/deepseek/thinking", "PUT")).toHaveLength(2));
+    fireEvent.click(
+      within(screen.getByRole("radiogroup", { name: "Thinking effort for deepseek-v4-pro" })).getByRole("radio", {
+        name: "max",
+      })
+    );
+    await waitFor(() => expect(calledWith("/providers/deepseek/thinking", "PUT")).toHaveLength(3));
+    expect(calledWith("/providers/deepseek/thinking", "PUT")[2].body).toEqual({
+      model: "deepseek-v4-pro",
+      enabled: true,
+      effort: "max",
     });
   });
 

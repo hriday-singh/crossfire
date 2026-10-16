@@ -91,6 +91,8 @@ class Finding(BaseModel):
                                             # Not "how sure the evaluator is": that is unrankable
                                             # across personas (rank_findings sorts on this).
     contradiction: str | None = None
+    thinking: str | None = None             # the model's raw chain of thought (reasoning_content)
+                                            # when thinking mode is on; None otherwise
 
 
 class NextAction(BaseModel):

@@ -105,6 +105,35 @@ describe("ClaimCard", () => {
     expect(screen.queryByText(/Procurement Delays in AI SaaS/i)).not.toBeInTheDocument();
   });
 
+  it("shows the model's thinking in a collapsed block only when the finding has it", () => {
+    const base = {
+      claim_id: "claim-t",
+      evaluator: "researcher",
+      result: "weakened",
+      reasoning: "Pricing pages show paid tiers dominate",
+      confidence: 0.5,
+      contradiction: null,
+      evidence: [],
+    };
+    render(
+      <ClaimCard
+        claim={{ id: "claim-t", statement: "Free tier drives adoption", load_bearing: true, status: "weakened" }}
+        findings={[
+          { ...base, test_id: "with-thinking", thinking: "First, check competitor pricing..." },
+          { ...base, test_id: "no-thinking", thinking: null },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /View Evidence & Sources/i }));
+
+    const block = screen.getByTestId("thinking-with-thinking");
+    expect(block.tagName).toBe("DETAILS");
+    expect(block).not.toHaveAttribute("open");
+    expect(block).toHaveTextContent("Thinking");
+    expect(block).toHaveTextContent("First, check competitor pricing...");
+    expect(screen.queryByTestId("thinking-no-thinking")).not.toBeInTheDocument();
+  });
+
   it("renders live running tests when isTestingMode is true without needing expand", () => {
     render(
       <ClaimCard
