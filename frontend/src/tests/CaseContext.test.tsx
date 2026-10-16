@@ -238,3 +238,38 @@ describe("CaseContext", () => {
     expect(screen.getByTestId("selected-agents")).toHaveTextContent("researcher,builder");
   });
 });
+
+describe("CaseProvider health check", () => {
+  const EngineProbe: React.FC = () => {
+    const { state } = useCase();
+    return <div data-testid="engine-model">{state.engineInfo ? state.engineInfo.model : "none"}</div>;
+  };
+
+  it("keeps retrying /health until a late-starting backend answers", async () => {
+    vi.useFakeTimers();
+    const health = vi
+      .spyOn(api, "getHealth")
+      .mockRejectedValueOnce(new Error("ECONNREFUSED"))
+      .mockResolvedValue({ status: "ok", provider: "custom:box", model: "qwen" });
+    try {
+      render(
+        <CaseProvider>
+          <EngineProbe />
+        </CaseProvider>
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByTestId("engine-model")).toHaveTextContent("none");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(screen.getByTestId("engine-model")).toHaveTextContent("qwen");
+      expect(health).toHaveBeenCalledTimes(2);
+    } finally {
+      health.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+});

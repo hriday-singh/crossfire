@@ -189,9 +189,7 @@ def build_adapter(
     """A single-key adapter with no pooling or fallback (key validation, scripts)."""
     spec = get_spec(provider_id)
     config = keyring.get_config(provider_id)
-    if not api_key:
-        stored = keyring.secrets_for(provider_id)
-        api_key = stored[0][1] if stored else (_env_keys(spec) or [None])[0]
+    api_key = api_key or default_key(provider_id)
 
     cls = _WIRE_CLASSES[spec.wire]
     return cls(
@@ -199,6 +197,14 @@ def build_adapter(
         base_url=base_url or config.base_url or spec.base_url,
         model=model or config.model or spec.default_model,
     )
+
+
+def default_key(provider_id: str) -> str | None:
+    """First usable key for one-off calls (key test, model discovery), or None."""
+    stored = keyring.secrets_for(provider_id)
+    if stored:
+        return stored[0][1]
+    return (_env_keys(get_spec(provider_id)) or [None])[0]
 
 
 def get_routing_provider() -> RoutingProvider:

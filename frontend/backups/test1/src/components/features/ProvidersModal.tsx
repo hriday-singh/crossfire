@@ -1,0 +1,963 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCase } from "@/context/CaseContext";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ProviderIcon } from "@/components/ui/providerIcons";
+import { ArrowDown, ArrowUp, Check, Layers, Plus, X } from "lucide-react";
+import {
+  ProviderKey,
+  ProviderTestResult,
+  ProvidersResponse,
+  addProviderKey,
+  createCustomProvider,
+  deleteProvider,
+  deleteProviderKey,
+  listOllamaModels,
+  listProviderKeys,
+  listProviders,
+  setActiveProvider,
+  setEnabledModels,
+  setFallbackChain,
+  setKeyEnabled,
+  setProviderConfig,
+  testChain,
+  testProvider,
+} from "@/lib/providersApi";
+
+const SECTION_LABEL =
+  "font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold";
+const CARD = "bg-surface-container border border-outline-variant/60 rounded-lg p-space-4";
+const INPUT =
+  "w-full bg-surface-container-low border border-outline-variant/60 rounded px-space-3 py-2 font-code-sm text-code-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary-container/70 disabled:opacity-50";
+const BTN =
+  "font-code-sm text-code-sm px-space-3 py-1.5 rounded border border-outline-variant/60 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-40 cursor-pointer";
+const BTN_PRIMARY =
+  "font-code-sm text-code-sm px-space-3 py-1.5 rounded bg-primary-container text-on-primary-container font-medium hover:brightness-110 transition-all disabled:opacity-40 cursor-pointer";
+const BTN_DANGER =
+  "font-code-sm text-code-sm px-space-3 py-1.5 rounded border border-error/40 text-error hover:bg-error/10 transition-colors disabled:opacity-40 cursor-pointer";
+
+/** Chain position of a provider, for the badge in the rail. */
+function chainRole(id: string, data: ProvidersResponse | null): string | null {
+  if (!data) return null;
+  if (data.active === id) return "ACTIVE";
+  const index = (data.fallback_chain || []).indexOf(id);
+  return index >= 0 ? `FB ${index + 1}` : null;
+}
+
+export const ProvidersModal: React.FC = () => {
+  const { state, setActiveModal, refreshEngineInfo } = useCase();
+  const isOpen = state.activeModal === "providers";
+
+  const [data, setData] = useState<ProvidersResponse | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [keys, setKeys] = useState<ProviderKey[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // drafts for the detail pane
+  const [modelDraft, setModelDraft] = useState("");
+  const [baseUrlDraft, setBaseUrlDraft] = useState("");
+  const [rpmDraft, setRpmDraft] = useState("0");
+  const [keyDraft, setKeyDraft] = useState("");
+  const [keyLabelDraft, setKeyLabelDraft] = useState("");
+  const [discovered, setDiscovered] = useState<string[]>([]);
+
+  const [pingResult, setPingResult] = useState<ProviderTestResult | null>(null);
+  const [chainResults, setChainResults] = useState<ProviderTestResult[] | null>(null);
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newEndpoint, setNewEndpoint] = useState({ name: "", base_url: "", model: "", api_key: "" });
+
+  const providers = data?.providers || [];
+  const selected = useMemo(
+    () => providers.find((p) => p.id === selectedId) || null,
+    [providers, selectedId]
+  );
+
+  const noticeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const flash = (message: string) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    setNotice(message);
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await listProviders();
+      setData(next);
+      setSelectedId((current) => {
+        const list = next.providers || [];
+        if (current === "routing" || (current && list.some((p) => p.id === current))) return current;
+          return "routing";
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load providers");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /** Any mutation: run it, surface failures, then re-read the server's truth. */
+  const run = async (action: () => Promise<unknown>, successMessage: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      await refresh();
+      await refreshEngineInfo();
+      flash(successMessage);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Request failed");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) void refresh();
+  }, [isOpen, refresh]);
+
+  // Reset the detail drafts whenever the selection (or its saved config) changes.
+  useEffect(() => {
+    if (!selected) return;
+    setModelDraft(selected.model || "");
+    setBaseUrlDraft(selected.base_url || "");
+    setRpmDraft(String(selected.rpm ?? 0));
+    setPingResult(null);
+    setDiscovered([]);
+  }, [selected?.id, selected?.model, selected?.base_url, selected?.rpm]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isOpen || !selectedId || selectedId === "routing") {
+      setKeys([]);
+      return;
+    }
+    listProviderKeys(selectedId)
+      .then((list) => !cancelled && setKeys(list || []))
+      .catch(() => !cancelled && setKeys([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, selectedId, data]);
+
+  // while the backend pins one provider, everything else is configuration only
+  const locked = data?.locked_provider || null;
+  const isActive = selected ? data?.active === selected.id : false;
+
+  const moveInChain = (index: number, delta: number) => {
+    const chain = (data?.fallback_chain || []).filter((entry) => entry !== data?.active);
+    const target = index + delta;
+    if (target < 0 || target >= chain.length) return;
+    [chain[index], chain[target]] = [chain[target], chain[index]];
+    void run(() => setFallbackChain(chain), "Fallback priority updated");
+  };
+
+  const removeFromChain = (id: string) => {
+    const chain = (data?.fallback_chain || []).filter((entry) => entry !== id && entry !== data?.active);
+    void run(() => setFallbackChain(chain), `${id} removed from fallback chain`);
+  };
+
+  const addToChain = (id: string) => {
+    const current = (data?.fallback_chain || []).filter((entry) => entry !== id && entry !== data?.active);
+    const chain = [...current, id];
+    void run(() => setFallbackChain(chain), `${id} added as fallback #${chain.length}`);
+  };
+
+  const modelOptions = useMemo(() => {
+    if (!selected) return [];
+    return Array.from(new Set([...(selected.models || []), ...discovered].filter(Boolean)));
+  }, [selected, discovered]);
+
+  /** Enabled models first, in the order they are tried, then the disabled rest. */
+  const enabledModels = useMemo(() => selected?.enabled_models || [], [selected]);
+  const modelRows = useMemo(
+    () => [...enabledModels, ...modelOptions.filter((m) => !enabledModels.includes(m))],
+    [enabledModels, modelOptions]
+  );
+
+  const saveModels = (models: string[], message: string) =>
+    selected && void run(() => setEnabledModels(selected.id, models), message);
+
+  const toggleModel = (model: string, enabled: boolean) =>
+    saveModels(
+      enabled ? enabledModels.filter((m) => m !== model) : [...enabledModels, model],
+      enabled ? `${model} disabled` : `${model} enabled`
+    );
+
+  /** Reorder the fallback order. Index 0 is the primary and does not move. */
+  const moveModel = (index: number, delta: number) => {
+    const order = [...enabledModels];
+    const target = index + delta;
+    if (index < 1 || target < 1 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    saveModels(order, "Fallback order updated");
+  };
+
+  return (
+    <Sheet open={isOpen} onOpenChange={(open) => !open && setActiveModal("none")}>
+      <SheetContent
+        side="right"
+        hideDefaultClose
+        className="w-full sm:w-[820px] sm:max-w-full p-0 flex flex-col h-full bg-surface-container-low border-l border-outline-variant shadow-2xl text-on-surface select-text overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between pb-space-4 pt-space-6 px-space-6 border-b border-outline-variant shrink-0">
+          <div className="flex items-center gap-space-2">
+            <Layers size={18} className="text-primary-container" aria-hidden />
+            <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+              Model Providers
+            </h2>
+          </div>
+          <div className="flex items-center gap-space-2">
+            <button
+              type="button"
+              onClick={() =>
+                void run(async () => setChainResults(await testChain()), "Chain tested")
+              }
+              disabled={busy || loading}
+              className={BTN}
+              data-testid="test-chain-button"
+            >
+              Test chain
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveModal("none")}
+              aria-label="Close providers modal"
+              className="text-on-surface-variant hover:text-on-surface transition-colors p-2 rounded hover:bg-surface-container-high flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+            >
+              <X size={18} aria-hidden />
+            </button>
+          </div>
+        </div>
+
+        {(error || notice) && (
+          <div className="px-space-6 pt-space-3 shrink-0 space-y-space-2">
+            {error && (
+              <div
+                role="alert"
+                className="bg-error/10 border border-error/40 text-error px-space-4 py-space-2 rounded font-code-sm text-code-sm"
+              >
+                {error}
+              </div>
+            )}
+            {notice && (
+              <div className="bg-primary-container/20 border border-primary-container/40 text-primary-container px-space-4 py-space-2 rounded font-code-sm text-code-sm flex items-center gap-2">
+                <Check size={14} aria-hidden />
+                <span>{notice}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Rail + detail */}
+        <div className="flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden">
+          {/* Provider rail */}
+          <div className="shrink-0 sm:w-[248px] overflow-y-auto max-h-[42vh] sm:max-h-none sm:h-full border-b sm:border-b-0 sm:border-r border-outline-variant/60 p-space-4 space-y-space-2">
+              <p className={SECTION_LABEL}>Global</p>
+              <button
+                type="button"
+                onClick={() => setSelectedId("routing")}
+                aria-pressed={selectedId === "routing"}
+                className={`w-full text-left rounded-lg p-space-3 border transition-all cursor-pointer ${
+                  selectedId === "routing"
+                    ? "bg-surface-container-high border-primary-container/60 ring-1 ring-primary-container/30"
+                    : "bg-surface-container border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container-high/60"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-space-2 min-w-0">
+                    <Layers size={16} className="text-on-surface" />
+                    <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">
+                      Provider Routing
+                    </span>
+                  </span>
+                </div>
+              </button>
+              <div className="pt-space-2">
+                <p className={SECTION_LABEL}>Providers</p>
+              </div>
+            {loading && providers.length === 0 && (
+              <p className="font-code-sm text-code-sm text-outline">Loading providers…</p>
+            )}
+            {providers.map((provider) => {
+              const role = chainRole(provider.id, data);
+              const active = provider.id === selectedId;
+              return (
+                <button
+                  key={provider.id}
+                  type="button"
+                  onClick={() => setSelectedId(provider.id)}
+                  data-testid={`provider-item-${provider.id}`}
+                  aria-pressed={active}
+                  className={`w-full text-left rounded-lg p-space-3 border transition-all cursor-pointer ${
+                    active
+                      ? "bg-surface-container-high border-primary-container/60 ring-1 ring-primary-container/30"
+                      : "bg-surface-container border-outline-variant/40 hover:border-outline-variant hover:bg-surface-container-high/60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-space-2 min-w-0">
+                      <ProviderIcon providerId={provider.id} size={16} className="text-on-surface" />
+                      <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">
+                        {provider.label}
+                      </span>
+                    </span>
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        provider.configured ? "bg-verdict-survived" : "bg-outline"
+                      }`}
+                      aria-label={provider.configured ? "configured" : "not configured"}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <span className="font-code-sm text-code-sm text-outline truncate">
+                      {provider.model || "no model"}
+                    </span>
+                    {role && (
+                      <span className="font-code-sm text-[10px] px-1.5 py-0.5 rounded bg-primary-container/15 text-primary-container font-semibold shrink-0">
+                        {role}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => setShowAddForm((open) => !open)}
+              data-testid="toggle-add-endpoint"
+              className={`${BTN} w-full flex items-center justify-center gap-1`}
+            >
+              <Plus size={14} aria-hidden />
+              Add endpoint
+            </button>
+
+            {showAddForm && (
+              <div className="space-y-space-2 pt-space-2" data-testid="add-endpoint-form">
+                <input
+                  className={INPUT}
+                  placeholder="Name (e.g. vLLM box)"
+                  aria-label="Endpoint name"
+                  value={newEndpoint.name}
+                  onChange={(e) => setNewEndpoint({ ...newEndpoint, name: e.target.value })}
+                />
+                <input
+                  className={INPUT}
+                  placeholder="https://host/v1"
+                  aria-label="Endpoint base URL"
+                  value={newEndpoint.base_url}
+                  onChange={(e) => setNewEndpoint({ ...newEndpoint, base_url: e.target.value })}
+                />
+                <input
+                  className={INPUT}
+                  placeholder="Model id"
+                  aria-label="Endpoint model"
+                  value={newEndpoint.model}
+                  onChange={(e) => setNewEndpoint({ ...newEndpoint, model: e.target.value })}
+                />
+                <input
+                  className={INPUT}
+                  type="password"
+                  placeholder="API key (optional)"
+                  aria-label="Endpoint API key"
+                  value={newEndpoint.api_key}
+                  onChange={(e) => setNewEndpoint({ ...newEndpoint, api_key: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className={`${BTN_PRIMARY} w-full`}
+                  disabled={
+                    busy ||
+                    !newEndpoint.name.trim() ||
+                    !newEndpoint.base_url.trim() ||
+                    !newEndpoint.model.trim()
+                  }
+                  onClick={async () => {
+                    const ok = await run(
+                      () =>
+                        createCustomProvider({
+                          name: newEndpoint.name.trim(),
+                          base_url: newEndpoint.base_url.trim(),
+                          model: newEndpoint.model.trim(),
+                          api_key: newEndpoint.api_key.trim() || null,
+                        }),
+                      `Endpoint ${newEndpoint.name.trim()} registered`
+                    );
+                    if (ok) {
+                      setNewEndpoint({ name: "", base_url: "", model: "", api_key: "" });
+                      setShowAddForm(false);
+                    }
+                  }}
+                  data-testid="create-endpoint-button"
+                >
+                  Register endpoint
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Detail pane */}
+          <div className="flex-1 min-w-0 overflow-y-auto sm:h-full p-space-6 space-y-space-6 scrollbar-visible">
+            {!selected && !loading && (
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                No providers available.
+              </p>
+            )}
+
+            {selectedId === "routing" && (
+                <div className="space-y-space-6 max-w-2xl mx-auto">
+                  <div className="space-y-space-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Global Provider Routing</h3>
+                    </div>
+                    <div className={`${CARD} space-y-space-3`}>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">
+                        The primary provider runs first. Enabled providers below it are the fallback order - if one fails, the next is tried.
+                      </p>
+                      <div className="space-y-space-2">
+                        {(() => {
+                          if (!data) return null;
+                          const active = data.active;
+                          const rawChain = data.fallback_chain || [];
+                          const chain = Array.from(new Set(rawChain.filter((cid) => cid && cid !== active)));
+                          const others = (data.providers || [])
+                            .filter((p) => p.id !== active && !chain.includes(p.id))
+                            .map((p) => p.id);
+                          const seen = new Set<string>();
+                          const routingRows: string[] = [];
+                          for (const id of [active, ...chain, ...others]) {
+                            if (id && !seen.has(id)) {
+                              seen.add(id);
+                              routingRows.push(id);
+                            }
+                          }
+                          
+                          return routingRows.map((id) => {
+                            const isPrimary = id === active;
+                            const order = chain.indexOf(id);
+                            const enabled = isPrimary || order >= 0;
+                            const providerData = data.providers.find(p => p.id === id);
+                            if (!providerData) return null;
+                            
+                            return (
+                              <div
+                                key={id}
+                                className={`flex items-center gap-space-3 rounded border px-space-3 py-2 transition-colors ${
+                                  isPrimary
+                                    ? "bg-primary-container/15 border-primary-container/60"
+                                    : "bg-surface-container-low border-outline-variant/50"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={enabled}
+                                  disabled={busy || isPrimary}
+                                  aria-label={`Enable ${id}`}
+                                  onChange={() => {
+                                    if (enabled) {
+                                      removeFromChain(id);
+                                    } else {
+                                      addToChain(id);
+                                    }
+                                  }}
+                                  className="accent-primary-container cursor-pointer disabled:cursor-not-allowed"
+                                />
+                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                  <ProviderIcon providerId={id} size={16} className={isPrimary ? "text-primary-container" : enabled ? "text-on-surface" : "text-outline"} />
+                                  <span className={`font-code-sm text-code-sm truncate ${isPrimary ? "text-primary-container font-semibold" : enabled ? "text-on-surface" : "text-outline"}`}>
+                                    {providerData.label}
+                                  </span>
+                                </div>
+                                <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline shrink-0">
+                                  {isPrimary ? "PRIMARY" : enabled ? `FB ${order + 1}` : "OFF"}
+                                </span>
+                                <div className="flex flex-col gap-0.5 shrink-0 ml-1">
+                                  <button
+                                    type="button"
+                                    aria-label={`Move ${id} up`}
+                                    disabled={busy || !enabled || isPrimary}
+                                    onClick={() => {
+                                      if (order === 0) {
+                                        void run(async () => {
+                                          await setActiveProvider(id, {});
+                                          const newChain = chain.filter((x) => x !== id);
+                                          newChain.unshift(active);
+                                          await setFallbackChain(newChain);
+                                        }, `${providerData.label} is now the active provider`);
+                                      } else {
+                                        moveInChain(order, -1);
+                                      }
+                                    }}
+                                    className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                                  >
+                                    <ArrowUp size={14} aria-hidden />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Move ${id} down`}
+                                    disabled={busy || !enabled || order === chain.length - 1}
+                                    onClick={() => {
+                                      if (isPrimary && chain.length > 0) {
+                                        const newActive = chain[0];
+                                        void run(async () => {
+                                          await setActiveProvider(newActive, {});
+                                          const newChain = chain.filter((x) => x !== newActive);
+                                          newChain.unshift(active);
+                                          await setFallbackChain(newChain);
+                                        }, `${newActive} is now the active provider`);
+                                      } else {
+                                        moveInChain(order, 1);
+                                      }
+                                    }}
+                                    className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                                  >
+                                    <ArrowDown size={14} aria-hidden />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                  {chainResults && (
+                    <div className={`${CARD} space-y-space-2`} data-testid="chain-results">
+                      <p className="font-code-sm text-code-sm font-semibold">Chain Test Results</p>
+                      {chainResults.map((result, i) => (
+                        <p key={i} className="font-code-sm text-code-sm text-outline">
+                          {result.ok ? "OK" : "FAILED"} - {result.provider} ({result.model}) {result.detail}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selected && (
+              <>
+                {/* Identity + primary actions */}
+                <div className="space-y-space-3">
+                  <div className="flex items-start justify-between gap-space-3">
+                    <div className="min-w-0 flex items-start gap-space-3">
+                      <span className="p-2 rounded-lg bg-surface-container-high border border-outline-variant/40 shrink-0">
+                        <ProviderIcon providerId={selected.id} size={20} className="text-on-surface" />
+                      </span>
+                      <div className="min-w-0">
+                      <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                        {selected.label}
+                      </h3>
+                      <p className="font-code-sm text-code-sm text-outline truncate">{selected.id}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-space-2 shrink-0">
+                      {isActive ? (
+                        <span className="flex items-center gap-1 font-code-sm text-code-sm text-verdict-survived font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-verdict-survived" />
+                          ACTIVE
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={BTN_PRIMARY}
+                          disabled={busy}
+                          data-testid="set-active-button"
+                          onClick={() =>
+                            void run(
+                              () => setActiveProvider(selected.id, { model: modelDraft || null }),
+                              `${selected.label} is now the active provider`
+                            )
+                          }
+                        >
+                          Set active
+                        </button>
+                      )}
+                      {selected.removable && (
+                        <button
+                          type="button"
+                          className={BTN_DANGER}
+                          disabled={busy}
+                          data-testid="delete-endpoint-button"
+                          onClick={() =>
+                            void run(
+                              () => deleteProvider(selected.id),
+                              `${selected.label} deleted`
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {selected.notes && (
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      {selected.notes}
+                    </p>
+                  )}
+                  {locked && (
+                    <p
+                      className="font-body-sm text-body-sm text-on-surface-variant border border-outline-variant/60 rounded px-space-3 py-2"
+                      data-testid="locked-notice"
+                    >
+                      {selected.id === locked ? (
+                        <>
+                          <span className="text-primary-container font-semibold">PINNED</span> -
+                          every run goes through this provider. Its enabled models below are the
+                          whole fallback order.
+                        </>
+                      ) : (
+                        <>
+                          Runs are pinned to <span className="text-on-surface">{locked}</span> for
+                          now. Keys and models saved here are kept, but not used yet.
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                {/* Models */}
+                <div className="space-y-space-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className={SECTION_LABEL}>Models</h4>
+                    {selected.id === "ollama" && (
+                      <button
+                        type="button"
+                        className={BTN}
+                        disabled={busy}
+                        data-testid="discover-models-button"
+                        onClick={async () => {
+                          try {
+                            setDiscovered(await listOllamaModels());
+                          } catch (err) {
+                            setError(
+                              err instanceof Error ? err.message : "Ollama host not reachable"
+                            );
+                          }
+                        }}
+                      >
+                        Discover installed
+                      </button>
+                    )}
+                  </div>
+
+                  <div className={`${CARD} space-y-space-3`}>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      The primary model runs first. Enabled models below it are the fallback
+                      order - a rate-limited or failing model retries on the next one.
+                    </p>
+
+                    <div className="space-y-space-2">
+                      {modelRows.map((model) => {
+                        const isPrimary = model === selected.model;
+                        const order = enabledModels.indexOf(model);
+                        const enabled = order >= 0;
+                        return (
+                          <div
+                            key={model}
+                            data-testid={`model-row-${model}`}
+                            className={`flex items-center gap-space-3 rounded border px-space-3 py-2 transition-colors ${
+                              isPrimary
+                                ? "bg-primary-container/15 border-primary-container/60"
+                                : "bg-surface-container-low border-outline-variant/50"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              disabled={busy || isPrimary}
+                              aria-label={`Enable ${model}`}
+                              onChange={() => toggleModel(model, enabled)}
+                              className="accent-primary-container cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            <button
+                              type="button"
+                              data-testid={`model-chip-${model}`}
+                              disabled={busy || isPrimary}
+                              onClick={() => {
+                                setModelDraft(model);
+                                void run(
+                                  () => setProviderConfig(selected.id, { model }),
+                                  `Model set to ${model}`
+                                );
+                              }}
+                              className={`flex-1 min-w-0 text-left font-code-sm text-code-sm truncate cursor-pointer disabled:cursor-default ${
+                                isPrimary
+                                  ? "text-primary-container font-semibold"
+                                  : enabled
+                                    ? "text-on-surface hover:text-primary-container"
+                                    : "text-outline hover:text-on-surface-variant"
+                              }`}
+                            >
+                              {model}
+                            </button>
+                            <span className="font-label-mono text-label-mono uppercase tracking-wider text-outline shrink-0">
+                              {isPrimary ? "PRIMARY" : enabled ? `FB ${order}` : "OFF"}
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                aria-label={`Move ${model} up`}
+                                disabled={busy || order < 2}
+                                onClick={() => moveModel(order, -1)}
+                                className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                              >
+                                <ArrowUp size={14} aria-hidden />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Move ${model} down`}
+                                disabled={busy || !enabled || isPrimary || order === enabledModels.length - 1}
+                                onClick={() => moveModel(order, 1)}
+                                className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high disabled:opacity-30 cursor-pointer"
+                              >
+                                <ArrowDown size={14} aria-hidden />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {modelRows.length === 0 && (
+                        <span className="font-code-sm text-code-sm text-outline">
+                          No catalog models - type one below.
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-space-2">
+                      <input
+                        className={INPUT}
+                        aria-label="Model id"
+                        placeholder="custom model id"
+                        value={modelDraft}
+                        onChange={(e) => setModelDraft(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className={BTN}
+                        disabled={busy || !modelDraft.trim()}
+                        data-testid="save-model-button"
+                        onClick={() =>
+                          void run(
+                            () => setProviderConfig(selected.id, { model: modelDraft.trim() }),
+                            `Model set to ${modelDraft.trim()}`
+                          )
+                        }
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Endpoint config */}
+                <div className="space-y-space-3">
+                  <h4 className={SECTION_LABEL}>Endpoint &amp; Pacing</h4>
+                  <div className={`${CARD} space-y-space-3`}>
+                    <label className="block space-y-space-1">
+                      <span className="font-code-sm text-code-sm text-on-surface-variant">
+                        Base URL
+                      </span>
+                      <input
+                        className={INPUT}
+                        aria-label="Base URL"
+                        disabled={!selected.editable_base_url}
+                        value={baseUrlDraft}
+                        onChange={(e) => setBaseUrlDraft(e.target.value)}
+                      />
+                    </label>
+                    <label className="block space-y-space-1">
+                      <span className="font-code-sm text-code-sm text-on-surface-variant">
+                        Requests per minute, per key (0 = unpaced)
+                      </span>
+                      <input
+                        className={INPUT}
+                        aria-label="Requests per minute"
+                        type="number"
+                        min={0}
+                        value={rpmDraft}
+                        onChange={(e) => setRpmDraft(e.target.value)}
+                      />
+                    </label>
+                    <div className="flex items-center gap-space-2">
+                      <button
+                        type="button"
+                        className={BTN_PRIMARY}
+                        disabled={busy}
+                        data-testid="save-config-button"
+                        onClick={() =>
+                          void run(
+                            () =>
+                              setProviderConfig(selected.id, {
+                                base_url: selected.editable_base_url ? baseUrlDraft.trim() : null,
+                                rpm: Number(rpmDraft) || 0,
+                              }),
+                            "Endpoint settings saved"
+                          )
+                        }
+                      >
+                        Save settings
+                      </button>
+                      <button
+                        type="button"
+                        className={BTN}
+                        disabled={busy}
+                        data-testid="ping-provider-button"
+                        onClick={() =>
+                          void run(async () => {
+                            setPingResult(
+                              await testProvider(selected.id, { model: modelDraft || null })
+                            );
+                          }, "Connection tested")
+                        }
+                      >
+                        Test connection
+                      </button>
+                    </div>
+                    {pingResult && (
+                      <p
+                        data-testid="ping-result"
+                        className={`font-code-sm text-code-sm ${
+                          pingResult.ok ? "text-verdict-survived" : "text-error"
+                        }`}
+                      >
+                        {pingResult.ok ? "OK" : "FAILED"} - {pingResult.detail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Keys */}
+                <div className="space-y-space-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className={SECTION_LABEL}>API Keys</h4>
+                    <span className="font-code-sm text-code-sm text-outline">
+                      {keys.length} stored{selected.requires_key ? "" : " (optional)"}
+                    </span>
+                  </div>
+
+                  <div className={`${CARD} space-y-space-3`}>
+                    {keys.length === 0 && (
+                      <p className="font-code-sm text-code-sm text-outline">
+                        No keys stored for this provider.
+                      </p>
+                    )}
+                    {keys.map((key) => (
+                      <div
+                        key={key.id}
+                        data-testid={`key-row-${key.id}`}
+                        className="flex items-center justify-between gap-space-3 border-b border-outline-variant/30 pb-space-2 last:border-b-0 last:pb-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-code-sm text-code-sm text-on-surface truncate">
+                            {key.hint}
+                          </p>
+                          {key.label && (
+                            <p className="font-code-sm text-code-sm text-outline truncate">
+                              {key.label}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-space-2 shrink-0">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={key.enabled}
+                            aria-label={`Toggle key ${key.hint}`}
+                            disabled={busy}
+                            onClick={() =>
+                              void run(
+                                () => setKeyEnabled(key.id, !key.enabled),
+                                key.enabled ? "Key disabled" : "Key enabled"
+                              )
+                            }
+                            className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer focus:outline-none shrink-0 ${
+                              key.enabled ? "bg-primary-container" : "bg-surface-container-highest"
+                            }`}
+                          >
+                            <span
+                              className={`block w-4 h-4 rounded-full bg-on-primary-container transition-transform absolute top-1 left-1 ${
+                                key.enabled ? "translate-x-5" : ""
+                              }`}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            className={BTN_DANGER}
+                            disabled={busy}
+                            aria-label={`Delete key ${key.hint}`}
+                            onClick={() =>
+                              void run(() => deleteProviderKey(key.id), "Key deleted")
+                            }
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-space-2 pt-space-1">
+                      <input
+                        className={INPUT}
+                        type="password"
+                        aria-label="New API key"
+                        placeholder="Paste API key"
+                        value={keyDraft}
+                        onChange={(e) => setKeyDraft(e.target.value)}
+                      />
+                      <input
+                        className={`${INPUT} sm:w-40`}
+                        aria-label="Key label"
+                        placeholder="Label"
+                        value={keyLabelDraft}
+                        onChange={(e) => setKeyLabelDraft(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className={BTN_PRIMARY}
+                        disabled={busy || !keyDraft.trim()}
+                        data-testid="add-key-button"
+                        onClick={async () => {
+                          const ok = await run(
+                            () => addProviderKey(selected.id, keyDraft.trim(), keyLabelDraft.trim()),
+                            "Key added"
+                          );
+                          if (ok) {
+                            setKeyDraft("");
+                            setKeyLabelDraft("");
+                          }
+                        }}
+                      >
+                        Add key
+                      </button>
+                    </div>
+                    <p className="font-code-sm text-code-sm text-outline">
+                      Multiple keys are rotated across, so free-tier limits multiply.
+                    </p>
+                  </div>
+                </div>
+
+                
+              </>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};

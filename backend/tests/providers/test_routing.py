@@ -158,3 +158,46 @@ async def test_structured_schema_is_passed_through_unchanged():
 def test_routing_provider_requires_at_least_one_target():
     with pytest.raises(ValueError):
         RoutingProvider([])
+
+
+@pytest.mark.asyncio
+async def test_unknown_model_falls_through_to_the_next_model():
+    # 404 "model not found" on the primary must not kill the run when another
+    # enabled model is configured behind it.
+    calls: list[int] = []
+    primary = scripted_target("openai", 1, {0: http_error(404)}, calls)
+    backup = scripted_target("openai", 1, {10: "ok"}, calls, offset=10)
+
+    assert await RoutingProvider([primary, backup]).generate("sys", []) == "ok"
+    assert calls == [0, 10]
+
+
+@pytest.mark.asyncio
+async def test_unreachable_keyless_host_skips_its_other_models():
+    from providers.openai_compat import LLMConnectionError
+
+    tried: list[str] = []
+
+    class Down:
+        def __init__(self, model):
+            self.model = model
+
+        async def generate(self, system_prompt, messages, response_schema=None):
+            tried.append(self.model)
+            raise LLMConnectionError("refused")
+
+    class Up:
+        async def generate(self, system_prompt, messages, response_schema=None):
+            tried.append("backup")
+            return "ok"
+
+    targets = []
+    for model in ("a", "b", "c"):
+        t = Target(provider="ollama", wire="openai_compat", model=model, base_url="http://x/v1")
+        t._adapters[0] = Down(model)
+        targets.append(t)
+    backup = Target(provider="custom:gw", wire="openai_compat", model="z", base_url="http://y/v1")
+    backup._adapters[0] = Up()
+
+    assert await RoutingProvider([*targets, backup]).generate("sys", []) == "ok"
+    assert tried == ["a", "backup"]

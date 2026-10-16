@@ -370,6 +370,8 @@ export interface HealthStatus {
   provider: string;
   model: string;
   llm_base_url?: string;
+  /** Display name, e.g. "Google Gemini" or a custom endpoint's name. */
+  provider_label?: string;
   backend_port?: number;
 }
 

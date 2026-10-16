@@ -13,7 +13,12 @@ const TestWrapper: React.FC = () => {
         onClick={() =>
           dispatch({
             type: "SET_ENGINE_INFO",
-            payload: { status: "ok", provider: "openai_compat", model: "gemini-3.7-flash" },
+            payload: {
+              status: "ok",
+              provider: "openai_compat",
+              model: "gemini-3.7-flash",
+              llm_base_url: "http://localhost:8081/v1",
+            },
           })
         }
       >

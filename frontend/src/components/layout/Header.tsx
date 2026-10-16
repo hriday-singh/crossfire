@@ -1,6 +1,7 @@
 import React from "react";
 import { useCase } from "@/context/CaseContext";
 import { formatModelName, formatProviderName } from "@/lib/models";
+import { ProviderIcon } from "@/components/ui/providerIcons";
 
 export const Header: React.FC = () => {
   const { state, resetCase, navigateScreen, selectClaim, setActiveModal, enterPreview, exitPreview } = useCase();
@@ -62,7 +63,8 @@ export const Header: React.FC = () => {
             type="button"
             onClick={() => setActiveModal("settings")}
             className="flex items-center gap-2 h-8 px-2.5 border border-outline-variant hover:border-primary-container/60 rounded-md select-none font-code-sm text-xs bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer max-w-[210px]"
-            title={`Active Engine: ${formatModelName(state.engineInfo?.model)} (${formatProviderName(state.engineInfo?.provider)}) · Click to open Settings`}
+            title={`Active Engine: ${formatModelName(state.engineInfo?.model)} (${formatProviderName(state.engineInfo?.provider, state.engineInfo?.provider_label)}) · Click to open Settings`}
+            data-testid="engine-badge"
           >
             <span
               className={`inline-block w-2 h-2 rounded-full shrink-0 ${
@@ -70,6 +72,13 @@ export const Header: React.FC = () => {
               }`}
             />
             <span className="text-on-surface font-medium truncate flex items-center gap-1.5">
+              {state.engineInfo?.provider && (
+                <ProviderIcon
+                  providerId={state.engineInfo.provider}
+                  size={12}
+                  className="text-on-surface-variant shrink-0"
+                />
+              )}
               <span className="truncate">
                 {formatModelName(state.engineInfo?.model)}
               </span>

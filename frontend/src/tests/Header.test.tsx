@@ -116,4 +116,35 @@ describe("Header", () => {
     expect(screen.getByTestId("new-case-btn")).toHaveAccessibleName(/start a new case/i);
   });
 
+
+  it("shows the active engine's model and says so when none is set", () => {
+    const SetEngine: React.FC<{ model: string }> = ({ model }) => {
+      const { state, dispatch } = useCase();
+      if (state.engineInfo?.model !== model)
+        dispatch({
+          type: "SET_ENGINE_INFO",
+          payload: { status: "ok", provider: "custom:box", provider_label: "box", model },
+        });
+      return null;
+    };
+    const { rerender } = render(
+      <CaseProvider>
+        <SetEngine model="qwen2.5-72b" />
+        <Header />
+      </CaseProvider>
+    );
+
+    const badge = screen.getByTestId("engine-badge");
+    expect(badge).toHaveTextContent("qwen2.5-72b");
+    expect(badge).toHaveAttribute("title", expect.stringContaining("(box)"));
+    expect(screen.getByLabelText("Custom endpoint")).toBeInTheDocument();
+
+    rerender(
+      <CaseProvider>
+        <SetEngine model="" />
+        <Header />
+      </CaseProvider>
+    );
+    expect(screen.getByTestId("engine-badge")).toHaveTextContent("No model set");
+  });
 });

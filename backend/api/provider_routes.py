@@ -13,15 +13,23 @@ front of these routes first.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
+from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 import providers
 from providers import keyring
-from providers.catalog import LOCKED_PROVIDER, OLLAMA, custom_id, get_spec, is_custom
+from providers.catalog import LOCKED_PROVIDER, custom_id, get_spec, is_custom
+from providers.discovery import DiscoveryError, discover_models
+
+ModelId = Annotated[str, Field(min_length=1, max_length=200)]
+
+#: Live pings run at once by "Test chain" — every enabled model is one link.
+_TEST_CONCURRENCY = 8
 
 logger = logging.getLogger(__name__)
 
@@ -85,11 +93,23 @@ class ActiveProviderRequest(ProviderConfigRequest):
 
 
 class EnabledModelsRequest(BaseModel):
-    models: list[str] = Field(
+    models: list[ModelId] = Field(
         default_factory=list,
-        max_length=50,
+        max_length=keyring.MAX_MODELS,
         description="Models the provider may run, in fallback order. The primary model is always kept.",
     )
+
+
+class AddModelsRequest(BaseModel):
+    models: list[ModelId] = Field(..., min_length=1, max_length=keyring.MAX_MODELS)
+    #: join the fallback order right away (the default) or just be listed
+    enabled: bool = True
+
+
+class DiscoverModelsResponse(BaseModel):
+    provider: str
+    #: every model the endpoint reported, in its order — not saved yet
+    models: list[str]
 
 
 class FallbackChainRequest(BaseModel):
@@ -101,11 +121,12 @@ class FallbackChainRequest(BaseModel):
 
 
 class CreateCustomRequest(BaseModel):
-    """One user-added OpenAI-compatible endpoint. The key is optional."""
+    """One user-added OpenAI-compatible endpoint. Key and model are optional:
+    with no model, the UI fetches the endpoint's list right after creating it."""
 
     name: str = Field(..., min_length=1, max_length=64)
     base_url: str = Field(..., min_length=1, max_length=500)
-    model: str = Field(..., min_length=1, max_length=200)
+    model: str = Field(default="", max_length=200)
     api_key: str | None = Field(default=None, max_length=500)
     rpm: int = Field(default=0, ge=0, le=10000)
 
@@ -135,11 +156,13 @@ def _provider_out(provider_id: str) -> ProviderOut:
         editable_base_url=spec.editable_base_url,
         base_url=config.base_url,
         model=config.model,
-        models=list(spec.models),
+        models=keyring.get_models(provider_id),
         enabled_models=keyring.get_enabled_models(provider_id),
         rpm=config.rpm,
         key_count=key_count,
-        configured=bool(config.base_url) and (key_count > 0 or not spec.requires_key),
+        configured=bool(config.base_url)
+        and bool(config.model)
+        and (key_count > 0 or not spec.requires_key),
         notes=spec.notes,
         removable=is_custom(spec.id),
     )
@@ -177,24 +200,6 @@ def pool_status() -> dict:
             for target in provider.targets
         ]
     }
-
-
-@router.get("/ollama/models")
-async def ollama_models() -> dict:
-    """Models actually pulled on the configured Ollama host."""
-    config = keyring.get_config(OLLAMA)
-    host = config.base_url.rstrip("/").removesuffix("/v1")
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{host}/api/tags")
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Ollama not reachable at {host}: {exc}",
-        ) from exc
-    return {"models": [m.get("name", "") for m in data.get("models", []) if m.get("name")]}
 
 
 # -------------------------------------------------------------------- writes
@@ -244,7 +249,7 @@ def create_custom_provider(payload: CreateCustomRequest) -> ProviderOut:
         )
     keyring.set_config(
         provider_id,
-        model=payload.model,
+        model=payload.model.strip(),
         base_url=payload.base_url.strip(),
         rpm=payload.rpm,
     )
@@ -276,6 +281,51 @@ def set_enabled_models(provider_id: str, payload: EnabledModelsRequest) -> Provi
     """
     _require_known(provider_id)
     keyring.set_enabled_models(provider_id, payload.models)
+    providers.invalidate_cache()
+    return _provider_out(provider_id)
+
+
+@router.post("/{provider_id}/models/discover", response_model=DiscoverModelsResponse)
+async def discover_provider_models(provider_id: str) -> DiscoverModelsResponse:
+    """Ask the endpoint for its model list (`/models`, `/v1/models`, `/api/tags`).
+
+    Read-only: the UI shows the result for the user to confirm, then saves the
+    picked ones with POST /{provider_id}/models.
+    """
+    _require_known(provider_id)
+    spec = get_spec(provider_id)
+    config = keyring.get_config(provider_id)
+    try:
+        found = await discover_models(
+            config.base_url, wire=spec.wire, api_key=providers.default_key(provider_id)
+        )
+    except DiscoveryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Couldn't list models from {config.base_url or 'this provider'}: {exc}",
+        ) from exc
+    return DiscoverModelsResponse(provider=provider_id, models=found)
+
+
+@router.post("/{provider_id}/models", response_model=ProviderOut)
+def add_models(provider_id: str, payload: AddModelsRequest) -> ProviderOut:
+    """Save models to this provider's list. A provider with no primary takes the first."""
+    _require_known(provider_id)
+    keyring.add_models(provider_id, payload.models, enabled=payload.enabled)
+    providers.invalidate_cache()
+    return _provider_out(provider_id)
+
+
+@router.delete("/{provider_id}/models", response_model=ProviderOut)
+def remove_model(
+    provider_id: str, model: str = Query(..., min_length=1, max_length=200)
+) -> ProviderOut:
+    """Forget one model. Ids can contain '/', hence a query parameter, not a path."""
+    _require_known(provider_id)
+    try:
+        keyring.remove_model(provider_id, model)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     providers.invalidate_cache()
     return _provider_out(provider_id)
 
@@ -370,10 +420,16 @@ async def test_chain() -> list[TestProviderResponse]:
     model — so a model the proxy will not serve shows up here rather than three
     hours into a panel run.
     """
-    return [
-        await _ping(target.provider, model=target.model, base_url=target.base_url)
-        for target in providers.get_routing_provider().targets
-    ]
+    gate = asyncio.Semaphore(_TEST_CONCURRENCY)
+
+    async def ping(target: providers.Target) -> TestProviderResponse:
+        async with gate:
+            return await _ping(target.provider, model=target.model, base_url=target.base_url)
+
+    # gather keeps chain order, so row i is still link i
+    return list(
+        await asyncio.gather(*(ping(t) for t in providers.get_routing_provider().targets))
+    )
 
 
 @router.post("/{provider_id}/test", response_model=TestProviderResponse)

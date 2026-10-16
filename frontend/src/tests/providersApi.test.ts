@@ -4,7 +4,9 @@ import {
   createCustomProvider,
   deleteProvider,
   deleteProviderKey,
-  listOllamaModels,
+  addModels,
+  discoverModels,
+  removeModel,
   listProviderKeys,
   listProviders,
   setActiveProvider,
@@ -140,12 +142,34 @@ describe("providersApi", () => {
     expect(results[0].ok).toBe(false);
   });
 
-  it("unwraps the ollama model list and tolerates an empty response", async () => {
-    vi.stubGlobal("fetch", okJson({ models: ["llama3.1", "qwen2.5"] }));
-    await expect(listOllamaModels()).resolves.toEqual(["llama3.1", "qwen2.5"]);
+  it("discovers models for any provider and tolerates an empty response", async () => {
+    vi.stubGlobal("fetch", okJson({ provider: "custom:box", models: ["llama3.1", "qwen2.5"] }));
+    await expect(discoverModels("custom:box")).resolves.toEqual(["llama3.1", "qwen2.5"]);
+    const [url, init] = lastCall();
+    expect(url).toBe("/providers/custom%3Abox/models/discover");
+    expect(init.method).toBe("POST");
 
     vi.stubGlobal("fetch", okJson({}));
-    await expect(listOllamaModels()).resolves.toEqual([]);
+    await expect(discoverModels("ollama")).resolves.toEqual([]);
+  });
+
+  it("adds models, enabled by default, with a POST to /providers/:id/models", async () => {
+    vi.stubGlobal("fetch", okJson({ id: "custom:box" }));
+
+    await addModels("custom:box", ["a", "b"]);
+    const [url, init] = lastCall();
+    expect(url).toBe("/providers/custom%3Abox/models");
+    expect(init.method).toBe("POST");
+    expect(bodyOf(init)).toEqual({ models: ["a", "b"], enabled: true });
+  });
+
+  it("removes a model whose id contains a slash via a query parameter", async () => {
+    vi.stubGlobal("fetch", okJson({ id: "custom:router" }));
+
+    await removeModel("custom:router", "openai/gpt-4o");
+    const [url, init] = lastCall();
+    expect(url).toBe("/providers/custom%3Arouter/models?model=openai%2Fgpt-4o");
+    expect(init.method).toBe("DELETE");
   });
 
   it("raises CrossfireApiError carrying the backend detail", async () => {

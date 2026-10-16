@@ -12,6 +12,7 @@ free. Schema mirrors migrations/003_create_provider_credentials.sql.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 import stat
@@ -20,13 +21,20 @@ from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
-from providers.catalog import CATALOG, CUSTOM_PREFIX, DEFAULT_PROVIDER, get_spec, is_custom
+from providers.catalog import CATALOG, CUSTOM, CUSTOM_PREFIX, DEFAULT_PROVIDER, get_spec, is_custom
 
 _ACTIVE_PROVIDER = "active_provider"
 _FALLBACK_CHAIN = "fallback_chain"
 _ENABLED_MODELS = "enabled_models"  # one row per provider: "enabled_models:<id>"
+_MODELS = "models"  # one row per provider: "models:<id>" — the saved model list
+
+#: Upper bound on a provider's saved model list. OpenRouter-sized gateways list
+#: a few hundred; this only stops a runaway response from bloating the store.
+MAX_MODELS = 1000
+
+logger = logging.getLogger(__name__)
 
 _lock = threading.Lock()
 _initialized: set[str] = set()
@@ -58,13 +66,18 @@ def _db_path() -> Path:
     return Path(os.getenv("SQLITE_DB_PATH", Path(__file__).parent.parent / "crossfire.db"))
 
 
-def _master_key() -> bytes:
-    """CROSSFIRE_SECRET_KEY if set, else a generated per-install key file.
+def _master_keys() -> list[bytes]:
+    """Every master key that may have encrypted a stored credential, newest first.
 
-    The file lives beside the database and is chmod 0600. On Windows the mode is
-    advisory, which is acceptable here: this protects a local credential store,
-    it is not a shared secret manager.
+    CROSSFIRE_SECRET_KEY if set, then the generated per-install key file beside
+    the database. Both are tried on decrypt, so setting CROSSFIRE_SECRET_KEY on
+    an install that already stored keys under the file key does not silently
+    orphan them. New keys are encrypted with the first.
+
+    The file is chmod 0600. On Windows the mode is advisory, which is acceptable
+    here: this protects a local credential store, it is not a secret manager.
     """
+    keys: list[bytes] = []
     env_key = os.getenv("CROSSFIRE_SECRET_KEY", "").strip()
     if env_key:
         try:
@@ -74,20 +87,23 @@ def _master_key() -> bytes:
                 "CROSSFIRE_SECRET_KEY is not a valid Fernet key. Generate one with "
                 "providers.keyring.generate_master_key()."
             ) from exc
-        return env_key.encode()
+        keys.append(env_key.encode())
 
     key_file = _db_path().parent / ".crossfire_key"
     if key_file.exists():
-        return key_file.read_bytes().strip()
-
-    key = Fernet.generate_key()
-    key_file.parent.mkdir(parents=True, exist_ok=True)
-    key_file.write_bytes(key)
-    try:
-        key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-    except OSError:  # ponytail: best-effort, file mode is advisory on Windows
-        pass
-    return key
+        file_key = key_file.read_bytes().strip()
+        if file_key not in keys:
+            keys.append(file_key)
+    elif not keys:
+        file_key = Fernet.generate_key()
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        key_file.write_bytes(file_key)
+        try:
+            key_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        except OSError:  # ponytail: best-effort, file mode is advisory on Windows
+            pass
+        keys.append(file_key)
+    return keys
 
 
 def generate_master_key() -> str:
@@ -95,8 +111,8 @@ def generate_master_key() -> str:
     return Fernet.generate_key().decode()
 
 
-def _fernet() -> Fernet:
-    return Fernet(_master_key())
+def _fernet() -> MultiFernet:
+    return MultiFernet([Fernet(key) for key in _master_keys()])
 
 
 def _connect() -> sqlite3.Connection:
@@ -181,8 +197,21 @@ def list_custom_providers() -> list[str]:
 
 
 def known_providers() -> list[str]:
-    """Every provider the UI can select: the catalog plus custom endpoints."""
-    return list(CATALOG) + list_custom_providers()
+    """Every provider the UI can select: the catalog plus custom endpoints.
+
+    The bare `custom` catalog entry is only a template for user-added endpoints
+    and stays hidden — unless an older install already saved a base URL on it,
+    in which case it is kept so that setup is not lost.
+    """
+    with closing(_connect()) as conn, conn:
+        rows = conn.execute(
+            "SELECT provider, base_url FROM provider_config "
+            "WHERE provider = ? OR provider LIKE ? ORDER BY rowid",
+            (CUSTOM, CUSTOM_PREFIX + "%"),
+        ).fetchall()
+    template_in_use = any(r["provider"] == CUSTOM and r["base_url"].strip() for r in rows)
+    builtins = [p for p in CATALOG if p != CUSTOM or template_in_use]
+    return builtins + [r["provider"] for r in rows if is_custom(r["provider"])]
 
 
 def delete_provider(provider_id: str) -> bool:
@@ -194,6 +223,11 @@ def delete_provider(provider_id: str) -> bool:
             cur = conn.execute("DELETE FROM provider_config WHERE provider = ?", (provider_id,))
             deleted = cur.rowcount > 0
             conn.execute("DELETE FROM provider_keys WHERE provider = ?", (provider_id,))
+            # Re-adding an endpoint under the same name must start clean.
+            conn.execute(
+                "DELETE FROM provider_settings WHERE key IN (?, ?)",
+                (f"{_MODELS}:{provider_id}", f"{_ENABLED_MODELS}:{provider_id}"),
+            )
     if not deleted:
         return False
     _bump()
@@ -289,9 +323,15 @@ def secrets_for(provider: str) -> list[tuple[int, str]]:
         try:
             out.append((row["id"], fernet.decrypt(row["ciphertext"]).decode()))
         except InvalidToken:
-            # Master key was rotated out from under the store. Skip rather than
-            # crash the pipeline; the settings UI still lists the key so the
-            # user can delete and re-add it.
+            # Neither master key opens it (the key file was lost or replaced).
+            # Skip rather than crash the pipeline; the settings UI still lists
+            # the key so the user can delete and re-add it.
+            logger.warning(
+                "Stored %s key #%s cannot be decrypted with the current master key "
+                "(was backend/.crossfire_key or CROSSFIRE_SECRET_KEY changed?) — skipping it",
+                provider,
+                row["id"],
+            )
             continue
     return out
 
@@ -335,6 +375,9 @@ def set_config(
         base_url=new_base,
         rpm=current.rpm if rpm is None else max(0, int(rpm)),
     )
+    primary_changed = bool(merged.model) and merged.model != current.model
+    # Read before the write: get_enabled_models() puts the *current* primary first.
+    enabled_before = get_enabled_models(provider) if primary_changed else []
     with _lock:
         with closing(_connect()) as conn, conn:
             conn.execute(
@@ -347,6 +390,11 @@ def set_config(
                 (provider, merged.model, merged.base_url, merged.rpm),
             )
     _bump()
+    if primary_changed:
+        # Switching primary demotes the old one to fallback #1 instead of
+        # dropping it, and the new one joins the saved list.
+        set_models(provider, [*get_models(provider), merged.model])
+        set_enabled_models(provider, [merged.model, *enabled_before])
     return merged
 
 
@@ -418,14 +466,7 @@ def get_enabled_models(provider: str) -> list[str]:
     spec = get_spec(provider)
     primary = get_config(provider).model
     raw = _get_setting(f"{_ENABLED_MODELS}:{provider}")
-    if raw is None:
-        stored = list(spec.models)
-    else:
-        try:
-            values = json.loads(raw)
-        except json.JSONDecodeError:
-            values = []
-        stored = [v.strip() for v in values if isinstance(v, str) and v.strip()]
+    stored = list(spec.models) if raw is None else _json_list(raw)
     ordered = [primary, *[m for m in stored if m != primary]]
     return [m for m in ordered if m]
 
@@ -433,13 +474,63 @@ def get_enabled_models(provider: str) -> list[str]:
 def set_enabled_models(provider: str, models: list[str]) -> list[str]:
     """Replace the enabled-model list. Order is the fallback order."""
     get_spec(provider)
-    cleaned: list[str] = []
-    for model in models:
-        model = model.strip()
-        if model and model not in cleaned:
-            cleaned.append(model)
-    _set_setting(f"{_ENABLED_MODELS}:{provider}", json.dumps(cleaned))
+    _set_setting(f"{_ENABLED_MODELS}:{provider}", json.dumps(_dedupe(models)))
     return get_enabled_models(provider)
+
+
+def get_models(provider: str) -> list[str]:
+    """Every model saved for this provider, enabled or not.
+
+    Defaults to the catalog list until the user adds, fetches or removes one.
+    Enabled models are always included, so nothing that can run is invisible.
+    """
+    spec = get_spec(provider)
+    raw = _get_setting(f"{_MODELS}:{provider}")
+    listed = list(spec.models) if raw is None else _json_list(raw)
+    return _dedupe([*listed, *get_enabled_models(provider)])
+
+
+def set_models(provider: str, models: list[str]) -> list[str]:
+    get_spec(provider)
+    _set_setting(f"{_MODELS}:{provider}", json.dumps(_dedupe(models)[:MAX_MODELS]))
+    return get_models(provider)
+
+
+def add_models(provider: str, models: list[str], enabled: bool = True) -> list[str]:
+    """Save more models (typed in or fetched from the endpoint).
+
+    With `enabled`, they join the end of the fallback order. A provider that has
+    no primary yet (a fresh custom endpoint) takes the first one as primary.
+    """
+    new = _dedupe(models)
+    set_models(provider, [*get_models(provider), *new])
+    if new and not get_config(provider).model:
+        set_config(provider, model=new[0])
+    if enabled:
+        set_enabled_models(provider, [*get_enabled_models(provider), *new])
+    return get_models(provider)
+
+
+def remove_model(provider: str, model: str) -> list[str]:
+    """Forget a model entirely. The primary cannot be removed — pick another first."""
+    model = model.strip()
+    if model == get_config(provider).model:
+        raise ValueError(f"{model!r} is the primary model — make another model primary first")
+    set_enabled_models(provider, [m for m in get_enabled_models(provider) if m != model])
+    return set_models(provider, [m for m in get_models(provider) if m != model])
+
+
+def _json_list(raw: str) -> list[str]:
+    try:
+        values = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    return _dedupe(v for v in values if isinstance(v, str)) if isinstance(values, list) else []
+
+
+def _dedupe(models) -> list[str]:
+    """Stripped, non-empty, first occurrence wins — order is meaningful."""
+    return list(dict.fromkeys(m.strip() for m in models if m.strip()))
 
 
 def clear() -> None:

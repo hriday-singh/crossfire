@@ -156,3 +156,29 @@ def test_custom_endpoints_are_registered_and_deletable():
 def test_builtin_providers_cannot_be_deleted():
     with pytest.raises(ValueError):
         keyring.delete_provider("openai")
+
+
+def test_keys_survive_setting_crossfire_secret_key_later(monkeypatch):
+    # Stored under the generated file key, then a deploy .env adds an explicit key.
+    monkeypatch.delenv("CROSSFIRE_SECRET_KEY", raising=False)
+    keyring.add_key("gemini", "AIza-before-env-key-0001")
+
+    monkeypatch.setenv("CROSSFIRE_SECRET_KEY", keyring.generate_master_key())
+    keyring.add_key("gemini", "AIza-after-env-key-00002")
+
+    assert [s for _, s in keyring.secrets_for("gemini")] == [
+        "AIza-before-env-key-0001",
+        "AIza-after-env-key-00002",
+    ]
+
+
+def test_model_list_persists_and_defaults_to_the_catalog():
+    from providers.catalog import CATALOG
+
+    assert keyring.get_models("openai") == CATALOG["openai"].models
+    keyring.add_models("ollama", ["phi4"], enabled=False)
+
+    assert "phi4" in keyring.get_models("ollama")
+    assert "phi4" not in keyring.get_enabled_models("ollama")
+    keyring.remove_model("ollama", "phi4")
+    assert "phi4" not in keyring.get_models("ollama")

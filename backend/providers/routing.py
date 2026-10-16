@@ -116,18 +116,34 @@ class RoutingProvider:
         response_schema: type[BaseModel] | None = None,
     ) -> str | BaseModel:
         errors: list[str] = []
+        #: providers whose host refused the connection — their other models
+        #: live on the same host, so skip them for the rest of this call
+        unreachable: set[str] = set()
+        request_errors: list[httpx.HTTPStatusError] = []
 
         for target in self._targets:
+            if target.provider in unreachable:
+                continue
             try:
                 return await self._generate_on(target, system_prompt, messages, response_schema)
             except PoolExhaustedError as exc:
-                errors.append(f"{target.provider}: {exc}")
+                errors.append(f"{target.provider}/{target.model}: {exc}")
                 logger.warning("Provider %s exhausted, falling through: %s", target.provider, exc)
             except _TargetFailed as exc:
-                errors.append(f"{target.provider}: {exc.reason}")
-                logger.warning("Provider %s failed, falling through: %s", target.provider, exc.reason)
+                errors.append(f"{target.provider}/{target.model}: {exc.reason}")
+                logger.warning(
+                    "%s/%s failed, falling through: %s", target.provider, target.model, exc.reason
+                )
                 self._last_cause = exc.cause
+                if isinstance(exc.cause, (LLMConnectionError, httpx.ConnectError)):
+                    unreachable.add(target.provider)
+                if _is_request_error(exc.cause):
+                    request_errors.append(exc.cause)
 
+        if request_errors and len(request_errors) == len(errors):
+            # Every link rejected the request itself (400-class): surface the
+            # HTTP error as-is so callers see the real cause, not "all failed".
+            raise request_errors[-1]
         raise AllProvidersFailedError(
             "no LLM provider could serve the request — " + "; ".join(errors)
         ) from self._last_cause
@@ -154,11 +170,11 @@ class RoutingProvider:
                 target._dead_until = 0.0
                 return result
             except (httpx.HTTPStatusError, LLMTimeoutError, LLMConnectionError) as exc:
-                if isinstance(exc, httpx.HTTPStatusError):
-                    status = exc.response.status_code
-                    if status not in _FATAL_STATUS and status not in _RETRYABLE_STATUS and status != 429:
-                        raise exc
-                
+                if _is_request_error(exc):
+                    # This model rejected the request (unknown model id, bad
+                    # params). Not an endpoint failure — don't bench, but let
+                    # the chain try the next model.
+                    raise _TargetFailed(_describe(exc), exc) from exc
                 target._consecutive_failures += 1
                 if target._consecutive_failures >= 3:
                     target._dead_until = time.time() + 60.0
@@ -190,8 +206,9 @@ class RoutingProvider:
                 elif status in _RETRYABLE_STATUS:
                     await target.pool.report_error(slot, _retry_after(exc))
                 else:
-                    # 400-class request problem: another key will fail the same way.
-                    raise exc
+                    # 400-class request problem: another key would fail the same
+                    # way, but another model (the next target) may not.
+                    raise _TargetFailed(_describe(exc), exc) from exc
             except (LLMTimeoutError, LLMConnectionError, httpx.TimeoutException, httpx.ConnectError) as exc:
                 last = exc
                 await target.pool.report_error(slot)
@@ -213,6 +230,14 @@ class _TargetFailed(Exception):
         super().__init__(reason)
         self.reason = reason
         self.cause = cause
+
+
+def _is_request_error(exc: BaseException | None) -> bool:
+    """A 4xx that is about the request/model, not the key or the host's health."""
+    if not isinstance(exc, httpx.HTTPStatusError) or exc.response is None:
+        return False
+    code = exc.response.status_code
+    return 400 <= code < 500 and code not in _FATAL_STATUS and code not in _RETRYABLE_STATUS
 
 
 def _describe(exc: Exception | None) -> str:

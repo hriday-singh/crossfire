@@ -19,6 +19,7 @@ from api.routes import router
 from config import get_settings
 from providers import LLMFormatError, LLMProviderError
 from providers import keyring
+from providers.catalog import get_spec
 
 logger = logging.getLogger("crossfire")
 
@@ -121,6 +122,7 @@ def health_check():
     return {
         "status": "ok",
         "provider": active,
+        "provider_label": get_spec(active).label,
         "model": config.model,
         "llm_base_url": config.base_url,
         "fallback_chain": keyring.get_fallback_chain(),

@@ -34,8 +34,10 @@ export const GEMINI_WEB_MODELS: SupportedModel[] = [
  * Converts a raw model ID string into a human-readable title.
  */
 export function formatModelName(rawModel?: string | null): string {
-  if (!rawModel) return "Connecting...";
+  // null/undefined = no health answer yet; "" = backend is up but no model is set
+  if (rawModel == null) return "Connecting...";
   const trimmed = rawModel.trim();
+  if (!trimmed) return "No model set";
   const matched = GEMINI_WEB_MODELS.find((m) => m.id.toLowerCase() === trimmed.toLowerCase());
   if (matched) return matched.name;
 
@@ -53,7 +55,8 @@ export function formatModelName(rawModel?: string | null): string {
 /**
  * Converts a raw provider protocol string into a human-readable title.
  */
-export function formatProviderName(rawProvider?: string | null): string {
+export function formatProviderName(rawProvider?: string | null, label?: string | null): string {
+  if (label?.trim()) return label.trim();
   if (!rawProvider) return "Connecting...";
   const lower = rawProvider.trim().toLowerCase();
   if (lower === "openai_compat") {

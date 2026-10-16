@@ -65,9 +65,18 @@ export const SettingsModal: React.FC = () => {
               <h3 className="font-label-mono text-label-mono uppercase tracking-wider text-outline font-semibold">
                 LLM Provider &amp; Model
               </h3>
-              <span className="flex items-center gap-1.5 font-code-sm text-code-sm text-verdict-survived">
-                <span className="w-2 h-2 rounded-full bg-verdict-survived inline-block" />
-                <span>Online</span>
+              <span
+                data-testid="engine-status"
+                className={`flex items-center gap-1.5 font-code-sm text-code-sm ${
+                  state.engineInfo ? "text-verdict-survived" : "text-outline"
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full inline-block ${
+                    state.engineInfo ? "bg-verdict-survived" : "bg-outline animate-pulse"
+                  }`}
+                />
+                <span>{state.engineInfo ? "Online" : "Connecting..."}</span>
               </span>
             </div>
 
@@ -79,25 +88,25 @@ export const SettingsModal: React.FC = () => {
                     {formatModelName(state.engineInfo?.model)}
                   </span>
                   <span className="block font-code-sm text-code-sm text-outline">
-                    {state.engineInfo?.model || "gemini-3.7-flash"}
+                    {state.engineInfo?.model || "-"}
                   </span>
                 </div>
               </div>
               <div className="flex items-center justify-between text-body-sm">
-                <span className="text-on-surface-variant">Provider Protocol:</span>
+                <span className="text-on-surface-variant">Provider:</span>
                 <div className="text-right">
                   <span className="font-body-sm text-body-sm text-on-surface font-medium">
-                    {formatProviderName(state.engineInfo?.provider)}
+                    {formatProviderName(state.engineInfo?.provider, state.engineInfo?.provider_label)}
                   </span>
                   <span className="block font-code-sm text-code-sm text-outline">
-                    {state.engineInfo?.provider || "openai_compat"}
+                    {state.engineInfo?.provider || "-"}
                   </span>
                 </div>
               </div>
               <div className="flex items-center justify-between text-body-sm">
                 <span className="text-on-surface-variant">LLM Endpoint:</span>
                 <span className="font-mono text-outline">
-                  {state.engineInfo?.llm_base_url?.replace(/\/v1\/?$/, "") || "http://localhost:8081"}
+                  {state.engineInfo?.llm_base_url?.replace(/\/v1\/?$/, "") || "-"}
                 </span>
               </div>
 

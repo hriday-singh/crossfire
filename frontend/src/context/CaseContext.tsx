@@ -3,6 +3,9 @@ import { AppAction, AppState, INITIAL_STATE, PreviewView, caseReducer } from "./
 import { DECISION_PRESETS } from "@/lib/presets";
 import { clarifyCase, confirmCase, createCase, getCase, getHealth, listCases } from "@/lib/api";
 
+/** Gap between /health retries while the backend is unreachable. */
+const HEALTH_RETRY_MS = 5000;
+
 interface CaseContextValue {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
@@ -31,7 +34,8 @@ interface CaseContextValue {
   enterPreview: (view?: PreviewView) => void;
   setPreviewView: (view: PreviewView) => void;
   exitPreview: () => void;
-  refreshEngineInfo: () => Promise<void>;
+  /** Re-reads /health. Resolves false when the backend did not answer. */
+  refreshEngineInfo: () => Promise<boolean>;
 }
 
 export const CaseContext = createContext<CaseContextValue | null>(null);
@@ -64,14 +68,27 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: "SET_ENGINE_INFO",
         payload: health,
       });
+      return true;
     } catch (err) {
       console.warn("Backend health check failed:", err);
+      return false;
     }
   }, []);
 
-  // Query backend engine health on mount
+  // Query backend engine health on mount, and keep retrying until it answers -
+  // a backend that starts after the frontend must not leave "Connecting..." forever.
   useEffect(() => {
-    refreshEngineInfo();
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const attempt = async () => {
+      const ok = await refreshEngineInfo();
+      if (!ok && !cancelled) timer = setTimeout(attempt, HEALTH_RETRY_MS);
+    };
+    void attempt();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [refreshEngineInfo]);
 
   // Fetch case history from the backend DB instead of relying on limited localStorage

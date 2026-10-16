@@ -20,7 +20,9 @@ export interface ProviderInfo {
   requires_key: boolean;
   editable_base_url: boolean;
   base_url: string;
+  /** Primary model; "" for a fresh endpoint whose list has not been fetched yet. */
   model: string;
+  /** Every saved model, enabled or not. Persisted server-side. */
   models: string[];
   /** Models this provider may run, in fallback order. The primary is first. */
   enabled_models: string[];
@@ -49,6 +51,7 @@ export interface ProviderConfigPatch {
 export interface CreateCustomProviderRequest {
   name: string;
   base_url: string;
+  /** Optional - blank means "fetch the endpoint's list and pick". */
   model: string;
   api_key?: string | null;
   rpm?: number;
@@ -143,6 +146,42 @@ export function setEnabledModels(
   );
 }
 
+/** Save models to the provider's list; `enabled` also appends them to the fallback order. */
+export function addModels(
+  providerId: string,
+  models: string[],
+  enabled = true,
+  baseUrl?: string
+): Promise<ProviderInfo> {
+  return request<ProviderInfo>(
+    `/providers/${seg(providerId)}/models`,
+    { method: "POST", body: JSON.stringify({ models, enabled }) },
+    baseUrl
+  );
+}
+
+/** Forget one model. Query param, because ids like "openai/gpt-4o" contain slashes. */
+export function removeModel(
+  providerId: string,
+  model: string,
+  baseUrl?: string
+): Promise<ProviderInfo> {
+  return request<ProviderInfo>(
+    `/providers/${seg(providerId)}/models?model=${encodeURIComponent(model)}`,
+    { method: "DELETE" },
+    baseUrl
+  );
+}
+
+/** Ask the endpoint which models it serves (/models, /v1/models, /api/tags). Not saved. */
+export function discoverModels(providerId: string, baseUrl?: string): Promise<string[]> {
+  return request<{ provider: string; models: string[] }>(
+    `/providers/${seg(providerId)}/models/discover`,
+    { method: "POST" },
+    baseUrl
+  ).then((data) => data.models || []);
+}
+
 export function createCustomProvider(
   payload: CreateCustomProviderRequest,
   baseUrl?: string
@@ -208,10 +247,4 @@ export function testProvider(
 
 export function testChain(baseUrl?: string): Promise<ProviderTestResult[]> {
   return request<ProviderTestResult[]>("/providers/test", { method: "POST" }, baseUrl);
-}
-
-export function listOllamaModels(baseUrl?: string): Promise<string[]> {
-  return request<{ models: string[] }>("/providers/ollama/models", { method: "GET" }, baseUrl).then(
-    (data) => data.models || []
-  );
 }

@@ -36,8 +36,7 @@ def test_catalog_lists_every_supported_provider(client):
         "anthropic",
         "ollama",
         "deepseek",
-        "custom",
-    }
+    }  # the bare "custom" template is hidden — "Add endpoint" replaces it
     assert body["active"] == "ollama"
     assert body["fallback_chain"] == []
 
@@ -177,6 +176,10 @@ def test_all_models_share_one_key_pool(client):
 
 
 def test_custom_endpoint_accepts_a_user_supplied_base_url(client):
+    # Legacy installs that configured the bare template keep it listed and editable.
+    keyring.set_config("custom", base_url="https://old.internal/v1")
+    assert "custom" in {p["id"] for p in client.get("/providers").json()["providers"]}
+
     body = client.put(
         "/providers/custom/config",
         json={"base_url": "https://gateway.internal/v1", "model": "house-model"},
@@ -345,3 +348,126 @@ def test_activating_provider_removes_it_from_fallback_chain(client):
     assert body["active"] == "openai"
     assert body["fallback_chain"] == ["anthropic"]
 
+
+
+# ------------------------------------------------------------ model management
+
+
+def test_adding_a_model_keeps_the_primary_and_persists(client):
+    _custom(client, "Box", "http://box/v1", model="m1")
+
+    body = client.post("/providers/custom:box/models", json={"models": ["m2", "m3"]}).json()
+
+    assert body["model"] == "m1"
+    assert body["models"] == ["m1", "m2", "m3"]
+    assert body["enabled_models"] == ["m1", "m2", "m3"]
+    # survives a fresh read — it is server state, not UI state
+    again = next(p for p in client.get("/providers").json()["providers"] if p["id"] == "custom:box")
+    assert again["models"] == ["m1", "m2", "m3"]
+
+
+def test_added_models_can_be_listed_without_joining_the_chain(client):
+    _custom(client, "Box", "http://box/v1", model="m1")
+
+    body = client.post(
+        "/providers/custom:box/models", json={"models": ["m2"], "enabled": False}
+    ).json()
+
+    assert body["models"] == ["m1", "m2"]
+    assert body["enabled_models"] == ["m1"]
+
+
+def test_switching_primary_demotes_the_old_one_instead_of_dropping_it(client):
+    _custom(client, "Box", "http://box/v1", model="m1")
+
+    body = client.put("/providers/custom:box/config", json={"model": "m2"}).json()
+
+    assert body["model"] == "m2"
+    assert body["enabled_models"][:2] == ["m2", "m1"]
+    assert set(body["models"]) == {"m1", "m2"}
+
+
+def test_removing_a_model_drops_it_everywhere(client):
+    _custom(client, "Box", "http://box/v1", model="m1")
+    client.post("/providers/custom:box/models", json={"models": ["vendor/m2"]})
+
+    response = client.delete("/providers/custom:box/models", params={"model": "vendor/m2"})
+
+    assert response.status_code == 200
+    assert response.json()["models"] == ["m1"]
+    assert response.json()["enabled_models"] == ["m1"]
+
+
+def test_the_primary_model_cannot_be_removed(client):
+    _custom(client, "Box", "http://box/v1", model="m1")
+    assert client.delete("/providers/custom:box/models", params={"model": "m1"}).status_code == 400
+
+
+def test_endpoint_without_a_model_takes_the_first_added_one_as_primary(client):
+    created = _custom(client, "Fresh", "http://fresh/v1", model="").json()
+    assert created["model"] == ""
+    assert created["configured"] is False  # nothing to run yet
+
+    body = client.post("/providers/custom:fresh/models", json={"models": ["a", "b"]}).json()
+
+    assert body["model"] == "a"
+    assert body["enabled_models"] == ["a", "b"]
+    assert body["configured"] is True
+
+
+def test_recreating_a_deleted_endpoint_starts_with_a_clean_model_list(client):
+    _custom(client, "Again", "http://a/v1", model="m1")
+    client.post("/providers/custom:again/models", json={"models": ["stale"]})
+    client.delete("/providers/custom:again")
+
+    body = _custom(client, "Again", "http://a/v1", model="fresh").json()
+
+    assert body["models"] == ["fresh"]
+    assert body["enabled_models"] == ["fresh"]
+
+
+def test_discover_returns_the_endpoint_models_without_saving(client, monkeypatch):
+    import api.provider_routes as routes
+
+    _custom(client, "Box", "http://box/v1", model="m1", api_key="sk-box-000000000001")
+    seen = {}
+
+    async def fake_discover(base_url, wire, api_key):
+        seen.update(base_url=base_url, wire=wire, api_key=api_key)
+        return ["m1", "m9"]
+
+    monkeypatch.setattr(routes, "discover_models", fake_discover)
+
+    body = client.post("/providers/custom:box/models/discover").json()
+
+    assert body == {"provider": "custom:box", "models": ["m1", "m9"]}
+    assert seen == {"base_url": "http://box/v1", "wire": "openai_compat", "api_key": "sk-box-000000000001"}
+    box = next(p for p in client.get("/providers").json()["providers"] if p["id"] == "custom:box")
+    assert box["models"] == ["m1"]  # not saved until the user confirms
+
+
+def test_discover_failure_is_a_502_with_the_attempts(client, monkeypatch):
+    import api.provider_routes as routes
+    from providers.discovery import DiscoveryError
+
+    async def fail(base_url, wire, api_key):
+        raise DiscoveryError("http://box/v1/models -> HTTP 404")
+
+    monkeypatch.setattr(routes, "discover_models", fail)
+    _custom(client, "Box", "http://box/v1")
+
+    response = client.post("/providers/custom:box/models/discover")
+
+    assert response.status_code == 502
+    assert "HTTP 404" in response.json()["detail"]
+
+
+def test_health_carries_the_provider_label(client):
+    _custom(client, "My Gateway", "http://gw/v1", model="gw-model")
+    client.put("/providers/active", json={"provider": "custom:my-gateway"})
+
+    body = client.get("/health").json()
+
+    assert body["provider"] == "custom:my-gateway"
+    assert body["provider_label"] == "my-gateway"
+    assert body["model"] == "gw-model"
