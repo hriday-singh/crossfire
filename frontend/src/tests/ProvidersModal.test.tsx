@@ -282,6 +282,12 @@ describe("ProvidersModal", () => {
       base_url: "http://box:9000/v1",
       rpm: 45,
     });
+    // Saving runs the connection test right after - no model fetch.
+    await waitFor(() =>
+      expect(calledWith("/providers/custom%3Avllm-box/test", "POST")).toHaveLength(1)
+    );
+    expect(await screen.findByTestId("ping-result")).toHaveTextContent("FAILED");
+    expect(calledWith("/providers/custom%3Avllm-box/models/discover", "POST")).toHaveLength(0);
   });
 
   it("reorders the fallback chain by priority", async () => {

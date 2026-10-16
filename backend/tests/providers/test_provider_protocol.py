@@ -44,6 +44,8 @@ async def test_openai_compat_provider_generate(monkeypatch):
     from providers.openai_compat import OpenAICompatibleProvider
 
     class MockResponse:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 
@@ -75,6 +77,8 @@ async def test_openai_compat_provider_structured_output(monkeypatch, sample_clai
     calls = []
 
     class MockResponse:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 
@@ -106,6 +110,43 @@ async def test_openai_compat_provider_structured_output(monkeypatch, sample_clai
             "schema": type(sample_claim).model_json_schema(),
         },
     }
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_drops_response_format_when_endpoint_rejects_it(monkeypatch, sample_claim):
+    """DeepSeek/Gemini 400 on json_schema: retry prompt-only, then stop sending it."""
+    import httpx
+    from providers.openai_compat import OpenAICompatibleProvider
+
+    calls = []
+
+    class MockResponse:
+        def __init__(self, status_code):
+            self.status_code = status_code
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise httpx.HTTPStatusError("bad", request=None, response=self)
+
+        def json(self):
+            return {"choices": [{"message": {"content": sample_claim.model_dump_json()}}]}
+
+    async def mock_post(*args, **kwargs):
+        calls.append(dict(kwargs["json"]))
+        return MockResponse(400 if "response_format" in kwargs["json"] else 200)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    provider = OpenAICompatibleProvider()
+    for _ in range(2):
+        result = await provider.generate(
+            system_prompt="sys",
+            messages=[{"role": "user", "content": "extract"}],
+            response_schema=type(sample_claim),
+        )
+        assert result == sample_claim
+
+    assert ["response_format" in c for c in calls] == [True, False, False]
 
 
 def test_clean_json_markdown_variants():
@@ -172,6 +213,8 @@ async def test_anthropic_provider_posts_to_the_messages_api(monkeypatch):
     seen: dict = {}
 
     class MockResponse:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 
@@ -259,6 +302,8 @@ async def test_openai_compat_provider_reuses_pooled_client(monkeypatch):
     from providers.openai_compat import OpenAICompatibleProvider
 
     class MockResponse:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 
@@ -305,6 +350,8 @@ async def test_openai_compat_provider_context_manager(monkeypatch):
     from providers.openai_compat import OpenAICompatibleProvider
 
     class MockResponse:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 
@@ -342,6 +389,8 @@ async def test_openai_compat_retries_once_when_upstream_returns_non_json(monkeyp
     ]
 
     class MockResponse:
+        status_code = 200
+
         def __init__(self, content):
             self._content = content
 
@@ -375,6 +424,8 @@ async def test_openai_compat_raises_readable_error_after_two_bad_responses(monke
     from providers.openai_compat import LLMFormatError, OpenAICompatibleProvider
 
     class MockResponse:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 
@@ -423,6 +474,8 @@ async def test_openai_compat_retries_on_timeout_and_succeeds(monkeypatch):
     from providers.openai_compat import OpenAICompatibleProvider
 
     class MockResponse:
+        status_code = 200
+
         def raise_for_status(self):
             pass
 

@@ -103,6 +103,9 @@ class OpenAICompatibleProvider:
         self._retry_transient = retry_transient
         self._client = client
         self._owns_client = client is None
+        # Flipped off after the endpoint 400s on response_format (DeepSeek and
+        # Gemini reject json_schema); the prompt instruction still carries the schema.
+        self._native_schema = True
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Returns a persistent pooled httpx.AsyncClient, lazily initializing if needed."""
@@ -283,15 +286,17 @@ class OpenAICompatibleProvider:
             "model": self._model,
             "messages": formatted_messages,
         }
-        if response_format is not None:
+        if response_format is not None and self._native_schema:
             payload["response_format"] = response_format
 
         client = await self._get_client()
-        resp = await client.post(
-            f"{self._base_url}/chat/completions",
-            json=payload,
-            headers=headers,
-        )
+        url = f"{self._base_url}/chat/completions"
+        resp = await client.post(url, json=payload, headers=headers)
+        if "response_format" in payload and resp.status_code == 400:
+            logger.info("%s rejected response_format; retrying with prompt-only schema", self._model)
+            self._native_schema = False
+            del payload["response_format"]
+            resp = await client.post(url, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()
 

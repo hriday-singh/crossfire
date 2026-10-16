@@ -365,6 +365,20 @@ export const ProvidersModal: React.FC = () => {
     );
   };
 
+  /** One live call against the selected provider's saved config. */
+  const pingSelected = async () => {
+    if (!selected) return;
+    setBusy("ping");
+    setError(null);
+    try {
+      setPingResult(await testProvider(selected.id, { model: selected.model || null }));
+    } catch (err) {
+      setError(message(err, "Connection test failed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   /** Ask the endpoint for its list; new models open the picker, all pre-checked. */
   const fetchModels = async (provider: ProviderInfo, auto = false) => {
     setDiscovering(provider.id);
@@ -1226,16 +1240,19 @@ export const ProvidersModal: React.FC = () => {
                         type="button"
                         className={BTN_PRIMARY}
                         data-testid="save-config-button"
-                        onClick={() =>
-                          void run(
+                        disabled={busy === "ping"}
+                        onClick={async () => {
+                          const saved = await run(
                             () =>
                               setProviderConfig(selected.id, {
                                 base_url: selected.editable_base_url ? baseUrlDraft.trim() : null,
                                 rpm: Number(rpmDraft) || 0,
                               }),
                             "Endpoint settings saved"
-                          )
-                        }
+                          );
+                          // Saving verifies the endpoint right away - no model fetch.
+                          if (saved) await pingSelected();
+                        }}
                       >
                         Save settings
                       </button>
@@ -1244,19 +1261,7 @@ export const ProvidersModal: React.FC = () => {
                         className={BTN}
                         disabled={busy === "ping"}
                         data-testid="ping-provider-button"
-                        onClick={async () => {
-                          setBusy("ping");
-                          setError(null);
-                          try {
-                            setPingResult(
-                              await testProvider(selected.id, { model: selected.model || null })
-                            );
-                          } catch (err) {
-                            setError(message(err, "Connection test failed"));
-                          } finally {
-                            setBusy(null);
-                          }
-                        }}
+                        onClick={() => void pingSelected()}
                       >
                         {busy === "ping" ? "Testing…" : "Test connection"}
                       </button>
