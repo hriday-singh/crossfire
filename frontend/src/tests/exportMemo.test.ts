@@ -67,7 +67,9 @@ describe("exportMemo", () => {
     expect(memo).toContain("Developer platform with 10k users");
     expect(memo).toContain("HIGH STRATEGIC RISK");
     expect(memo).toContain("Developers prefer usage-based billing over seats");
-    expect(memo).toContain("CORE FOUNDATION");
+    // Load-bearing broken claim gets its own block under the kills section.
+    expect(memo).toContain("The load-bearing kills");
+    expect(memo).toContain("Claim 1. [BROKEN] Developers prefer usage-based billing over seats");
     expect(memo).toContain("The Danger of Metered Pricing");
     expect(memo).toContain("Multiple SaaS companies saw 40% churn spike");
     expect(memo).toContain("Offer a hybrid seat + usage model with strict budget alerts");

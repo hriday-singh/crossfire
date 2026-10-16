@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { LiveActivityFeed } from "@/components/features/LiveActivityFeed";
 import { ActivityItem } from "@/types/crossfire";
 
@@ -110,7 +110,9 @@ describe("LiveActivityFeed", () => {
       // New items are batched, not rendered/scrolled to instantly
       expect(screen.queryByText("Reconciling evidence for: AI assistant can submit forms...")).not.toBeInTheDocument();
 
-      vi.advanceTimersByTime(400);
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
 
       expect(screen.getByText("Reconciling evidence for: AI assistant can submit forms...")).toBeInTheDocument();
       expect(container.scrollTop).toBe(container.scrollHeight);
@@ -140,7 +142,9 @@ describe("LiveActivityFeed", () => {
         screen.queryByText("Reconciling evidence for: AI assistant can submit forms...")
       ).not.toBeInTheDocument();
 
-      vi.advanceTimersByTime(400);
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
 
       expect(
         screen.getByText("Evaluating sandbox execution constraints against API quotas...")

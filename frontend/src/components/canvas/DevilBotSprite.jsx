@@ -272,6 +272,11 @@ export function getPathPoints(startX, startY, targetWp) {
   return [{ x: targetX, y: targetY, facing: targetWp.facing }];
 }
 
+// Stable defaults: these props sit in effect deps, so fresh `{}` / `() => {}` per render
+// would re-fire the packet effect every render.
+const NO_POSITIONS = {};
+const NOOP = () => {};
+
 /**
  * @param {{
  *   agent?: any;
@@ -294,12 +299,12 @@ export function DevilBotSprite({
   isSynthesisDone = false,
   isLoadingDone = false,
   loadingProgress = 0,
-  characterPositions = {},
+  characterPositions = NO_POSITIONS,
   currentActionPacket = null,
   isSpeaking = false,
   isHovered = false,
   onHover = () => {},
-  onPositionUpdate = () => {},
+  onPositionUpdate = NOOP,
   playSfx = () => {},
 }) {
   const spriteConfig = getSpriteConfig(agent?.id);
@@ -377,12 +382,12 @@ export function DevilBotSprite({
       posRef.current.x = initialWp.x;
       posRef.current.y = initialWp.y;
       posRef.current.facing = initialFacing;
-      setPos({
-        x: initialWp.x,
-        y: initialWp.y,
-        facing: initialFacing,
-        state: 'idle',
-      });
+      // Bail out when already parked, otherwise every effect re-run forces a re-render.
+      setPos((prev) =>
+        prev.x === initialWp.x && prev.y === initialWp.y && prev.facing === initialFacing && prev.state === 'idle'
+          ? prev
+          : { x: initialWp.x, y: initialWp.y, facing: initialFacing, state: 'idle' }
+      );
       return;
     }
 

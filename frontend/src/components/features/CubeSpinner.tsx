@@ -697,7 +697,6 @@ export const CubeSpinner: React.FC<CubeSpinnerProps> = ({
           </div>
         )}
       </div>
-      <span className="sr-only">{headline}...</span>
       {/* Fullscreen 3D Blueprint Space Shuttle Flight Arena */}
       <canvas
         ref={canvasRef}
