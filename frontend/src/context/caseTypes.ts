@@ -105,6 +105,7 @@ export type AppAction =
   | { type: "SET_AGENT_MODE"; payload: "auto" | "custom" }
   | { type: "TOGGLE_AGENT_SELECTION"; payload: string }
   | { type: "SET_SELECTED_AGENTS"; payload: string[] }
+  | { type: "SET_DECISION_SHAPE"; payload: Partial<Pick<Case, "reversibility" | "deadline">> }
   | { type: "UPDATE_CLAIM_STATEMENT"; payload: { claimId: string; statement: string } }
   | { type: "TOGGLE_CLAIM_LOAD_BEARING"; payload: { claimId: string } }
   | { type: "REMOVE_CLAIM"; payload: { claimId: string } }

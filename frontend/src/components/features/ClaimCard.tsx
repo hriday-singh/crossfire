@@ -604,6 +604,18 @@ export const ClaimCard: React.FC<ClaimCardProps> = ({
               </div>
             </div>
           )}
+
+          {/* Kill criterion: the result that ends the decision */}
+          {consequence?.kill_criterion && (
+            <div className="space-y-1">
+              <span className="font-label-mono text-label-mono uppercase tracking-wider text-error font-semibold block">
+                Stop if
+              </span>
+              <div className="border border-error/40 bg-surface-container-low p-3 rounded text-body-sm text-on-surface">
+                {cleanUiText(consequence.kill_criterion)}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

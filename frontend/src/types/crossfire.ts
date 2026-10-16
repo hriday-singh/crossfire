@@ -87,6 +87,8 @@ export interface DecisionConsequence {
   impact: string;
   recommended_change: string;
   next_validation: string | null;
+  /** Weakened/unresolved load-bearing claims only: the result that should end the decision. */
+  kill_criterion?: string | null;
   verdict_reasoning: string;
   fatal_flaw?: string | null;
   salvaged_claim?: string | null;
@@ -107,12 +109,25 @@ export interface DecidingFactor {
   gate_fired?: boolean;
 }
 
+/** A severe finding (objection >= 0.7) on a claim that survived anyway. */
+export interface Dissent {
+  claim_id: string;
+  evaluator: string;
+  the_fact: string;
+  objection: number;
+  source_url?: string | null;
+  source_title?: string | null;
+}
+
+export type Reversibility = "one_way" | "two_way";
+
 export interface CaseVerdict {
   decision_state: "proceed" | "proceed_with_changes" | "hold" | "drop" | string;
   /** Generated per case. Empty on older runs - fall back to HEADLINES. */
   headline?: string;
   summary: string;
   deciding_factor?: DecidingFactor | null;
+  dissents?: Dissent[];
   survived: string[];
   broken: string[];
   weakened?: string[];
@@ -136,6 +151,9 @@ export interface Case {
   clarify_missing?: string[];
   clarify_interpretation?: string | null;
   clarify_round?: number;
+  /** Inferred at extraction, user-correctable on the confirm screen. null = unknown. */
+  reversibility?: Reversibility | null;
+  deadline?: string | null;
   started_at?: number | null;
 
   completed_at?: number | null;
@@ -175,6 +193,8 @@ export interface CreateCaseRequest {
 export interface ConfirmCaseRequest {
   claims?: Claim[];
   selected_agents?: string[];
+  reversibility?: Reversibility | null;
+  deadline?: string | null;
 }
 
 export interface ConfirmCaseResponse {

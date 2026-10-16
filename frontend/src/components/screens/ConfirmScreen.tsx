@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { AssignedAgentsCard } from "@/components/features/AssignedAgentsCard";
 import { DEFAULT_AGENT_IDS } from "@/lib/agents";
 import { SerpApiIcon } from "@/components/ui/serpapi";
+import type { Reversibility } from "@/types/crossfire";
+
+const DOOR_OPTIONS: { value: Reversibility | null; label: string; hint: string }[] = [
+  { value: "one_way", label: "Hard to undo", hint: "One-way door: an open load-bearing question will hold the verdict." },
+  { value: "two_way", label: "Easy to undo", hint: "Two-way door: open questions become next validations." },
+  { value: null, label: "Not sure", hint: "No adjustment to the verdict." },
+];
 
 export const ConfirmScreen: React.FC = () => {
   const { state, dispatch, confirmAndRun, navigateScreen, toggleAgentSelection, acceptProvisionalClaim } = useCase();
@@ -216,6 +223,44 @@ export const ConfirmScreen: React.FC = () => {
                 </div>
               </div>
             )}
+            <div className="mt-3 pt-3 border-t border-outline-variant/30 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div role="group" aria-label="Can this decision be undone?" className="flex items-center gap-1.5 flex-wrap">
+                {DOOR_OPTIONS.map((opt) => {
+                  const active = (currentCase.reversibility ?? null) === opt.value;
+                  return (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      aria-pressed={active}
+                      title={opt.hint}
+                      onClick={() =>
+                        dispatch({ type: "SET_DECISION_SHAPE", payload: { reversibility: opt.value } })
+                      }
+                      className={`px-2 py-0.5 rounded font-code-sm text-code-sm font-medium border transition-colors cursor-pointer min-h-[28px] ${
+                        active
+                          ? "bg-primary-container/10 text-primary-container border-primary-container/20"
+                          : "bg-surface-container-high text-on-surface-variant border-outline-variant/40 hover:bg-surface-container-highest"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <label className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="font-code-sm text-code-sm text-outline shrink-0">Deadline</span>
+                <input
+                  type="text"
+                  value={currentCase.deadline ?? ""}
+                  maxLength={120}
+                  placeholder="None stated"
+                  onChange={(e) =>
+                    dispatch({ type: "SET_DECISION_SHAPE", payload: { deadline: e.target.value || null } })
+                  }
+                  className="flex-1 min-w-0 bg-surface-container-lowest text-on-surface px-2 py-1 font-body-sm text-body-sm rounded-lg border border-outline-variant/60 outline-none focus:border-primary-container"
+                />
+              </label>
+            </div>
           </div>
 
           {/* Section Header */}

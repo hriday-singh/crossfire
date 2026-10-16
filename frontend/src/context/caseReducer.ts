@@ -218,6 +218,14 @@ export function caseReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case "SET_DECISION_SHAPE": {
+      if (!state.currentCase) return state;
+      return {
+        ...state,
+        currentCase: { ...state.currentCase, ...action.payload },
+      };
+    }
+
     case "UPDATE_CLAIM_STATEMENT": {
       if (!state.currentCase) return state;
       const updatedClaims = state.currentCase.claims.map((c) =>

@@ -1,6 +1,7 @@
 import {
   Case,
   Claim,
+  ConfirmCaseRequest,
   ConfirmCaseResponse,
   CreateCaseRequest,
   IngestImageRequest,
@@ -83,6 +84,7 @@ export async function confirmCase(
   caseId: string,
   claims?: Claim[],
   selectedAgents?: string[],
+  decisionShape?: Pick<ConfirmCaseRequest, "reversibility" | "deadline">,
   baseUrl: string = DEFAULT_API_BASE
 ): Promise<ConfirmCaseResponse> {
   const url = `${baseUrl}/cases/${encodeURIComponent(caseId)}/confirm`;
@@ -91,7 +93,7 @@ export async function confirmCase(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ claims, selected_agents: selectedAgents }),
+    body: JSON.stringify({ claims, selected_agents: selectedAgents, ...decisionShape }),
   });
 
   if (!res.ok) {

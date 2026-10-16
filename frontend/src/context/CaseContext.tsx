@@ -231,7 +231,11 @@ export const CaseProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await confirmCase(
         state.currentCase.id,
         state.currentCase.claims,
-        state.currentCase.selected_agents
+        state.currentCase.selected_agents,
+        {
+          reversibility: state.currentCase.reversibility ?? null,
+          deadline: state.currentCase.deadline ?? null,
+        }
       );
     } catch (err: unknown) {
       const errorObj = err as { stage?: string; message?: string; status?: number };

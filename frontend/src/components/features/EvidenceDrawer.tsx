@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Case } from "@/types/crossfire";
 import { cleanUiText, formatTestName, truncateUrl, clampSentences } from "@/lib/formatters";
+import { getAgentById } from "@/lib/agents";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { PoweredBySerpApiBadge, SerpApiText } from "@/components/ui/serpapi";
 
@@ -46,6 +47,7 @@ interface TestSuiteMeta {
   key: string;
   title: string;
   icon: string;
+  agentId: string;
   evaluatorKeys: string[];
   failureModeKeys: string[];
   emptySummary: string;
@@ -54,6 +56,7 @@ interface TestSuiteMeta {
 const TEST_SUITES: TestSuiteMeta[] = [
   {
     key: "assumption",
+    agentId: "devils_advocate",
     title: "Assumption Test",
     icon: "psychology",
     evaluatorKeys: ["devils_advocate", "assumption"],
@@ -62,6 +65,7 @@ const TEST_SUITES: TestSuiteMeta[] = [
   },
   {
     key: "evidence",
+    agentId: "researcher",
     title: "Evidence Test",
     icon: "fact_check",
     evaluatorKeys: ["researcher", "researcher", "evidence"],
@@ -70,6 +74,7 @@ const TEST_SUITES: TestSuiteMeta[] = [
   },
   {
     key: "feasibility",
+    agentId: "builder",
     title: "Feasibility Test",
     icon: "construction",
     evaluatorKeys: ["builder", "feasibility", "constraint", "behavior"],
@@ -78,6 +83,7 @@ const TEST_SUITES: TestSuiteMeta[] = [
   },
   {
     key: "operational_friction",
+    agentId: "operator",
     title: "Operational Friction Test",
     icon: "policy",
     evaluatorKeys: ["operator", "operational_friction", "adoption", "bureaucracy", "overthinker"],
@@ -468,6 +474,10 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
                     {/* Collapsible Content */}
                     {isSuiteOpen && (
                       <div className="p-space-4 border-t border-outline-variant/40 bg-surface-container-low/20 space-y-space-3 text-body-sm">
+                        <p className="text-xs text-outline leading-snug">
+                          <span className="font-semibold">Known limit: </span>
+                          {getAgentById(suite.agentId)?.knownLimit}
+                        </p>
                         {/* Target Objective */}
                         {suiteTests.length > 0 && suiteTests[0].objective && (
                           <div className="text-xs font-mono text-outline flex items-center gap-1.5 pb-1 border-b border-outline-variant/20">

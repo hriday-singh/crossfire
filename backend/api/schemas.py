@@ -4,6 +4,8 @@ See docs/04-dev-C-api-sse-evaluators.md.
 """
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from core.models import Claim, Case
@@ -37,6 +39,12 @@ class ConfirmCaseRequest(BaseModel):
         default=None,
         description="Optional list of agent IDs to run tests for",
     )
+    # Omitted = keep what extraction inferred; explicit null = the user says "not sure".
+    reversibility: Literal["one_way", "two_way"] | None = Field(
+        default=None,
+        description="User correction of the inferred door type",
+    )
+    deadline: str | None = Field(default=None, max_length=120)
 
 
 class ConfirmCaseResponse(BaseModel):

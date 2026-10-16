@@ -54,6 +54,7 @@ class DecisionConsequence(BaseModel):
     impact: str                             # high | medium | low, or a short phrase
     recommended_change: str
     next_validation: str | None = None      # required when status is broken/unresolved and load-bearing
+    kill_criterion: str | None = None       # weakened/unresolved + load-bearing: the result that ends the decision
     verdict_reasoning: str = ""             # why Steel Man reconciled to this status — persisted here,
                                              # not just riding along on the SSE event
     fatal_flaw: str | None = None
@@ -64,9 +65,18 @@ class NextAction(BaseModel):
     action: str
     claim_ids: list[str] = []               # Claim.id values this action answers; may be empty
 
+class Dissent(BaseModel):                   # derived: severe finding (>= 0.7) on a claim that survived
+    claim_id: str
+    evaluator: str
+    the_fact: str
+    objection: float
+    source_url: str | None = None
+    source_title: str | None = None
+
 class CaseVerdict(BaseModel):
     decision_state: str                     # proceed | proceed_with_changes | hold | drop
     summary: str
+    dissents: list[Dissent] = []            # max 3, strongest first
     survived: list[str] = []                # claim ids
     broken: list[str] = []
     unproven: list[str] = []                # weakened + unresolved
@@ -82,6 +92,8 @@ class Case(BaseModel):
     consequences: list[DecisionConsequence] = []
     case_verdict: CaseVerdict | None = None  # set at the end of the run
     status: str = "extracting"              # extracting | awaiting_confirmation | testing | done | error
+    reversibility: str | None = None        # one_way | two_way | None; inferred, user-correctable at confirm
+    deadline: str | None = None             # as stated by the user
 ```
 
 `Case` is the one object the whole backend passes around. Every module either reads it, appends to it, or streams a diff of it.

@@ -76,6 +76,8 @@ Council tags statements as `FACT`, `INFERENCE`, `ASSUMPTION`, or `UNKNOWN`. Cros
 
 **The evidence gate only works in one direction.** It stops a claim from being broken without a source. Verify in code whether anything stops a load-bearing claim from being marked `survived` on reasoning alone with no supporting evidence. The case verdict has an `unproven` bucket, so this may already be covered. If it is not, apply a mirror rule: a load-bearing claim with no sourced support caps at `weakened` or `unresolved`.
 
+**Checked (2026-10-16): not covered, and kept that way on purpose.** Nothing requires sourced support for `survived`. `apply_evidence_gate` goes the other direction: it upgrades `weakened` to `survived` when every finding scores in the no-objection band, with no source needed. That upward gate came from calibration round 2 ("survived has to be reachable"), and a mirror rule would partly undo it. Decision: leave as is. Revisit only if outcome data (item 2) shows unsourced survivals failing in practice.
+
 ## Not worth copying
 
 - **18 personas.** They suit open-ended philosophical and strategic questions. In Crossfire they would dilute the four tests, which are scoped to how decisions actually fail.
@@ -84,14 +86,23 @@ Council tags statements as `FACT`, `INFERENCE`, `ASSUMPTION`, or `UNKNOWN`. Cros
 
 ## Priority
 
-| # | Change | Effort | Payoff |
-|---|---|---|---|
-| 1 | Model-family diversity per evaluator | Medium | Removes correlated blind spots |
-| 2 | Outcome tracking | Medium, needs a migration | Closes the loop; real-world calibration |
-| 3 | Kill criteria | Small | Sharper next steps |
-| 4 | Reversibility and deadline in the verdict | Small to medium | Verdict strictness matches stakes |
-| 5 | Verify the survive-side gate | Small | Fewer confident false positives |
-| 6 | Surface dissent and unresolved first | Small | Nothing important buried |
-| 7 | MCP server over the REST API | Medium | Agents can call Crossfire |
-| 8 | Blind-spot notes per test | Trivial | Honest framing |
-| 9 | Per-statement evidence labels | Medium | Low; only alongside other output changes |
+| # | Change | Effort | Payoff | Status |
+|---|---|---|---|---|
+| 1 | Model-family diversity per evaluator | Medium | Removes correlated blind spots | Open |
+| 2 | Outcome tracking | Medium, needs a migration | Closes the loop; real-world calibration | Open |
+| 3 | Kill criteria | Small | Sharper next steps | Done |
+| 4 | Reversibility and deadline in the verdict | Small to medium | Verdict strictness matches stakes | Done |
+| 5 | Verify the survive-side gate | Small | Fewer confident false positives | Checked, kept as is |
+| 6 | Surface dissent and unresolved first | Small | Nothing important buried | Done |
+| 7 | MCP server over the REST API | Medium | Agents can call Crossfire | Open |
+| 8 | Blind-spot notes per test | Trivial | Honest framing | Done |
+| 9 | Per-statement evidence labels | Medium | Low; only alongside other output changes | Open |
+
+## What shipped (2026-10-16)
+
+- **Kill criteria (3).** `DecisionConsequence.kill_criterion` is set for weakened or unresolved load-bearing claims. The consequence call writes a measurable threshold; if that call fails, a generic line built from the claim text is used. Shown as "Stop if" on the claim card and in the exported memo.
+- **Reversibility and deadline (4).** `Case.reversibility` (`one_way` | `two_way` | null) and `Case.deadline` are inferred at extraction and can be corrected on the confirm screen (`POST /cases/{id}/confirm` accepts both). On a one-way door, any unresolved load-bearing claim makes the decision `hold`, with floor reason `irreversible` and zero clamp headroom, so the synthesis call cannot lift it. Broken claims and two-way or unknown doors are unchanged. Deliberate departure from the recommendation above: the one-way side is a hard lock rather than a lean, and the two-way side does not gain a `proceed_with_changes` lean.
+- **Dissent and still open (6).** `CaseVerdict.dissents` lists findings with objection ≥ 0.7 on claims that survived anyway (max 3, strongest first, with source), built by `build_dissents`. The verdict now leads with "Still open" (unresolved load-bearing claims and what each needs), and those claims no longer repeat in the failed-claims list.
+- **Known limits (8).** Each test has a static `knownLimit` line in `frontend/src/lib/agents.ts`, shown in the agent selector, the assigned-agents card and the evidence drawer.
+
+No migration was needed, because cases are stored as JSON and older cases load with the new fields empty. The extraction and consequence prompts changed, so re-run the calibration corpus before comparing against the round-2 baseline. Tests: `backend/tests/core/test_decision_shape.py`, `frontend/src/tests/decisionShape.test.tsx`.

@@ -146,12 +146,14 @@ describe("VerdictBlock", () => {
       <VerdictBlock currentCase={baseCase(verdict)} onSelectClaim={vi.fn()} isTesting={false} />
     );
 
-    // c1 is the deciding claim and is already rendered above the remaining failed claims.
-    expect(screen.getByText("1 more claim didn't hold")).toBeInTheDocument();
+    // c1 is the deciding claim and c2 (unresolved, load-bearing) leads under
+    // "Still open", so neither is repeated in the remaining failed claims list.
+    expect(screen.queryByText(/more claims? didn't hold/)).not.toBeInTheDocument();
     expect(
       screen.queryByText("The agent handles 100% of tier-1 without escalation")
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Token cost beats support salaries")).toBeInTheDocument();
+    expect(screen.getAllByText("Token cost beats support salaries")).toHaveLength(1);
+    expect(screen.getByTestId("still-open")).toHaveTextContent("Token cost beats support salaries");
   });
 
   it("opens the drawer on the claim behind the deciding fact", () => {
@@ -211,11 +213,12 @@ describe("VerdictBlock", () => {
       <VerdictBlock currentCase={baseCase(legacy)} onSelectClaim={vi.fn()} isTesting={false} />
     );
 
-    expect(screen.getByText("2 more claims didn't hold")).toBeInTheDocument();
+    expect(screen.getByText("1 more claim didn't hold")).toBeInTheDocument();
     expect(
       screen.getByText("The agent handles 100% of tier-1 without escalation")
     ).toBeInTheDocument();
-    expect(screen.getByText("Token cost beats support salaries")).toBeInTheDocument();
+    // The unresolved load-bearing claim is still on the page, under "Still open".
+    expect(screen.getByTestId("still-open")).toHaveTextContent("Token cost beats support salaries");
   });
 
   it("anchors an action to its first claim and leaves an unanchored one plain", () => {

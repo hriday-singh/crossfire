@@ -13,6 +13,8 @@ export interface AgentDefinition {
   testName: string;
   shortRole: string;
   description: string;
+  /** What this test is known to miss. Static copy, shown wherever its findings are. */
+  knownLimit: string;
   icon: string;
   emoji: string;
 }
@@ -24,6 +26,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     testName: "Assumption Test",
     shortRole: "Premises & contradictions",
     description: "Applies adversarial pressure to unearth unstated premises, user incentives, and logical contradictions.",
+    knownLimit: "Cannot cite sources. It reasons from the claim alone, so it can flag a risk but not prove one.",
     icon: "psychology",
     emoji: "/emoji/devils_advocate.png",
   },
@@ -33,6 +36,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     testName: "Evidence Test",
     shortRole: "Empirical market reality",
     description: "Retrieves verifiable market signals, web sources, unit economics, and public citations via live search.",
+    knownLimit: "Sees only public, indexed sources. Private, very recent, or paywalled facts read as missing, not false.",
     icon: "fact_check",
     emoji: "/emoji/researcher.png",
   },
@@ -42,6 +46,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     testName: "Feasibility Test",
     shortRole: "Engineering bottlenecks",
     description: "Evaluates implementation bottlenecks, API constraints, latency limits, and architectural feasibility.",
+    knownLimit: "Judges feasibility from general knowledge, not your team's actual skills, budget, or stack.",
     icon: "construction",
     emoji: "/emoji/builder.png",
   },
@@ -51,6 +56,7 @@ export const ALL_AGENTS: AgentDefinition[] = [
     testName: "Operational Friction Test",
     shortRole: "Adoption & bureaucracy",
     description: "Stress-tests organizational friction, human inertia, enterprise procurement red tape, regulatory liability, and process drag.",
+    knownLimit: "Infers organizational friction. It does not know your actual people, politics, or approvals.",
     icon: "policy",
     emoji: "/emoji/operator.png",
   },

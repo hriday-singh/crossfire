@@ -170,6 +170,10 @@ export const AgentSelectorPanel: React.FC<AgentSelectorPanelProps> = ({
                       <p className="font-body-xs text-body-xs text-on-surface-variant mt-1 leading-normal line-clamp-2 select-none">
                         {agent.description}
                       </p>
+                      <p className="font-body-xs text-body-xs text-outline mt-1 leading-snug select-none">
+                        <span className="font-semibold">Known limit: </span>
+                        {agent.knownLimit}
+                      </p>
                     </div>
                   </div>
                 </div>

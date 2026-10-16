@@ -124,6 +124,29 @@ class DecidingFactor(BaseModel):
                                             # i.e. the panel attacked but nobody could cite it
 
 
+REVERSIBILITY_VALUES = ("one_way", "two_way")
+
+
+def normalize_reversibility(value: Any) -> str | None:
+    """Anything that is not a known door type reads as unknown, never as a guess."""
+    v = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+    return v if v in REVERSIBILITY_VALUES else None
+
+
+class Dissent(BaseModel):
+    """A severe finding the Steel Man overruled: the claim survived anyway.
+
+    Derived, not generated. Kept visible so a strong minority objection is not
+    buried in the evidence drawer under a `survived` badge."""
+
+    claim_id: str
+    evaluator: str
+    the_fact: str
+    objection: float                        # Finding.confidence, >= DISSENT_THRESHOLD
+    source_url: str | None = None
+    source_title: str | None = None
+
+
 class BuildSpec(BaseModel):
     """The salvaged version, specified concretely enough to start building.
 
@@ -147,6 +170,7 @@ class CaseVerdict(BaseModel):
                                             # generating this.
     summary: str
     deciding_factor: DecidingFactor | None = None
+    dissents: list[Dissent] = []            # severe findings on claims that survived anyway
     survived: list[str] = []                # claim ids
     broken: list[str] = []
     weakened: list[str] = []                # weakened claim ids
@@ -161,6 +185,8 @@ class DecisionConsequence(BaseModel):
     impact: str                             # high | medium | low, or a short phrase
     recommended_change: str
     next_validation: str | None = None      # required when status is broken/unresolved and load-bearing
+    kill_criterion: str | None = None       # weakened/unresolved + load-bearing: the result during
+                                            # next_validation that should end the decision
     verdict_reasoning: str = ""             # why Steelman reconciled to this status — persisted here,
                                              # not just riding along on the SSE event
     fatal_flaw: str | None = None           # isolated flaw from Steel Man
@@ -199,6 +225,9 @@ class Case(BaseModel):
     clarify_missing: list[str] = []        # what is absent, 2-3 short bullets
     clarify_interpretation: str | None = None  # "Reading it as: ..." or None
     clarify_round: int = 0                 # 0 = first extraction, 1+ = after clarify
+    reversibility: str | None = None        # one_way | two_way | None (unknown). Inferred at
+                                            # extraction, user-correctable at confirm.
+    deadline: str | None = None             # as stated by the user, free text
     agent_mode: str = "auto"                # "auto" | "custom"
     selected_agents: list[str] = [          # active evaluator IDs: devils_advocate, researcher, builder, operator
         "devils_advocate",

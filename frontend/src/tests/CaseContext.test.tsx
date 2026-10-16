@@ -181,7 +181,8 @@ describe("CaseContext", () => {
       expect(api.confirmCase).toHaveBeenCalledWith(
         "case-confirm-test",
         [{ id: "c-1", statement: "Claim 1", load_bearing: true, status: null }],
-        ["devils_advocate", "researcher"]
+        ["devils_advocate", "researcher"],
+        { reversibility: null, deadline: null }
       );
     });
   });

@@ -235,6 +235,11 @@ async def confirm_case(
             )
         case.selected_agents = valid_agents
 
+    if payload and "reversibility" in payload.model_fields_set:
+        case.reversibility = payload.reversibility
+    if payload and "deadline" in payload.model_fields_set:
+        case.deadline = (payload.deadline or "").strip() or None
+
     case.status = "testing"
     store.set(case)
 

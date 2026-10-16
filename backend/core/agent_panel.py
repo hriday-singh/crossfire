@@ -86,6 +86,17 @@ class ExtractedClaims(BaseModel):
         description="Domain jargon from the input, resolved. Omit any term you cannot resolve confidently.",
     )
     agents: list[AgentPick] = Field(default_factory=list)
+    reversibility: str | None = Field(
+        default=None,
+        description=(
+            "'one_way' if the decision is costly or impossible to undo once made, "
+            "'two_way' if it can be reversed cheaply. Null when the input does not say enough."
+        ),
+    )
+    deadline: str | None = Field(
+        default=None,
+        description="The deadline exactly as the user stated it. Null if none is stated. Never invent one.",
+    )
 
 
 def normalize_agents(picks: list[AgentPick]) -> tuple[list[str], dict[str, str]]:
@@ -154,6 +165,12 @@ EXTRACTION_SYSTEM_PROMPT = (
     "shared label in 'mechanisms' (same index as the claim in 'statements') naming the "
     "parent idea. Do not split a single mechanism into restatements of itself — the "
     "test is whether one could fail while another holds.\n\n"
+    "JUDGE THE DOOR.\n"
+    "Set 'reversibility' to 'one_way' if undoing the decision would be costly or "
+    "impossible (signing, quitting, a large non-refundable spend, surgery, a public "
+    "launch), 'two_way' if it can be walked back cheaply (a trial, a pilot, a refundable "
+    "purchase). Leave it null if the input does not say enough. Copy any deadline the "
+    "user stated into 'deadline'; never invent one.\n\n"
     "Then pick which adversarial tests this specific decision needs. For each chosen agent, "
     "provide exactly ONE concise sentence (under 100 characters) clearly explaining why this "
     "test is needed for this decision. Keep it crisp, direct, and under three lines. No filler:\n"

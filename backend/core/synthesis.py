@@ -18,6 +18,7 @@ from core.models import (
     ClaimStatus,
     DecidingFactor,
     DecisionConsequence,
+    Dissent,
     Finding,
     NextAction,
     WeakenedKind,
@@ -83,12 +84,18 @@ def build_consequences(case: Case) -> list[DecisionConsequence]:
                 f"Directly test: {claim.statement}"
             )
 
+        kill_criterion = None
+        if claim.load_bearing and claim.status in (ClaimStatus.WEAKENED, ClaimStatus.UNRESOLVED):
+            # Generic on purpose: the consequence call replaces it with a measurable one.
+            kill_criterion = f"Stop if the check shows this does not hold: {claim.statement}"
+
         consequences.append(
             DecisionConsequence(
                 claim_id=claim.id,
                 impact=impact,
                 recommended_change=recommended_change,
                 next_validation=next_validation,
+                kill_criterion=kill_criterion,
                 verdict_reasoning=f"Reconciled as {claim.status.value} "
                 f"({'load-bearing' if claim.load_bearing else 'not load-bearing'}).",
                 fatal_flaw=claim.fatal_flaw,
@@ -108,6 +115,10 @@ class StrategicConsequenceOutput(BaseModel):
         default=None,
         description="The smallest, cheapest real check that would settle this before committing. Null if survived.",
     )
+    kill_criterion: str | None = Field(
+        default=None,
+        description="One measurable result that, if seen during that check, should end the decision. Null if survived.",
+    )
 
 
 CONSEQUENCE_SYSTEM_PROMPT = (
@@ -120,7 +131,10 @@ CONSEQUENCE_SYSTEM_PROMPT = (
     "sentences, referencing what specifically failed. Not 'rework the assumption'.\n"
     "3. 'next_validation': the smallest, cheapest real check that would settle it — "
     "a call to make, a document to read, a small trial to run, a number to look up. "
-    "It must be something a person could start this week."
+    "It must be something a person could start this week.\n"
+    "4. 'kill_criterion': one observable threshold that, if seen while running that "
+    "check, means stop — a number, a refusal, a rule, a result. 'Stop if fewer than 3 "
+    "of 10 customers agree to pay', not 'stop if it does not work'."
 )
 
 
@@ -171,6 +185,9 @@ async def _synthesize_single_consequence(
                 consequence.recommended_change = clamp_sentences(result.recommended_change, 2)
             if result.next_validation is not None and not (claim.missing_input or "").strip():
                 consequence.next_validation = clamp_sentences(result.next_validation, 2)
+            # Only where the fallback already decided one belongs.
+            if consequence.kill_criterion and (result.kill_criterion or "").strip():
+                consequence.kill_criterion = clamp_sentences(result.kill_criterion, 1)
     except Exception as exc:
         logger.debug("LLM consequence synthesis bypassed for claim %s: %s", claim.id, exc)
 
@@ -375,6 +392,39 @@ def build_deciding_factor(case: Case) -> DecidingFactor | None:
     )
 
 
+DISSENT_THRESHOLD = 0.7  # OBJECTION_SCALE "severe" band
+_MAX_DISSENTS = 3
+
+
+def build_dissents(case: Case) -> list[Dissent]:
+    """Severe findings the Steel Man overruled.
+
+    A claim that survived over a 0.7+ objection is the minority position a
+    consensus summary smooths away. Strongest first, sourced ones ahead of
+    unsourced at equal strength."""
+    survived = {c.id for c in case.claims if c.status is ClaimStatus.SURVIVED}
+    overruled = [
+        f
+        for f in case.findings
+        if f.claim_id in survived and (f.confidence or 0.0) >= DISSENT_THRESHOLD
+    ]
+    overruled.sort(key=lambda f: (f.confidence or 0.0, bool(f.evidence)), reverse=True)
+    dissents = []
+    for f in overruled[:_MAX_DISSENTS]:
+        evidence = f.evidence[0] if f.evidence else None
+        dissents.append(
+            Dissent(
+                claim_id=f.claim_id,
+                evaluator=f.evaluator,
+                the_fact=(f.contradiction or "").strip() or f.result,
+                objection=f.confidence or 0.0,
+                source_url=evidence.source_url if evidence else None,
+                source_title=evidence.title if evidence else None,
+            )
+        )
+    return dissents
+
+
 def _blocking_weakened(case: Case, claim: Claim) -> bool:
     """A `weakened` only blocks `proceed` if something substantive weakened it.
 
@@ -423,6 +473,11 @@ def _derive_decision_state(case: Case) -> tuple[str, str]:
         return "drop", "broken"
 
     unresolved = [c for c in lb if c.status is ClaimStatus.UNRESOLVED]
+    if unresolved and case.reversibility == "one_way":
+        # A one-way door cannot be walked back once the missing input turns out
+        # badly, so an open load-bearing question blocks it outright. The floor
+        # reason gives the synthesis call no headroom to argue past it.
+        return "hold", "irreversible"
     if unresolved:
         survived = [c for c in lb if c.status is ClaimStatus.SURVIVED]
         if len(unresolved) * 2 > len(lb) or not survived:
@@ -470,14 +525,16 @@ def clamp_decision_state(
     `unresolved` alone moves two, because nothing was refuted there — the ladder
     only recorded that an input is missing, and the model can see whether the
     findings settled it. That asymmetry is the guard against Band B overshoot;
-    do not loosen the `broken` side."""
+    do not loosen the `broken` side.
+
+    `irreversible` (unresolved on a one-way door) gets no headroom at all."""
     if llm_state not in _STATE_PERMISSIVENESS:
         return derived
     floor = _STATE_PERMISSIVENESS[derived]
     proposed = _STATE_PERMISSIVENESS[llm_state]
     if proposed < floor:
         return derived
-    headroom = 2 if floor_reason == "unresolved" else 1
+    headroom = {"unresolved": 2, "irreversible": 0}.get(floor_reason, 1)
     return _PERMISSIVENESS_TO_STATE[min(proposed, floor + headroom)]
 
 
@@ -696,6 +753,7 @@ async def synthesize_case_verdict(case: Case, provider: LLMProvider) -> CaseVerd
     if not verdict.headline:
         verdict.headline = FALLBACK_HEADLINES.get(verdict.decision_state, "")
     verdict.deciding_factor = build_deciding_factor(case)
+    verdict.dissents = build_dissents(case)
     # An empty lead on a decision that is still alive reads as "nothing survived",
     # which is the opposite of what the claim verdicts say.
     if not verdict.surviving_core and verdict.decision_state != "drop":

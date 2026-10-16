@@ -151,9 +151,13 @@ The user reviews the extracted assumptions before tests execute.
       "id": "c_custom_1",
       "statement": "Abuse and bot scraping on the free tier can be mitigated effectively."
     }
-  ]
+  ],
+  "reversibility": "two_way",
+  "deadline": "End of Q3"
 }
 ```
+- `reversibility` (optional): `"one_way"` | `"two_way"` | `null`. Omitted keeps the value extraction inferred; explicit `null` means "not sure". Any other value is rejected with 422.
+- `deadline` (optional, max 120 chars): omitted keeps the inferred value; empty string or `null` clears it.
 
 #### Response: Confirmed (202 Accepted)
 Must return in $<100$ms without awaiting the pipeline.
@@ -228,6 +232,9 @@ The persistent post-run analysis view once `Case.status == "done"`.
 7. **Decision Impact:** 3-segment filled bar meter for `high` | `medium` | `low`.
 8. **What Changes:** `DecisionConsequence.recommended_change`.
 9. **Next Validation:** `DecisionConsequence.next_validation` (mandatory when status is `broken` or `unresolved` and load-bearing).
+10. **Stop If:** `DecisionConsequence.kill_criterion` (present for `weakened` or `unresolved` load-bearing claims; hidden when null).
+
+Each test section in the drawer also shows that test's static known-limit line (`knownLimit` in `src/lib/agents.ts`).
 
 #### Cold Reload / Snapshot Request
 - **Endpoint:** `GET /cases/{id}`
@@ -411,6 +418,7 @@ export interface DecisionConsequence {
   impact: ConsequenceImpact;
   recommended_change: string;
   next_validation: string | null;
+  kill_criterion?: string | null;
   verdict_reasoning: string;
 }
 
@@ -423,6 +431,8 @@ export interface Case {
   findings: Finding[];
   consequences: DecisionConsequence[];
   status: CaseStatus;
+  reversibility?: "one_way" | "two_way" | null;
+  deadline?: string | null;
 }
 
 // SSE Event Payloads
@@ -536,6 +546,7 @@ class SSEErrorPayload(BaseModel):
 3. Implement `POST /cases/{id}/confirm`:
    - Validates claim list.
    - Updates `case.claims` with user modifications.
+   - Applies `reversibility` / `deadline` corrections when present in the body.
    - Sets `case.status = "testing"`.
    - Triggers `asyncio.create_task(core.loop.run_pipeline(case_id))`.
    - Returns `ConfirmCaseResponse(case_id=id)` with HTTP status `202 Accepted`.
@@ -619,5 +630,5 @@ Before considering an integration build complete, run through this checklist:
 - [ ] Opening `GET /cases/{id}/stream` before calling `/confirm` receives every buffered SSE event in proper sequence.
 - [ ] No evaluator identifier (`devils_advocate`, `receipts`, etc.) appears in rendered test runner row names or tooltips.
 - [ ] `unresolved` claims render with the purple/indigo badge token, never gray.
-- [ ] Clicking any claim row opens the right-hand evidence drawer with the complete 9-level hierarchy.
+- [ ] Clicking any claim row opens the right-hand evidence drawer with the complete 10-level hierarchy.
 - [ ] Claims with empty evidence render the explicit placeholder message rather than a blank box.

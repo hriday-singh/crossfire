@@ -202,11 +202,18 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
   );
   // The deciding claim is already shown in full above; repeating it in the list
   // below is the duplication that made this page feel long.
-  const otherFailedClaims = failedClaims.filter((c) => c.id !== deciding?.claim_id);
+  // Same for still-open claims: they lead the verdict, so they leave the list.
+  const stillOpen = currentCase.claims.filter(
+    (c) => c.load_bearing && c.status === "unresolved"
+  );
+  const otherFailedClaims = failedClaims.filter(
+    (c) => c.id !== deciding?.claim_id && !stillOpen.includes(c)
+  );
 
   const decidingClaim = deciding
     ? currentCase.claims.find((c) => c.id === deciding.claim_id)
     : undefined;
+  const dissents = verdict.dissents ?? [];
 
   const getBriefFailureReason = (claim: Claim): string => {
     if (claim.fatal_flaw) {
@@ -299,6 +306,41 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
         )}
       </div>
 
+      {/* Still open: unresolved load-bearing claims lead, not buried in the claim list */}
+      {stillOpen.length > 0 && (
+        <div data-testid="still-open" className="space-y-space-2">
+          <h3 className="font-title-sm text-title-sm text-secondary font-semibold">
+            Still open
+            {currentCase.reversibility === "one_way" && (
+              <span className="font-body-sm text-[14px] font-normal text-outline">
+                {" "}· one-way door, so these block it
+              </span>
+            )}
+          </h3>
+          <ul className="space-y-space-2">
+            {stillOpen.map((claim) => (
+              <li key={claim.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelectClaim(claim.id)}
+                  className="w-full text-left rounded-lg border border-secondary/40 bg-surface-container px-space-3 py-space-2 hover:bg-surface-container-high transition-colors cursor-pointer"
+                >
+                  <span className="font-body-md text-[15px] leading-[1.6] text-on-surface block">
+                    <SerpApiText text={cleanUiText(claim.statement)} />
+                  </span>
+                  {claim.missing_input && (
+                    <span className="font-body-sm text-[14px] text-outline block mt-1">
+                      <span className="font-semibold text-on-surface-variant">Needs: </span>
+                      <SerpApiText text={cleanUiText(claim.missing_input)} />
+                    </span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* What decided it - one finding, resolved server-side */}
       {deciding && (() => {
         const agent = getAgentById(deciding.evaluator);
@@ -361,6 +403,37 @@ export const VerdictBlock: React.FC<VerdictBlockProps> = ({
           </>
         );
       })()}
+
+      {/* Dissent: severe findings the reconciliation overruled */}
+      {dissents.length > 0 && (
+        <div data-testid="dissent" className="space-y-space-3">
+          <h3 className="font-title-sm text-title-sm text-on-surface-variant font-semibold">
+            Dissent
+          </h3>
+          {dissents.map((d, i) => {
+            const agent = getAgentById(d.evaluator);
+            return (
+              <button
+                key={`${d.claim_id}-${d.evaluator}-${i}`}
+                type="button"
+                onClick={() => onSelectClaim(d.claim_id)}
+                className="w-full text-left rounded-lg border border-tertiary/40 bg-surface-container px-space-3 py-space-3 hover:bg-surface-container-high transition-colors cursor-pointer"
+              >
+                <span className="font-body-md text-[15px] leading-[1.6] text-on-surface block">
+                  <SerpApiText text={cleanUiText(d.the_fact)} />
+                </span>
+                <span className="mt-2 font-code-sm text-[13px] text-outline block">
+                  <span className="font-medium text-on-surface-variant">
+                    {agent?.name || EVALUATOR_NAMES[d.evaluator] || d.evaluator}
+                  </span>
+                  {` · objection ${Math.round(d.objection * 100)}%, overruled`}
+                  {d.source_title ? ` · ${cleanUiText(d.source_title)}` : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* The salvaged version, assembled from what survived */}
       {verdict.build_spec && (

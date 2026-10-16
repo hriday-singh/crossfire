@@ -487,7 +487,7 @@ A research platform tells you what's out there on a topic. Crossfire tells you w
 ### How is this different from an AI council?
 AI councils come in two shapes. Some send your question to several models, let them react to each other, and merge everything into one answer with a confidence score. Others, like Council of High Intelligence, give the question to a panel of personas that answer blind, then cross-examine each other, and return a verdict that keeps the dissent instead of averaging it away.
 
-Both debate the question as a whole, and both let members see each other's positions at some point, which is when models start converging. Crossfire doesn't debate the question. It breaks your decision into the claims it depends on, ranks which ones are load-bearing, and tests each one blind. When a test raises an objection without a source, Crossfire settles it with a targeted search, not another round of argument. A claim can only break if a cited source contradicts it, and that rule is enforced in code, not left to the model to police itself. You get a verdict per claim (survived, weakened, broken, or unresolved), what that means for the decision, and what to check next.
+Both debate the question as a whole, and both let members see each other's positions at some point, which is when models start converging. Crossfire doesn't debate the question. It breaks your decision into the claims it depends on, ranks which ones are load-bearing, and tests each one blind. When a test raises an objection without a source, Crossfire settles it with a targeted search, not another round of argument. A claim can only break if a cited source contradicts it, and that rule is enforced in code, not left to the model to police itself. You get a verdict per claim (survived, weakened, broken, or unresolved), what that means for the decision, what to check next, and the result that should make you stop. Questions still open lead the verdict, and a severe objection the panel overruled stays visible as dissent instead of disappearing into consensus. If the decision is hard to undo, an open load-bearing question holds the verdict.
 
 A council tells you what sharp perspectives think. Crossfire tells you whether your decision holds up against evidence. For what we're taking from councils, see [`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md).
 
@@ -499,7 +499,7 @@ A council tells you what sharp perspectives think. Crossfire tells you whether y
 |---|---|---|
 | `POST` | `/cases` | Extract claims and select the panel; returns `awaiting_confirmation` or `needs_input` |
 | `POST` | `/cases/{id}/clarify` | Answer a zero-claim recovery question; re-extracts and auto-launches on success |
-| `POST` | `/cases/{id}/confirm` | Lock claims and schedule the run; `202 Accepted` in <50ms |
+| `POST` | `/cases/{id}/confirm` | Lock claims (plus optional `reversibility` / `deadline` corrections) and schedule the run; `202 Accepted` in <50ms |
 | `GET` | `/cases/{id}/stream` | SSE stream (replays history, then live events) |
 | `GET` | `/cases/{id}` | Full hydrated case for the memo and evidence drawer |
 | `POST` | `/cases/{id}/improve_prompt` | Prompt Fixer: rewrite the decision around the claims that broke |

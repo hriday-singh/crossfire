@@ -22,6 +22,7 @@ import events
 import store
 from config import get_settings
 from core.models import (
+    normalize_reversibility,
     Case,
     CaseVerdict,
     Claim,
@@ -66,6 +67,10 @@ from core.agent_panel import (  # noqa: F401
     build_test_plan,
 )
 from core.recovery import run_recovery
+
+
+def _as_deadline(value: object) -> str | None:
+    return (one_line(value, 120) or None) if isinstance(value, str) else None
 
 
 async def extract_claims(
@@ -171,6 +176,8 @@ async def extract_claims(
         agent_mode=final_mode,
         selected_agents=active_agents,
         agent_rationales=rationales,
+        reversibility=normalize_reversibility(getattr(result, "reversibility", None)),
+        deadline=_as_deadline(getattr(result, "deadline", None)),
     )
 
 

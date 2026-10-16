@@ -1,4 +1,5 @@
 import { Case, Claim, EvidenceItem } from "@/types/crossfire";
+import { getAgentTestName } from "@/lib/agents";
 
 /**
  * Generates an authoritative Markdown Decision Memorandum from a completed or in-progress Case.
@@ -130,9 +131,27 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
     }
     md += `> ${summaryText}\n\n`;
 
+    const stillOpen = claims.filter((c) => c.load_bearing && c.status === "unresolved");
+    if (stillOpen.length > 0) {
+      md += `### Still open${currentCase.reversibility === "one_way" ? " (one-way door, so these block it)" : ""}\n`;
+      stillOpen.forEach((c) => {
+        md += `- ${c.statement}${c.missing_input ? ` _(needs: ${c.missing_input})_` : ""}\n`;
+      });
+      md += `\n`;
+    }
+
     if (verdict.deciding_factor) {
       md += `### What decided it\n`;
       md += `- ${verdict.deciding_factor.the_fact}\n\n`;
+    }
+
+    if (verdict.dissents && verdict.dissents.length > 0) {
+      md += `### Dissent\n`;
+      verdict.dissents.forEach((d) => {
+        const source = d.source_url ? ` ([${d.source_title || d.source_url}](${d.source_url}))` : "";
+        md += `- ${d.the_fact} _(${getAgentTestName(d.evaluator)}, objection ${Math.round(d.objection * 100)}%, overruled)_${source}\n`;
+      });
+      md += `\n`;
     }
 
     if (verdict.next_actions && verdict.next_actions.length > 0) {
@@ -275,6 +294,10 @@ export function formatDecisionMemoMarkdown(currentCase: Case): string {
       if (consequence?.next_validation) {
         md += `\n**Next Validation Experiment (Smallest Real-World Test):**  \n`;
         md += `> **Next validation:** ${consequence.next_validation}\n`;
+      }
+
+      if (consequence?.kill_criterion) {
+        md += `\n**Stop if:** ${consequence.kill_criterion}\n`;
       }
 
       const fatalFlaw = claim.fatal_flaw || consequence?.fatal_flaw;

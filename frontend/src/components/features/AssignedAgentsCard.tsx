@@ -137,6 +137,10 @@ export const AssignedAgentsCard: React.FC<AssignedAgentsCardProps> = ({
                     {agent.description}
                   </p>
                 )}
+                <p className="font-body-xs text-body-xs text-outline leading-snug mt-1.5">
+                  <span className="font-semibold">Known limit: </span>
+                  {agent.knownLimit}
+                </p>
               </div>
             </div>
           );

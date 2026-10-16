@@ -153,11 +153,20 @@ class DecidingFactor(BaseModel):
     source_title: str | None = None
     gate_fired: bool = False          # Evidence gate downgraded broken -> weakened here
 
+class Dissent(BaseModel):            # Derived: a severe finding (objection >= 0.7) on a claim that survived anyway
+    claim_id: str
+    evaluator: str
+    the_fact: str
+    objection: float
+    source_url: str | None = None
+    source_title: str | None = None
+
 class CaseVerdict(BaseModel):
     decision_state: str               # proceed | proceed_with_changes | hold | drop
     headline: str = ""                # The call in one line, <= 70 chars
     summary: str
     deciding_factor: DecidingFactor | None = None
+    dissents: list[Dissent] = []      # Overruled severe findings, strongest first, max 3
     survived: list[str] = []          # Claim ids
     broken: list[str] = []
     weakened: list[str] = []
@@ -169,6 +178,7 @@ class DecisionConsequence(BaseModel):
     impact: str                       # "high" | "medium" | "low"
     recommended_change: str           # Concrete, tailored strategic pivot or mitigation
     next_validation: str | None = None# Smallest, lowest-cost real-world experiment
+    kill_criterion: str | None = None # Weakened/unresolved + load-bearing: the result that ends the decision
     verdict_reasoning: str = ""       # Judicial reconciliation rationale
     fatal_flaw: str | None = None
     salvaged_claim: str | None = None
@@ -204,6 +214,8 @@ class Case(BaseModel):
     clarify_missing: list[str] = []   # What is absent, 2-3 short fragments
     clarify_interpretation: str | None = None  # "Reading it as: ..."
     clarify_round: int = 0            # 0 = first extraction, 1+ = after a clarify answer
+    reversibility: str | None = None  # one_way | two_way | None. Inferred at extraction, correctable at confirm
+    deadline: str | None = None       # As the user stated it; never invented
     agent_mode: str = "auto"          # "auto" | "custom"
     selected_agents: list[str] = ["devils_advocate", "researcher", "builder", "operator"]
     agent_rationales: dict[str, str] = {}      # Why each agent was auto-selected
@@ -328,9 +340,15 @@ Following judicial reconciliation, Crossfire runs `build_consequences()` and `sy
    * Actionable, concrete commercial or technical adjustments (e.g., *"Shift from a 100% autonomous model to a hybrid AI-first model with sentiment-triggered human escalation"* rather than platitudes like *"Rework the idea"*).
 3. **Smallest Next Validation Experiment (`next_validation`):**
    * The cheapest real-world experiment to de-risk open uncertainty before spending capital (e.g., *"Run a 30-day shadow containment test on tier-1 refund requests before altering human headcount"*).
-4. **The salvage becomes the recommendation.** When the Steel Man returned a `salvaged_claim`, the recommended change *is* that salvage plus its trade-off, not a generic "rework the assumption" template.
+4. **Kill Criterion (`kill_criterion`):**
+   * For every weakened or unresolved load-bearing claim: one observable threshold that, if seen while running the next validation, ends the decision (e.g., *"Stop if fewer than 3 of 10 customers agree to pay"*). The deterministic build writes a generic one from the claim text; the LLM pass replaces it with a measurable one. Read together: "run this, and stop if you see that."
+5. **The salvage becomes the recommendation.** When the Steel Man returned a `salvaged_claim`, the recommended change *is* that salvage plus its trade-off, not a generic "rework the assumption" template.
 
-The run then closes with `synthesize_case_verdict()`: one `decision_state` (`proceed` | `proceed_with_changes` | `hold` | `drop`), a generated headline, the `DecidingFactor` naming the single finding that moved the call, and 2–3 deduplicated claim-anchored next actions. `_fallback_decision_state()` derives the state from claim statuses if the synthesis call fails.
+The run then closes with `synthesize_case_verdict()`: one `decision_state` (`proceed` | `proceed_with_changes` | `hold` | `drop`), a generated headline, the `DecidingFactor` naming the single finding that moved the call, any `dissents` (severe findings the Steel Man overruled, from `build_dissents()`), and 2–3 deduplicated claim-anchored next actions. `_fallback_decision_state()` derives the state from claim statuses if the synthesis call fails.
+
+**Reversibility shapes the floor.** Extraction infers whether the decision is a one-way door (costly to undo) or a two-way door, plus any stated deadline; the user can correct both on the confirm screen. On a one-way door, any unresolved load-bearing claim sets the floor to `hold` with reason `irreversible`, and `clamp_decision_state()` gives that reason zero headroom, so the synthesis call cannot lift it. Broken claims and two-way or unknown doors follow the ordinary ladder.
+
+**Report order.** The verdict leads with "Still open" (unresolved load-bearing claims and what each needs), then "What decided it", then "Dissent". Each test also carries a static known-limit line (`knownLimit` in `frontend/src/lib/agents.ts`) shown in the agent selector and evidence drawer, e.g. the Evidence Test only sees publicly indexed sources.
 
 Afterwards, `backend/core/reformulate.py` (`POST /cases/{id}/improve_prompt`) rewrites the user's original decision statement around the claims that broke or weakened, so the next run tests the re-architected decision rather than the one already known to fail.
 
